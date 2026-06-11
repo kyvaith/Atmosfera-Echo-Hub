@@ -9,7 +9,7 @@ lvgl:
                 y: 0
                 width: 800
                 height: 800
-                bg_color: 0x5070c
+                bg_color: 0x000000
                 bg_opa: 100%
                 border_width: 0
                 radius: 0
@@ -18,49 +18,28 @@ lvgl:
                 clickable: true
                 hidden: true
                 widgets:
-                  - button:
-                        id: voice_assistant_close_button
-                        align: TOP_RIGHT
-                        x: -78
-                        y: 58
-                        width: 66
-                        height: 66
-                        radius: 33
-                        bg_color: 0x1b1f2a
-                        border_width: 1
-                        border_color: 0x343b4c
-                        scrollable: false
-                        widgets:
-                          - label:
-                                text: ""
-                                align: CENTER
-                                text_color: 0xf4effa
-                                text_font: material_symbols_24
-                        on_click:
-                            then:
-                              - script.execute: ui_close_app
                   - obj:
                         id: voice_assistant_orb_shell
-                        width: 270
-                        height: 270
+                        width: 220
+                        height: 220
                         align: CENTER
-                        y: -145
-                        bg_color: 0x162725
+                        y: -182
+                        bg_color: 0x0F5223
                         bg_opa: 100%
                         border_width: 3
-                        border_color: 0x8ceed1
-                        radius: 135
+                        border_color: 0xC3EDCF
+                        radius: 110
                         pad_all: 0
                         scrollable: false
                         shadow_width: 0
-                        shadow_color: 0x8ceed1
+                        shadow_color: 0xC3EDCF
                         shadow_opa: 0%
                         widgets:
                           - lottie:
                                 id: voice_assistant_lottie
                                 file: "assets/animations/voice_assistant.json"
-                                width: 240
-                                height: 240
+                                width: 196
+                                height: 196
                                 align: CENTER
                                 loop: true
                                 auto_start: true
@@ -69,48 +48,78 @@ lvgl:
                         id: voice_assistant_status_label
                         text: "Assistant"
                         align: CENTER
-                        y: 14
-                        width: 560
+                        y: -30
+                        width: 500
                         text_align: CENTER
-                        text_color: 0x8ceed1
-                        text_font: roboto_34
+                        text_color: 0xC3EDCF
+                        text_font: roboto_24
+                  - obj:
+                        id: voice_assistant_you_surface
+                        align: CENTER
+                        y: 128
+                        width: 576
+                        height: 92
+                        radius: 46
+                        bg_color: 0x332E3C
+                        bg_opa: 100%
+                        border_width: 0
+                        shadow_width: 0
+                        outline_width: 0
+                        pad_all: 0
+                        scrollable: false
+                        clickable: false
                   - label:
                         text: "You"
                         align: CENTER
-                        x: -220
-                        y: 108
+                        x: -204
+                        y: 94
                         width: 120
                         text_align: LEFT
-                        text_color: 0xaeb4c2
+                        text_color: 0xC4C7C5
                         text_font: roboto_16
                   - label:
                         id: voice_assistant_you_label
                         text: ""
                         align: CENTER
-                        y: 140
-                        width: 560
-                        height: 74
+                        y: 128
+                        width: 520
+                        height: 54
                         text_align: CENTER
-                        text_color: 0xf4effa
+                        text_color: 0xF2F2F2
                         text_font: roboto_20
                         long_mode: WRAP
+                  - obj:
+                        id: voice_assistant_response_surface
+                        align: CENTER
+                        y: 246
+                        width: 576
+                        height: 108
+                        radius: 54
+                        bg_color: 0x0F5223
+                        bg_opa: 100%
+                        border_width: 0
+                        shadow_width: 0
+                        outline_width: 0
+                        pad_all: 0
+                        scrollable: false
+                        clickable: false
                   - label:
                         text: "Assistant"
                         align: CENTER
                         x: -196
-                        y: 242
+                        y: 204
                         width: 160
                         text_align: LEFT
-                        text_color: 0xaeb4c2
+                        text_color: 0xC4C7C5
                         text_font: roboto_16
                   - label:
                         id: voice_assistant_response_label
                         text: ""
                         align: CENTER
-                        y: 276
-                        width: 580
-                        height: 118
+                        y: 246
+                        width: 536
+                        height: 72
                         text_align: CENTER
-                        text_color: 0xffffff
-                        text_font: roboto_24
+                        text_color: 0xF2F2F2
+                        text_font: roboto_20
                         long_mode: WRAP

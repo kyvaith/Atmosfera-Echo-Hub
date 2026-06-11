@@ -7,9 +7,9 @@ output:
   frequency: 20000Hz
   inverted: true
   # GPIO26 drives the panel backlight LED driver with PWM, not an analog
-  # voltage. The current board/display path drops out below roughly 32% duty,
+  # voltage. The current board/display path drops out below roughly 28% duty,
   # so map the UI brightness slider into the usable electrical range.
-  min_power: 32%
+  min_power: 28%
   max_power: 100%
   zero_means_zero: true
 

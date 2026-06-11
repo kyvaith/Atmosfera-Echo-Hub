@@ -422,25 +422,25 @@ script:
           const bool visible = phase != ${voice_assist_idle_phase_id} && phase != ${voice_assist_not_ready_phase_id};
 
           const char *status = "Assistant";
-          uint32_t accent = 0x8CEED1;
+          uint32_t accent = 0xC3EDCF;
           if (phase == ${voice_assist_waiting_phase_id}) {
             status = "Listening";
-            accent = 0xA8F4DF;
+            accent = 0xC3EDCF;
           } else if (phase == ${voice_assist_listening_phase_id}) {
             status = "Listening";
-            accent = 0xC7F5FF;
+            accent = 0xC2E7FF;
           } else if (phase == ${voice_assist_thinking_phase_id}) {
             status = "Thinking";
-            accent = 0xEADDFF;
+            accent = 0xD3E3FD;
           } else if (phase == ${voice_assist_replying_phase_id}) {
             status = "Speaking";
-            accent = 0xFFDDB8;
+            accent = 0xC3EDCF;
           } else if (phase == ${voice_assist_timer_finished_phase_id}) {
             status = "Timer";
-            accent = 0xFFD7E4;
+            accent = 0xFD7267;
           } else if (phase == ${voice_assist_error_phase_id}) {
             status = "Error";
-            accent = 0xFFB4AB;
+            accent = 0xFD7267;
           }
 
           if (id(voice_assistant_status_label) != nullptr) {

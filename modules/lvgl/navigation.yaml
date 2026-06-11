@@ -251,6 +251,8 @@ script:
                 if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
                 id(ui_active_app) = 1;
                 id(ui_touch_click_block_until_ms) = millis() + 800;
+                lv_obj_clear_flag(id(app_close_gesture_zone), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_move_foreground(id(app_close_gesture_zone));
             - script.execute: ui_prepare_player_page
             - lambda: |-
                 lv_obj_t *home = id(controls_root_1);
@@ -279,6 +281,8 @@ script:
                 if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
                 id(ui_active_app) = 2;
                 id(ui_touch_click_block_until_ms) = millis() + 800;
+                lv_obj_clear_flag(id(app_close_gesture_zone), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_move_foreground(id(app_close_gesture_zone));
             - script.execute: ui_prepare_settings_page
             - lambda: |-
                 lv_obj_t *home = id(controls_root_1);
@@ -315,6 +319,8 @@ script:
                 lv_obj_update_layout(id(voice_assistant_overlay));
                 lvgl_esphome_snapshot_app_open(id(voice_assistant_overlay), home, 800, 500);
                 lv_obj_add_flag(id(voice_assistant_overlay), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_clear_flag(id(app_close_gesture_zone), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_move_foreground(id(app_close_gesture_zone));
             - delay: 440ms
             - if:
                 condition:
@@ -362,6 +368,7 @@ script:
                   - lvgl.widget.hide:
                       - media_progress_bar
                       - volume_overlay
+                      - queue_panel
                       - speaker_group_panel
             - script.execute: ui_show_home_page
             - if:
@@ -376,6 +383,7 @@ script:
             - globals.set:
                 id: ui_active_app
                 value: '0'
+            - lvgl.widget.hide: app_close_gesture_zone
             - delay: 100ms
 
   - id: ui_show_tiles_1
@@ -440,6 +448,7 @@ script:
           else:
             - script.execute: media_hide_lottie_visual
       - script.execute: refresh_progress_bar_from_state
+      - script.execute: media_redraw_main_control
 
   - id: ui_prepare_settings_page
     then:
@@ -471,7 +480,7 @@ script:
       - lvgl.label.update:
           id: settings_true_colour_value
           text: "RGB888"
-          text_color: 0xA8F4DF
+          text_color: 0xC3EDCF
       - lvgl.label.update:
           id: settings_true_colour_note
           text: "LVGL ARGB8888 / DSI 24-bit"
@@ -482,7 +491,7 @@ script:
       - lvgl.label.update:
           id: settings_screen_tone_value
           text: "OFF"
-          text_color: 0xAEB4C2
+          text_color: 0xC4C7C5
 
   - id: ui_update_perf_overlay_state
     then:
@@ -493,7 +502,7 @@ script:
             - lvgl.label.update:
                 id: settings_perf_overlay_value
                 text: "ON"
-                text_color: 0xA8F4DF
+                text_color: 0xC3EDCF
             - lvgl.widget.show: perf_overlay_label
             - lambda: |-
                 if (id(perf_overlay_label) != nullptr) {
@@ -503,7 +512,7 @@ script:
             - lvgl.label.update:
                 id: settings_perf_overlay_value
                 text: "OFF"
-                text_color: 0xAEB4C2
+                text_color: 0xC4C7C5
             - lvgl.widget.hide: perf_overlay_label
 
   - id: ui_update_system_logs_state
@@ -515,12 +524,12 @@ script:
             - lvgl.label.update:
                 id: settings_system_logs_value
                 text: "ON"
-                text_color: 0xA8F4DF
+                text_color: 0xC3EDCF
           else:
             - lvgl.label.update:
                 id: settings_system_logs_value
                 text: "OFF"
-                text_color: 0xAEB4C2
+                text_color: 0xC4C7C5
 
   - id: ui_update_perf_logs_state
     then:
@@ -532,12 +541,12 @@ script:
             - lvgl.label.update:
                 id: settings_perf_logs_value
                 text: "ON"
-                text_color: 0xA8F4DF
+                text_color: 0xC3EDCF
           else:
             - lvgl.label.update:
                 id: settings_perf_logs_value
                 text: "OFF"
-                text_color: 0xAEB4C2
+                text_color: 0xC4C7C5
 
   - id: ui_update_swipe_logs_state
     then:
@@ -549,12 +558,12 @@ script:
             - lvgl.label.update:
                 id: settings_swipe_logs_value
                 text: "ON"
-                text_color: 0xA8F4DF
+                text_color: 0xC3EDCF
           else:
             - lvgl.label.update:
                 id: settings_swipe_logs_value
                 text: "OFF"
-                text_color: 0xAEB4C2
+                text_color: 0xC4C7C5
 
   - id: ui_update_beta_firmware_state
     then:
@@ -565,12 +574,12 @@ script:
             - lvgl.label.update:
                 id: settings_beta_firmware_value
                 text: "ON"
-                text_color: 0xA8F4DF
+                text_color: 0xC3EDCF
           else:
             - lvgl.label.update:
                 id: settings_beta_firmware_value
                 text: "OFF"
-                text_color: 0xAEB4C2
+                text_color: 0xC4C7C5
 
   - id: ui_update_voice_mute_state
     then:
@@ -581,12 +590,12 @@ script:
             - lvgl.label.update:
                 id: settings_voice_mute_value
                 text: "ON"
-                text_color: 0xA8F4DF
+                text_color: 0xC3EDCF
           else:
             - lvgl.label.update:
                 id: settings_voice_mute_value
                 text: "OFF"
-                text_color: 0xAEB4C2
+                text_color: 0xC4C7C5
 
   - id: ui_update_wake_sound_state
     then:
@@ -597,12 +606,12 @@ script:
             - lvgl.label.update:
                 id: settings_wake_sound_value
                 text: "ON"
-                text_color: 0xA8F4DF
+                text_color: 0xC3EDCF
           else:
             - lvgl.label.update:
                 id: settings_wake_sound_value
                 text: "OFF"
-                text_color: 0xAEB4C2
+                text_color: 0xC4C7C5
 
   - id: ui_update_display_brightness_state
     then:

@@ -3,14 +3,14 @@
 lvgl:
   pages:
     - id: settings_page
-      bg_color: 0x05070C
+      bg_color: 0x000000
       widgets:
         - obj:
             id: settings_root
             width: 800
             height: 800
             align: CENTER
-            bg_color: 0x05070C
+            bg_color: 0x000000
             bg_opa: 100%
             border_width: 0
             radius: 0
@@ -21,32 +21,32 @@ lvgl:
               - label:
                   text: "Settings"
                   align: TOP_MID
-                  y: 54
+                  y: 46
                   width: 520
                   text_align: CENTER
-                  text_color: 0xF4EFFA
+                  text_color: 0xF2F2F2
                   text_font: roboto_24
               - label:
                   text: "Device"
                   align: TOP_MID
-                  y: 88
-                  width: 140
+                  y: 82
+                  width: 96
                   text_align: CENTER
-                  bg_color: 0x1B1F2A
+                  bg_color: 0x303030
                   bg_opa: 100%
-                  radius: 16
-                  pad_top: 4
-                  pad_bottom: 4
-                  text_color: 0xAEB4C2
+                  radius: 18
+                  pad_top: 5
+                  pad_bottom: 5
+                  text_color: 0xC4C7C5
                   text_font: roboto_16
               - button:
                   id: settings_true_colour_button
-                  x: 104
-                  y: 134
-                  width: 592
-                  height: 82
-                  radius: 41
-                  bg_color: 0x1B1F2A
+                  x: 112
+                  y: 126
+                  width: 576
+                  height: 78
+                  radius: 39
+                  bg_color: 0x332E3C
                   bg_opa: 100%
                   border_width: 0
                   shadow_width: 0
@@ -58,262 +58,319 @@ lvgl:
                   gesture_bubble: true
                   widgets:
                     - label:
-                        text: "True Colour"
+                        text: "\uE5CA"
                         x: 28
+                        y: 22
+                        text_color: 0xC3EDCF
+                        text_font: material_symbols_24
+                    - label:
+                        text: "True Colour"
+                        x: 84
+                        width: 360
                         y: 16
-                        text_color: 0xFFFFFF
+                        text_color: 0xF2F2F2
                         text_font: roboto_20
                     - label:
                         id: settings_true_colour_value
                         text: "ON"
                         align: RIGHT_MID
-                        x: -30
-                        text_color: 0xA8F4DF
+                        x: -26
+                        text_color: 0xC3EDCF
                         text_font: roboto_24
                     - label:
                         id: settings_true_colour_note
                         text: "True Colour Active"
-                        x: 28
+                        x: 84
+                        width: 360
                         y: 52
-                        text_color: 0xAEB4C2
+                        text_color: 0xC4C7C5
                         text_font: roboto_16
                   on_click:
                     then:
                       - switch.turn_on: settings_true_colour_switch
               - button:
                   id: settings_screen_tone_button
-                  x: 104
-                  y: 224
-                  width: 592
-                  height: 76
-                  radius: 38
-                  bg_color: 0x1B1F2A
+                  x: 112
+                  y: 214
+                  width: 576
+                  height: 78
+                  radius: 39
+                  bg_color: 0x332E3C
                   bg_opa: 100%
                   border_width: 0
                   shadow_width: 0
                   shadow_opa: 0%
                   outline_width: 0
                   outline_opa: 0%
-                  border_color: 0x343B4C
+                  border_color: 0x5C5F5E
                   scrollable: false
                   gesture_bubble: true
                   widgets:
                     - label:
-                        text: "Screen Tone"
+                        text: "\uE8B8"
                         x: 28
                         y: 22
-                        text_color: 0xFFFFFF
+                        text_color: 0xD3E3FD
+                        text_font: material_symbols_24
+                    - label:
+                        text: "Screen Tone"
+                        x: 84
+                        width: 360
+                        y: 22
+                        text_color: 0xF2F2F2
                         text_font: roboto_20
                     - label:
                         id: settings_screen_tone_value
                         text: "OFF"
                         align: RIGHT_MID
-                        x: -30
-                        text_color: 0xAEB4C2
+                        x: -26
+                        text_color: 0xC4C7C5
                         text_font: roboto_24
                   on_click:
                     then:
                       - switch.toggle: settings_screen_tone_switch
               - button:
                   id: settings_perf_overlay_button
-                  x: 104
-                  y: 310
-                  width: 592
-                  height: 76
-                  radius: 38
-                  bg_color: 0x1B1F2A
+                  x: 112
+                  y: 302
+                  width: 576
+                  height: 78
+                  radius: 39
+                  bg_color: 0x332E3C
                   bg_opa: 100%
                   border_width: 0
                   shadow_width: 0
                   shadow_opa: 0%
                   outline_width: 0
                   outline_opa: 0%
-                  border_color: 0x343B4C
+                  border_color: 0x5C5F5E
                   scrollable: false
                   gesture_bubble: true
                   widgets:
                     - label:
-                        text: "Performance HUD"
+                        text: "\uE8B8"
                         x: 28
                         y: 24
-                        text_color: 0xFFFFFF
+                        text_color: 0xD3E3FD
+                        text_font: material_symbols_24
+                    - label:
+                        text: "Performance HUD"
+                        x: 84
+                        width: 360
+                        y: 24
+                        text_color: 0xF2F2F2
                         text_font: roboto_20
                     - label:
                         id: settings_perf_overlay_value
                         text: "OFF"
                         align: RIGHT_MID
-                        x: -30
-                        text_color: 0xAEB4C2
+                        x: -26
+                        text_color: 0xC4C7C5
                         text_font: roboto_24
                   on_click:
                     then:
                       - switch.toggle: settings_perf_overlay_switch
               - button:
                   id: settings_system_logs_button
-                  x: 104
-                  y: 400
-                  width: 592
-                  height: 76
-                  radius: 38
-                  bg_color: 0x1B1F2A
+                  x: 112
+                  y: 390
+                  width: 576
+                  height: 78
+                  radius: 39
+                  bg_color: 0x332E3C
                   bg_opa: 100%
                   border_width: 0
                   shadow_width: 0
                   shadow_opa: 0%
                   outline_width: 0
                   outline_opa: 0%
-                  border_color: 0x343B4C
+                  border_color: 0x5C5F5E
                   scrollable: false
                   gesture_bubble: true
                   widgets:
                     - label:
-                        text: "System Logs"
+                        text: "\uE8B8"
                         x: 28
                         y: 24
-                        text_color: 0xFFFFFF
+                        text_color: 0xC2E7FF
+                        text_font: material_symbols_24
+                    - label:
+                        text: "System Logs"
+                        x: 84
+                        width: 360
+                        y: 24
+                        text_color: 0xF2F2F2
                         text_font: roboto_20
                     - label:
                         id: settings_system_logs_value
                         text: "OFF"
                         align: RIGHT_MID
-                        x: -30
-                        text_color: 0xAEB4C2
+                        x: -26
+                        text_color: 0xC4C7C5
                         text_font: roboto_24
                   on_click:
                     then:
                       - switch.toggle: settings_system_logs_switch
               - button:
                   id: settings_perf_logs_button
-                  x: 104
-                  y: 490
-                  width: 592
-                  height: 76
-                  radius: 38
-                  bg_color: 0x1B1F2A
+                  x: 112
+                  y: 478
+                  width: 576
+                  height: 78
+                  radius: 39
+                  bg_color: 0x332E3C
                   bg_opa: 100%
                   border_width: 0
                   shadow_width: 0
                   shadow_opa: 0%
                   outline_width: 0
                   outline_opa: 0%
-                  border_color: 0x343B4C
+                  border_color: 0x5C5F5E
                   scrollable: false
                   gesture_bubble: true
                   widgets:
                     - label:
-                        text: "Performance Logs"
+                        text: "\uE8B8"
                         x: 28
                         y: 24
-                        text_color: 0xFFFFFF
+                        text_color: 0xC2E7FF
+                        text_font: material_symbols_24
+                    - label:
+                        text: "Performance Logs"
+                        x: 84
+                        width: 360
+                        y: 24
+                        text_color: 0xF2F2F2
                         text_font: roboto_20
                     - label:
                         id: settings_perf_logs_value
                         text: "OFF"
                         align: RIGHT_MID
-                        x: -30
-                        text_color: 0xAEB4C2
+                        x: -26
+                        text_color: 0xC4C7C5
                         text_font: roboto_24
                   on_click:
                     then:
                       - switch.toggle: settings_perf_logs_switch
               - button:
                   id: settings_swipe_logs_button
-                  x: 104
-                  y: 580
-                  width: 592
-                  height: 76
-                  radius: 38
-                  bg_color: 0x1B1F2A
+                  x: 112
+                  y: 566
+                  width: 576
+                  height: 78
+                  radius: 39
+                  bg_color: 0x332E3C
                   bg_opa: 100%
                   border_width: 0
                   shadow_width: 0
                   shadow_opa: 0%
                   outline_width: 0
                   outline_opa: 0%
-                  border_color: 0x343B4C
+                  border_color: 0x5C5F5E
                   scrollable: false
                   gesture_bubble: true
                   widgets:
                     - label:
-                        text: "Swipe Debug"
+                        text: "\uE8B8"
                         x: 28
                         y: 24
-                        text_color: 0xFFFFFF
+                        text_color: 0xC2E7FF
+                        text_font: material_symbols_24
+                    - label:
+                        text: "Swipe Debug"
+                        x: 84
+                        width: 360
+                        y: 24
+                        text_color: 0xF2F2F2
                         text_font: roboto_20
                     - label:
                         id: settings_swipe_logs_value
                         text: "OFF"
                         align: RIGHT_MID
-                        x: -30
-                        text_color: 0xAEB4C2
+                        x: -26
+                        text_color: 0xC4C7C5
                         text_font: roboto_24
                   on_click:
                     then:
                       - switch.toggle: settings_swipe_logs_switch
               - button:
                   id: settings_beta_firmware_button
-                  x: 104
-                  y: 670
-                  width: 592
-                  height: 76
-                  radius: 38
-                  bg_color: 0x1B1F2A
+                  x: 112
+                  y: 654
+                  width: 576
+                  height: 78
+                  radius: 39
+                  bg_color: 0x332E3C
                   bg_opa: 100%
                   border_width: 0
                   shadow_width: 0
                   shadow_opa: 0%
                   outline_width: 0
                   outline_opa: 0%
-                  border_color: 0x343B4C
+                  border_color: 0x5C5F5E
                   scrollable: false
                   gesture_bubble: true
                   widgets:
                     - label:
-                        text: "Beta Firmware"
+                        text: "\uE8B8"
                         x: 28
                         y: 24
-                        text_color: 0xFFFFFF
+                        text_color: 0xD3E3FD
+                        text_font: material_symbols_24
+                    - label:
+                        text: "Beta Firmware"
+                        x: 84
+                        width: 360
+                        y: 24
+                        text_color: 0xF2F2F2
                         text_font: roboto_20
                     - label:
                         id: settings_beta_firmware_value
                         text: "OFF"
                         align: RIGHT_MID
-                        x: -30
-                        text_color: 0xAEB4C2
+                        x: -26
+                        text_color: 0xC4C7C5
                         text_font: roboto_24
                   on_click:
                     then:
                       - switch.toggle: settings_beta_firmware_switch
               - button:
                   id: settings_display_brightness_button
-                  x: 104
-                  y: 760
-                  width: 592
-                  height: 76
-                  radius: 38
-                  bg_color: 0x1B1F2A
+                  x: 112
+                  y: 742
+                  width: 576
+                  height: 78
+                  radius: 39
+                  bg_color: 0x332E3C
                   bg_opa: 100%
                   border_width: 0
                   shadow_width: 0
                   shadow_opa: 0%
                   outline_width: 0
                   outline_opa: 0%
-                  border_color: 0x343B4C
+                  border_color: 0x5C5F5E
                   scrollable: false
                   gesture_bubble: true
                   widgets:
                     - label:
-                        text: "Brightness"
+                        text: "\uE050"
                         x: 28
                         y: 24
-                        text_color: 0xFFFFFF
+                        text_color: 0xD3E3FD
+                        text_font: material_symbols_24
+                    - label:
+                        text: "Brightness"
+                        x: 84
+                        width: 360
+                        y: 24
+                        text_color: 0xF2F2F2
                         text_font: roboto_20
                     - label:
                         id: settings_display_brightness_value
                         text: "85%"
                         align: RIGHT_MID
-                        x: -30
-                        text_color: 0xEADDFF
+                        x: -26
+                        text_color: 0xD3E3FD
                         text_font: roboto_24
                   on_click:
                     then:
@@ -322,34 +379,41 @@ lvgl:
                           cycle: true
               - button:
                   id: settings_display_timeout_button
-                  x: 104
-                  y: 850
-                  width: 592
-                  height: 76
-                  radius: 38
-                  bg_color: 0x1B1F2A
+                  x: 112
+                  y: 830
+                  width: 576
+                  height: 78
+                  radius: 39
+                  bg_color: 0x332E3C
                   bg_opa: 100%
                   border_width: 0
                   shadow_width: 0
                   shadow_opa: 0%
                   outline_width: 0
                   outline_opa: 0%
-                  border_color: 0x343B4C
+                  border_color: 0x5C5F5E
                   scrollable: false
                   gesture_bubble: true
                   widgets:
                     - label:
-                        text: "Display Timeout"
+                        text: "\uE8B8"
                         x: 28
                         y: 24
-                        text_color: 0xFFFFFF
+                        text_color: 0xD3E3FD
+                        text_font: material_symbols_24
+                    - label:
+                        text: "Display Timeout"
+                        x: 84
+                        width: 360
+                        y: 24
+                        text_color: 0xF2F2F2
                         text_font: roboto_20
                     - label:
                         id: settings_display_timeout_value
                         text: "60s"
                         align: RIGHT_MID
-                        x: -30
-                        text_color: 0xEADDFF
+                        x: -26
+                        text_color: 0xD3E3FD
                         text_font: roboto_24
                   on_click:
                     then:
@@ -365,104 +429,125 @@ lvgl:
                             return 0.0f;
               - button:
                   id: settings_voice_mute_button
-                  x: 104
-                  y: 940
-                  width: 592
-                  height: 76
-                  radius: 38
-                  bg_color: 0x1B1F2A
+                  x: 112
+                  y: 918
+                  width: 576
+                  height: 78
+                  radius: 39
+                  bg_color: 0x332E3C
                   bg_opa: 100%
                   border_width: 0
                   shadow_width: 0
                   shadow_opa: 0%
                   outline_width: 0
                   outline_opa: 0%
-                  border_color: 0x343B4C
+                  border_color: 0x5C5F5E
                   scrollable: false
                   gesture_bubble: true
                   widgets:
                     - label:
-                        text: "Voice Assistant Mute"
+                        text: "\uE029"
                         x: 28
                         y: 24
-                        text_color: 0xFFFFFF
+                        text_color: 0xC3EDCF
+                        text_font: material_symbols_24
+                    - label:
+                        text: "Voice Assistant Mute"
+                        x: 84
+                        width: 360
+                        y: 24
+                        text_color: 0xF2F2F2
                         text_font: roboto_20
                     - label:
                         id: settings_voice_mute_value
                         text: "OFF"
                         align: RIGHT_MID
-                        x: -30
-                        text_color: 0xAEB4C2
+                        x: -26
+                        text_color: 0xC4C7C5
                         text_font: roboto_24
                   on_click:
                     then:
                       - switch.toggle: voice_assistant_mute_switch
               - button:
                   id: settings_wake_sound_button
-                  x: 104
-                  y: 1030
-                  width: 592
-                  height: 76
-                  radius: 38
-                  bg_color: 0x1B1F2A
+                  x: 112
+                  y: 1006
+                  width: 576
+                  height: 78
+                  radius: 39
+                  bg_color: 0x332E3C
                   bg_opa: 100%
                   border_width: 0
                   shadow_width: 0
                   shadow_opa: 0%
                   outline_width: 0
                   outline_opa: 0%
-                  border_color: 0x343B4C
+                  border_color: 0x5C5F5E
                   scrollable: false
                   gesture_bubble: true
                   widgets:
                     - label:
-                        text: "Wake Sound"
+                        text: "\uE050"
                         x: 28
                         y: 24
-                        text_color: 0xFFFFFF
+                        text_color: 0xC3EDCF
+                        text_font: material_symbols_24
+                    - label:
+                        text: "Wake Sound"
+                        x: 84
+                        width: 360
+                        y: 24
+                        text_color: 0xF2F2F2
                         text_font: roboto_20
                     - label:
                         id: settings_wake_sound_value
                         text: "OFF"
                         align: RIGHT_MID
-                        x: -30
-                        text_color: 0xAEB4C2
+                        x: -26
+                        text_color: 0xC4C7C5
                         text_font: roboto_24
                   on_click:
                     then:
                       - switch.toggle: voice_assistant_wake_sound_switch
               - button:
                   id: settings_wake_sensitivity_button
-                  x: 104
-                  y: 1120
-                  width: 592
-                  height: 86
-                  radius: 43
-                  bg_color: 0x1B1F2A
+                  x: 112
+                  y: 1094
+                  width: 576
+                  height: 78
+                  radius: 39
+                  bg_color: 0x332E3C
                   bg_opa: 100%
                   border_width: 0
                   shadow_width: 0
                   shadow_opa: 0%
                   outline_width: 0
                   outline_opa: 0%
-                  border_color: 0x735E9A
+                  border_color: 0x4D3D76
                   scrollable: false
                   gesture_bubble: true
                   widgets:
                     - label:
-                        text: "Wake Sensitivity"
+                        text: "\uE029"
                         x: 28
+                        y: 22
+                        text_color: 0xC3EDCF
+                        text_font: material_symbols_24
+                    - label:
+                        text: "Wake Sensitivity"
+                        x: 84
+                        width: 360
                         y: 18
-                        text_color: 0xFFFFFF
+                        text_color: 0xF2F2F2
                         text_font: roboto_20
                     - label:
                         id: settings_wake_sensitivity_value
                         text: "Slightly"
                         align: RIGHT_MID
-                        x: -30
+                        x: -26
                         width: 260
                         text_align: RIGHT
-                        text_color: 0xEADDFF
+                        text_color: 0xD3E3FD
                         text_font: roboto_20
                   on_click:
                     then:
@@ -475,7 +560,7 @@ lvgl:
                   y: -78
                   width: 520
                   text_align: CENTER
-                  text_color: 0xAEB4C2
+                  text_color: 0xC4C7C5
                   text_font: roboto_16
               # Keeps comfortable bottom padding for the round viewport.
               - obj:
@@ -487,38 +572,13 @@ lvgl:
                   bg_opa: 0%
                   border_width: 0
                   scrollable: false
-        - button:
-            id: settings_close_button
-            align: TOP_RIGHT
-            x: -72
-            y: 52
-            width: 70
-            height: 70
-            radius: 35
-            bg_color: 0x1B1F2A
-            border_width: 0
-            shadow_width: 0
-            shadow_opa: 0%
-            outline_width: 0
-            outline_opa: 0%
-            border_color: 0x343B4C
-            scrollable: false
-            widgets:
-              - label:
-                  text: "\uE5CD"
-                  align: CENTER
-                  text_color: 0xF4EFFA
-                  text_font: material_symbols_24
-            on_click:
-              then:
-                - script.execute: ui_close_app
         - obj:
             id: screen_tone_overlay_settings
             x: 0
             y: 0
             width: 800
             height: 800
-            bg_color: 0x05070C
+            bg_color: 0x000000
             bg_opa: 100%
             border_width: 0
             radius: 0

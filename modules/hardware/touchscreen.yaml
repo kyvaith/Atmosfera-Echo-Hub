@@ -27,9 +27,15 @@ touchscreen:
             id(tile_swipe_last_y) = touch.y;
             id(tile_swipe_last_render_ms) = 0;
 
-            id(app_close_tracking) = id(ui_active_app) != 0 && touch.y >= 740;
+            id(app_close_tracking) = id(ui_active_app) != 0 && touch.y >= 700;
             if (id(app_close_tracking)) {
               id(app_close_prewarm_requested) = true;
+              id(ui_touch_click_block_until_ms) = millis() + 900;
+              lv_indev_reset(nullptr, nullptr);
+              for (lv_indev_t *indev = lv_indev_get_next(nullptr); indev != nullptr;
+                   indev = lv_indev_get_next(indev)) {
+                lv_indev_wait_release(indev);
+              }
             }
             id(app_close_dragging) = false;
             id(app_close_start_x) = touch.x;
@@ -51,6 +57,11 @@ touchscreen:
               if (!id(app_close_dragging) && dy_up >= close_start_y && dy_up > abs(dx) + 4) {
                 id(app_close_dragging) = true;
                 id(ui_touch_click_block_until_ms) = millis() + 700;
+                lv_indev_reset(nullptr, nullptr);
+                for (lv_indev_t *indev = lv_indev_get_next(nullptr); indev != nullptr;
+                     indev = lv_indev_get_next(indev)) {
+                  lv_indev_wait_release(indev);
+                }
                 id(app_close_requested) = true;
                 id(app_close_tracking) = false;
                 return;

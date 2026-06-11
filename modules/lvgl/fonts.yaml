@@ -90,25 +90,92 @@ font:
       - GF_Latin_Core
     ignore_missing_glyphs: true
 
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 400
+    id: wear_time_40
+    size: 40
+    bpp: 2
+    glyphsets:
+      - GF_Latin_Core
+    ignore_missing_glyphs: true
+
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 400
+    id: wear_body_47
+    size: 47
+    bpp: 2
+    glyphsets:
+      - GF_Latin_Core
+    ignore_missing_glyphs: true
+
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 500
+    id: wear_title_53
+    size: 53
+    bpp: 2
+    glyphsets:
+      - GF_Latin_Core
+    ignore_missing_glyphs: true
+
   - file: "gfonts://Material+Symbols+Rounded"
     id: material_symbols_24
     size: 24
     bpp: 4
+    ignore_missing_glyphs: true
     glyphs:
       - "\U0000e5cd" # close
+      - "\U0000e5ca" # check
+      - "\U0000e8b8" # settings
+      - "\U0000e8ac" # power_settings_new
+      - "\U0000e029" # mic
+      - "\U0000e050" # volume_up
+      - "\U0000e04d" # volume_down
+      - "\U0000e03d" # queue_music
+      - "\U0000e310" # headphones
+      - "\U0000e5d4" # more_vert
 
   - file: "gfonts://Material+Symbols+Rounded"
     id: material_symbols_30
     size: 30
     bpp: 4
+    ignore_missing_glyphs: true
     glyphs:
       - "\U0000e044" # skip_next
       - "\U0000e045" # skip_previous
+      - "\U0000e0f0" # lightbulb
+      - "\U0000e8ac" # power_settings_new
+      - "\U0000e65f" # auto_awesome
+      - "\U0000e5d5" # doorbell
+      - "\U0000e2bd" # cloud
+      - "\U0000e1ff" # thermostat
+      - "\U0000e897" # lock
+      - "\U0000e88a" # home
+      - "\U0000e405" # music_note
+      - "\U0000e8b8" # settings
+      - "\U0000e029" # mic
+      - "\U0000e050" # volume_up
+      - "\U0000e04d" # volume_down
+      - "\U0000e145" # add
+      - "\U0000e15b" # remove
+      - "\U0000e03d" # queue_music
+      - "\U0000e310" # headphones
+      - "\U0000e5d4" # more_vert
+      - "\U0000e833" # bolt
 
   - file: "gfonts://Material+Symbols+Rounded"
     id: material_symbols_36
     size: 36
     bpp: 4
+    ignore_missing_glyphs: true
     glyphs:
       - "\U0000e034" # pause
       - "\U0000e037" # play_arrow
+      - "\U0000e044" # skip_next
+      - "\U0000e045" # skip_previous
+      - "\U0000e5cd" # close

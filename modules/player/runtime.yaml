@@ -1,5 +1,9 @@
 # Dynamic media player runtime.
 # This handles the selected Home Assistant media_player, dynamic subscriptions and playback state UI.
+esphome:
+  includes:
+    - static/ui_media_canvas.h
+
 globals:
   - id: subscription_gen
     type: int
@@ -95,13 +99,21 @@ script:
           id(subscription_gen) += 1;
           id(subscribed_media_player_entity) = entity;
 
-          lv_label_set_text(id(top_status_label), entity.c_str());
+          auto now = id(ha_time).now();
+          if (now.is_valid()) {
+            char time_buf[6];
+            snprintf(time_buf, sizeof(time_buf), "%d:%02d", now.hour, now.minute);
+            lv_label_set_text(id(top_status_label), time_buf);
+          }
           lv_label_set_text(id(title_label), "No Track");
           lv_label_set_text(id(artist_label), "-");
           lv_label_set_text(id(album_label), "");
+          lv_label_set_text(id(queue_current_title_label), "No Track");
+          lv_label_set_text(id(queue_current_artist_label), "-");
           lv_label_set_text(id(media_time_label), "0:00 / 0:00");
           lv_bar_set_value(id(media_progress_bar), 0, LV_ANIM_OFF);
           lv_obj_add_flag(id(album_art_background_widget), LV_OBJ_FLAG_HIDDEN);
+          atmosfera_ui::draw_media_main_control(id(media_main_control_canvas), 0, false);
 
           int gen = id(subscription_gen);
           int *gen_ptr = &id(subscription_gen);
@@ -150,8 +162,6 @@ script:
           id(is_track_info_hidden) = false;
       - lvgl.widget.show:
           - title_label
-          - album_label
-          - media_time_label
       - if:
           condition:
             lambda: 'return id(artist_has_content);'
@@ -164,8 +174,6 @@ script:
       - lambda: |-
           id(is_track_info_hidden) = true;
       - lvgl.widget.hide:
-          - title_label
-          - artist_label
           - album_label
           - media_time_label
 
@@ -206,15 +214,9 @@ script:
             lambda: 'return !id(show_progress_bar).state;'
           then:
             - lvgl.widget.hide: media_progress_bar
-            - lambda: |-
-                id(last_media_progress_percent) = -1;
           else:
             - lvgl.widget.show: media_progress_bar
       - lambda: |-
-          if (!id(show_progress_bar).state) {
-            return;
-          }
-
           float dur = id(media_duration_sensor).has_state() ? id(media_duration_sensor).state : 0.0f;
           float pos = id(last_media_position);
           bool playing = id(media_player_state_sensor).has_state()
@@ -239,8 +241,11 @@ script:
           if (value > progress_range) value = progress_range;
           if (value != id(last_media_progress_percent)) {
             id(last_media_progress_percent) = value;
-            lv_bar_set_range(id(media_progress_bar), 0, progress_range);
-            lv_bar_set_value(id(media_progress_bar), value, LV_ANIM_OFF);
+            if (id(show_progress_bar).state) {
+              lv_bar_set_range(id(media_progress_bar), 0, progress_range);
+              lv_bar_set_value(id(media_progress_bar), value, LV_ANIM_OFF);
+            }
+            atmosfera_ui::draw_media_main_control(id(media_main_control_canvas), value, playing);
           }
 
           int e = (int)pos;
@@ -269,6 +274,16 @@ script:
           }
           lv_label_set_text(id(media_time_label), buf);
 
+  - id: media_redraw_main_control
+    mode: restart
+    then:
+      - lambda: |-
+          const bool playing = id(media_player_state_sensor).has_state()
+              && id(media_player_state_sensor).state == "playing";
+          int progress = id(last_media_progress_percent);
+          if (progress < 0) progress = 0;
+          atmosfera_ui::draw_media_main_control(id(media_main_control_canvas), progress, playing);
+
   - id: show_volume_overlay
     mode: restart
     then:
@@ -276,6 +291,18 @@ script:
       - lambda: |-
           lv_obj_move_foreground(id(volume_overlay));
       - script.execute: volume_overlay_timeout
+
+  - id: open_queue_panel
+    mode: restart
+    then:
+      - lvgl.widget.show: queue_panel
+      - lambda: |-
+          lv_obj_move_foreground(id(queue_panel));
+
+  - id: close_queue_panel
+    mode: restart
+    then:
+      - lvgl.widget.hide: queue_panel
 
   - id: volume_overlay_timeout
     mode: restart
@@ -355,6 +382,9 @@ text_sensor:
             - lvgl.label.update:
                 id: title_label
                 text: !lambda 'return x;'
+            - lvgl.label.update:
+                id: queue_current_title_label
+                text: !lambda 'return x;'
             - lambda: |-
                 if (id(title_received_once)) {
                   id(last_media_position) = 0.0f;
@@ -375,6 +405,13 @@ text_sensor:
                       value: 0
                       animated: false
             - script.execute: start_hide_track_info_timer
+          else:
+            - lvgl.label.update:
+                id: title_label
+                text: "No Track"
+            - lvgl.label.update:
+                id: queue_current_title_label
+                text: "No Track"
 
   - platform: template
     id: media_artist_sensor
@@ -389,6 +426,9 @@ text_sensor:
             - lvgl.label.update:
                 id: artist_label
                 text: !lambda 'return x;'
+            - lvgl.label.update:
+                id: queue_current_artist_label
+                text: !lambda 'return x;'
             - if:
                 condition:
                   lambda: 'return !id(is_track_info_hidden);'
@@ -397,6 +437,9 @@ text_sensor:
           else:
             - lvgl.label.update:
                 id: artist_label
+                text: "-"
+            - lvgl.label.update:
+                id: queue_current_artist_label
                 text: "-"
             - lvgl.widget.hide: artist_label
 
@@ -436,10 +479,8 @@ text_sensor:
           condition:
             lambda: 'return x == "playing";'
           then:
-            - lvgl.label.update:
-                id: play_icon_label
-                text: "\uE034"
             - lvgl.widget.show: play_button
+            - script.execute: media_redraw_main_control
             - if:
                 condition:
                   lambda: 'return id(auto_show_track_info).state;'
@@ -450,9 +491,7 @@ text_sensor:
           condition:
             lambda: 'return x == "paused" || x == "idle" || x == "off" || x == "standby";'
           then:
-            - lvgl.label.update:
-                id: play_icon_label
-                text: "\uE037"
+            - script.execute: media_redraw_main_control
             - script.stop: start_hide_track_info_timer
       - if:
           condition:
@@ -558,6 +597,13 @@ sensor:
 interval:
   - interval: 1s
     then:
+      - lambda: |-
+          auto now = id(ha_time).now();
+          if (now.is_valid()) {
+            char time_buf[6];
+            snprintf(time_buf, sizeof(time_buf), "%d:%02d", now.hour, now.minute);
+            lv_label_set_text(id(top_status_label), time_buf);
+          }
       - if:
           condition:
             lambda: |-

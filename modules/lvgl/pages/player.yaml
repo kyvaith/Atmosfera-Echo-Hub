@@ -3,7 +3,7 @@
 lvgl:
   pages:
     - id: music_page
-      bg_color: 0x05070C
+      bg_color: 0x000000
       widgets:
         - canvas:
             id: lottie_canvas_dependency
@@ -16,7 +16,7 @@ lvgl:
             width: 800
             height: 800
             align: CENTER
-            bg_color: 0x05070C
+            bg_color: 0x000000
             border_width: 0
             radius: 0
             pad_all: 0
@@ -27,12 +27,21 @@ lvgl:
                   width: 800
                   height: 800
                   align: CENTER
-                  bg_color: 0x10131B
+                  bg_color: 0x2D2136
                   border_width: 0
                   radius: 0
                   pad_all: 0
                   scrollable: false
                   gesture_bubble: true
+
+              - image:
+                  id: figma_media_artwork_widget
+                  x: 0
+                  y: 0
+                  width: 800
+                  height: 800
+                  src: figma_media_artwork_primary
+                  opa: 100%
 
               - image:
                   id: album_art_background_widget
@@ -45,18 +54,41 @@ lvgl:
                   hidden: true
 
               - obj:
-                  id: artwork_scrim
+                  id: artwork_primary_overlay
                   x: 0
                   y: 0
                   width: 800
                   height: 800
-                  bg_color: 0x000000
-                  bg_opa: 100%
+                  bg_color: 0x4D3D76
+                  bg_opa: 30%
                   border_width: 0
                   radius: 0
                   pad_all: 0
                   scrollable: false
                   clickable: false
+
+              - obj:
+                  id: artwork_scrim
+                  x: 0
+                  y: 0
+                  width: 800
+                  height: 800
+                  bg_color: 0x210F48
+                  bg_opa: 60%
+                  border_width: 0
+                  radius: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+
+              - image:
+                  id: figma_media_vignette_widget
+                  x: 0
+                  y: 0
+                  width: 800
+                  height: 800
+                  src: figma_media_artwork_vignette
+                  opa: 100%
 
               - label:
                   id: artwork_error_label
@@ -66,20 +98,21 @@ lvgl:
                   width: 420
                   height: 42
                   text_font: roboto_18
-                  text_color: 0xAEB4C2
+                  text_color: 0xC4C7C5
                   text_align: CENTER
                   hidden: true
 
               - obj:
                   id: top_status_pill
-                  width: 300
-                  height: 54
-                  align: TOP_LEFT
-                  x: 84
-                  y: 34
-                  bg_color: 0x1B1F2A
-                  border_width: 1
-                  border_color: 0x343B4C
+                  width: 180
+                  height: 48
+                  align: TOP_MID
+                  x: 0
+                  y: 12
+                  bg_color: 0x000000
+                  bg_opa: 0%
+                  border_width: 0
+                  border_color: 0x5C5F5E
                   radius: 27
                   pad_all: 0
                   scrollable: false
@@ -87,186 +120,223 @@ lvgl:
                   widgets:
                     - label:
                         id: top_status_label
-                        text: "Music Assistant"
+                        text: "9:30"
                         align: CENTER
-                        text_color: 0xEADDFF
-                        text_font: roboto_18
+                        text_color: 0xF5EEFB
+                        text_font: wear_time_40
+
+              - image:
+                  id: figma_media_header_bolt_widget
+                  x: 207
+                  y: 92
+                  width: 53
+                  height: 53
+                  src: figma_media_header_bolt
+                  opa: 100%
 
               - button:
                   id: speaker_group_button
-                  width: 190
-                  height: 54
-                  align: TOP_RIGHT
-                  x: -84
-                  y: 34
-                  bg_color: 0x1B1F2A
-                  border_width: 1
-                  border_color: 0x343B4C
-                  radius: 27
+                  width: 160
+                  height: 160
+                  align: CENTER
+                  x: 0
+                  y: 293
+                  bg_color: 0x000000
+                  bg_opa: 0%
+                  border_width: 0
+                  border_color: 0x5C5F5E
+                  radius: 80
                   pad_all: 0
                   scrollable: false
                   gesture_bubble: true
                   widgets:
-                    - label:
-                        text: "Speakers"
+                    - image:
+                        src: figma_media_footer_speaker
                         align: CENTER
-                        text_color: 0xEADDFF
-                        text_font: roboto_18
+                        width: 147
+                        height: 107
                   on_click:
                     then:
                       - script.execute: open_speaker_group_panel
 
               - obj:
                   id: lottie_visual_zone
-                  width: 190
-                  height: 130
-                  align: CENTER
-                  y: -98
+                  width: 1
+                  height: 1
+                  x: -10
+                  y: -10
                   bg_color: 0x000000
-                  bg_opa: 100%
+                  bg_opa: 0%
                   border_width: 0
-                  radius: 65
+                  radius: 0
                   pad_all: 0
                   scrollable: false
                   gesture_bubble: true
+                  hidden: true
                   widgets:
                     - lottie:
                         id: weather_animation
                         file: "assets/animations/weather.json"
-                        x: 31
-                        y: 1
-                        width: 128
-                        height: 128
+                        x: -10
+                        y: -10
+                        width: 1
+                        height: 1
+                        hidden: true
 
               - label:
                   id: title_label
                   text: "No Track"
-                  align: TOP_MID
-                  y: 180
-                  width: 560
-                  long_mode: WRAP
-                  text_align: CENTER
-                  text_color: 0xFFFFFF
-                  text_font: roboto_34
+                  x: 280
+                  y: 82
+                  width: 342
+                  height: 66
+                  long_mode: DOT
+                  text_align: LEFT
+                  text_color: 0xF5EEFB
+                  text_font: wear_title_53
+                  text_letter_space: 1
 
               - label:
                   id: artist_label
                   text: "-"
                   align: TOP_MID
-                  y: 304
-                  width: 520
+                  y: 145
+                  width: 460
+                  height: 58
                   long_mode: DOT
                   text_align: CENTER
-                  text_color: 0xE4E0F0
-                  text_font: roboto_24
+                  text_color: 0xF5EEFB
+                  text_font: wear_body_47
+                  text_letter_space: 1
 
               - label:
                   id: album_label
                   text: ""
                   align: TOP_MID
-                  y: 352
-                  width: 500
+                  y: 186
+                  width: 360
                   long_mode: DOT
                   text_align: CENTER
-                  text_color: 0xAEB4C2
-                  text_font: roboto_18
+                  text_color: 0xC4C7C5
+                  text_font: roboto_16
+                  hidden: true
 
               - label:
                   id: media_time_label
                   text: "0:00 / 0:00"
                   align: TOP_MID
-                  y: 404
-                  width: 360
+                  y: 506
+                  width: 300
                   text_align: CENTER
-                  text_color: 0xE4E0F0
+                  text_color: 0xC4C7C5
                   text_opa: 100%
                   text_font: roboto_18
+                  hidden: true
 
               - bar:
                   id: media_progress_bar
-                  align: BOTTOM_MID
-                  y: 0
-                  width: 800
+                  align: TOP_MID
+                  y: 486
+                  width: 320
                   height: 8
                   min_value: 0
                   max_value: 100
                   value: 0
-                  bg_color: 0x000000
+                  bg_color: 0x5C5F5E
                   bg_opa: 100%
-                  radius: 0
+                  radius: 6
                   indicator:
-                    bg_color: 0xFFFFFF
-                    radius: 0
+                    bg_color: 0xD3E3FD
+                    radius: 6
+                  hidden: true
+
+              - obj:
+                  id: transport_group_surface
+                  align: CENTER
+                  y: 70
+                  width: 520
+                  height: 260
+                  radius: 130
+                  bg_color: 0x000000
+                  bg_opa: 0%
+                  border_width: 0
+                  shadow_width: 0
+                  outline_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
 
               - button:
-                  id: vol_down_button
-                  align: LEFT_MID
-                  x: 44
-                  y: 128
-                  width: 90
-                  height: 116
-                  radius: 45
-                  bg_color: 0x1B1F2A
-                  border_width: 1
-                  border_color: 0x343B4C
+                  id: queue_button
+                  align: CENTER
+                  x: -218
+                  y: 213
+                  width: 160
+                  height: 160
+                  radius: 80
+                  bg_color: 0x000000
+                  bg_opa: 0%
+                  border_width: 0
+                  border_color: 0x5C5F5E
+                  pad_all: 0
                   scrollable: false
                   gesture_bubble: true
                   widgets:
-                    - label:
-                        text: "-"
+                    - image:
+                        src: figma_media_footer_queue
                         align: CENTER
-                        text_color: 0xF4EFFA
-                        text_font: roboto_36
+                        width: 147
+                        height: 107
                   on_click:
                     then:
-                      - script.execute:
-                          id: main_volume_step
-                          direction: -1
+                      - script.execute: open_queue_panel
 
               - button:
-                  id: vol_up_button
-                  align: RIGHT_MID
-                  x: -44
-                  y: 128
-                  width: 90
-                  height: 116
-                  radius: 45
-                  bg_color: 0x1B1F2A
-                  border_width: 1
-                  border_color: 0x343B4C
+                  id: more_menu_button
+                  align: CENTER
+                  x: 218
+                  y: 213
+                  width: 160
+                  height: 160
+                  radius: 80
+                  bg_color: 0x000000
+                  bg_opa: 0%
+                  border_width: 0
+                  border_color: 0x5C5F5E
+                  pad_all: 0
                   scrollable: false
                   gesture_bubble: true
                   widgets:
-                    - label:
-                        text: "+"
+                    - image:
+                        src: figma_media_footer_more
                         align: CENTER
-                        text_color: 0xF4EFFA
-                        text_font: roboto_36
+                        width: 147
+                        height: 107
                   on_click:
                     then:
-                      - script.execute:
-                          id: main_volume_step
-                          direction: 1
+                      - script.execute: show_volume_overlay
 
               - button:
                   id: prev_button
-                  align: BOTTOM_LEFT
-                  x: 104
-                  y: -96
-                  width: 104
-                  height: 104
-                  radius: 52
-                  bg_color: 0x1B1F2A
-                  border_width: 1
-                  border_color: 0x343B4C
+                  align: CENTER
+                  x: -253
+                  y: 0
+                  width: 173
+                  height: 173
+                  radius: 87
+                  bg_color: 0x000000
+                  bg_opa: 0%
+                  border_width: 0
+                  border_color: 0x5C5F5E
+                  pad_all: 0
                   scrollable: false
                   gesture_bubble: true
                   widgets:
-                    - label:
-                        text: "\uE045"
+                    - image:
+                        src: figma_media_side_prev_button
                         align: CENTER
-                        text_color: 0xF4EFFA
-                        text_font: material_symbols_30
+                        width: 173
+                        height: 173
                   on_click:
                     then:
                       - homeassistant.service:
@@ -278,23 +348,25 @@ lvgl:
 
               - button:
                   id: next_button
-                  align: BOTTOM_LEFT
-                  x: 230
-                  y: -96
-                  width: 104
-                  height: 104
-                  radius: 52
-                  bg_color: 0x1B1F2A
-                  border_width: 1
-                  border_color: 0x343B4C
+                  align: CENTER
+                  x: 253
+                  y: 0
+                  width: 173
+                  height: 173
+                  radius: 87
+                  bg_color: 0x000000
+                  bg_opa: 0%
+                  border_width: 0
+                  border_color: 0x5C5F5E
+                  pad_all: 0
                   scrollable: false
                   gesture_bubble: true
                   widgets:
-                    - label:
-                        text: "\uE044"
+                    - image:
+                        src: figma_media_side_next_button
                         align: CENTER
-                        text_color: 0xF4EFFA
-                        text_font: material_symbols_30
+                        width: 173
+                        height: 173
                   on_click:
                     then:
                       - homeassistant.service:
@@ -304,25 +376,90 @@ lvgl:
                           data_template:
                             entity_id: "{{ target }}"
 
+              - obj:
+                  id: play_scallop_top
+                  align: CENTER
+                  x: 0
+                  y: -62
+                  width: 72
+                  height: 72
+                  radius: 36
+                  bg_color: 0xD3E3FD
+                  bg_opa: 100%
+                  border_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+                  hidden: true
+              - obj:
+                  id: play_scallop_bottom
+                  align: CENTER
+                  x: 0
+                  y: 194
+                  width: 72
+                  height: 72
+                  radius: 36
+                  bg_color: 0xD3E3FD
+                  bg_opa: 100%
+                  border_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+                  hidden: true
+              - obj:
+                  id: play_scallop_left
+                  align: CENTER
+                  x: -128
+                  y: 66
+                  width: 72
+                  height: 72
+                  radius: 36
+                  bg_color: 0xD3E3FD
+                  bg_opa: 100%
+                  border_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+                  hidden: true
+              - obj:
+                  id: play_scallop_right
+                  align: CENTER
+                  x: 128
+                  y: 66
+                  width: 72
+                  height: 72
+                  radius: 36
+                  bg_color: 0xD3E3FD
+                  bg_opa: 100%
+                  border_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+                  hidden: true
+
+              - canvas:
+                  id: media_main_control_canvas
+                  align: CENTER
+                  x: 0
+                  y: 0
+                  width: 267
+                  height: 267
+                  transparent: true
+
               - button:
                   id: play_button
-                  align: BOTTOM_RIGHT
-                  x: -92
-                  y: -86
-                  width: 136
-                  height: 136
-                  radius: 68
-                  bg_color: 0xD7C2FF
+                  align: CENTER
+                  x: 0
+                  y: 0
+                  width: 267
+                  height: 267
+                  radius: 134
+                  bg_color: 0xD0BCFF
+                  bg_opa: 0%
                   border_width: 0
+                  pad_all: 0
                   scrollable: false
                   gesture_bubble: true
-                  widgets:
-                    - label:
-                        id: play_icon_label
-                        text: "\uE037"
-                        align: CENTER
-                        text_color: 0x211433
-                        text_font: material_symbols_36
                   on_click:
                     then:
                       - homeassistant.service:
@@ -333,12 +470,95 @@ lvgl:
                             entity_id: "{{ target }}"
 
               - obj:
+                  id: queue_panel
+                  x: 0
+                  y: 0
+                  width: 800
+                  height: 800
+                  bg_color: 0x000000
+                  bg_opa: 100%
+                  border_width: 0
+                  radius: 0
+                  pad_all: 0
+                  scrollable: false
+                  hidden: true
+                  widgets:
+                    - label:
+                        text: "Queue"
+                        align: TOP_MID
+                        y: 70
+                        width: 420
+                        text_align: CENTER
+                        text_color: 0xF5EEFB
+                        text_font: wear_title_53
+                    - button:
+                        id: queue_close_button
+                        align: TOP_RIGHT
+                        x: -72
+                        y: 52
+                        width: 70
+                        height: 70
+                        radius: 35
+                        bg_color: 0x332E3C
+                        border_width: 0
+                        pad_all: 0
+                        widgets:
+                          - label:
+                              text: "\uE5CD"
+                              align: CENTER
+                              text_color: 0xF2F2F2
+                              text_font: material_symbols_24
+                        on_click:
+                          then:
+                            - script.execute: close_queue_panel
+                    - obj:
+                        id: queue_current_row
+                        align: TOP_MID
+                        y: 188
+                        width: 600
+                        height: 118
+                        radius: 59
+                        bg_color: 0x332E3C
+                        bg_opa: 100%
+                        border_width: 0
+                        pad_all: 0
+                        scrollable: false
+                        widgets:
+                          - label:
+                              id: queue_current_title_label
+                              text: "No Track"
+                              x: 36
+                              y: 24
+                              width: 440
+                              long_mode: DOT
+                              text_color: 0xF2F2F2
+                              text_font: roboto_24
+                          - label:
+                              id: queue_current_artist_label
+                              text: "-"
+                              x: 36
+                              y: 66
+                              width: 440
+                              long_mode: DOT
+                              text_color: 0xC4C7C5
+                              text_font: roboto_18
+                    - label:
+                        id: queue_empty_label
+                        text: "Queue source not configured"
+                        align: TOP_MID
+                        y: 340
+                        width: 520
+                        text_align: CENTER
+                        text_color: 0xC4C7C5
+                        text_font: roboto_20
+
+              - obj:
                   id: volume_overlay
                   x: 0
                   y: 0
                   width: 800
                   height: 800
-                  bg_color: 0x05070C
+                  bg_color: 0x000000
                   bg_opa: 100%
                   border_width: 0
                   radius: 0
@@ -356,15 +576,15 @@ lvgl:
                         max_value: 100
                         value: 50
                         adjustable: true
-                        arc_color: 0x343B4C
+                        arc_color: 0x5C5F5E
                         arc_width: 30
                         arc_rounded: true
                         indicator:
-                          arc_color: 0xD7C2FF
+                          arc_color: 0xD3E3FD
                           arc_width: 30
                           arc_rounded: true
                         knob:
-                          bg_color: 0xFFFFFF
+                          bg_color: 0xF2F2F2
                           radius: 21
                           width: 42
                           height: 42
@@ -399,7 +619,7 @@ lvgl:
                         y: -86
                         width: 260
                         text_align: CENTER
-                        text_color: 0xAEB4C2
+                        text_color: 0xC4C7C5
                         text_font: roboto_20
                     - label:
                         id: volume_pct_label
@@ -409,7 +629,7 @@ lvgl:
                         width: 300
                         height: 90
                         text_align: CENTER
-                        text_color: 0xFFFFFF
+                        text_color: 0xF2F2F2
                         text_font: roboto_36
                     - button:
                         id: volume_overlay_down_button
@@ -419,14 +639,14 @@ lvgl:
                         width: 104
                         height: 104
                         radius: 52
-                        bg_color: 0x1B1F2A
+                        bg_color: 0x332E3C
                         border_width: 1
-                        border_color: 0x343B4C
+                        border_color: 0x5C5F5E
                         widgets:
                           - label:
                               text: "-"
                               align: CENTER
-                              text_color: 0xF4EFFA
+                              text_color: 0xF2F2F2
                               text_font: roboto_36
                         on_click:
                           then:
@@ -441,14 +661,14 @@ lvgl:
                         width: 104
                         height: 104
                         radius: 52
-                        bg_color: 0x1B1F2A
+                        bg_color: 0x332E3C
                         border_width: 1
-                        border_color: 0x343B4C
+                        border_color: 0x5C5F5E
                         widgets:
                           - label:
                               text: "+"
                               align: CENTER
-                              text_color: 0xF4EFFA
+                              text_color: 0xF2F2F2
                               text_font: roboto_36
                         on_click:
                           then:
@@ -462,14 +682,14 @@ lvgl:
                         width: 70
                         height: 70
                         radius: 35
-                        bg_color: 0x1B1F2A
+                        bg_color: 0x332E3C
                         border_width: 1
-                        border_color: 0x343B4C
+                        border_color: 0x5C5F5E
                         widgets:
                           - label:
                               text: "\uE5CD"
                               align: CENTER
-                              text_color: 0xF4EFFA
+                              text_color: 0xF2F2F2
                               text_font: material_symbols_24
                         on_click:
                           then:
@@ -479,12 +699,41 @@ lvgl:
                   id: footer_hint
                   text: ""
                   align: BOTTOM_MID
-                  y: -8
+                  y: -20
                   width: 440
                   long_mode: DOT
                   text_align: CENTER
-                  text_color: 0xAEB4C2
+                  text_color: 0xC4C7C5
                   text_font: roboto_16
+
+              - obj:
+                  id: media_page_dot_1
+                  align: BOTTOM_MID
+                  x: -17
+                  y: -17
+                  width: 20
+                  height: 20
+                  radius: 10
+                  bg_color: 0xF5EEFB
+                  bg_opa: 100%
+                  border_width: 0
+                  scrollable: false
+                  clickable: false
+                  hidden: true
+              - obj:
+                  id: media_page_dot_2
+                  align: BOTTOM_MID
+                  x: 17
+                  y: -17
+                  width: 20
+                  height: 20
+                  radius: 10
+                  bg_color: 0x8E918F
+                  bg_opa: 100%
+                  border_width: 0
+                  scrollable: false
+                  clickable: false
+                  hidden: true
 
               - obj:
                   id: speaker_group_panel
@@ -492,7 +741,7 @@ lvgl:
                   y: 0
                   width: 800
                   height: 800
-                  bg_color: 0x05070C
+                  bg_color: 0x000000
                   bg_opa: 100%
                   border_width: 0
                   radius: 0
@@ -504,10 +753,10 @@ lvgl:
                         width: 760
                         height: 760
                         align: CENTER
-                        bg_color: 0x10131B
+                        bg_color: 0x303030
                         border_width: 1
-                        border_color: 0x2A3344
-                        radius: 0
+                        border_color: 0x5C5F5E
+                        radius: 380
                         pad_all: 0
                         scrollable: false
                     - label:
@@ -516,7 +765,7 @@ lvgl:
                         y: 54
                         width: 420
                         text_align: CENTER
-                        text_color: 0xF4EFFA
+                        text_color: 0xF2F2F2
                         text_font: roboto_24
                     - label:
                         id: speaker_group_count_label
@@ -525,12 +774,12 @@ lvgl:
                         y: 90
                         width: 180
                         text_align: CENTER
-                        bg_color: 0x1B1F2A
+                        bg_color: 0x332E3C
                         bg_opa: 100%
                         radius: 16
                         pad_top: 4
                         pad_bottom: 4
-                        text_color: 0xAEB4C2
+                        text_color: 0xC4C7C5
                         text_font: roboto_16
                     - button:
                         id: speaker_group_close_button
@@ -540,15 +789,15 @@ lvgl:
                         width: 70
                         height: 70
                         radius: 35
-                        bg_color: 0x1B1F2A
+                        bg_color: 0x332E3C
                         border_width: 1
-                        border_color: 0x343B4C
+                        border_color: 0x5C5F5E
                         scrollable: false
                         widgets:
                           - label:
                               text: "\uE5CD"
                               align: CENTER
-                              text_color: 0xF4EFFA
+                              text_color: 0xF2F2F2
                               text_font: material_symbols_24
                         on_click:
                           then:
@@ -560,7 +809,7 @@ lvgl:
                         width: 592
                         height: 78
                         radius: 39
-                        bg_color: 0x3A2A54
+                        bg_color: 0x4D3D76
                         border_width: 1
                         border_color: 0x735E9A
                         pad_all: 0
@@ -570,7 +819,7 @@ lvgl:
                               text: "Group Volume"
                               x: 28
                               y: 22
-                              text_color: 0xFFFFFF
+                              text_color: 0xF2F2F2
                               text_font: roboto_20
                           - button:
                               x: 366
@@ -578,13 +827,13 @@ lvgl:
                               width: 58
                               height: 58
                               radius: 29
-                              bg_color: 0x2B303B
+                              bg_color: 0x474747
                               border_width: 0
                               widgets:
                                 - label:
                                     text: "-"
                                     align: CENTER
-                                    text_color: 0xF4EFFA
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_24
                               on_click:
                                 then:
@@ -597,13 +846,13 @@ lvgl:
                               width: 58
                               height: 58
                               radius: 29
-                              bg_color: 0x2B303B
+                              bg_color: 0x474747
                               border_width: 0
                               widgets:
                                 - label:
                                     text: "+"
                                     align: CENTER
-                                    text_color: 0xF4EFFA
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_24
                               on_click:
                                 then:
@@ -616,7 +865,7 @@ lvgl:
                         y: 236
                         width: 644
                         height: 470
-                        bg_color: 0x10131B
+                        bg_color: 0x303030
                         bg_opa: 100%
                         border_width: 0
                         pad_all: 0
@@ -632,9 +881,9 @@ lvgl:
                               width: 644
                               height: 88
                               radius: 44
-                              bg_color: 0x173B34
+                              bg_color: 0x0F5223
                               border_width: 1
-                              border_color: 0x8CEED1
+                              border_color: 0xC3EDCF
                               pad_all: 0
                               scrollable: false
                               clickable: true
@@ -651,14 +900,14 @@ lvgl:
                                     y: 15
                                     width: 300
                                     long_mode: DOT
-                                    text_color: 0xFFFFFF
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_20
                                 - label:
                                     id: speaker_state_0
                                     text: "Grouped"
                                     x: 28
                                     y: 50
-                                    text_color: 0xA8F4DF
+                                    text_color: 0xC3EDCF
                                     text_font: roboto_16
                                 - label:
                                     id: speaker_volume_0
@@ -667,7 +916,7 @@ lvgl:
                                     y: 30
                                     width: 60
                                     text_align: CENTER
-                                    text_color: 0xF4EFFA
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_18
                                 - button:
                                     x: 424
@@ -675,13 +924,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "-"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -695,13 +944,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "+"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -714,9 +963,9 @@ lvgl:
                               width: 644
                               height: 88
                               radius: 44
-                              bg_color: 0x1B1F2A
+                              bg_color: 0x332E3C
                               border_width: 1
-                              border_color: 0x343B4C
+                              border_color: 0x5C5F5E
                               pad_all: 0
                               scrollable: false
                               clickable: true
@@ -734,14 +983,14 @@ lvgl:
                                     y: 15
                                     width: 300
                                     long_mode: DOT
-                                    text_color: 0xFFFFFF
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_20
                                 - label:
                                     id: speaker_state_1
                                     text: ""
                                     x: 28
                                     y: 50
-                                    text_color: 0xAEB4C2
+                                    text_color: 0xC4C7C5
                                     text_font: roboto_16
                                 - label:
                                     id: speaker_volume_1
@@ -750,7 +999,7 @@ lvgl:
                                     y: 30
                                     width: 60
                                     text_align: CENTER
-                                    text_color: 0xF4EFFA
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_18
                                 - button:
                                     x: 424
@@ -758,13 +1007,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "-"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -778,13 +1027,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "+"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -797,9 +1046,9 @@ lvgl:
                               width: 644
                               height: 88
                               radius: 44
-                              bg_color: 0x1B1F2A
+                              bg_color: 0x332E3C
                               border_width: 1
-                              border_color: 0x343B4C
+                              border_color: 0x5C5F5E
                               pad_all: 0
                               scrollable: false
                               clickable: true
@@ -817,14 +1066,14 @@ lvgl:
                                     y: 15
                                     width: 300
                                     long_mode: DOT
-                                    text_color: 0xFFFFFF
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_20
                                 - label:
                                     id: speaker_state_2
                                     text: ""
                                     x: 28
                                     y: 50
-                                    text_color: 0xAEB4C2
+                                    text_color: 0xC4C7C5
                                     text_font: roboto_16
                                 - label:
                                     id: speaker_volume_2
@@ -833,7 +1082,7 @@ lvgl:
                                     y: 30
                                     width: 60
                                     text_align: CENTER
-                                    text_color: 0xF4EFFA
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_18
                                 - button:
                                     x: 424
@@ -841,13 +1090,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "-"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -861,13 +1110,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "+"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -880,9 +1129,9 @@ lvgl:
                               width: 644
                               height: 88
                               radius: 44
-                              bg_color: 0x1B1F2A
+                              bg_color: 0x332E3C
                               border_width: 1
-                              border_color: 0x343B4C
+                              border_color: 0x5C5F5E
                               pad_all: 0
                               scrollable: false
                               clickable: true
@@ -900,14 +1149,14 @@ lvgl:
                                     y: 15
                                     width: 300
                                     long_mode: DOT
-                                    text_color: 0xFFFFFF
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_20
                                 - label:
                                     id: speaker_state_3
                                     text: ""
                                     x: 28
                                     y: 50
-                                    text_color: 0xAEB4C2
+                                    text_color: 0xC4C7C5
                                     text_font: roboto_16
                                 - label:
                                     id: speaker_volume_3
@@ -916,7 +1165,7 @@ lvgl:
                                     y: 30
                                     width: 60
                                     text_align: CENTER
-                                    text_color: 0xF4EFFA
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_18
                                 - button:
                                     x: 424
@@ -924,13 +1173,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "-"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -944,13 +1193,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "+"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -963,9 +1212,9 @@ lvgl:
                               width: 644
                               height: 88
                               radius: 44
-                              bg_color: 0x1B1F2A
+                              bg_color: 0x332E3C
                               border_width: 1
-                              border_color: 0x343B4C
+                              border_color: 0x5C5F5E
                               pad_all: 0
                               scrollable: false
                               clickable: true
@@ -983,14 +1232,14 @@ lvgl:
                                     y: 15
                                     width: 300
                                     long_mode: DOT
-                                    text_color: 0xFFFFFF
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_20
                                 - label:
                                     id: speaker_state_4
                                     text: ""
                                     x: 28
                                     y: 50
-                                    text_color: 0xAEB4C2
+                                    text_color: 0xC4C7C5
                                     text_font: roboto_16
                                 - label:
                                     id: speaker_volume_4
@@ -999,7 +1248,7 @@ lvgl:
                                     y: 30
                                     width: 60
                                     text_align: CENTER
-                                    text_color: 0xF4EFFA
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_18
                                 - button:
                                     x: 424
@@ -1007,13 +1256,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "-"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1027,13 +1276,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "+"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1046,9 +1295,9 @@ lvgl:
                               width: 644
                               height: 88
                               radius: 44
-                              bg_color: 0x1B1F2A
+                              bg_color: 0x332E3C
                               border_width: 1
-                              border_color: 0x343B4C
+                              border_color: 0x5C5F5E
                               pad_all: 0
                               scrollable: false
                               clickable: true
@@ -1066,14 +1315,14 @@ lvgl:
                                     y: 15
                                     width: 300
                                     long_mode: DOT
-                                    text_color: 0xFFFFFF
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_20
                                 - label:
                                     id: speaker_state_5
                                     text: ""
                                     x: 28
                                     y: 50
-                                    text_color: 0xAEB4C2
+                                    text_color: 0xC4C7C5
                                     text_font: roboto_16
                                 - label:
                                     id: speaker_volume_5
@@ -1082,7 +1331,7 @@ lvgl:
                                     y: 30
                                     width: 60
                                     text_align: CENTER
-                                    text_color: 0xF4EFFA
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_18
                                 - button:
                                     x: 424
@@ -1090,13 +1339,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "-"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1110,13 +1359,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "+"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1129,9 +1378,9 @@ lvgl:
                               width: 644
                               height: 88
                               radius: 44
-                              bg_color: 0x1B1F2A
+                              bg_color: 0x332E3C
                               border_width: 1
-                              border_color: 0x343B4C
+                              border_color: 0x5C5F5E
                               pad_all: 0
                               scrollable: false
                               clickable: true
@@ -1149,14 +1398,14 @@ lvgl:
                                     y: 15
                                     width: 300
                                     long_mode: DOT
-                                    text_color: 0xFFFFFF
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_20
                                 - label:
                                     id: speaker_state_6
                                     text: ""
                                     x: 28
                                     y: 50
-                                    text_color: 0xAEB4C2
+                                    text_color: 0xC4C7C5
                                     text_font: roboto_16
                                 - label:
                                     id: speaker_volume_6
@@ -1165,7 +1414,7 @@ lvgl:
                                     y: 30
                                     width: 60
                                     text_align: CENTER
-                                    text_color: 0xF4EFFA
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_18
                                 - button:
                                     x: 424
@@ -1173,13 +1422,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "-"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1193,13 +1442,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "+"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1212,9 +1461,9 @@ lvgl:
                               width: 644
                               height: 88
                               radius: 44
-                              bg_color: 0x1B1F2A
+                              bg_color: 0x332E3C
                               border_width: 1
-                              border_color: 0x343B4C
+                              border_color: 0x5C5F5E
                               pad_all: 0
                               scrollable: false
                               clickable: true
@@ -1232,14 +1481,14 @@ lvgl:
                                     y: 15
                                     width: 300
                                     long_mode: DOT
-                                    text_color: 0xFFFFFF
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_20
                                 - label:
                                     id: speaker_state_7
                                     text: ""
                                     x: 28
                                     y: 50
-                                    text_color: 0xAEB4C2
+                                    text_color: 0xC4C7C5
                                     text_font: roboto_16
                                 - label:
                                     id: speaker_volume_7
@@ -1248,7 +1497,7 @@ lvgl:
                                     y: 30
                                     width: 60
                                     text_align: CENTER
-                                    text_color: 0xF4EFFA
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_18
                                 - button:
                                     x: 424
@@ -1256,13 +1505,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "-"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1276,13 +1525,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "+"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1295,9 +1544,9 @@ lvgl:
                               width: 644
                               height: 88
                               radius: 44
-                              bg_color: 0x1B1F2A
+                              bg_color: 0x332E3C
                               border_width: 1
-                              border_color: 0x343B4C
+                              border_color: 0x5C5F5E
                               pad_all: 0
                               scrollable: false
                               clickable: true
@@ -1315,14 +1564,14 @@ lvgl:
                                     y: 15
                                     width: 300
                                     long_mode: DOT
-                                    text_color: 0xFFFFFF
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_20
                                 - label:
                                     id: speaker_state_8
                                     text: ""
                                     x: 28
                                     y: 50
-                                    text_color: 0xAEB4C2
+                                    text_color: 0xC4C7C5
                                     text_font: roboto_16
                                 - label:
                                     id: speaker_volume_8
@@ -1331,7 +1580,7 @@ lvgl:
                                     y: 30
                                     width: 60
                                     text_align: CENTER
-                                    text_color: 0xF4EFFA
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_18
                                 - button:
                                     x: 424
@@ -1339,13 +1588,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "-"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1359,13 +1608,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "+"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1378,9 +1627,9 @@ lvgl:
                               width: 644
                               height: 88
                               radius: 44
-                              bg_color: 0x1B1F2A
+                              bg_color: 0x332E3C
                               border_width: 1
-                              border_color: 0x343B4C
+                              border_color: 0x5C5F5E
                               pad_all: 0
                               scrollable: false
                               clickable: true
@@ -1398,14 +1647,14 @@ lvgl:
                                     y: 15
                                     width: 300
                                     long_mode: DOT
-                                    text_color: 0xFFFFFF
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_20
                                 - label:
                                     id: speaker_state_9
                                     text: ""
                                     x: 28
                                     y: 50
-                                    text_color: 0xAEB4C2
+                                    text_color: 0xC4C7C5
                                     text_font: roboto_16
                                 - label:
                                     id: speaker_volume_9
@@ -1414,7 +1663,7 @@ lvgl:
                                     y: 30
                                     width: 60
                                     text_align: CENTER
-                                    text_color: 0xF4EFFA
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_18
                                 - button:
                                     x: 424
@@ -1422,13 +1671,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "-"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1442,13 +1691,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "+"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1461,9 +1710,9 @@ lvgl:
                               width: 644
                               height: 88
                               radius: 44
-                              bg_color: 0x1B1F2A
+                              bg_color: 0x332E3C
                               border_width: 1
-                              border_color: 0x343B4C
+                              border_color: 0x5C5F5E
                               pad_all: 0
                               scrollable: false
                               clickable: true
@@ -1481,14 +1730,14 @@ lvgl:
                                     y: 15
                                     width: 300
                                     long_mode: DOT
-                                    text_color: 0xFFFFFF
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_20
                                 - label:
                                     id: speaker_state_10
                                     text: ""
                                     x: 28
                                     y: 50
-                                    text_color: 0xAEB4C2
+                                    text_color: 0xC4C7C5
                                     text_font: roboto_16
                                 - label:
                                     id: speaker_volume_10
@@ -1497,7 +1746,7 @@ lvgl:
                                     y: 30
                                     width: 60
                                     text_align: CENTER
-                                    text_color: 0xF4EFFA
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_18
                                 - button:
                                     x: 424
@@ -1505,13 +1754,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "-"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1525,13 +1774,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "+"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1544,9 +1793,9 @@ lvgl:
                               width: 644
                               height: 88
                               radius: 44
-                              bg_color: 0x1B1F2A
+                              bg_color: 0x332E3C
                               border_width: 1
-                              border_color: 0x343B4C
+                              border_color: 0x5C5F5E
                               pad_all: 0
                               scrollable: false
                               clickable: true
@@ -1564,14 +1813,14 @@ lvgl:
                                     y: 15
                                     width: 300
                                     long_mode: DOT
-                                    text_color: 0xFFFFFF
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_20
                                 - label:
                                     id: speaker_state_11
                                     text: ""
                                     x: 28
                                     y: 50
-                                    text_color: 0xAEB4C2
+                                    text_color: 0xC4C7C5
                                     text_font: roboto_16
                                 - label:
                                     id: speaker_volume_11
@@ -1580,7 +1829,7 @@ lvgl:
                                     y: 30
                                     width: 60
                                     text_align: CENTER
-                                    text_color: 0xF4EFFA
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_18
                                 - button:
                                     x: 424
@@ -1588,13 +1837,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "-"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1608,13 +1857,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "+"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1627,9 +1876,9 @@ lvgl:
                               width: 644
                               height: 88
                               radius: 44
-                              bg_color: 0x1B1F2A
+                              bg_color: 0x332E3C
                               border_width: 1
-                              border_color: 0x343B4C
+                              border_color: 0x5C5F5E
                               pad_all: 0
                               scrollable: false
                               clickable: true
@@ -1647,14 +1896,14 @@ lvgl:
                                     y: 15
                                     width: 300
                                     long_mode: DOT
-                                    text_color: 0xFFFFFF
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_20
                                 - label:
                                     id: speaker_state_12
                                     text: ""
                                     x: 28
                                     y: 50
-                                    text_color: 0xAEB4C2
+                                    text_color: 0xC4C7C5
                                     text_font: roboto_16
                                 - label:
                                     id: speaker_volume_12
@@ -1663,7 +1912,7 @@ lvgl:
                                     y: 30
                                     width: 60
                                     text_align: CENTER
-                                    text_color: 0xF4EFFA
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_18
                                 - button:
                                     x: 424
@@ -1671,13 +1920,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "-"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1691,13 +1940,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "+"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1710,9 +1959,9 @@ lvgl:
                               width: 644
                               height: 88
                               radius: 44
-                              bg_color: 0x1B1F2A
+                              bg_color: 0x332E3C
                               border_width: 1
-                              border_color: 0x343B4C
+                              border_color: 0x5C5F5E
                               pad_all: 0
                               scrollable: false
                               clickable: true
@@ -1730,14 +1979,14 @@ lvgl:
                                     y: 15
                                     width: 300
                                     long_mode: DOT
-                                    text_color: 0xFFFFFF
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_20
                                 - label:
                                     id: speaker_state_13
                                     text: ""
                                     x: 28
                                     y: 50
-                                    text_color: 0xAEB4C2
+                                    text_color: 0xC4C7C5
                                     text_font: roboto_16
                                 - label:
                                     id: speaker_volume_13
@@ -1746,7 +1995,7 @@ lvgl:
                                     y: 30
                                     width: 60
                                     text_align: CENTER
-                                    text_color: 0xF4EFFA
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_18
                                 - button:
                                     x: 424
@@ -1754,13 +2003,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "-"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1774,13 +2023,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "+"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1793,9 +2042,9 @@ lvgl:
                               width: 644
                               height: 88
                               radius: 44
-                              bg_color: 0x1B1F2A
+                              bg_color: 0x332E3C
                               border_width: 1
-                              border_color: 0x343B4C
+                              border_color: 0x5C5F5E
                               pad_all: 0
                               scrollable: false
                               clickable: true
@@ -1813,14 +2062,14 @@ lvgl:
                                     y: 15
                                     width: 300
                                     long_mode: DOT
-                                    text_color: 0xFFFFFF
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_20
                                 - label:
                                     id: speaker_state_14
                                     text: ""
                                     x: 28
                                     y: 50
-                                    text_color: 0xAEB4C2
+                                    text_color: 0xC4C7C5
                                     text_font: roboto_16
                                 - label:
                                     id: speaker_volume_14
@@ -1829,7 +2078,7 @@ lvgl:
                                     y: 30
                                     width: 60
                                     text_align: CENTER
-                                    text_color: 0xF4EFFA
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_18
                                 - button:
                                     x: 424
@@ -1837,13 +2086,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "-"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1857,13 +2106,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "+"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1876,9 +2125,9 @@ lvgl:
                               width: 644
                               height: 88
                               radius: 44
-                              bg_color: 0x1B1F2A
+                              bg_color: 0x332E3C
                               border_width: 1
-                              border_color: 0x343B4C
+                              border_color: 0x5C5F5E
                               pad_all: 0
                               scrollable: false
                               clickable: true
@@ -1896,14 +2145,14 @@ lvgl:
                                     y: 15
                                     width: 300
                                     long_mode: DOT
-                                    text_color: 0xFFFFFF
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_20
                                 - label:
                                     id: speaker_state_15
                                     text: ""
                                     x: 28
                                     y: 50
-                                    text_color: 0xAEB4C2
+                                    text_color: 0xC4C7C5
                                     text_font: roboto_16
                                 - label:
                                     id: speaker_volume_15
@@ -1912,7 +2161,7 @@ lvgl:
                                     y: 30
                                     width: 60
                                     text_align: CENTER
-                                    text_color: 0xF4EFFA
+                                    text_color: 0xF2F2F2
                                     text_font: roboto_18
                                 - button:
                                     x: 424
@@ -1920,13 +2169,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "-"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1940,13 +2189,13 @@ lvgl:
                                     width: 60
                                     height: 60
                                     radius: 30
-                                    bg_color: 0x2B303B
+                                    bg_color: 0x474747
                                     border_width: 0
                                     widgets:
                                       - label:
                                           text: "+"
                                           align: CENTER
-                                          text_color: 0xF4EFFA
+                                          text_color: 0xF2F2F2
                                           text_font: roboto_24
                                     on_click:
                                       then:
@@ -1961,7 +2210,7 @@ lvgl:
             y: 0
             width: 800
             height: 800
-            bg_color: 0x05070C
+            bg_color: 0x000000
             bg_opa: 100%
             border_width: 0
             radius: 0
