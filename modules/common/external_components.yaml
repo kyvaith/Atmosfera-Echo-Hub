@@ -11,8 +11,8 @@ external_components:
     refresh: always
   - source:
       type: git
-      url: https://github.com/n-IA-hane/esphome-intercom
-      ref: main
+      url: https://github.com/kyvaith/esphome-intercom
+      ref: audio-speaker-fast-path
       path: esphome/components
     components: [audio_processor, esp_audio_stack, esp_afe]
-    refresh: 1d
+    refresh: always

@@ -107,26 +107,6 @@ binary_sensor:
       disabled_by_default: true
       update_interval: 50ms
 
-sensor:
-  - platform: esp_audio_stack
-    esp_audio_stack_id: audio_stack
-    tdm_slot_levels:
-      - id: afe_tdm_mic_0_level
-        name: "AFE TDM Mic 0 Level"
-        slot: 0
-        disabled_by_default: true
-        update_interval: 1s
-      - id: afe_tdm_ref_level
-        name: "AFE TDM Slot 1 Level"
-        slot: 1
-        disabled_by_default: true
-        update_interval: 1s
-      - id: afe_tdm_mic_2_level
-        name: "AFE TDM Slot 2 Level"
-        slot: 2
-        disabled_by_default: true
-        update_interval: 1s
-
 speaker:
   - platform: esp_audio_stack
     id: board_speaker

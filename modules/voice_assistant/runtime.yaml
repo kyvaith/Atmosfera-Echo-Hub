@@ -250,7 +250,7 @@ switch:
           condition:
             lambda: 'return id(va)->is_connected();'
           then:
-            - switch.turn_on: voice_audio_processing_switch
+            - switch.turn_off: voice_audio_processing_switch
             - micro_wake_word.start:
             - lambda: id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
             - script.execute: voice_assistant_update_overlay
@@ -403,7 +403,7 @@ va_client:
                   - switch.is_off: voice_assistant_mute_switch
                   - lambda: 'return id(va)->is_connected();'
               then:
-                - switch.turn_on: voice_audio_processing_switch
+                - switch.turn_off: voice_audio_processing_switch
                 - micro_wake_word.start:
                 - micro_wake_word.enable_model: okay_nabu
                 - micro_wake_word.enable_model: hey_jarvis
@@ -446,7 +446,7 @@ va_client:
         condition:
           switch.is_off: voice_assistant_mute_switch
         then:
-          - switch.turn_on: voice_audio_processing_switch
+          - switch.turn_off: voice_audio_processing_switch
           - micro_wake_word.start:
   on_followup_opened:
     - lambda: |-
@@ -480,7 +480,7 @@ voice_assistant:
         condition:
           switch.is_off: voice_assistant_mute_switch
         then:
-          - switch.turn_on: voice_audio_processing_switch
+          - switch.turn_off: voice_audio_processing_switch
           - micro_wake_word.start:
     - script.execute: voice_assistant_update_overlay
   on_client_disconnected:
@@ -517,7 +517,7 @@ voice_assistant:
           switch.is_off: voice_assistant_mute_switch
         then:
           - delay: 250ms
-          - switch.turn_on: voice_audio_processing_switch
+          - switch.turn_off: voice_audio_processing_switch
           - micro_wake_word.start:
   on_start:
     - switch.turn_on: voice_audio_processing_switch
@@ -698,7 +698,7 @@ voice_assistant:
                         - switch.is_off: voice_assistant_mute_switch
                     then:
                       - delay: 250ms
-                      - switch.turn_on: voice_audio_processing_switch
+                      - switch.turn_off: voice_audio_processing_switch
                       - micro_wake_word.start:
                 - if:
                     condition:
@@ -804,7 +804,7 @@ script:
               - switch.is_off: voice_assistant_mute_switch
           then:
             - delay: 250ms
-            - switch.turn_on: voice_audio_processing_switch
+            - switch.turn_off: voice_audio_processing_switch
             - micro_wake_word.start:
       - script.execute: voice_assistant_resume_paused_media
 
