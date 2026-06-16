@@ -19,7 +19,9 @@ substitutions:
   voice_language_default: en-US
   voice_region_default: auto
   wake_word_default: okay_nabu
-  voice_assistant_default: home_assistant
+  voice_assistant_default: realtime
+  ha_openai_realtime_port: "8321"
+  ha_openai_realtime_url: ""
 
   # Home Assistant entities used as initial values for runtime-configurable tiles
   tile_light_entity: light.living_room
@@ -30,7 +32,7 @@ substitutions:
   tile_garage_entity: cover.garage_door
   tile_lock_entity: lock.front_door
   tile_climate_entity: climate.living_room
-  tile_media_entity: media_player.music_assistant
+  tile_media_entity: media_player.sendspin_group
   tile_fan_entity: fan.living_room
   tile_alarm_entity: alarm_control_panel.home
 
@@ -40,6 +42,7 @@ packages:
   managed_updates: !include modules/common/managed_updates.yaml
   system_settings: !include modules/common/system_settings.yaml
   memory_diagnostics: !include modules/diagnostics/memory.yaml
+  network_diagnostics: !include modules/diagnostics/network.yaml
   performance_diagnostics: !include modules/diagnostics/performance.yaml
   lvgl_profiler_diagnostics: !include modules/diagnostics/lvgl_profiler.yaml
 
@@ -60,5 +63,6 @@ packages:
   player_settings: !include modules/player/settings.yaml
   player_artwork: !include modules/player/artwork.yaml
   player_runtime: !include modules/player/runtime.yaml
+  player_queue: !include modules/player/queue.yaml
   player_speaker_grouping: !include modules/player/speaker_grouping.yaml
   voice_assistant_runtime: !include modules/voice_assistant/runtime.yaml

@@ -328,3 +328,20 @@ text:
   initial_value: "${voice_assistant_default}"
   min_length: 0
   max_length: 64
+
+- platform: template
+  name: "Realtime Backend URL"
+  id: settings_realtime_backend_url
+  entity_category: config
+  icon: "mdi:web"
+  mode: text
+  optimistic: true
+  restore_value: true
+  initial_value: "${ha_openai_realtime_url}"
+  min_length: 0
+  max_length: 160
+  on_value:
+      - lambda: |-
+          if (!x.empty() && x.find("homeassistant.local") == std::string::npos) {
+            id(va)->set_url(x);
+          }

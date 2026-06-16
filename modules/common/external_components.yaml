@@ -7,8 +7,12 @@ external_components:
       url: https://github.com/kyvaith/esphome
       ref: dev
       path: esphome/components
-    components: [const, mipi, mipi_dsi, lvgl, image, es7210, esp32_jpeg]
+    components: [const, mipi, mipi_dsi, lvgl, image, es7210, esp32_jpeg, artwork_image, sendspin, va_client]
     refresh: always
-  - source: github://jtenniswood/esphome-media-player@main
-    components: [artwork_image]
+  - source:
+      type: git
+      url: https://github.com/n-IA-hane/esphome-intercom
+      ref: main
+      path: esphome/components
+    components: [audio_processor, esp_audio_stack, esp_afe]
     refresh: 1d

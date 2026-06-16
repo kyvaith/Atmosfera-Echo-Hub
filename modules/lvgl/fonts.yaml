@@ -137,6 +137,8 @@ font:
       - "\U0000e050" # volume_up
       - "\U0000e04d" # volume_down
       - "\U0000e03d" # queue_music
+      - "\U0000e037" # play_arrow
+      - "\U0000e405" # music_note
       - "\U0000e310" # headphones
       - "\U0000e5d4" # more_vert
 
@@ -179,3 +181,26 @@ font:
       - "\U0000e044" # skip_next
       - "\U0000e045" # skip_previous
       - "\U0000e5cd" # close
+
+  - file: "gfonts://Material+Symbols+Rounded"
+    id: material_symbols_58
+    size: 58
+    bpp: 4
+    ignore_missing_glyphs: true
+    glyphs:
+      - "\U0000e044" # skip_next
+      - "\U0000e045" # skip_previous
+      - "\U0000e050" # volume_up
+      - "\U0000e03d" # queue_music
+      - "\U0000e5d4" # more_vert
+      - "\U0000e034" # pause
+      - "\U0000e037" # play_arrow
+
+  - file: "gfonts://Material+Symbols+Rounded"
+    id: material_symbols_86
+    size: 86
+    bpp: 4
+    ignore_missing_glyphs: true
+    glyphs:
+      - "\U0000e034" # pause
+      - "\U0000e037" # play_arrow

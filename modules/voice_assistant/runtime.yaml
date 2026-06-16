@@ -8,6 +8,7 @@ substitutions:
   voice_assist_thinking_phase_id: "4"
   voice_assist_replying_phase_id: "5"
   voice_assist_timer_finished_phase_id: "6"
+  voice_assist_thanks_phase_id: "7"
   voice_assist_not_ready_phase_id: "10"
   voice_assist_error_phase_id: "11"
 
@@ -30,31 +31,82 @@ globals:
     type: bool
     restore_value: false
     initial_value: 'false'
-
-microphone:
-  - platform: i2s_audio
-    id: onboard_microphone
-    adc_type: external
-    i2s_audio_id: audio_bus
-    i2s_din_pin: GPIO11
-    sample_rate: 48000
-    bits_per_sample: 16bit
-    channel: stereo
-    pdm: false
-    correct_dc_offset: true
-
-  - platform: resampler
-    id: voice_microphone
-    microphone:
-      microphone: onboard_microphone
-      channels: 1
-    sample_rate: 16000
-    buffer_duration: 500ms
+  - id: voice_assistant_tts_active
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: voice_assistant_wake_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: voice_assistant_start_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: voice_assistant_listening_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: voice_assistant_vad_start_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: voice_assistant_vad_end_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: voice_assistant_stt_end_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: voice_assistant_intent_start_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: voice_assistant_intent_progress_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: voice_assistant_intent_end_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: voice_assistant_tts_start_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: voice_assistant_tts_url_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: voice_assistant_playback_start_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: voice_assistant_end_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: voice_assistant_vad_barge_in_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+  - id: voice_assistant_reply_seen
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: voice_assistant_auto_continue_pending
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: voice_assistant_stop_requested
+    type: bool
+    restore_value: false
+    initial_value: 'false'
 
 micro_wake_word:
   id: wake_word_engine
   ring_buffer_duration: 500ms
-  vad:
   microphone:
     microphone: voice_microphone
     channels: 0
@@ -68,6 +120,11 @@ micro_wake_word:
       model: okay_nabu
     - id: hey_jarvis
       model: hey_jarvis
+    - id: stop
+      internal: true
+      model: https://raw.githubusercontent.com/TaterTotterson/microWakeWords/refs/heads/main/microWakeWords/stop.json
+      probability_cutoff: 0.40
+      sliding_window_size: 3
   stop_after_detection: false
   on_wake_word_detected:
     then:
@@ -75,6 +132,16 @@ micro_wake_word:
           condition:
             switch.is_off: voice_assistant_mute_switch
           then:
+            - lambda: |-
+                if (id(voice_assistant_timing_logs_switch).state) {
+                  ESP_LOGI("voice.diag", "wake word detected: %s uptime=%lums internal_free=%uKiB",
+                           wake_word.c_str(),
+                           (unsigned long) millis(),
+                           (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024));
+                }
+            - script.execute:
+                id: voice_assistant_mark_stage
+                stage: "wake"
             - if:
                 condition:
                   switch.is_on: timer_ringing
@@ -83,32 +150,82 @@ micro_wake_word:
                 else:
                   - if:
                       condition:
-                        voice_assistant.is_running:
+                        lambda: return wake_word == "Stop" || wake_word == "stop";
                       then:
-                        - voice_assistant.stop:
-                      else:
-                        - script.execute: display_wake
                         - if:
                             condition:
-                              media_player.is_playing: local_music_player
+                              lambda: |-
+                                return id(voice_assistant_phase) == ${voice_assist_replying_phase_id} &&
+                                       id(va)->turn_has_reply_audio();
                             then:
-                              - globals.set:
-                                  id: voice_assistant_paused_media
-                                  value: 'true'
-                              - media_player.pause: local_music_player
-                              - delay: 300ms
+                              - script.execute: voice_assistant_stop_conversation
                             else:
-                              - globals.set:
-                                  id: voice_assistant_paused_media
-                                  value: 'false'
-                        - lambda: |-
-                            id(voice_assistant_phase) = ${voice_assist_waiting_phase_id};
-                            id(voice_assistant_request_text).publish_state("");
-                            id(voice_assistant_response_text).publish_state("");
-                        - script.execute: voice_assistant_update_overlay
-                        - micro_wake_word.stop:
-                        - voice_assistant.start:
-                            wake_word: !lambda return wake_word;
+                              - lambda: |-
+                                  if (id(voice_assistant_timing_logs_switch).state) {
+                                    ESP_LOGI("voice.diag", "ignored stop wake word outside reply phase uptime=%lums",
+                                             (unsigned long) millis());
+                                  }
+                      else:
+                        - if:
+                            condition:
+                              lambda: 'return !id(va)->is_connected();'
+                            then:
+                              - lambda: |-
+                                  id(voice_assistant_phase) = ${voice_assist_error_phase_id};
+                                  id(voice_assistant_response_text).publish_state("Realtime backend unavailable");
+                              - script.execute: voice_assistant_update_overlay
+                            else:
+                              - if:
+                                  condition:
+                                    lambda: |-
+                                      const int phase = id(voice_assistant_phase);
+                                      return phase == ${voice_assist_waiting_phase_id} ||
+                                             phase == ${voice_assist_listening_phase_id} ||
+                                             phase == ${voice_assist_thinking_phase_id};
+                                  then:
+                                    - lambda: |-
+                                        if (id(voice_assistant_timing_logs_switch).state) {
+                                          ESP_LOGI("voice.diag", "ignored duplicate wake while already listening/thinking phase=%d uptime=%lums",
+                                                   id(voice_assistant_phase), (unsigned long) millis());
+                                        }
+                                  else:
+                                    - script.execute: display_wake
+                                    - if:
+                                        condition:
+                                          media_player.is_playing: local_music_player
+                                        then:
+                                          - globals.set:
+                                              id: voice_assistant_paused_media
+                                              value: 'true'
+                                          - media_player.pause: local_music_player
+                                          - delay: 300ms
+                                        else:
+                                          - globals.set:
+                                              id: voice_assistant_paused_media
+                                              value: 'false'
+                                    - if:
+                                        condition:
+                                          lambda: 'return id(voice_assistant_phase) == ${voice_assist_replying_phase_id};'
+                                        then:
+                                          - lambda: |-
+                                              id(voice_assistant_vad_barge_in_ms) = millis();
+                                              id(va)->send_interrupt();
+                                          - speaker.stop: assistant_speaker
+                                    - mixer_speaker.apply_ducking:
+                                        id: media_mixing_input
+                                        decibel_reduction: 20
+                                        duration: 0ms
+                                    - lambda: |-
+                                        id(voice_assistant_phase) = ${voice_assist_waiting_phase_id};
+                                        id(voice_assistant_tts_active) = false;
+                                        id(voice_assistant_reply_seen) = false;
+                                        id(voice_assistant_auto_continue_pending) = false;
+                                        id(voice_assistant_stop_requested) = false;
+                                        id(voice_assistant_request_text).publish_state("");
+                                        id(voice_assistant_response_text).publish_state("");
+                                    - script.execute: voice_assistant_update_overlay
+                                    - switch.turn_on: voice_audio_processing_switch
+                                    - lambda: 'id(va)->start_session();'
 
 switch:
   - platform: template
@@ -120,15 +237,20 @@ switch:
     icon: "mdi:microphone-off"
     on_turn_on:
       - micro_wake_word.stop:
-      - voice_assistant.stop:
-      - lambda: id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
+      - lambda: 'id(va)->send_interrupt();'
+      - speaker.stop: assistant_speaker
+      - switch.turn_off: voice_audio_processing_switch
+      - lambda: |-
+          id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
+          id(voice_assistant_tts_active) = false;
       - script.execute: voice_assistant_update_overlay
       - script.execute: ui_update_voice_mute_state
     on_turn_off:
       - if:
           condition:
-            voice_assistant.connected:
+            lambda: 'return id(va)->is_connected();'
           then:
+            - switch.turn_on: voice_audio_processing_switch
             - micro_wake_word.start:
             - lambda: id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
             - script.execute: voice_assistant_update_overlay
@@ -145,6 +267,15 @@ switch:
       - script.execute: ui_update_wake_sound_state
     on_turn_off:
       - script.execute: ui_update_wake_sound_state
+
+  - platform: template
+    id: voice_assistant_timing_logs_switch
+    name: "Voice Assistant Timing Logs"
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_OFF
+    entity_category: config
+    disabled_by_default: true
+    icon: "mdi:timer-cog-outline"
 
   - platform: template
     id: timer_ringing
@@ -207,6 +338,11 @@ select:
 
 text_sensor:
   - platform: template
+    id: voice_assistant_latency_trace
+    name: "Voice Assistant Latency Trace"
+    entity_category: diagnostic
+    disabled_by_default: true
+  - platform: template
     id: voice_assistant_request_text
     internal: true
     on_value:
@@ -217,13 +353,120 @@ text_sensor:
     on_value:
       - script.execute: voice_assistant_update_overlay
 
-voice_assistant:
+va_client:
   id: va
+  url: "${ha_openai_realtime_url}"
   microphone:
     microphone: voice_microphone
     channels: 0
+    gain_factor: 4
+  speaker: assistant_speaker
+  # Keep the realtime mic stream open through replies. The AEC path suppresses
+  # speaker echo, while OpenAI/server VAD handles natural barge-in without
+  # restarting the local session.
+  barge_in: true
+  on_phase:
+    - lambda: |-
+        if (phase == "idle") {
+          id(voice_assistant_tts_active) = false;
+          id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
+        } else if (phase == "listening") {
+          id(voice_assistant_phase) = ${voice_assist_listening_phase_id};
+          id(voice_assistant_tts_active) = false;
+        } else if (phase == "thinking") {
+          id(voice_assistant_phase) = ${voice_assist_thinking_phase_id};
+          id(voice_assistant_tts_active) = false;
+        } else if (phase == "replying") {
+          id(voice_assistant_phase) = ${voice_assist_replying_phase_id};
+          id(voice_assistant_tts_active) = true;
+        } else if (phase == "thanks") {
+          id(voice_assistant_phase) = ${voice_assist_thanks_phase_id};
+          id(voice_assistant_tts_active) = false;
+        }
+    - script.execute: voice_assistant_update_overlay
+    - if:
+        condition:
+          lambda: 'return phase == "listening" || phase == "thinking" || phase == "replying";'
+        then:
+          - switch.turn_on: voice_audio_processing_switch
+    - if:
+        condition:
+          lambda: 'return phase == "idle";'
+        then:
+          - mixer_speaker.apply_ducking:
+              id: media_mixing_input
+              decibel_reduction: 0
+              duration: 1s
+          - if:
+              condition:
+                and:
+                  - switch.is_off: voice_assistant_mute_switch
+                  - lambda: 'return id(va)->is_connected();'
+              then:
+                - switch.turn_on: voice_audio_processing_switch
+                - micro_wake_word.start:
+                - micro_wake_word.enable_model: okay_nabu
+                - micro_wake_word.enable_model: hey_jarvis
+                - micro_wake_word.disable_model: stop
+          - script.execute: voice_assistant_stop_word_watchdog
+          - script.execute: voice_assistant_resume_paused_media
+          - script.execute: media_resume_deferred_artwork
+    - if:
+        condition:
+          lambda: 'return phase == "thanks";'
+        then:
+          - script.stop: voice_assistant_stop_word_watchdog
+    - if:
+        condition:
+          lambda: 'return phase == "replying";'
+        then:
+          - micro_wake_word.stop:
+          - script.stop: voice_assistant_stop_word_watchdog
+    - if:
+        condition:
+          lambda: 'return phase == "listening" || phase == "thinking";'
+        then:
+          - micro_wake_word.stop:
+          - script.stop: voice_assistant_stop_word_watchdog
+  on_transcript:
+    - lambda: |-
+        if (role == "user") {
+          id(voice_assistant_request_text).publish_state(text);
+        } else if (role == "assistant") {
+          id(voice_assistant_response_text).publish_state(text);
+        }
+    - script.execute: voice_assistant_update_overlay
+  on_repeated_failure:
+    - lambda: |-
+        id(voice_assistant_phase) = ${voice_assist_not_ready_phase_id};
+        id(voice_assistant_tts_active) = false;
+        id(voice_assistant_response_text).publish_state("Realtime backend unavailable");
+    - script.execute: voice_assistant_update_overlay
+    - if:
+        condition:
+          switch.is_off: voice_assistant_mute_switch
+        then:
+          - switch.turn_on: voice_audio_processing_switch
+          - micro_wake_word.start:
+  on_followup_opened:
+    - lambda: |-
+        id(voice_assistant_phase) = ${voice_assist_listening_phase_id};
+        id(voice_assistant_tts_active) = false;
+    - script.execute: voice_assistant_update_overlay
+    - switch.turn_on: voice_audio_processing_switch
+    - delay: !lambda 'return id(va)->get_wake_open_delay_ms();'
+    - lambda: 'id(va)->commit_followup_mic();'
+    - micro_wake_word.disable_model: stop
+    - script.execute: voice_assistant_stop_word_watchdog
+
+voice_assistant:
+  id: ha_va
+  microphone:
+    microphone: voice_microphone
+    channels: 0
+    gain_factor: 4
   micro_wake_word: wake_word_engine
-  media_player: local_music_player
+  speaker: assistant_speaker
   use_wake_word: false
   noise_suppression_level: 0
   auto_gain: 0dBFS
@@ -237,14 +480,24 @@ voice_assistant:
         condition:
           switch.is_off: voice_assistant_mute_switch
         then:
+          - switch.turn_on: voice_audio_processing_switch
           - micro_wake_word.start:
     - script.execute: voice_assistant_update_overlay
   on_client_disconnected:
     - voice_assistant.stop:
     - micro_wake_word.stop:
-    - lambda: id(voice_assistant_phase) = ${voice_assist_not_ready_phase_id};
+    - switch.turn_off: voice_audio_processing_switch
+    - lambda: |-
+        id(voice_assistant_phase) = ${voice_assist_not_ready_phase_id};
+        id(voice_assistant_tts_active) = false;
     - script.execute: voice_assistant_update_overlay
   on_error:
+    - lambda: |-
+        ESP_LOGW("voice.diag", "VA error code=%s message=%s uptime=%lums internal_free=%uKiB",
+                 code.c_str(), message.c_str(),
+                 (unsigned long) millis(),
+                 (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024));
+        id(voice_assistant_tts_active) = false;
     - if:
         condition:
           and:
@@ -259,8 +512,26 @@ voice_assistant:
         id: media_mixing_input
         decibel_reduction: 0
         duration: 1s
+    - if:
+        condition:
+          switch.is_off: voice_assistant_mute_switch
+        then:
+          - delay: 250ms
+          - switch.turn_on: voice_audio_processing_switch
+          - micro_wake_word.start:
   on_start:
-    - micro_wake_word.stop:
+    - switch.turn_on: voice_audio_processing_switch
+    - lambda: |-
+        if (id(voice_assistant_timing_logs_switch).state) {
+          ESP_LOGI("voice.diag", "VA start uptime=%lums internal_free=%uKiB",
+                   (unsigned long) millis(),
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024));
+        }
+    - script.execute:
+        id: voice_assistant_mark_stage
+        stage: "start"
+    - lambda: |-
+        id(voice_assistant_tts_active) = false;
     - if:
         condition:
           media_player.is_playing: local_music_player
@@ -278,37 +549,77 @@ voice_assistant:
     - script.execute: voice_assistant_update_overlay
   on_listening:
     - lambda: |-
+        if (id(voice_assistant_timing_logs_switch).state) {
+          ESP_LOGI("voice.diag", "VA listening uptime=%lums internal_free=%uKiB",
+                   (unsigned long) millis(),
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024));
+        }
+    - script.execute:
+        id: voice_assistant_mark_stage
+        stage: "listening"
+    - lambda: |-
         id(voice_assistant_phase) = ${voice_assist_waiting_phase_id};
-        id(voice_assistant_request_text).publish_state("...");
-        id(voice_assistant_response_text).publish_state("");
+        if (id(voice_assistant_request_text).state.empty()) {
+          id(voice_assistant_request_text).publish_state("...");
+        }
     - script.execute: voice_assistant_update_overlay
   on_stt_vad_start:
+    - lambda: |-
+        if (id(voice_assistant_timing_logs_switch).state) {
+          ESP_LOGI("voice.diag", "HA STT VAD start uptime=%lums internal_free=%uKiB",
+                   (unsigned long) millis(),
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024));
+        }
+    - script.execute:
+        id: voice_assistant_mark_stage
+        stage: "vad_start"
     - lambda: id(voice_assistant_phase) = ${voice_assist_listening_phase_id};
     - script.execute: voice_assistant_update_overlay
   on_stt_vad_end:
+    - lambda: |-
+        if (id(voice_assistant_timing_logs_switch).state) {
+          ESP_LOGI("voice.diag", "HA STT VAD end uptime=%lums internal_free=%uKiB",
+                   (unsigned long) millis(),
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024));
+        }
+    - script.execute:
+        id: voice_assistant_mark_stage
+        stage: "vad_end"
     - lambda: id(voice_assistant_phase) = ${voice_assist_thinking_phase_id};
-    # The onboard ES7210 mic and ES8311 DAC share ESPHome's I2S parent bus.
-    # Release wake-word RX before the TTS speaker tries to own TX.
-    - micro_wake_word.stop:
     - script.execute: voice_assistant_update_overlay
   on_stt_end:
+    - script.execute:
+        id: voice_assistant_mark_stage
+        stage: "stt_end"
     - text_sensor.template.publish:
         id: voice_assistant_request_text
         state: !lambda return x;
-    - micro_wake_word.stop:
+  on_intent_start:
+    - script.execute:
+        id: voice_assistant_mark_stage
+        stage: "intent_start"
   on_intent_progress:
     - if:
         condition:
           lambda: return !x.empty();
         then:
+          - script.execute:
+              id: voice_assistant_mark_stage
+              stage: "intent_progress"
           - lambda: id(voice_assistant_phase) = ${voice_assist_replying_phase_id};
-          - micro_wake_word.stop:
           - script.execute: voice_assistant_update_overlay
+  on_intent_end:
+    - script.execute:
+        id: voice_assistant_mark_stage
+        stage: "intent_end"
   on_tts_start:
+    - script.execute:
+        id: voice_assistant_mark_stage
+        stage: "tts_start"
+    - lambda: id(voice_assistant_tts_active) = true;
     - text_sensor.template.publish:
         id: voice_assistant_response_text
         state: !lambda return x;
-    - micro_wake_word.stop:
     - if:
         condition:
           lambda: return id(voice_assistant_phase) != ${voice_assist_replying_phase_id};
@@ -316,43 +627,101 @@ voice_assistant:
           - lambda: id(voice_assistant_phase) = ${voice_assist_replying_phase_id};
           - script.execute: voice_assistant_update_overlay
   on_tts_end:
+    - script.execute:
+        id: voice_assistant_mark_stage
+        stage: "tts_url"
     - script.execute: voice_assistant_update_overlay
-  on_end:
-    - wait_until:
-        not:
-          voice_assistant.is_running:
+  on_tts_stream_start:
+    - lambda: |-
+        if (id(voice_assistant_timing_logs_switch).state) {
+          ESP_LOGI("voice.diag", "TTS stream start uptime=%lums internal_free=%uKiB",
+                   (unsigned long) millis(),
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024));
+        }
+    - script.execute:
+        id: voice_assistant_mark_stage
+        stage: "announcement"
     - mixer_speaker.apply_ducking:
         id: media_mixing_input
-        decibel_reduction: 0
-        duration: 1s
-    - wait_until:
-        condition:
-          not:
-            media_player.is_announcing: local_music_player
-        timeout: 2s
-    - if:
-        condition:
-          lambda: return id(voice_assistant_phase) == ${voice_assist_error_phase_id};
-        then:
-          - delay: 1s
-    - lambda: id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
+        decibel_reduction: 20
+        duration: 0ms
+  on_tts_stream_end:
+    - lambda: |-
+        if (id(voice_assistant_timing_logs_switch).state) {
+          ESP_LOGI("voice.diag", "TTS stream end uptime=%lums internal_free=%uKiB",
+                   (unsigned long) millis(),
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024));
+        }
     - script.execute: voice_assistant_update_overlay
+  on_end:
     - if:
         condition:
-          and:
-            - voice_assistant.connected:
-            - switch.is_off: voice_assistant_mute_switch
+          lambda: return id(ha_va).is_continuous();
         then:
-          - delay: 250ms
-          - micro_wake_word.start:
+          - script.execute: voice_assistant_update_overlay
+        else:
+          - wait_until:
+              condition:
+                lambda: return !id(ha_va).is_running();
+              timeout: 15s
+          - if:
+              condition:
+                lambda: return id(ha_va).is_running();
+              then:
+                - script.execute: voice_assistant_update_overlay
+              else:
+                - mixer_speaker.apply_ducking:
+                    id: media_mixing_input
+                    decibel_reduction: 0
+                    duration: 1s
+                - wait_until:
+                    condition:
+                      not:
+                        media_player.is_announcing: local_music_player
+                    timeout: 2s
+                - script.execute:
+                    id: voice_assistant_mark_stage
+                    stage: "end"
+                - if:
+                    condition:
+                      lambda: return id(voice_assistant_phase) == ${voice_assist_error_phase_id};
+                    then:
+                      - delay: 1s
+                - lambda: id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
+                - lambda: |-
+                    id(voice_assistant_tts_active) = false;
+                - script.execute: voice_assistant_update_overlay
+                - if:
+                    condition:
+                      and:
+                        - lambda: 'return id(va)->is_connected();'
+                        - switch.is_off: voice_assistant_mute_switch
+                    then:
+                      - delay: 250ms
+                      - switch.turn_on: voice_audio_processing_switch
+                      - micro_wake_word.start:
+                - if:
+                    condition:
+                      lambda: return id(voice_assistant_paused_media);
+                    then:
+                      - media_player.play: local_music_player
+                      - globals.set:
+                          id: voice_assistant_paused_media
+                          value: 'false'
+  on_idle:
     - if:
         condition:
-          lambda: return id(voice_assistant_paused_media);
+          lambda: return id(ha_va).is_continuous();
         then:
-          - media_player.play: local_music_player
-          - globals.set:
-              id: voice_assistant_paused_media
-              value: 'false'
+          - lambda: |-
+              id(voice_assistant_tts_active) = false;
+              id(voice_assistant_phase) = ${voice_assist_waiting_phase_id};
+              if (id(voice_assistant_request_text).state.empty()) {
+                id(voice_assistant_request_text).publish_state("...");
+              }
+          - script.execute: voice_assistant_update_overlay
+        else:
+          - script.execute: voice_assistant_finish_conversation
   on_timer_started:
     - script.execute: check_if_timers_active
     - script.execute: voice_assistant_update_overlay
@@ -368,10 +737,167 @@ voice_assistant:
     - script.execute: voice_assistant_update_overlay
 
 script:
+  - id: voice_assistant_stop_word_watchdog
+    mode: restart
+    then:
+      - delay: 12000ms
+      - if:
+          condition:
+            lambda: |-
+              return id(voice_assistant_phase) == ${voice_assist_idle_phase_id} ||
+                     id(voice_assistant_phase) == ${voice_assist_listening_phase_id};
+          then:
+            - micro_wake_word.disable_model: stop
+            - lambda: |-
+                if (id(voice_assistant_phase) == ${voice_assist_listening_phase_id}) {
+                  id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
+                }
+            - script.execute: voice_assistant_update_overlay
+
+  - id: voice_assistant_stop_conversation
+    mode: restart
+    then:
+      - lambda: |-
+          if (id(voice_assistant_timing_logs_switch).state) {
+            ESP_LOGI("voice.diag", "VA manual/voice stop uptime=%lums internal_free=%uKiB",
+                     (unsigned long) millis(),
+                     (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024));
+          }
+          id(voice_assistant_stop_requested) = true;
+          id(voice_assistant_reply_seen) = false;
+          id(voice_assistant_auto_continue_pending) = false;
+          id(va)->send_interrupt();
+          id(voice_assistant_tts_active) = false;
+      - speaker.stop: assistant_speaker
+      - switch.turn_off: voice_audio_processing_switch
+      - script.execute: voice_assistant_finish_conversation
+
+  - id: voice_assistant_finish_conversation
+    mode: restart
+    then:
+      - mixer_speaker.apply_ducking:
+          id: media_mixing_input
+          decibel_reduction: 0
+          duration: 1s
+      - wait_until:
+          condition:
+            not:
+              media_player.is_announcing: local_music_player
+          timeout: 2s
+      - script.execute:
+          id: voice_assistant_mark_stage
+          stage: "end"
+      - if:
+          condition:
+            lambda: return id(voice_assistant_phase) == ${voice_assist_error_phase_id};
+          then:
+            - delay: 1s
+      - lambda: |-
+          id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
+          id(voice_assistant_tts_active) = false;
+      - script.execute: voice_assistant_update_overlay
+      - script.execute: media_resume_deferred_artwork
+      - if:
+          condition:
+            and:
+              - lambda: 'return id(va)->is_connected();'
+              - switch.is_off: voice_assistant_mute_switch
+          then:
+            - delay: 250ms
+            - switch.turn_on: voice_audio_processing_switch
+            - micro_wake_word.start:
+      - script.execute: voice_assistant_resume_paused_media
+
+  - id: voice_assistant_resume_paused_media
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: return id(voice_assistant_paused_media);
+          then:
+            - media_player.play: local_music_player
+            - globals.set:
+                id: voice_assistant_paused_media
+                value: 'false'
+
+  - id: voice_assistant_mark_stage
+    mode: queued
+    parameters:
+      stage: string
+    then:
+      - lambda: |-
+          const uint32_t now = millis();
+          if (stage == "wake") {
+            id(voice_assistant_wake_ms) = now;
+            id(voice_assistant_start_ms) = 0;
+            id(voice_assistant_listening_ms) = 0;
+            id(voice_assistant_vad_start_ms) = 0;
+            id(voice_assistant_vad_end_ms) = 0;
+            id(voice_assistant_stt_end_ms) = 0;
+            id(voice_assistant_intent_start_ms) = 0;
+            id(voice_assistant_intent_progress_ms) = 0;
+            id(voice_assistant_intent_end_ms) = 0;
+            id(voice_assistant_tts_start_ms) = 0;
+            id(voice_assistant_tts_url_ms) = 0;
+            id(voice_assistant_playback_start_ms) = 0;
+            id(voice_assistant_end_ms) = 0;
+          } else if (stage == "start") {
+            if (id(voice_assistant_wake_ms) == 0) {
+              id(voice_assistant_wake_ms) = now;
+            }
+            id(voice_assistant_start_ms) = now;
+          } else if (stage == "listening") {
+            id(voice_assistant_listening_ms) = now;
+          } else if (stage == "vad_start") {
+            id(voice_assistant_vad_start_ms) = now;
+          } else if (stage == "vad_end") {
+            id(voice_assistant_vad_end_ms) = now;
+          } else if (stage == "stt_end") {
+            id(voice_assistant_stt_end_ms) = now;
+          } else if (stage == "intent_start") {
+            id(voice_assistant_intent_start_ms) = now;
+          } else if (stage == "intent_progress") {
+            id(voice_assistant_intent_progress_ms) = now;
+          } else if (stage == "intent_end") {
+            id(voice_assistant_intent_end_ms) = now;
+          } else if (stage == "tts_start") {
+            id(voice_assistant_tts_start_ms) = now;
+          } else if (stage == "tts_url") {
+            id(voice_assistant_tts_url_ms) = now;
+          } else if (stage == "announcement") {
+            id(voice_assistant_playback_start_ms) = now;
+          } else if (stage == "end") {
+            id(voice_assistant_end_ms) = now;
+          }
+
+          auto delta = [](uint32_t from, uint32_t to) -> unsigned long {
+            if (from == 0 || to == 0 || to < from) return 0;
+            return (unsigned long) (to - from);
+          };
+          const uint32_t last = id(voice_assistant_end_ms) != 0 ? id(voice_assistant_end_ms) : now;
+          char buf[220];
+          snprintf(buf, sizeof(buf),
+                   "stage=%s wake_start=%lums start_listen=%lums vad_wait=%lums speech=%lums stt=%lums intent=%lums tts_text=%lums tts_url=%lums first_audio=%lums total=%lums",
+                   stage.c_str(),
+                   delta(id(voice_assistant_wake_ms), id(voice_assistant_start_ms)),
+                   delta(id(voice_assistant_start_ms), id(voice_assistant_listening_ms)),
+                   delta(id(voice_assistant_listening_ms), id(voice_assistant_vad_start_ms)),
+                   delta(id(voice_assistant_vad_start_ms), id(voice_assistant_vad_end_ms)),
+                   delta(id(voice_assistant_vad_end_ms), id(voice_assistant_stt_end_ms)),
+                   delta(id(voice_assistant_stt_end_ms), id(voice_assistant_intent_start_ms)),
+                   delta(id(voice_assistant_intent_start_ms), id(voice_assistant_tts_start_ms)),
+                   delta(id(voice_assistant_tts_start_ms), id(voice_assistant_tts_url_ms)),
+                   delta(id(voice_assistant_tts_url_ms), id(voice_assistant_playback_start_ms)),
+                   delta(id(voice_assistant_wake_ms), last));
+          id(voice_assistant_latency_trace).publish_state(buf);
+          if (id(voice_assistant_timing_logs_switch).state) {
+            ESP_LOGI("voice.latency", "%s", buf);
+          }
+
   - id: fetch_first_active_timer
     then:
       - lambda: |-
-          const auto timers = id(va).get_timers();
+          const auto timers = id(ha_va).get_timers();
           if (timers.empty()) {
             id(is_timer_active) = false;
             return;
@@ -388,7 +914,7 @@ script:
   - id: check_if_timers_active
     then:
       - lambda: |-
-          const auto timers = id(va).get_timers();
+          const auto timers = id(ha_va).get_timers();
           bool active = false;
           for (const auto &timer : timers) {
             if (timer.is_active) {
@@ -405,7 +931,9 @@ script:
           condition:
             lambda: |-
               const int phase = id(voice_assistant_phase);
-              return phase != ${voice_assist_idle_phase_id} && phase != ${voice_assist_not_ready_phase_id};
+              const bool active_phase = phase != ${voice_assist_idle_phase_id} &&
+                                        phase != ${voice_assist_not_ready_phase_id};
+              return id(ui_active_app) == 3 || active_phase;
           then:
             - lvgl.widget.show: voice_assistant_overlay
             - lambda: |-
@@ -419,7 +947,9 @@ script:
             - lvgl.widget.hide: voice_assistant_overlay
       - lambda: |-
           const int phase = id(voice_assistant_phase);
-          const bool visible = phase != ${voice_assist_idle_phase_id} && phase != ${voice_assist_not_ready_phase_id};
+          const bool active_phase = phase != ${voice_assist_idle_phase_id} &&
+                                    phase != ${voice_assist_not_ready_phase_id};
+          const bool visible = id(ui_active_app) == 3 || active_phase;
 
           const char *status = "Assistant";
           uint32_t accent = 0xC3EDCF;
@@ -433,7 +963,10 @@ script:
             status = "Thinking";
             accent = 0xD3E3FD;
           } else if (phase == ${voice_assist_replying_phase_id}) {
-            status = "Speaking";
+            status = "Answering";
+            accent = 0xC3EDCF;
+          } else if (phase == ${voice_assist_thanks_phase_id}) {
+            status = "Thanks";
             accent = 0xC3EDCF;
           } else if (phase == ${voice_assist_timer_finished_phase_id}) {
             status = "Timer";
@@ -458,16 +991,4 @@ script:
           if (id(voice_assistant_response_label) != nullptr) {
             const std::string response = id(voice_assistant_response_text).state;
             lv_label_set_text(id(voice_assistant_response_label), response.empty() ? "" : response.c_str());
-          }
-          if (id(voice_assistant_lottie) != nullptr) {
-            auto *ctx = static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(id(voice_assistant_lottie)));
-            if (visible) {
-              if (ctx == nullptr) {
-                lv_obj_clear_flag(id(voice_assistant_lottie), LV_OBJ_FLAG_HIDDEN);
-              } else {
-                esphome::lvgl::lottie_show(ctx, true);
-              }
-            } else {
-              esphome::lvgl::lottie_hide(ctx);
-            }
           }

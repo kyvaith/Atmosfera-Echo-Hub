@@ -29,7 +29,6 @@ touchscreen:
 
             id(app_close_tracking) = id(ui_active_app) != 0 && touch.y >= 700;
             if (id(app_close_tracking)) {
-              id(app_close_prewarm_requested) = true;
               id(ui_touch_click_block_until_ms) = millis() + 900;
               lv_indev_reset(nullptr, nullptr);
               for (lv_indev_t *indev = lv_indev_get_next(nullptr); indev != nullptr;
@@ -148,7 +147,6 @@ touchscreen:
               }
               id(app_close_tracking) = false;
               id(app_close_dragging) = false;
-              id(app_close_prewarm_requested) = false;
               lvgl_esphome_snapshot_app_clear_prepared_close();
             }
             if (!id(tile_swipe_tracking)) {

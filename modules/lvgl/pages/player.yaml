@@ -40,7 +40,7 @@ lvgl:
                   y: 0
                   width: 800
                   height: 800
-                  src: figma_media_artwork_primary
+                  src: album_art_placeholder
                   opa: 100%
 
               - image:
@@ -66,6 +66,7 @@ lvgl:
                   pad_all: 0
                   scrollable: false
                   clickable: false
+                  hidden: true
 
               - obj:
                   id: artwork_scrim
@@ -80,15 +81,7 @@ lvgl:
                   pad_all: 0
                   scrollable: false
                   clickable: false
-
-              - image:
-                  id: figma_media_vignette_widget
-                  x: 0
-                  y: 0
-                  width: 800
-                  height: 800
-                  src: figma_media_artwork_vignette
-                  opa: 100%
+                  hidden: true
 
               - label:
                   id: artwork_error_label
@@ -125,36 +118,52 @@ lvgl:
                         text_color: 0xF5EEFB
                         text_font: wear_time_40
 
-              - image:
-                  id: figma_media_header_bolt_widget
+              - obj:
+                  id: media_header_bolt_surface
                   x: 207
                   y: 92
                   width: 53
                   height: 53
-                  src: figma_media_header_bolt
-                  opa: 100%
+                  radius: 27
+                  bg_color: 0xEADDFF
+                  bg_opa: 100%
+                  border_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+                  widgets:
+                    - label:
+                        text: "\uE833"
+                        align: CENTER
+                        text_color: 0x21005D
+                        text_font: material_symbols_30
 
               - button:
                   id: speaker_group_button
-                  width: 160
-                  height: 160
+                  width: 147
+                  height: 107
                   align: CENTER
                   x: 0
                   y: 293
-                  bg_color: 0x000000
-                  bg_opa: 0%
+                  bg_color: 0xF5EEFB
+                  bg_opa: 16%
                   border_width: 0
-                  border_color: 0x5C5F5E
-                  radius: 80
+                  outline_width: 0
+                  shadow_width: 0
+                  radius: 53
                   pad_all: 0
                   scrollable: false
                   gesture_bubble: true
+                  style_transition_time: 90ms
+                  style_transition_path: ease_out
+                  pressed:
+                    bg_opa: 28%
                   widgets:
-                    - image:
-                        src: figma_media_footer_speaker
+                    - label:
+                        text: "\uE050"
                         align: CENTER
-                        width: 147
-                        height: 107
+                        text_color: 0xF5EEFB
+                        text_font: material_symbols_58
                   on_click:
                     then:
                       - script.execute: open_speaker_group_panel
@@ -233,23 +242,6 @@ lvgl:
                   text_font: roboto_18
                   hidden: true
 
-              - bar:
-                  id: media_progress_bar
-                  align: TOP_MID
-                  y: 486
-                  width: 320
-                  height: 8
-                  min_value: 0
-                  max_value: 100
-                  value: 0
-                  bg_color: 0x5C5F5E
-                  bg_opa: 100%
-                  radius: 6
-                  indicator:
-                    bg_color: 0xD3E3FD
-                    radius: 6
-                  hidden: true
-
               - obj:
                   id: transport_group_surface
                   align: CENTER
@@ -271,22 +263,27 @@ lvgl:
                   align: CENTER
                   x: -218
                   y: 213
-                  width: 160
-                  height: 160
-                  radius: 80
-                  bg_color: 0x000000
-                  bg_opa: 0%
+                  width: 147
+                  height: 107
+                  radius: 53
+                  bg_color: 0xF5EEFB
+                  bg_opa: 16%
                   border_width: 0
-                  border_color: 0x5C5F5E
+                  outline_width: 0
+                  shadow_width: 0
                   pad_all: 0
                   scrollable: false
                   gesture_bubble: true
+                  style_transition_time: 90ms
+                  style_transition_path: ease_out
+                  pressed:
+                    bg_opa: 28%
                   widgets:
-                    - image:
-                        src: figma_media_footer_queue
+                    - label:
+                        text: "\uE03D"
                         align: CENTER
-                        width: 147
-                        height: 107
+                        text_color: 0xF5EEFB
+                        text_font: material_symbols_58
                   on_click:
                     then:
                       - script.execute: open_queue_panel
@@ -296,22 +293,27 @@ lvgl:
                   align: CENTER
                   x: 218
                   y: 213
-                  width: 160
-                  height: 160
-                  radius: 80
-                  bg_color: 0x000000
-                  bg_opa: 0%
+                  width: 147
+                  height: 107
+                  radius: 53
+                  bg_color: 0xF5EEFB
+                  bg_opa: 16%
                   border_width: 0
-                  border_color: 0x5C5F5E
+                  outline_width: 0
+                  shadow_width: 0
                   pad_all: 0
                   scrollable: false
                   gesture_bubble: true
+                  style_transition_time: 90ms
+                  style_transition_path: ease_out
+                  pressed:
+                    bg_opa: 28%
                   widgets:
-                    - image:
-                        src: figma_media_footer_more
+                    - label:
+                        text: "\uE5D4"
                         align: CENTER
-                        width: 147
-                        height: 107
+                        text_color: 0xF5EEFB
+                        text_font: material_symbols_58
                   on_click:
                     then:
                       - script.execute: show_volume_overlay
@@ -321,153 +323,155 @@ lvgl:
                   align: CENTER
                   x: -253
                   y: 0
-                  width: 173
-                  height: 173
-                  radius: 87
-                  bg_color: 0x000000
-                  bg_opa: 0%
+                  width: 160
+                  height: 210
+                  radius: 80
+                  bg_color: 0xD9C2FF
+                  bg_opa: 100%
                   border_width: 0
-                  border_color: 0x5C5F5E
+                  outline_width: 0
+                  shadow_width: 0
                   pad_all: 0
                   scrollable: false
                   gesture_bubble: true
+                  style_transition_time: 90ms
+                  style_transition_path: ease_out
+                  pressed:
+                    bg_color: 0xCBB2F5
                   widgets:
-                    - image:
-                        src: figma_media_side_prev_button
+                    - label:
+                        text: "\uE045"
                         align: CENTER
-                        width: 173
-                        height: 173
+                        text_color: 0x3F006B
+                        text_font: material_symbols_58
                   on_click:
                     then:
-                      - homeassistant.service:
-                          service: media_player.media_previous_track
-                          variables:
-                            target: !lambda 'return id(media_player_entity).state;'
-                          data_template:
-                            entity_id: "{{ target }}"
+                      - script.execute: media_show_action_spinner
+                      - media_player.previous: sendspin_group
 
               - button:
                   id: next_button
                   align: CENTER
                   x: 253
                   y: 0
-                  width: 173
-                  height: 173
-                  radius: 87
-                  bg_color: 0x000000
-                  bg_opa: 0%
+                  width: 160
+                  height: 210
+                  radius: 80
+                  bg_color: 0xD9C2FF
+                  bg_opa: 100%
                   border_width: 0
-                  border_color: 0x5C5F5E
+                  outline_width: 0
+                  shadow_width: 0
                   pad_all: 0
                   scrollable: false
                   gesture_bubble: true
+                  style_transition_time: 90ms
+                  style_transition_path: ease_out
+                  pressed:
+                    bg_color: 0xCBB2F5
                   widgets:
-                    - image:
-                        src: figma_media_side_next_button
+                    - label:
+                        text: "\uE044"
                         align: CENTER
-                        width: 173
-                        height: 173
+                        text_color: 0x3F006B
+                        text_font: material_symbols_58
                   on_click:
                     then:
-                      - homeassistant.service:
-                          service: media_player.media_next_track
-                          variables:
-                            target: !lambda 'return id(media_player_entity).state;'
-                          data_template:
-                            entity_id: "{{ target }}"
+                      - script.execute: media_show_action_spinner
+                      - media_player.next: sendspin_group
 
-              - obj:
-                  id: play_scallop_top
+              - arc:
+                  id: media_main_progress_arc
                   align: CENTER
-                  x: 0
-                  y: -62
-                  width: 72
-                  height: 72
-                  radius: 36
-                  bg_color: 0xD3E3FD
-                  bg_opa: 100%
-                  border_width: 0
-                  pad_all: 0
-                  scrollable: false
-                  clickable: false
-                  hidden: true
-              - obj:
-                  id: play_scallop_bottom
-                  align: CENTER
-                  x: 0
-                  y: 194
-                  width: 72
-                  height: 72
-                  radius: 36
-                  bg_color: 0xD3E3FD
-                  bg_opa: 100%
-                  border_width: 0
-                  pad_all: 0
-                  scrollable: false
-                  clickable: false
-                  hidden: true
-              - obj:
-                  id: play_scallop_left
-                  align: CENTER
-                  x: -128
-                  y: 66
-                  width: 72
-                  height: 72
-                  radius: 36
-                  bg_color: 0xD3E3FD
-                  bg_opa: 100%
-                  border_width: 0
-                  pad_all: 0
-                  scrollable: false
-                  clickable: false
-                  hidden: true
-              - obj:
-                  id: play_scallop_right
-                  align: CENTER
-                  x: 128
-                  y: 66
-                  width: 72
-                  height: 72
-                  radius: 36
-                  bg_color: 0xD3E3FD
-                  bg_opa: 100%
-                  border_width: 0
-                  pad_all: 0
-                  scrollable: false
-                  clickable: false
-                  hidden: true
-
-              - canvas:
-                  id: media_main_control_canvas
-                  align: CENTER
-                  x: 0
-                  y: 0
                   width: 267
                   height: 267
-                  transparent: true
+                  min_value: 0
+                  max_value: 100
+                  value: 0
+                  start_angle: 0
+                  end_angle: 359
+                  rotation: 270
+                  adjustable: false
+                  mode: NORMAL
+                  bg_opa: 0%
+                  border_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+                  arc_color: 0x261B30
+                  arc_width: 12
+                  arc_opa: 100%
+                  arc_rounded: true
+                  indicator:
+                    arc_color: 0xEDD9F9
+                    arc_width: 12
+                    arc_opa: 100%
+                    arc_rounded: true
+                  knob:
+                    bg_opa: 0%
+
+              - arc:
+                  id: media_action_spinner_arc
+                  align: CENTER
+                  width: 224
+                  height: 224
+                  min_value: 0
+                  max_value: 100
+                  value: 17
+                  start_angle: 0
+                  end_angle: 359
+                  rotation: 270
+                  adjustable: false
+                  mode: NORMAL
+                  bg_opa: 0%
+                  border_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+                  hidden: true
+                  arc_color: 0x000000
+                  arc_width: 8
+                  arc_opa: 0%
+                  arc_rounded: true
+                  indicator:
+                    arc_color: 0xF5EEFB
+                    arc_width: 8
+                    arc_opa: 72%
+                    arc_rounded: true
+                  knob:
+                    bg_opa: 0%
 
               - button:
                   id: play_button
                   align: CENTER
                   x: 0
                   y: 0
-                  width: 267
-                  height: 267
-                  radius: 134
-                  bg_color: 0xD0BCFF
-                  bg_opa: 0%
+                  width: 192
+                  height: 192
+                  radius: 96
+                  bg_color: 0xE4C2FF
+                  bg_opa: 100%
                   border_width: 0
+                  outline_width: 0
+                  shadow_width: 0
                   pad_all: 0
                   scrollable: false
                   gesture_bubble: true
+                  style_transition_time: 90ms
+                  style_transition_path: ease_out
+                  pressed:
+                    bg_color: 0xD6B4F2
+                  widgets:
+                    - label:
+                        id: media_main_icon_label
+                        text: "\uE037"
+                        align: CENTER
+                        text_color: 0x400060
+                        text_font: material_symbols_86
                   on_click:
                     then:
-                      - homeassistant.service:
-                          service: media_player.media_play_pause
-                          variables:
-                            target: !lambda 'return id(media_player_entity).state;'
-                          data_template:
-                            entity_id: "{{ target }}"
+                      - script.execute: media_show_action_spinner
+                      - media_player.toggle: sendspin_group
 
               - obj:
                   id: queue_panel
@@ -486,7 +490,7 @@ lvgl:
                     - label:
                         text: "Queue"
                         align: TOP_MID
-                        y: 70
+                        y: 62
                         width: 420
                         text_align: CENTER
                         text_color: 0xF5EEFB
@@ -514,10 +518,10 @@ lvgl:
                     - obj:
                         id: queue_current_row
                         align: TOP_MID
-                        y: 188
-                        width: 600
-                        height: 118
-                        radius: 59
+                        y: 166
+                        width: 520
+                        height: 72
+                        radius: 36
                         bg_color: 0x332E3C
                         bg_opa: 100%
                         border_width: 0
@@ -525,28 +529,156 @@ lvgl:
                         scrollable: false
                         widgets:
                           - label:
+                              id: queue_marker_0
+                              text: "\uE037"
+                              x: 24
+                              y: 19
+                              width: 32
+                              height: 34
+                              text_align: CENTER
+                              text_color: 0xEDD9F9
+                              text_font: material_symbols_24
+                          - label:
                               id: queue_current_title_label
                               text: "No Track"
-                              x: 36
-                              y: 24
-                              width: 440
+                              x: 72
+                              y: 10
+                              width: 300
                               long_mode: DOT
                               text_color: 0xF2F2F2
-                              text_font: roboto_24
+                              text_font: roboto_20
                           - label:
                               id: queue_current_artist_label
                               text: "-"
-                              x: 36
-                              y: 66
-                              width: 440
+                              x: 72
+                              y: 40
+                              width: 300
                               long_mode: DOT
                               text_color: 0xC4C7C5
-                              text_font: roboto_18
+                              text_font: roboto_16
+                          - label:
+                              id: queue_meta_0
+                              text: "Now"
+                              x: 390
+                              y: 24
+                              width: 82
+                              text_align: RIGHT
+                              long_mode: DOT
+                              text_color: 0xC4C7C5
+                              text_font: roboto_16
+                    - obj:
+                        id: queue_row_1
+                        align: TOP_MID
+                        y: 248
+                        width: 520
+                        height: 72
+                        radius: 36
+                        bg_color: 0x19151F
+                        bg_opa: 80%
+                        border_width: 0
+                        pad_all: 0
+                        scrollable: false
+                        hidden: true
+                        widgets:
+                          - label: { id: queue_marker_1, text: "\uE405", x: 24, y: 19, width: 32, height: 34, text_align: CENTER, text_color: 0xC4C7C5, text_font: material_symbols_24 }
+                          - label: { id: queue_title_1, text: "-", x: 72, y: 10, width: 300, long_mode: DOT, text_color: 0xF2F2F2, text_font: roboto_20 }
+                          - label: { id: queue_artist_1, text: "-", x: 72, y: 40, width: 300, long_mode: DOT, text_color: 0xC4C7C5, text_font: roboto_16 }
+                          - label: { id: queue_meta_1, text: "", x: 390, y: 24, width: 82, text_align: RIGHT, long_mode: DOT, text_color: 0xC4C7C5, text_font: roboto_16 }
+                    - obj:
+                        id: queue_row_2
+                        align: TOP_MID
+                        y: 330
+                        width: 520
+                        height: 72
+                        radius: 36
+                        bg_color: 0x19151F
+                        bg_opa: 80%
+                        border_width: 0
+                        pad_all: 0
+                        scrollable: false
+                        hidden: true
+                        widgets:
+                          - label: { id: queue_marker_2, text: "\uE405", x: 24, y: 19, width: 32, height: 34, text_align: CENTER, text_color: 0xC4C7C5, text_font: material_symbols_24 }
+                          - label: { id: queue_title_2, text: "-", x: 72, y: 10, width: 300, long_mode: DOT, text_color: 0xF2F2F2, text_font: roboto_20 }
+                          - label: { id: queue_artist_2, text: "-", x: 72, y: 40, width: 300, long_mode: DOT, text_color: 0xC4C7C5, text_font: roboto_16 }
+                          - label: { id: queue_meta_2, text: "", x: 390, y: 24, width: 82, text_align: RIGHT, long_mode: DOT, text_color: 0xC4C7C5, text_font: roboto_16 }
+                    - obj:
+                        id: queue_row_3
+                        align: TOP_MID
+                        y: 412
+                        width: 520
+                        height: 72
+                        radius: 36
+                        bg_color: 0x19151F
+                        bg_opa: 80%
+                        border_width: 0
+                        pad_all: 0
+                        scrollable: false
+                        hidden: true
+                        widgets:
+                          - label: { id: queue_marker_3, text: "\uE405", x: 24, y: 19, width: 32, height: 34, text_align: CENTER, text_color: 0xC4C7C5, text_font: material_symbols_24 }
+                          - label: { id: queue_title_3, text: "-", x: 72, y: 10, width: 300, long_mode: DOT, text_color: 0xF2F2F2, text_font: roboto_20 }
+                          - label: { id: queue_artist_3, text: "-", x: 72, y: 40, width: 300, long_mode: DOT, text_color: 0xC4C7C5, text_font: roboto_16 }
+                          - label: { id: queue_meta_3, text: "", x: 390, y: 24, width: 82, text_align: RIGHT, long_mode: DOT, text_color: 0xC4C7C5, text_font: roboto_16 }
+                    - obj:
+                        id: queue_row_4
+                        align: TOP_MID
+                        y: 494
+                        width: 520
+                        height: 72
+                        radius: 36
+                        bg_color: 0x19151F
+                        bg_opa: 80%
+                        border_width: 0
+                        pad_all: 0
+                        scrollable: false
+                        hidden: true
+                        widgets:
+                          - label: { id: queue_marker_4, text: "\uE405", x: 24, y: 19, width: 32, height: 34, text_align: CENTER, text_color: 0xC4C7C5, text_font: material_symbols_24 }
+                          - label: { id: queue_title_4, text: "-", x: 72, y: 10, width: 300, long_mode: DOT, text_color: 0xF2F2F2, text_font: roboto_20 }
+                          - label: { id: queue_artist_4, text: "-", x: 72, y: 40, width: 300, long_mode: DOT, text_color: 0xC4C7C5, text_font: roboto_16 }
+                          - label: { id: queue_meta_4, text: "", x: 390, y: 24, width: 82, text_align: RIGHT, long_mode: DOT, text_color: 0xC4C7C5, text_font: roboto_16 }
+                    - obj:
+                        id: queue_row_5
+                        align: TOP_MID
+                        y: 576
+                        width: 520
+                        height: 72
+                        radius: 36
+                        bg_color: 0x19151F
+                        bg_opa: 80%
+                        border_width: 0
+                        pad_all: 0
+                        scrollable: false
+                        hidden: true
+                        widgets:
+                          - label: { id: queue_marker_5, text: "\uE405", x: 24, y: 19, width: 32, height: 34, text_align: CENTER, text_color: 0xC4C7C5, text_font: material_symbols_24 }
+                          - label: { id: queue_title_5, text: "-", x: 72, y: 10, width: 300, long_mode: DOT, text_color: 0xF2F2F2, text_font: roboto_20 }
+                          - label: { id: queue_artist_5, text: "-", x: 72, y: 40, width: 300, long_mode: DOT, text_color: 0xC4C7C5, text_font: roboto_16 }
+                          - label: { id: queue_meta_5, text: "", x: 390, y: 24, width: 82, text_align: RIGHT, long_mode: DOT, text_color: 0xC4C7C5, text_font: roboto_16 }
+                    - obj:
+                        id: queue_row_6
+                        align: TOP_MID
+                        y: 658
+                        width: 520
+                        height: 72
+                        radius: 36
+                        bg_color: 0x19151F
+                        bg_opa: 80%
+                        border_width: 0
+                        pad_all: 0
+                        scrollable: false
+                        hidden: true
+                        widgets:
+                          - label: { id: queue_marker_6, text: "\uE405", x: 24, y: 19, width: 32, height: 34, text_align: CENTER, text_color: 0xC4C7C5, text_font: material_symbols_24 }
+                          - label: { id: queue_title_6, text: "-", x: 72, y: 10, width: 300, long_mode: DOT, text_color: 0xF2F2F2, text_font: roboto_20 }
+                          - label: { id: queue_artist_6, text: "-", x: 72, y: 40, width: 300, long_mode: DOT, text_color: 0xC4C7C5, text_font: roboto_16 }
+                          - label: { id: queue_meta_6, text: "", x: 390, y: 24, width: 82, text_align: RIGHT, long_mode: DOT, text_color: 0xC4C7C5, text_font: roboto_16 }
                     - label:
                         id: queue_empty_label
                         text: "Queue source not configured"
                         align: TOP_MID
-                        y: 340
+                        y: 256
                         width: 520
                         text_align: CENTER
                         text_color: 0xC4C7C5
@@ -603,14 +735,9 @@ lvgl:
                                 - lambda: |-
                                     id(volume_pending_pct) = (int)(x + 0.5f);
                                     id(volume_pending_until) = millis() + 1500;
-                                - homeassistant.service:
-                                    service: media_player.volume_set
-                                    variables:
-                                      target: !lambda 'return id(media_player_entity).state;'
-                                      vol_level: !lambda 'return x / 100.0f;'
-                                    data_template:
-                                      entity_id: "{{ target }}"
-                                      volume_level: "{{ vol_level }}"
+                                - media_player.volume_set:
+                                    id: sendspin_group
+                                    volume: !lambda 'return x / 100.0f;'
                                 - script.execute: show_volume_overlay
                     - label:
                         id: volume_title_label

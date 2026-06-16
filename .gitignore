@@ -9,5 +9,6 @@
 /logs/
 /_benchmarks/
 /profiles/
+/.codex-remote-attachments/
 __pycache__/
 *.pyc

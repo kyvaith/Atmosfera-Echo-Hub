@@ -7,56 +7,146 @@ switch:
     pin: GPIO53
     restore_mode: ALWAYS_ON
 
+  - platform: esp_audio_stack
+    esp_audio_stack_id: audio_stack
+    aec:
+      id: voice_audio_processing_switch
+      name: "Voice Audio Processing"
+      internal: true
+      restore_mode: ALWAYS_OFF
+
 sendspin:
   id: sendspin_hub
-  task_stack_in_psram: true
+  task_stack_in_psram: false
 
-i2s_audio:
-  - id: audio_bus
-    i2s_mclk_pin: GPIO13
-    i2s_lrclk_pin: GPIO10
-    i2s_bclk_pin: GPIO12
-    full_duplex: true
+esp_afe:
+  id: afe_processor
+  type: fd
+  mode: low_cost
+  # Use the light single-mic MR AFE path for realtime voice. Dual-mic MMNR
+  # forces structural SE/BSS, which profiling showed is too expensive together
+  # with realtime output and LVGL on the current firmware.
+  mic_num: 1
+  input_format: mr
+  aec_enabled: true
+  aec_filter_length: 4
+  aec_nlp_level: normal
+  # BSS microphone-array speech enhancement is expensive on ESP32-P4 when the
+  # realtime assistant is also rendering UI and streaming audio. Keep AEC/NS,
+  # but let the realtime backend/server VAD own turn-taking.
+  se_enabled: false
+  ns_enabled: true
+  # Continuous local VAD registers a background mic consumer. That can keep the
+  # AFE fetch task alive without a real wake-word/session consumer and eventually
+  # starve the post-AFE microphone path.
+  vad_enabled: false
+  continuous_vad: false
+  agc_enabled: false
+  memory_alloc_mode: more_psram
+  task_core: 1
+  task_priority: 10
+  ringbuf_size: 16
+  feed_task_core: 0
+  feed_task_priority: 10
+  feed_task_stack_size: 3072
+  fetch_task_core: 1
+  fetch_task_priority: 10
+  fetch_task_stack_size: 3072
+  feed_buf_in_psram: true
+  feed_ring_in_psram: true
+  fetch_ring_in_psram: true
 
-audio_dac:
-  - platform: es8311
-    id: es8311_dac
+esp_audio_stack:
+  id: audio_stack
+  audio_task_stack_in_psram: true
+  i2s_lrclk_pin: GPIO10
+  i2s_bclk_pin: GPIO12
+  i2s_mclk_pin: GPIO13
+  i2s_din_pin: GPIO11
+  i2s_dout_pin: GPIO9
+  sample_rate: 48000
+  output_sample_rate: 16000
+  dma_desc_num: 15
+  dma_frame_num: 256
+  audio_effects:
+    rate_cvt_complexity: 3
+    rate_cvt_perf_type: memory
+  codec:
     i2c_id: touchscreen_bus
-    address: 0x18
+    input:
+      type: es7210
+      address: 0x40
+      mic_selected: 0x0F
+      gain_db: 30.0
+    output:
+      type: es8311
+      address: 0x18
+      use_mclk: true
+      no_dac_ref: true
+  slot_bit_width: 16
+  bits_per_sample: 16
+  processor_id: afe_processor
+  tdm_total_slots: 4
+  use_tdm_reference: true
+  tdm_mic_slots: [0, 2]
+  tdm_ref_slot: 1
+  aec_reference: previous_frame
+  buffers_in_psram: true
 
-audio_adc:
-  - platform: es7210
-    id: es7210_adc
-    i2c_id: touchscreen_bus
-    address: 0x40
-    bits_per_sample: 16bit
-    sample_rate: 48000
-    mic_gain: 30db
+microphone:
+  - platform: esp_audio_stack
+    id: voice_microphone
+    esp_audio_stack_id: audio_stack
+
+binary_sensor:
+  - platform: esp_afe
+    esp_afe_id: afe_processor
+    vad:
+      id: afe_voice_detected
+      name: "AFE Voice Detected"
+      disabled_by_default: true
+      update_interval: 50ms
+
+sensor:
+  - platform: esp_audio_stack
+    esp_audio_stack_id: audio_stack
+    tdm_slot_levels:
+      - id: afe_tdm_mic_0_level
+        name: "AFE TDM Mic 0 Level"
+        slot: 0
+        disabled_by_default: true
+        update_interval: 1s
+      - id: afe_tdm_ref_level
+        name: "AFE TDM Slot 1 Level"
+        slot: 1
+        disabled_by_default: true
+        update_interval: 1s
+      - id: afe_tdm_mic_2_level
+        name: "AFE TDM Slot 2 Level"
+        slot: 2
+        disabled_by_default: true
+        update_interval: 1s
 
 speaker:
-  - platform: i2s_audio
+  - platform: esp_audio_stack
     id: board_speaker
-    i2s_audio_id: audio_bus
-    i2s_dout_pin: GPIO9
-    audio_dac: es8311_dac
-    dac_type: external
-    channel: stereo
-    buffer_duration: 100ms
+    esp_audio_stack_id: audio_stack
+    buffer_duration: 500ms
     timeout: never
-    bits_per_sample: 16bit
     sample_rate: 48000
+    bits_per_sample: 16
 
   - platform: mixer
     id: audio_mixer
     output_speaker: board_speaker
-    num_channels: 2
+    num_channels: 1
     queue_mode: true
     source_speakers:
       - id: media_mixing_input
         buffer_duration: 100ms
         timeout: never
       - id: assistant_mixing_input
-        buffer_duration: 100ms
+        buffer_duration: 1000ms
         timeout: never
 
   - platform: resampler
@@ -80,7 +170,7 @@ media_source:
     id: sendspin_media_source
     sample_rate: 48000
     buffer_size: 600000
-    task_stack_in_psram: true
+    task_stack_in_psram: false
     decode_memory: psram
     initial_static_delay: 250ms
     static_delay_adjustable: true
@@ -104,9 +194,11 @@ media_player:
         - sendspin_media_source
       format: FLAC
       sample_rate: 48000
-      num_channels: 2
+      num_channels: 1
     on_announcement:
-      - micro_wake_word.stop:
+      - script.execute:
+          id: voice_assistant_mark_stage
+          stage: "announcement"
       - mixer_speaker.apply_ducking:
           id: media_mixing_input
           decibel_reduction: 20
@@ -114,10 +206,16 @@ media_player:
     on_state:
       - if:
           condition:
+            not:
+              media_player.is_announcing: local_music_player
+          then:
+            - lambda: id(voice_assistant_tts_active) = false;
+      - if:
+          condition:
             and:
               - switch.is_off: timer_ringing
-              - not:
-                  voice_assistant.is_running:
+              - lambda: |-
+                  return id(voice_assistant_phase) == ${voice_assist_idle_phase_id};
               - not:
                   media_player.is_announcing: local_music_player
           then:
@@ -130,3 +228,8 @@ media_player:
     id: sendspin_group
     name: "Sendspin Group"
     volume_increment: 5%
+    on_state:
+      - text_sensor.template.publish:
+          id: media_player_state_sensor
+          state: !lambda |-
+            return std::string(esphome::media_player::media_player_state_to_string(id(sendspin_group).state));

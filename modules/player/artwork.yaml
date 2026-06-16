@@ -1,43 +1,10 @@
 # Album artwork download and decoding.
 # artwork_image keeps artwork handling off the main YAML and applies the LVGL byte order consistently.
 image:
-  - file: "https://raw.githubusercontent.com/jtenniswood/esphome-media-player/main/common/assets/placeholder.png"
+  - file: "assets/images/figma/media_artwork_figma_composed_800.png"
     id: album_art_placeholder
     type: RGB565
     byte_order: little_endian
-  - file: "assets/images/figma/media_artwork_primary_800.png"
-    id: figma_media_artwork_primary
-    type: RGB565
-    byte_order: little_endian
-  - file: "assets/images/figma/media_artwork_vignette_800.png"
-    id: figma_media_artwork_vignette
-    type: RGB
-    transparency: alpha_channel
-  - file: "assets/images/figma/media_header_bolt_53.png"
-    id: figma_media_header_bolt
-    type: RGB
-    transparency: alpha_channel
-  - file: "assets/images/figma/media_side_prev_button_173.png"
-    id: figma_media_side_prev_button
-    type: RGB
-    transparency: alpha_channel
-  - file: "assets/images/figma/media_side_next_button_173.png"
-    id: figma_media_side_next_button
-    type: RGB
-    transparency: alpha_channel
-  - file: "assets/images/figma/media_footer_queue_147x107.png"
-    id: figma_media_footer_queue
-    type: RGB
-    transparency: alpha_channel
-  - file: "assets/images/figma/media_footer_speaker_147x107.png"
-    id: figma_media_footer_speaker
-    type: RGB
-    transparency: alpha_channel
-  - file: "assets/images/figma/media_footer_more_147x107.png"
-    id: figma_media_footer_more
-    type: RGB
-    transparency: alpha_channel
-
 http_request:
   id: http_req
   verify_ssl: true
@@ -49,7 +16,6 @@ artwork_image:
     type: RGB565
     byte_order: little_endian
     placeholder: album_art_placeholder
-    resize: 800x800
     buffer_size: 65536
     allow_insecure_local_urls: true
     on_download_finished:

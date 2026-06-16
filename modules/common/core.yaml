@@ -9,6 +9,8 @@ esphome:
     version: ${firmware_version}
   platformio_options:
     board_build.flash_mode: qio
+    extra_scripts:
+      - "pre:../../../tools/patch_espidf_freertos_static_alloc.py"
   on_boot:
     priority: 600
     then:
@@ -40,11 +42,52 @@ api:
   homeassistant_states: true
   on_client_connected:
   - lambda: |-
+      ESP_LOGD("api.diag", "CONNECTED client=%s address=%s uptime=%lums internal_free=%uKiB psram_free=%uKiB",
+               client_info.c_str(),
+               client_address.c_str(),
+               (unsigned long) millis(),
+               (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+               (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024));
+  - lambda: |-
       if (client_info.find("Home Assistant") != std::string::npos) {
         id(ha_base_url) = client_address;
+        const std::string current_rt = id(settings_realtime_backend_url).state;
+        if (current_rt.empty() || current_rt.find("homeassistant.local") != std::string::npos) {
+          std::string host = client_address;
+          const size_t scheme = host.find("://");
+          if (scheme != std::string::npos) {
+            host = host.substr(scheme + 3);
+          }
+          const size_t slash = host.find('/');
+          if (slash != std::string::npos) {
+            host = host.substr(0, slash);
+          }
+          const size_t first_colon = host.find(':');
+          const size_t last_colon = host.rfind(':');
+          if (first_colon != std::string::npos && first_colon == last_colon) {
+            host = host.substr(0, first_colon);
+          }
+          const std::string realtime_url = "ws://" + host + ":${ha_openai_realtime_port}/";
+          ESP_LOGD("api.diag", "Detected realtime backend URL: %s", realtime_url.c_str());
+          id(va)->set_timeout("detected_realtime_backend_url", 1500, [realtime_url]() {
+            ESP_LOGD("api.diag", "Using detected realtime backend URL: %s", realtime_url.c_str());
+            id(va)->set_url(realtime_url);
+          });
+        }
       }
   - script.execute: subscribe_media_player
+  - script.execute: subscribe_media_queue_sensor
   - script.execute: subscribe_speaker_group_sensor
+  on_client_disconnected:
+  - lambda: |-
+      ESP_LOGD("api.diag", "DISCONNECTED client=%s address=%s uptime=%lums wifi_connected=%s rssi=%.0fdBm internal_free=%uKiB psram_free=%uKiB",
+               client_info.c_str(),
+               client_address.c_str(),
+               (unsigned long) millis(),
+               (esphome::wifi::global_wifi_component != nullptr && esphome::wifi::global_wifi_component->is_connected()) ? "YES" : "NO",
+               id(diagnostics_wifi_rssi).state,
+               (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+               (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024));
 
 time:
 - platform: homeassistant
@@ -52,16 +95,36 @@ time:
 
 logger:
   hardware_uart: UART0
-  level: INFO
+  level: WARN
   initial_level: WARN
+  logs:
+    wifi: WARN
+    wifi_esp32: WARN
+    api.connection: WARN
+    esp32_hosted: WARN
+    esp-idf: WARN
 
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
-  fast_connect: true
+  fast_connect: false
   power_save_mode: none
+  post_connect_roaming: false
+  on_connect:
+    - lambda: |-
+        ESP_LOGD("wifi.diag", "CONNECT uptime=%lums rssi=%.0fdBm internal_free=%uKiB psram_free=%uKiB",
+                 (unsigned long) millis(),
+                 id(diagnostics_wifi_rssi).state,
+                 (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+                 (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024));
+  on_disconnect:
+    - lambda: |-
+        ESP_LOGD("wifi.diag", "DISCONNECT_TRIGGER uptime=%lums last_rssi=%.0fdBm internal_free=%uKiB psram_free=%uKiB",
+                 (unsigned long) millis(),
+                 id(diagnostics_wifi_rssi).state,
+                 (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+                 (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024));
 
-# Disable web_server first if audio streaming or SDIO stability regresses.
-web_server:
-  port: 80
-  version: 3
+# Keep the local web server disabled on the P4 audio profile. It consumes TCP
+# listen sockets and internal memory, and audio streaming is much more sensitive
+# to both than this device is to local HTTP diagnostics.

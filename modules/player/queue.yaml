@@ -1,0 +1,306 @@
+# Music Assistant queue model.
+# The player fetches queue items directly from the Music Assistant JSON API.
+esphome:
+  includes:
+    - <esphome/components/json/json_util.h>
+
+globals:
+  - id: media_queue_count
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: media_queue_current_index
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: media_queue_titles
+    type: std::string[7]
+    restore_value: no
+  - id: media_queue_artists
+    type: std::string[7]
+    restore_value: no
+  - id: media_queue_durations
+    type: std::string[7]
+    restore_value: no
+  - id: media_queue_current
+    type: bool[7]
+    restore_value: no
+    initial_value: '{false}'
+
+script:
+  - id: subscribe_media_queue_sensor
+    mode: restart
+    then:
+      # Kept as a compatibility wrapper because boot/runtime code already calls this script.
+      - script.execute: refresh_music_assistant_queue
+
+  - id: refresh_music_assistant_queue
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return !id(ma_api_url).state.empty() && !id(ma_api_token).state.empty();
+          then:
+            - lambda: |-
+                lv_label_set_text(id(queue_empty_label), "Loading queue...");
+                lv_obj_clear_flag(id(queue_empty_label), LV_OBJ_FLAG_HIDDEN);
+            - http_request.post:
+                id: http_req
+                url: !lambda 'return id(ma_api_url).state;'
+                request_headers:
+                  Accept: "application/json, text/html"
+                  Content-Type: "application/json; charset=utf-8"
+                  Authorization: !lambda |-
+                    static std::string authorization;
+                    authorization = std::string("Bearer ") + id(ma_api_token).state;
+                    return authorization.c_str();
+                json: !lambda |-
+                  std::string queue_id = id(ma_queue_id).state;
+                  if (queue_id.empty()) {
+                    queue_id = id(media_player_entity).state;
+                    if (queue_id.rfind("media_player.", 0) == 0) queue_id.erase(0, 13);
+                  }
+                  int limit = (int) id(ma_queue_limit).state;
+                  if (limit < 1) limit = 50;
+                  if (limit > 500) limit = 500;
+                  root["message_id"] = "aeh_queue";
+                  root["command"] = "player_queues/items";
+                  JsonObject args = root["args"].to<JsonObject>();
+                  args["queue_id"] = queue_id;
+                  args["limit"] = limit;
+                  args["offset"] = 0;
+                capture_response: true
+                max_response_buffer_size: 48kB
+                on_response:
+                  then:
+                    - if:
+                        condition:
+                          lambda: |-
+                            return response->status_code >= 200 && response->status_code < 300 && !body.empty();
+                        then:
+                          - script.execute:
+                              id: parse_music_assistant_queue_response
+                              response_body: !lambda 'return body;'
+                        else:
+                          - lambda: |-
+                              ESP_LOGW("media_queue", "Music Assistant queue request failed: HTTP %d, %u bytes",
+                                       response->status_code, (unsigned) body.size());
+                              id(media_queue_count) = 0;
+                              id(update_media_queue_panel).execute();
+                on_error:
+                  then:
+                    - lambda: |-
+                        ESP_LOGW("media_queue", "Music Assistant queue request failed before response");
+                        id(media_queue_count) = 0;
+                        id(update_media_queue_panel).execute();
+          else:
+            - lambda: |-
+                id(media_queue_count) = 0;
+                id(media_queue_current_index) = 0;
+                for (int i = 0; i < 7; i++) {
+                  id(media_queue_titles)[i] = "";
+                  id(media_queue_artists)[i] = "";
+                  id(media_queue_durations)[i] = "";
+                  id(media_queue_current)[i] = false;
+                }
+                lv_label_set_text(id(queue_empty_label), "Set Music Assistant API");
+                ESP_LOGD("media_queue", "Music Assistant API URL/token not configured");
+                id(update_media_queue_panel).execute();
+
+  - id: parse_music_assistant_queue_response
+    mode: restart
+    parameters:
+      response_body: string
+    then:
+      - lambda: |-
+          auto clear_queue = []() {
+            id(media_queue_count) = 0;
+            id(media_queue_current_index) = 0;
+            for (int i = 0; i < 7; i++) {
+              id(media_queue_titles)[i] = "";
+              id(media_queue_artists)[i] = "";
+              id(media_queue_durations)[i] = "";
+              id(media_queue_current)[i] = false;
+            }
+          };
+
+          auto read_string = [](JsonVariant value, const char *key) -> std::string {
+            const char *text = value[key] | "";
+            return std::string(text);
+          };
+
+          auto read_first_string = [&](JsonVariant value, const char *a, const char *b, const char *c = nullptr) -> std::string {
+            std::string out = read_string(value, a);
+            if (out.empty()) out = read_string(value, b);
+            if (out.empty() && c != nullptr) out = read_string(value, c);
+            return out;
+          };
+
+          auto read_artist = [&](JsonVariant item, JsonVariant media) -> std::string {
+            std::string artist = read_first_string(media, "artist_str", "artist", "artists_str");
+            if (artist.empty()) artist = read_first_string(item, "artist_str", "artist", "artists_str");
+            if (artist.empty() && media["artists"].is<JsonArray>()) {
+              for (JsonVariant entry : media["artists"].as<JsonArray>()) {
+                artist = read_first_string(entry, "name", "sort_name");
+                if (!artist.empty()) break;
+              }
+            }
+            if (artist.empty() && item["artists"].is<JsonArray>()) {
+              for (JsonVariant entry : item["artists"].as<JsonArray>()) {
+                artist = read_first_string(entry, "name", "sort_name");
+                if (!artist.empty()) break;
+              }
+            }
+            return artist;
+          };
+
+          auto read_duration = [](JsonVariant item, JsonVariant media) -> std::string {
+            float seconds = media["duration"] | 0.0f;
+            if (seconds <= 0.0f) seconds = item["duration"] | 0.0f;
+            if (seconds <= 0.0f) return std::string("");
+            int total = (int) (seconds + 0.5f);
+            if (total > 24 * 60 * 60) total /= 1000;
+            char buf[12];
+            snprintf(buf, sizeof(buf), "%d:%02d", total / 60, total % 60);
+            return std::string(buf);
+          };
+
+          clear_queue();
+          if (response_body.empty()) {
+            id(update_media_queue_panel).execute();
+            return;
+          }
+
+          bool parsed = esphome::json::parse_json(response_body, [&](JsonObject root) -> bool {
+            JsonVariant payload = root["result"];
+            if (payload.isNull()) payload = root["items"];
+            if (payload.isNull()) payload = root["queue"];
+            if (payload.is<JsonObject>()) {
+              JsonObject payload_object = payload.as<JsonObject>();
+              if (!payload_object["items"].isNull()) payload = payload_object["items"];
+              else if (!payload_object["queue"].isNull()) payload = payload_object["queue"];
+            }
+
+            if (!payload.is<JsonArray>()) {
+              ESP_LOGW("media_queue", "Music Assistant response has no queue items array");
+              return false;
+            }
+
+            int current_index = root["current_index"] | -1;
+            if (root["result"].is<JsonObject>()) {
+              int nested_current = root["result"]["current_index"] | -1;
+              if (nested_current >= 0) current_index = nested_current;
+            }
+
+            int count = 0;
+            bool any_current = false;
+            for (JsonVariant item : payload.as<JsonArray>()) {
+              if (count >= 7) break;
+              JsonVariant media = item["media_item"];
+              if (media.isNull()) media = item["item"];
+              if (media.isNull()) media = item;
+
+              std::string title = read_first_string(media, "name", "title", "display_name");
+              if (title.empty()) title = read_first_string(item, "name", "title", "display_name");
+              if (title.empty()) continue;
+
+              bool current = item["current"] | false;
+              current = current || (item["is_current"] | false);
+              if (!current && current_index >= 0) current = count == current_index;
+              if (!current && count == 0 && current_index < 0 && !any_current) current = true;
+
+              id(media_queue_current)[count] = current;
+              id(media_queue_titles)[count] = title;
+              id(media_queue_artists)[count] = read_artist(item, media);
+              id(media_queue_durations)[count] = read_duration(item, media);
+              if (current) {
+                id(media_queue_current_index) = count;
+                any_current = true;
+              }
+              count++;
+            }
+
+            id(media_queue_count) = count;
+            return count > 0;
+          });
+
+          if (!parsed) {
+            clear_queue();
+            ESP_LOGW("media_queue", "Failed to parse Music Assistant queue response (%u bytes)",
+                     (unsigned) response_body.size());
+          } else {
+            ESP_LOGD("media_queue", "Loaded %d Music Assistant queue rows", id(media_queue_count));
+          }
+          id(update_media_queue_panel).execute();
+
+  - id: update_media_queue_panel
+    mode: restart
+    then:
+      - lambda: |-
+          lv_obj_t *rows[] = {
+            id(queue_current_row), id(queue_row_1), id(queue_row_2), id(queue_row_3),
+            id(queue_row_4), id(queue_row_5), id(queue_row_6)
+          };
+          lv_obj_t *titles[] = {
+            id(queue_current_title_label), id(queue_title_1), id(queue_title_2), id(queue_title_3),
+            id(queue_title_4), id(queue_title_5), id(queue_title_6)
+          };
+          lv_obj_t *artists[] = {
+            id(queue_current_artist_label), id(queue_artist_1), id(queue_artist_2), id(queue_artist_3),
+            id(queue_artist_4), id(queue_artist_5), id(queue_artist_6)
+          };
+          lv_obj_t *meta[] = {
+            id(queue_meta_0), id(queue_meta_1), id(queue_meta_2), id(queue_meta_3),
+            id(queue_meta_4), id(queue_meta_5), id(queue_meta_6)
+          };
+          lv_obj_t *markers[] = {
+            id(queue_marker_0), id(queue_marker_1), id(queue_marker_2), id(queue_marker_3),
+            id(queue_marker_4), id(queue_marker_5), id(queue_marker_6)
+          };
+
+          int count = id(media_queue_count);
+          if (count <= 0) {
+            const bool has_title = id(media_title_sensor).has_state()
+                && !id(media_title_sensor).state.empty()
+                && id(media_title_sensor).state != "No Track";
+            if (has_title) {
+              lv_label_set_text(id(queue_current_title_label), id(media_title_sensor).state.c_str());
+              lv_label_set_text(id(queue_current_artist_label),
+                                id(media_artist_sensor).has_state() && !id(media_artist_sensor).state.empty()
+                                    ? id(media_artist_sensor).state.c_str() : "-");
+              lv_label_set_text(id(queue_meta_0), "Now playing");
+              lv_label_set_text(id(queue_marker_0), "\U0000e037");
+              lv_obj_clear_flag(id(queue_current_row), LV_OBJ_FLAG_HIDDEN);
+            } else {
+              lv_obj_add_flag(id(queue_current_row), LV_OBJ_FLAG_HIDDEN);
+            }
+            for (int i = 1; i < 7; i++) lv_obj_add_flag(rows[i], LV_OBJ_FLAG_HIDDEN);
+            lv_label_set_text(id(queue_empty_label), "Queue data unavailable");
+            lv_obj_clear_flag(id(queue_empty_label), LV_OBJ_FLAG_HIDDEN);
+            return;
+          }
+
+          lv_obj_add_flag(id(queue_empty_label), LV_OBJ_FLAG_HIDDEN);
+          for (int i = 0; i < 7; i++) {
+            if (i >= count) {
+              lv_obj_add_flag(rows[i], LV_OBJ_FLAG_HIDDEN);
+              continue;
+            }
+
+            const bool current = id(media_queue_current)[i];
+            lv_obj_clear_flag(rows[i], LV_OBJ_FLAG_HIDDEN);
+            lv_label_set_text(titles[i], id(media_queue_titles)[i].c_str());
+            lv_label_set_text(artists[i], id(media_queue_artists)[i].empty() ? "-" : id(media_queue_artists)[i].c_str());
+            if (current) {
+              lv_label_set_text(meta[i], "Now");
+              lv_label_set_text(markers[i], "\U0000e037");
+              lv_obj_set_style_bg_color(rows[i], lv_color_hex(0x332E3C), 0);
+              lv_obj_set_style_bg_opa(rows[i], LV_OPA_COVER, 0);
+            } else {
+              lv_label_set_text(meta[i], id(media_queue_durations)[i].c_str());
+              lv_label_set_text(markers[i], "\U0000e04B");
+              lv_obj_set_style_bg_color(rows[i], lv_color_hex(0x19151F), 0);
+              lv_obj_set_style_bg_opa(rows[i], LV_OPA_80, 0);
+            }
+          }

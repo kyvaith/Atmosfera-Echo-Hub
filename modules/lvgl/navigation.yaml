@@ -31,10 +31,6 @@ globals:
     type: bool
     restore_value: no
     initial_value: 'false'
-  - id: app_close_prewarm_requested
-    type: bool
-    restore_value: no
-    initial_value: 'false'
   - id: app_close_start_x
     type: int
     restore_value: no
@@ -99,21 +95,6 @@ globals:
 interval:
   - interval: 25ms
     then:
-      - if:
-          condition:
-            lambda: 'return id(app_close_prewarm_requested);'
-          then:
-            - globals.set:
-                id: app_close_prewarm_requested
-                value: 'false'
-            - lambda: |-
-                lv_obj_t *app = nullptr;
-                if (id(ui_active_app) == 1) app = id(wear_root);
-                else if (id(ui_active_app) == 2) app = id(settings_root);
-                else if (id(ui_active_app) == 3) app = id(voice_assistant_overlay);
-                if (app != nullptr) {
-                  lvgl_esphome_snapshot_app_prepare_close(app);
-                }
       - if:
           condition:
             lambda: 'return id(app_close_requested);'
@@ -326,14 +307,26 @@ script:
                 condition:
                   switch.is_off: voice_assistant_mute_switch
                 then:
-                  - micro_wake_word.stop:
-                  - lambda: |-
-                      id(voice_assistant_phase) = ${voice_assist_waiting_phase_id};
-                      id(voice_assistant_request_text).publish_state("");
-                      id(voice_assistant_response_text).publish_state("");
-                  - script.execute: display_wake
-                  - script.execute: voice_assistant_update_overlay
-                  - voice_assistant.start:
+                  - if:
+                      condition:
+                        lambda: 'return id(va)->is_connected();'
+                      then:
+                        - lambda: |-
+                            id(voice_assistant_phase) = ${voice_assist_waiting_phase_id};
+                            id(voice_assistant_tts_active) = false;
+                            id(voice_assistant_request_text).publish_state("");
+                            id(voice_assistant_response_text).publish_state("");
+                        - script.execute: display_wake
+                        - script.execute: voice_assistant_update_overlay
+                        - switch.turn_on: voice_audio_processing_switch
+                        - lambda: 'id(va)->start_session();'
+                      else:
+                        - lambda: |-
+                            id(voice_assistant_phase) = ${voice_assist_error_phase_id};
+                            id(voice_assistant_request_text).publish_state("");
+                            id(voice_assistant_response_text).publish_state("Realtime backend unavailable");
+                        - script.execute: display_wake
+                        - script.execute: voice_assistant_update_overlay
                 else:
                   - lambda: |-
                       id(voice_assistant_phase) = ${voice_assist_error_phase_id};
@@ -366,7 +359,6 @@ script:
                   lambda: 'return id(ui_active_app) == 1;'
                 then:
                   - lvgl.widget.hide:
-                      - media_progress_bar
                       - volume_overlay
                       - queue_panel
                       - speaker_group_panel
@@ -375,10 +367,19 @@ script:
                 condition:
                   lambda: 'return id(ui_active_app) == 3;'
                 then:
-                  - voice_assistant.stop:
+                  - lambda: 'id(va)->send_interrupt();'
+                  - speaker.stop: assistant_speaker
                   - switch.turn_off: timer_ringing
                   - lambda: 'id(voice_assistant_phase) = ${voice_assist_idle_phase_id};'
                   - script.execute: voice_assistant_update_overlay
+                  - if:
+                      condition:
+                        and:
+                          - switch.is_off: voice_assistant_mute_switch
+                          - lambda: 'return id(va)->is_connected();'
+                      then:
+                        - switch.turn_on: voice_audio_processing_switch
+                        - micro_wake_word.start:
             - delay: 440ms
             - globals.set:
                 id: ui_active_app
@@ -440,6 +441,8 @@ script:
       - lvgl.widget.update:
           id: wear_root
           y: 0
+      - lambda: |-
+          atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
       - if:
           condition:
             lambda: 'return lv_obj_has_flag(id(album_art_background_widget), LV_OBJ_FLAG_HIDDEN);'
@@ -447,8 +450,8 @@ script:
             - script.execute: media_show_lottie_visual
           else:
             - script.execute: media_hide_lottie_visual
+      - script.execute: media_resume_deferred_artwork
       - script.execute: refresh_progress_bar_from_state
-      - script.execute: media_redraw_main_control
 
   - id: ui_prepare_settings_page
     then:

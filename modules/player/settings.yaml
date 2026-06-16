@@ -32,7 +32,56 @@ text:
             - delay: 200ms
             - lambda: 'App.safe_reboot();'
 
+  - platform: template
+    name: "Music Assistant API URL"
+    id: ma_api_url
+    entity_category: config
+    icon: "mdi:api"
+    mode: text
+    optimistic: true
+    restore_value: true
+    initial_value: ""
+    min_length: 0
+    max_length: 180
+
+  - platform: template
+    name: "Music Assistant API Token"
+    id: ma_api_token
+    entity_category: config
+    icon: "mdi:key-variant"
+    mode: password
+    optimistic: true
+    restore_value: true
+    initial_value: ""
+    min_length: 0
+    max_length: 255
+
+  - platform: template
+    name: "Music Assistant Queue ID"
+    id: ma_queue_id
+    entity_category: config
+    icon: "mdi:playlist-music"
+    mode: text
+    optimistic: true
+    restore_value: true
+    initial_value: ""
+    min_length: 0
+    max_length: 120
+
 number:
+  - platform: template
+    name: "Music Assistant Queue Limit"
+    id: ma_queue_limit
+    min_value: 1
+    max_value: 500
+    step: 1
+    initial_value: 50
+    optimistic: true
+    restore_value: true
+    icon: "mdi:format-list-numbered"
+    entity_category: config
+    mode: box
+
   - platform: template
     name: "Playback: Track Info Duration"
     id: track_info_duration

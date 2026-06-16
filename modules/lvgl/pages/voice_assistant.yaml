@@ -34,16 +34,6 @@ lvgl:
                         shadow_width: 0
                         shadow_color: 0xC3EDCF
                         shadow_opa: 0%
-                        widgets:
-                          - lottie:
-                                id: voice_assistant_lottie
-                                file: "assets/animations/voice_assistant.json"
-                                width: 196
-                                height: 196
-                                align: CENTER
-                                loop: true
-                                auto_start: true
-                                hidden: true
                   - label:
                         id: voice_assistant_status_label
                         text: "Assistant"
@@ -123,3 +113,31 @@ lvgl:
                         text_color: 0xF2F2F2
                         text_font: roboto_20
                         long_mode: WRAP
+                  - button:
+                        id: voice_assistant_stop_button
+                        align: CENTER
+                        y: 354
+                        width: 136
+                        height: 68
+                        radius: 34
+                        bg_color: 0xFD7267
+                        bg_opa: 72%
+                        border_width: 0
+                        outline_width: 0
+                        shadow_width: 0
+                        pad_all: 0
+                        scrollable: false
+                        gesture_bubble: true
+                        style_transition_time: 120ms
+                        style_transition_path: ease_out
+                        pressed:
+                          bg_opa: 100%
+                        on_click:
+                          then:
+                            - script.execute: voice_assistant_stop_conversation
+                        widgets:
+                          - label:
+                                text: "\uE5CD"
+                                align: CENTER
+                                text_color: 0x1B1B1B
+                                text_font: material_symbols_36

@@ -2,7 +2,7 @@
 # This handles the selected Home Assistant media_player, dynamic subscriptions and playback state UI.
 esphome:
   includes:
-    - static/ui_media_canvas.h
+    - static/ui_wavy_arc.h
 
 globals:
   - id: subscription_gen
@@ -61,6 +61,22 @@ globals:
     type: std::string
     restore_value: no
     initial_value: '""'
+  - id: media_action_pending
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: media_action_spinner_angle
+    type: int
+    restore_value: no
+    initial_value: '270'
+  - id: artwork_download_deferred
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: artwork_block_until
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
 
 script:
   - id: subscribe_media_player
@@ -70,7 +86,7 @@ script:
           if (esphome::api::global_api_server == nullptr) return;
 
           std::string entity = id(media_player_entity).state;
-          if (entity.empty()) {
+          if (entity.empty() || entity == "media_player.music_assistant") {
             entity = "${tile_media_entity}";
             auto call = id(media_player_entity).make_call();
             call.set_value(entity);
@@ -111,9 +127,12 @@ script:
           lv_label_set_text(id(queue_current_title_label), "No Track");
           lv_label_set_text(id(queue_current_artist_label), "-");
           lv_label_set_text(id(media_time_label), "0:00 / 0:00");
-          lv_bar_set_value(id(media_progress_bar), 0, LV_ANIM_OFF);
+          lv_obj_clear_flag(id(figma_media_artwork_widget), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(album_art_background_widget), LV_OBJ_FLAG_HIDDEN);
-          atmosfera_ui::draw_media_main_control(id(media_main_control_canvas), 0, false);
+          lv_obj_add_flag(id(artwork_primary_overlay), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(artwork_scrim), LV_OBJ_FLAG_HIDDEN);
+          id(last_media_progress_percent) = 0;
+          id(media_update_main_control).execute();
 
           int gen = id(subscription_gen);
           int *gen_ptr = &id(subscription_gen);
@@ -197,26 +216,75 @@ script:
     mode: restart
     then:
       - delay: 100ms
+      - lambda: |-
+          const int phase = id(voice_assistant_phase);
+          const bool voice_busy = phase != ${voice_assist_idle_phase_id} &&
+                                  phase != ${voice_assist_not_ready_phase_id};
+          const bool state_known = id(media_player_state_sensor).has_state();
+          const bool media_playing = !state_known ||
+                                     id(media_player_state_sensor).state == "playing" ||
+                                     id(media_action_pending) ||
+                                     (int32_t)(id(artwork_block_until) - millis()) > 0;
+          const bool artwork_needed = id(ui_active_app) == 1;
+          if (voice_busy || media_playing || !artwork_needed) {
+            id(artwork_download_deferred) = true;
+          }
       - if:
           condition:
-            lambda: 'return !id(last_artwork_url).empty();'
+            lambda: |-
+              const int phase = id(voice_assistant_phase);
+              const bool state_known = id(media_player_state_sensor).has_state();
+              const bool media_playing = !state_known ||
+                                         id(media_player_state_sensor).state == "playing" ||
+                                         id(media_action_pending) ||
+                                         (int32_t)(id(artwork_block_until) - millis()) > 0;
+              return !id(last_artwork_url).empty() &&
+                     (phase == ${voice_assist_idle_phase_id} || phase == ${voice_assist_not_ready_phase_id}) &&
+                     id(ui_active_app) == 1 &&
+                     !media_playing;
           then:
-            - lambda: |-
-                ESP_LOGD("artwork", "Loading media artwork: %s", id(last_artwork_url).c_str());
-                id(album_art_background).set_url(id(last_artwork_url));
-                id(album_art_background).update();
+            - lambda: id(artwork_download_deferred) = false;
+            - lvgl.image.update:
+                id: album_art_background_widget
+                src: album_art_placeholder
+            - lvgl.widget.hide: album_art_background_widget
+            - delay: 50ms
+            - artwork_image.release: album_art_background
+            - delay: 100ms
+            - artwork_image.set_url:
+                id: album_art_background
+                url: !lambda 'return id(last_artwork_url);'
 
-  - id: refresh_progress_bar_from_state
+  - id: media_resume_deferred_artwork
     mode: restart
     then:
       - if:
           condition:
-            lambda: 'return !id(show_progress_bar).state;'
+            lambda: |-
+              const int phase = id(voice_assistant_phase);
+              const bool state_known = id(media_player_state_sensor).has_state();
+              const bool media_playing = !state_known ||
+                                         id(media_player_state_sensor).state == "playing" ||
+                                         id(media_action_pending) ||
+                                         (int32_t)(id(artwork_block_until) - millis()) > 0;
+              return id(artwork_download_deferred) &&
+                     !id(last_artwork_url).empty() &&
+                     (phase == ${voice_assist_idle_phase_id} || phase == ${voice_assist_not_ready_phase_id}) &&
+                     id(ui_active_app) == 1 &&
+                     !media_playing;
           then:
-            - lvgl.widget.hide: media_progress_bar
-          else:
-            - lvgl.widget.show: media_progress_bar
+            - lambda: id(artwork_download_deferred) = false;
+            - script.execute: debounce_artwork_download
+
+  - id: refresh_progress_bar_from_state
+    mode: restart
+    then:
       - lambda: |-
+          const int phase = id(voice_assistant_phase);
+          if (phase != ${voice_assist_idle_phase_id} && phase != ${voice_assist_not_ready_phase_id}) {
+            return;
+          }
+
           float dur = id(media_duration_sensor).has_state() ? id(media_duration_sensor).state : 0.0f;
           float pos = id(last_media_position);
           bool playing = id(media_player_state_sensor).has_state()
@@ -241,11 +309,9 @@ script:
           if (value > progress_range) value = progress_range;
           if (value != id(last_media_progress_percent)) {
             id(last_media_progress_percent) = value;
-            if (id(show_progress_bar).state) {
-              lv_bar_set_range(id(media_progress_bar), 0, progress_range);
-              lv_bar_set_value(id(media_progress_bar), value, LV_ANIM_OFF);
-            }
-            atmosfera_ui::draw_media_main_control(id(media_main_control_canvas), value, playing);
+            atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
+            atmosfera_ui::media_wavy_arc_set_value(value);
+            id(media_update_main_control).execute();
           }
 
           int e = (int)pos;
@@ -274,15 +340,50 @@ script:
           }
           lv_label_set_text(id(media_time_label), buf);
 
-  - id: media_redraw_main_control
+  - id: media_update_main_control
     mode: restart
     then:
       - lambda: |-
-          const bool playing = id(media_player_state_sensor).has_state()
-              && id(media_player_state_sensor).state == "playing";
           int progress = id(last_media_progress_percent);
           if (progress < 0) progress = 0;
-          atmosfera_ui::draw_media_main_control(id(media_main_control_canvas), progress, playing);
+          if (progress > 100) progress = 100;
+          atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
+          atmosfera_ui::media_wavy_arc_set_value(progress);
+
+          const bool playing = id(media_player_state_sensor).has_state()
+              && id(media_player_state_sensor).state == "playing";
+          if (playing) {
+            lv_label_set_text(id(media_main_icon_label), "\U0000e034");
+          } else {
+            lv_label_set_text(id(media_main_icon_label), "\U0000e037");
+          }
+
+  - id: media_show_action_spinner
+    mode: restart
+    then:
+      - lambda: |-
+          id(media_action_pending) = true;
+          id(media_action_spinner_angle) = 270;
+          if (id(media_action_spinner_arc) != nullptr) {
+            lv_arc_set_rotation(id(media_action_spinner_arc), id(media_action_spinner_angle));
+            lv_obj_clear_flag(id(media_action_spinner_arc), LV_OBJ_FLAG_HIDDEN);
+          }
+      - script.execute: media_action_spinner_timeout
+
+  - id: media_hide_action_spinner
+    mode: restart
+    then:
+      - lambda: |-
+          id(media_action_pending) = false;
+          if (id(media_action_spinner_arc) != nullptr) {
+            lv_obj_add_flag(id(media_action_spinner_arc), LV_OBJ_FLAG_HIDDEN);
+          }
+
+  - id: media_action_spinner_timeout
+    mode: restart
+    then:
+      - delay: 4s
+      - script.execute: media_hide_action_spinner
 
   - id: show_volume_overlay
     mode: restart
@@ -298,6 +399,9 @@ script:
       - lvgl.widget.show: queue_panel
       - lambda: |-
           lv_obj_move_foreground(id(queue_panel));
+      - script.execute: subscribe_media_queue_sensor
+      - delay: 150ms
+      - script.execute: update_media_queue_panel
 
   - id: close_queue_panel
     mode: restart
@@ -346,18 +450,63 @@ script:
   - id: media_apply_artwork
     mode: restart
     then:
-      - lvgl.image.update:
-          id: album_art_background_widget
-          src: album_art_background
-      - lvgl.widget.show: album_art_background_widget
-      - lvgl.widget.hide: artwork_error_label
-      - script.execute: media_hide_lottie_visual
-      - script.execute: start_hide_track_info_timer
+      - if:
+          condition:
+            lambda: |-
+              const int phase = id(voice_assistant_phase);
+              const bool voice_busy = phase != ${voice_assist_idle_phase_id} &&
+                                      phase != ${voice_assist_not_ready_phase_id};
+              const bool state_known = id(media_player_state_sensor).has_state();
+              const bool media_playing = !state_known ||
+                                         id(media_player_state_sensor).state == "playing" ||
+                                         id(media_action_pending) ||
+                                         (int32_t)(id(artwork_block_until) - millis()) > 0;
+              return voice_busy || media_playing || id(ui_active_app) != 1;
+          then:
+            - lambda: id(artwork_download_deferred) = true;
+          else:
+            - lvgl.image.update:
+                id: album_art_background_widget
+                src: album_art_background
+            - lambda: |-
+                auto *img = id(album_art_background_widget);
+                int src_w = id(album_art_background).get_width();
+                int src_h = id(album_art_background).get_height();
+                if (src_w <= 0 || src_h <= 0) {
+                  src_w = 800;
+                  src_h = 800;
+                }
+                const int target_w = 800;
+                const int target_h = 800;
+                const uint32_t scale_x = (uint32_t) (((uint64_t) target_w * LV_SCALE_NONE + src_w - 1) / src_w);
+                const uint32_t scale_y = (uint32_t) (((uint64_t) target_h * LV_SCALE_NONE + src_h - 1) / src_h);
+                uint32_t scale = scale_x > scale_y ? scale_x : scale_y;
+                if (scale == 0) {
+                  scale = 1;
+                }
+                const int scaled_w = (int) (((int64_t) src_w * scale + LV_SCALE_NONE - 1) / LV_SCALE_NONE);
+                const int scaled_h = (int) (((int64_t) src_h * scale + LV_SCALE_NONE - 1) / LV_SCALE_NONE);
+                lv_obj_set_size(img, src_w, src_h);
+                lv_image_set_pivot(img, 0, 0);
+                lv_image_set_scale(img, scale);
+                lv_obj_set_pos(img, (target_w - scaled_w) / 2, (target_h - scaled_h) / 2);
+            - lvgl.widget.hide: figma_media_artwork_widget
+            - lvgl.widget.show: album_art_background_widget
+            - lvgl.widget.show:
+                - artwork_primary_overlay
+                - artwork_scrim
+            - lvgl.widget.hide: artwork_error_label
+            - script.execute: media_hide_lottie_visual
+            - script.execute: start_hide_track_info_timer
 
   - id: media_handle_artwork_error
     mode: restart
     then:
       - lvgl.widget.hide: album_art_background_widget
+      - lvgl.widget.show: figma_media_artwork_widget
+      - lvgl.widget.hide:
+          - artwork_primary_overlay
+          - artwork_scrim
       - lvgl.widget.show: artwork_error_label
       - if:
           condition:
@@ -366,6 +515,46 @@ script:
             - script.execute: media_show_lottie_visual
 
 text_sensor:
+  - platform: sendspin
+    id: sendspin_media_title
+    sendspin_id: sendspin_hub
+    type: title
+    internal: true
+    on_value:
+      - text_sensor.template.publish:
+          id: media_title_sensor
+          state: !lambda 'return x;'
+
+  - platform: sendspin
+    id: sendspin_media_artist
+    sendspin_id: sendspin_hub
+    type: artist
+    internal: true
+    on_value:
+      - text_sensor.template.publish:
+          id: media_artist_sensor
+          state: !lambda 'return x;'
+
+  - platform: sendspin
+    id: sendspin_media_album
+    sendspin_id: sendspin_hub
+    type: album
+    internal: true
+    on_value:
+      - text_sensor.template.publish:
+          id: media_album_sensor
+          state: !lambda 'return x;'
+
+  - platform: sendspin
+    id: sendspin_media_artwork_url
+    sendspin_id: sendspin_hub
+    type: artwork_url
+    internal: true
+    on_value:
+      - text_sensor.template.publish:
+          id: media_entity_picture_sensor
+          state: !lambda 'return x;'
+
   - platform: template
     id: media_title_sensor
     internal: true
@@ -374,6 +563,7 @@ text_sensor:
           condition:
             lambda: 'return !x.empty();'
           then:
+            - script.execute: media_hide_action_spinner
             - if:
                 condition:
                   lambda: 'return id(auto_show_track_info).state;'
@@ -396,14 +586,6 @@ text_sensor:
                 } else {
                   id(title_received_once) = true;
                 }
-            - if:
-                condition:
-                  lambda: 'return id(title_received_once);'
-                then:
-                  - lvgl.bar.update:
-                      id: media_progress_bar
-                      value: 0
-                      animated: false
             - script.execute: start_hide_track_info_timer
           else:
             - lvgl.label.update:
@@ -469,18 +651,39 @@ text_sensor:
           url = esphome::artwork_image::cap_artwork_url(url, 800);
           if (url == id(last_artwork_url)) return;
           id(last_artwork_url) = url;
+          const int phase = id(voice_assistant_phase);
+          const bool voice_busy = phase != ${voice_assist_idle_phase_id} &&
+                                  phase != ${voice_assist_not_ready_phase_id};
+          const bool state_known = id(media_player_state_sensor).has_state();
+          const bool media_playing = !state_known ||
+                                     id(media_player_state_sensor).state == "playing" ||
+                                     id(media_action_pending) ||
+                                     (int32_t)(id(artwork_block_until) - millis()) > 0;
+          if (voice_busy || media_playing || id(ui_active_app) != 1) {
+            id(artwork_download_deferred) = true;
+            return;
+          }
           id(debounce_artwork_download).execute();
 
   - platform: template
     id: media_player_state_sensor
     internal: true
     on_value:
+      - script.execute: media_hide_action_spinner
       - if:
           condition:
             lambda: 'return x == "playing";'
           then:
+            - lambda: |-
+                id(artwork_block_until) = millis() + 30000;
+                id(artwork_download_deferred) = true;
             - lvgl.widget.show: play_button
-            - script.execute: media_redraw_main_control
+            - script.execute: media_update_main_control
+            - if:
+                condition:
+                  lambda: 'return id(boot_sequence_done) && id(ui_active_app) == 0;'
+                then:
+                  - script.execute: ui_open_player_app
             - if:
                 condition:
                   lambda: 'return id(auto_show_track_info).state;'
@@ -491,8 +694,10 @@ text_sensor:
           condition:
             lambda: 'return x == "paused" || x == "idle" || x == "off" || x == "standby";'
           then:
-            - script.execute: media_redraw_main_control
+            - lambda: 'id(artwork_block_until) = 0;'
+            - script.execute: media_update_main_control
             - script.stop: start_hide_track_info_timer
+            - script.execute: media_resume_deferred_artwork
       - if:
           condition:
             lambda: 'return x == "idle" || x == "off" || x == "standby";'
@@ -502,10 +707,9 @@ text_sensor:
                 id(ha_position_epoch) = 0;
                 id(last_position_timestamp) = 0;
                 id(last_media_progress_percent) = -1;
-            - lvgl.bar.update:
-                id: media_progress_bar
-                value: 0
-                animated: false
+            - lambda: |-
+                atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
+                atmosfera_ui::media_wavy_arc_set_value(0);
       - script.execute: refresh_progress_bar_from_state
 
   - platform: template
@@ -542,16 +746,41 @@ text_sensor:
     internal: true
 
 sensor:
+  - platform: sendspin
+    id: sendspin_track_duration_ms
+    sendspin_id: sendspin_hub
+    type: track_duration
+    internal: true
+    on_value:
+      - sensor.template.publish:
+          id: media_duration_sensor
+          state: !lambda 'return x / 1000.0f;'
+
+  - platform: sendspin
+    id: sendspin_track_progress_ms
+    sendspin_id: sendspin_hub
+    type: track_progress
+    internal: true
+    update_interval: 1s
+    on_value:
+      - lambda: |-
+          id(ha_position_epoch) = 0;
+      - sensor.template.publish:
+          id: media_position_sensor
+          state: !lambda 'return x / 1000.0f;'
+
   - platform: template
     id: media_duration_sensor
     internal: true
     on_value:
+      - script.execute: media_hide_action_spinner
       - script.execute: refresh_progress_bar_from_state
 
   - platform: template
     id: media_position_sensor
     internal: true
     on_value:
+      - script.execute: media_hide_action_spinner
       - lambda: |-
           id(last_media_position) = x;
           auto t = id(ha_time).now();
@@ -595,19 +824,39 @@ sensor:
           }
 
 interval:
+  - interval: 120ms
+    then:
+      - if:
+          condition:
+            lambda: 'return id(media_action_pending);'
+          then:
+            - lambda: |-
+                id(media_action_spinner_angle) += 22;
+                if (id(media_action_spinner_angle) >= 360) id(media_action_spinner_angle) -= 360;
+                lv_arc_set_rotation(id(media_action_spinner_arc), id(media_action_spinner_angle));
+
   - interval: 1s
     then:
-      - lambda: |-
-          auto now = id(ha_time).now();
-          if (now.is_valid()) {
-            char time_buf[6];
-            snprintf(time_buf, sizeof(time_buf), "%d:%02d", now.hour, now.minute);
-            lv_label_set_text(id(top_status_label), time_buf);
-          }
       - if:
           condition:
             lambda: |-
+              const int phase = id(voice_assistant_phase);
+              return id(ui_active_app) == 1 &&
+                     (phase == ${voice_assist_idle_phase_id} || phase == ${voice_assist_not_ready_phase_id});
+          then:
+            - lambda: |-
+                auto now = id(ha_time).now();
+                if (now.is_valid()) {
+                  char time_buf[6];
+                  snprintf(time_buf, sizeof(time_buf), "%d:%02d", now.hour, now.minute);
+                  lv_label_set_text(id(top_status_label), time_buf);
+                }
+      - if:
+          condition:
+            lambda: |-
+              const int phase = id(voice_assistant_phase);
               return id(media_player_state_sensor).has_state()
-                  && id(media_player_state_sensor).state == "playing";
+                  && id(media_player_state_sensor).state == "playing"
+                  && (phase == ${voice_assist_idle_phase_id} || phase == ${voice_assist_not_ready_phase_id});
           then:
             - script.execute: refresh_progress_bar_from_state

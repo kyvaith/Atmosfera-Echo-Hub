@@ -1,5 +1,6 @@
 # Optional performance HUD.
 # The interval is cheap when disabled and gives FPS/CPU/flush data during UI tuning.
+
 interval:
   - interval: 1s
     then:

@@ -1,0 +1,27 @@
+# Runtime Wi-Fi diagnostics for long-running SendSpin and hosted-radio stability tests.
+# The native wifi_esp32 log line carries the ESP-IDF disconnect reason; the markers
+# below add timing, signal and heap context around that reason.
+sensor:
+  - platform: wifi_signal
+    id: diagnostics_wifi_rssi
+    name: "WiFi RSSI"
+    entity_category: diagnostic
+    disabled_by_default: true
+    update_interval: 10s
+
+interval:
+  - interval: 30s
+    then:
+      - lambda: |-
+          const bool connected = esphome::wifi::global_wifi_component != nullptr &&
+                                 esphome::wifi::global_wifi_component->is_connected();
+          const bool api_connected = esphome::api::global_api_server != nullptr &&
+                                     esphome::api::global_api_server->is_connected();
+          ESP_LOGD("wifi.diag", "HEARTBEAT uptime=%lums wifi=%s api=%s rssi=%.0fdBm internal_free=%uKiB psram_free=%uKiB psram_largest=%uKiB",
+                   (unsigned long) millis(),
+                   connected ? "YES" : "NO",
+                   api_connected ? "YES" : "NO",
+                   id(diagnostics_wifi_rssi).state,
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+                   (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
