@@ -7,7 +7,7 @@ external_components:
       url: https://github.com/kyvaith/esphome
       ref: dev
       path: esphome/components
-    components: [const, mipi, mipi_dsi, lvgl, image, es7210, esp32_jpeg, artwork_image, sendspin, va_client]
+    components: [const, mipi, mipi_dsi, lvgl, image, es7210, esp32_jpeg, artwork_image, sendspin, va_client, resampler]
     refresh: always
   - source:
       type: git

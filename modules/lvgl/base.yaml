@@ -6,8 +6,8 @@ lvgl:
   touchscreens:
     - my_touchscreen
   update_interval: 10ms
-  buffer_size: 3%
-  draw_rounding: 4
+  buffer_size: 6%
+  draw_rounding: 32
   direct_mode: false
   full_refresh: false
   byte_order: little_endian
@@ -18,6 +18,8 @@ lvgl:
   perf_monitor: false
   color_depth: 32
   use_ppa: true
+  use_ppa_draw: true
+  use_ppa_blend: true
   use_ppa_img: true
   profiler: false
   default_font: roboto_14
@@ -67,6 +69,9 @@ lvgl:
               - lambda: 'return id(boot_sequence_done);'
               - light.is_on: display_backlight
           then:
+            - lambda: |-
+                ESP_LOGW("backlight.diag", "idle off uptime=%lums",
+                         (unsigned long) millis());
             - light.turn_off:
                 id: display_backlight
-                transition_length: 500ms
+                transition_length: 0ms

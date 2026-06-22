@@ -1,0 +1,20 @@
+diff --git a/esphome/components/mipi_dsi/mipi_dsi.cpp b/esphome/components/mipi_dsi/mipi_dsi.cpp
+index e63299b5b..8b6b6fadb 100644
+--- a/esphome/components/mipi_dsi/mipi_dsi.cpp
++++ b/esphome/components/mipi_dsi/mipi_dsi.cpp
+@@ -544,6 +544,15 @@ bool MipiDsi::present_frame_buffer(uint8_t *frame_buffer, int y_start, int y_end
+     ESP_LOGW(TAG, "present_frame_buffer failed: %s", esp_err_to_name(err));
+     return false;
+   }
+   xSemaphoreTake(this->io_lock_, portMAX_DELAY);
++  /* A DPI panel can accept the new framebuffer before the current scanout is
++   * fully past the buffers we are about to recycle. Wait for a refresh edge so
++   * LVGL's partial compositor does not start copying into a framebuffer while
++   * the panel is still reading from it.
++   */
++  if (!this->wait_for_refresh_done(25)) {
++    ESP_LOGV(TAG, "present_frame_buffer refresh wait timed out");
++  }
+   return true;
+ }
+ 

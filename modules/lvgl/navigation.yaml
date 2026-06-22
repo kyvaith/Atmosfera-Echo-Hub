@@ -91,6 +91,38 @@ globals:
     type: uint32_t
     restore_value: no
     initial_value: '0'
+  - id: settings_scroll_tracking
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: settings_scroll_dragging
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: settings_scroll_start_x
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: settings_scroll_start_y
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: settings_scroll_last_x
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: settings_scroll_last_y
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: settings_scroll_start_scroll_y
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: settings_scroll_last_render_ms
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
 
 interval:
   - interval: 25ms

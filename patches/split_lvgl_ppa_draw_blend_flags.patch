@@ -1,0 +1,102 @@
+diff --git a/esphome/components/lvgl/__init__.py b/esphome/components/lvgl/__init__.py
+--- a/esphome/components/lvgl/__init__.py
++++ b/esphome/components/lvgl/__init__.py
+@@ -134,7 +134,9 @@ CODEOWNERS = ["@clydebarrow"]  # LVGL 9.5.0 implementation with ThorVG enabled
+ HELLO_WORLD_FILE = "hello_world.yaml"
+ CONF_USE_PPA = "use_ppa"
+ CONF_USE_PPA_IMG = "use_ppa_img"
++CONF_USE_PPA_DRAW = "use_ppa_draw"
++CONF_USE_PPA_BLEND = "use_ppa_blend"
+ CONF_FPS_BENCHMARK = "fps_benchmark"
+ CONF_PERF_MONITOR = "perf_monitor"
+ CONF_PROFILER = "profiler"
+@@ -366,17 +368,30 @@ async def to_code(config):
+     df.add_define("LV_DRAW_BUF_ALIGN", "4")
+     use_ppa = config_0.get(CONF_USE_PPA, False)
+     use_ppa_img = config_0.get(CONF_USE_PPA_IMG, False)
+-    # use_ppa_img implies use_ppa (SRM client needs PPA init)
+-    if use_ppa_img:
++    use_ppa_draw = config_0.get(CONF_USE_PPA_DRAW, False)
++    use_ppa_blend = config_0.get(CONF_USE_PPA_BLEND, False)
++
++    # Image acceleration is implemented by the PPA draw unit.
++    if use_ppa_img:
++        use_ppa_draw = True
++
++    # Any PPA sub-path needs the common PPA client code.
++    if use_ppa_img or use_ppa_draw or use_ppa_blend:
+         use_ppa = True
++
+     if use_ppa:
+         # LVGL 9.5 includes the PPA fix (PR #9162) natively.
+         # We keep our custom PPA files as a fallback option.
+         # PPA evaluate checks buffer alignment at runtime before claiming tasks.
+         df.add_define("LV_PPA_BURST_LENGTH", "128")
+         cg.add_define("USE_LVGL_PPA")
+         ppa_dir = Path(__file__).parent / "ppa"
+         cg.add_build_flag(f"-I{ppa_dir.as_posix()}")
++    if use_ppa_draw:
++        cg.add_define("USE_LVGL_PPA_DRAW_UNIT")
++    if use_ppa_blend:
++        cg.add_define("USE_LVGL_PPA_BLEND_HANDLER")
+     if use_ppa_img:
+         # Enable PPA SRM hardware rotation for images (0/90/180/270 degrees)
+         cg.add_define("LV_USE_PPA_IMG")
+@@ -922,6 +937,8 @@ def _schema(widget_types):
+                 cv.Optional(df.CONF_RESUME_ON_INPUT, default=True): cv.boolean,
+                 cv.Optional(CONF_USE_PPA, default=False): cv.boolean,
+                 cv.Optional(CONF_USE_PPA_IMG, default=False): cv.boolean,
++                cv.Optional(CONF_USE_PPA_DRAW, default=False): cv.boolean,
++                cv.Optional(CONF_USE_PPA_BLEND, default=False): cv.boolean,
+                 cv.Optional(CONF_FPS_BENCHMARK, default=False): cv.boolean,
+                 cv.Optional(CONF_PERF_MONITOR, default=False): cv.boolean,
+                 cv.Optional(CONF_PROFILER, default=False): cv.boolean,
+diff --git a/esphome/components/lvgl/lvgl_esphome.cpp b/esphome/components/lvgl/lvgl_esphome.cpp
+--- a/esphome/components/lvgl/lvgl_esphome.cpp
++++ b/esphome/components/lvgl/lvgl_esphome.cpp
+@@ -884,12 +884,19 @@ void LvglComponent::dump_config() {
+ #ifdef USE_LVGL_PPA
+   ESP_LOGCONFIG(TAG, "  PPA SRM (display rotation): %s",
+                 s_display_srm_client != nullptr ? "registered (HW)" : "failed (SW fallback)");
+-#ifdef USE_LVGL_PPA_DRAW
+-  ESP_LOGCONFIG(TAG, "  PPA SW-blend handler (v9):  registered (RGB565 fills/blends → HW)");
+-  ESP_LOGCONFIG(TAG, "  PPA draw unit:              registered (canvas/image → HW)");
++#ifdef USE_LVGL_PPA_DRAW_UNIT
++  ESP_LOGCONFIG(TAG, "  PPA draw unit:              registered (fill/image → HW)");
+ #else
+-  ESP_LOGCONFIG(TAG, "  PPA LVGL draw/blend:        disabled (SRM-only mode)");
++  ESP_LOGCONFIG(TAG, "  PPA draw unit:              disabled");
+ #endif
++#ifdef USE_LVGL_PPA_BLEND_HANDLER
++  ESP_LOGCONFIG(TAG, "  PPA SW-blend handler (v9):  registered (fills/blends → HW)");
++#else
++  ESP_LOGCONFIG(TAG, "  PPA SW-blend handler (v9):  disabled");
++#endif
+ #else
+   ESP_LOGCONFIG(TAG, "  PPA acceleration: disabled (use_ppa: false)");
+ #endif
+@@ -911,7 +918,7 @@ void LvglComponent::set_paused(bool paused, bool show_snow) {
+ void LvglComponent::esphome_lvgl_init() {
+   lv_init();
+ #ifdef USE_LVGL_PPA
+-#ifdef USE_LVGL_PPA_DRAW
++#ifdef USE_LVGL_PPA_DRAW_UNIT
+   // Two PPA paths active at once for max coverage:
+   //
+   //   1) lv_draw_ppa unit (full draw unit, lv_draw_ppa_init)
+@@ -2709,12 +2716,14 @@ void LvglComponent::setup() {
+                                                                          : LV_DISPLAY_RENDER_MODE_PARTIAL));
+   this->buffers_configured_ = true;
+ 
+-#if defined(USE_LVGL_PPA) && defined(USE_LVGL_PPA_DRAW)
++#if defined(USE_LVGL_PPA) && defined(USE_LVGL_PPA_BLEND_HANDLER)
+   // Espressif esp-iot-solution PPA SW blend handler — accelerates all
+   // RGB565 SW blend paths (text, gradients post-rasterize, partial blends).
+   // Complements the higher-level PPA draw unit in lv_draw_ppa.c.
+   lvgl_port_ppa_v9_init(this->disp_);
+ #elif defined(USE_LVGL_PPA)
+-  ESP_LOGI(TAG, "PPA SRM enabled; LVGL draw/blend PPA registration disabled");
++  ESP_LOGI(TAG, "PPA SRM enabled; LVGL SW-blend PPA registration disabled");
+ #endif
+ 
+ #ifdef USE_LVGL_FPS_BENCHMARK

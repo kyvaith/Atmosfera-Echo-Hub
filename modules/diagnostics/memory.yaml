@@ -12,7 +12,7 @@ text_sensor:
     name: "PSRAM Configuration"
     entity_category: diagnostic
     disabled_by_default: true
-    update_interval: 60s
+    update_interval: 5min
     lambda: |-
       const char *mode = "unknown";
       int speed_mhz = 0;
@@ -58,7 +58,7 @@ sensor:
     disabled_by_default: true
     unit_of_measurement: "MiB"
     accuracy_decimals: 2
-    update_interval: 60s
+    update_interval: 5min
     lambda: |-
       return esp_psram_get_size() / 1048576.0f;
 
@@ -71,7 +71,7 @@ sensor:
     disabled_by_default: true
     unit_of_measurement: "MiB"
     accuracy_decimals: 2
-    update_interval: 60s
+    update_interval: 5min
     lambda: |-
       return heap_caps_get_total_size(MALLOC_CAP_SPIRAM) / 1048576.0f;
 
@@ -84,7 +84,7 @@ sensor:
     disabled_by_default: true
     unit_of_measurement: "MiB"
     accuracy_decimals: 2
-    update_interval: 10s
+    update_interval: 5min
     lambda: |-
       return heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1048576.0f;
 
@@ -97,7 +97,7 @@ sensor:
     disabled_by_default: true
     unit_of_measurement: "MiB"
     accuracy_decimals: 2
-    update_interval: 10s
+    update_interval: 5min
     lambda: |-
       return heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1048576.0f;
 
@@ -110,6 +110,6 @@ sensor:
     disabled_by_default: true
     unit_of_measurement: "KiB"
     accuracy_decimals: 0
-    update_interval: 10s
+    update_interval: 5min
     lambda: |-
       return heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024.0f;

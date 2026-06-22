@@ -1,0 +1,45 @@
+diff --git a/esphome/components/lvgl/lvgl_esphome.cpp b/esphome/components/lvgl/lvgl_esphome.cpp
+--- a/esphome/components/lvgl/lvgl_esphome.cpp
++++ b/esphome/components/lvgl/lvgl_esphome.cpp
+@@ -1519,30 +1519,30 @@ void LvglComponent::partial_compositor_task_() {
+       frame_presented = true;
+     }
+ 
+-    const uint32_t ready_dt_us = (uint32_t) (esp_timer_get_time() - start_us);
+-    this->perf_compositor_ready_us_ += ready_dt_us;
+-    this->perf_compositor_jobs_++;
+-    if (ready_dt_us > this->perf_compositor_ready_max_us_)
+-      this->perf_compositor_ready_max_us_ = ready_dt_us;
+-    const uint32_t px = (uint32_t) lv_area_get_width(&job.area) * (uint32_t) lv_area_get_height(&job.area);
+-    this->perf_compositor_px_ += px;
+-    lv_display_flush_ready(job.disp);
+-
+     if (frame_presented) {
+       if (sync_full_dirty) {
+         lv_area_t full{};
+         full.x1 = 0;
+         full.y1 = 0;
+         full.x2 = this->width_ - 1;
+         full.y2 = this->height_ - 1;
+         this->partial_compositor_copy_area_(this->partial_compositor_back_buffer_, full,
+                                             this->partial_compositor_front_buffer_, true);
+       } else {
+         for (size_t i = 0; i < sync_dirty_count; i++) {
+           this->partial_compositor_copy_area_(this->partial_compositor_back_buffer_, sync_dirty_areas[i],
+                                               this->partial_compositor_front_buffer_, true);
+         }
+       }
+     }
+ 
++    const uint32_t ready_dt_us = (uint32_t) (esp_timer_get_time() - start_us);
++    this->perf_compositor_ready_us_ += ready_dt_us;
++    this->perf_compositor_jobs_++;
++    if (ready_dt_us > this->perf_compositor_ready_max_us_)
++      this->perf_compositor_ready_max_us_ = ready_dt_us;
++    const uint32_t px = (uint32_t) lv_area_get_width(&job.area) * (uint32_t) lv_area_get_height(&job.area);
++    this->perf_compositor_px_ += px;
++    lv_display_flush_ready(job.disp);
++
+     const uint32_t dt_us = (uint32_t) (esp_timer_get_time() - start_us);
+     this->perf_compositor_us_ += dt_us;
+     if (dt_us > this->perf_compositor_max_us_)

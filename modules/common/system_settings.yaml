@@ -15,10 +15,14 @@ script:
         lambda: 'return id(boot_sequence_done);'
       then:
       - delay: 250ms
+      - lambda: |-
+          ESP_LOGW("backlight.diag", "wake brightness=%.0f%% uptime=%lums",
+                   id(settings_display_brightness).state,
+                   (unsigned long) millis());
       - light.turn_on:
           id: display_backlight
           brightness: !lambda 'return id(settings_display_brightness).state / 100.0f;'
-          transition_length: 500ms
+          transition_length: 0ms
 
 switch:
 - platform: template
@@ -125,10 +129,14 @@ number:
         - lambda: 'return id(boot_sequence_done);'
         - light.is_on: display_backlight
       then:
+      - lambda: |-
+          ESP_LOGW("backlight.diag", "brightness apply=%.0f%% uptime=%lums",
+                   id(settings_display_brightness).state,
+                   (unsigned long) millis());
       - light.turn_on:
           id: display_backlight
           brightness: !lambda 'return id(settings_display_brightness).state / 100.0f;'
-          transition_length: 250ms
+          transition_length: 0ms
 
 - platform: template
   id: settings_display_timeout

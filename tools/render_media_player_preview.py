@@ -93,7 +93,7 @@ def draw_wavy_arc(draw: ImageDraw.ImageDraw, bbox: tuple[int, int, int, int], pr
 
 
 def render(progress: int, playing: bool, title: str, artist: str) -> Image.Image:
-    frame = open_rgba("media_artwork_figma_composed_800.png")
+    frame = open_rgba("media_artwork_figma_composed_800.jpg")
     draw = ImageDraw.Draw(frame)
 
     draw_centered_text(draw, (400, 36), "9:30", font(ROBOTO, 40))

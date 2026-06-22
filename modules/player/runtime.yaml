@@ -77,6 +77,10 @@ globals:
     type: uint32_t
     restore_value: no
     initial_value: '0'
+  - id: last_artwork_refresh_ms
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
 
 script:
   - id: subscribe_media_player
@@ -220,39 +224,27 @@ script:
           const int phase = id(voice_assistant_phase);
           const bool voice_busy = phase != ${voice_assist_idle_phase_id} &&
                                   phase != ${voice_assist_not_ready_phase_id};
-          const bool state_known = id(media_player_state_sensor).has_state();
-          const bool media_playing = !state_known ||
-                                     id(media_player_state_sensor).state == "playing" ||
-                                     id(media_action_pending) ||
-                                     (int32_t)(id(artwork_block_until) - millis()) > 0;
+          const bool artwork_blocked = id(media_action_pending) ||
+                                       (int32_t)(id(artwork_block_until) - millis()) > 0;
           const bool artwork_needed = id(ui_active_app) == 1;
-          if (voice_busy || media_playing || !artwork_needed) {
+          if (voice_busy || artwork_blocked || !artwork_needed) {
             id(artwork_download_deferred) = true;
           }
       - if:
           condition:
             lambda: |-
               const int phase = id(voice_assistant_phase);
-              const bool state_known = id(media_player_state_sensor).has_state();
-              const bool media_playing = !state_known ||
-                                         id(media_player_state_sensor).state == "playing" ||
-                                         id(media_action_pending) ||
-                                         (int32_t)(id(artwork_block_until) - millis()) > 0;
+              const bool artwork_blocked = id(media_action_pending) ||
+                                           (int32_t)(id(artwork_block_until) - millis()) > 0;
               return !id(last_artwork_url).empty() &&
                      (phase == ${voice_assist_idle_phase_id} || phase == ${voice_assist_not_ready_phase_id}) &&
                      id(ui_active_app) == 1 &&
-                     !media_playing;
+                     !artwork_blocked;
           then:
             - lambda: id(artwork_download_deferred) = false;
-            - lvgl.image.update:
-                id: album_art_background_widget
-                src: album_art_placeholder
-            - lvgl.widget.hide: album_art_background_widget
-            - delay: 50ms
-            - artwork_image.release: album_art_background
-            - delay: 100ms
             - artwork_image.set_url:
                 id: album_art_background
+                update: true
                 url: !lambda 'return id(last_artwork_url);'
 
   - id: media_resume_deferred_artwork
@@ -262,16 +254,13 @@ script:
           condition:
             lambda: |-
               const int phase = id(voice_assistant_phase);
-              const bool state_known = id(media_player_state_sensor).has_state();
-              const bool media_playing = !state_known ||
-                                         id(media_player_state_sensor).state == "playing" ||
-                                         id(media_action_pending) ||
-                                         (int32_t)(id(artwork_block_until) - millis()) > 0;
+              const bool artwork_blocked = id(media_action_pending) ||
+                                           (int32_t)(id(artwork_block_until) - millis()) > 0;
               return id(artwork_download_deferred) &&
                      !id(last_artwork_url).empty() &&
                      (phase == ${voice_assist_idle_phase_id} || phase == ${voice_assist_not_ready_phase_id}) &&
                      id(ui_active_app) == 1 &&
-                     !media_playing;
+                     !artwork_blocked;
           then:
             - lambda: id(artwork_download_deferred) = false;
             - script.execute: debounce_artwork_download
@@ -456,12 +445,7 @@ script:
               const int phase = id(voice_assistant_phase);
               const bool voice_busy = phase != ${voice_assist_idle_phase_id} &&
                                       phase != ${voice_assist_not_ready_phase_id};
-              const bool state_known = id(media_player_state_sensor).has_state();
-              const bool media_playing = !state_known ||
-                                         id(media_player_state_sensor).state == "playing" ||
-                                         id(media_action_pending) ||
-                                         (int32_t)(id(artwork_block_until) - millis()) > 0;
-              return voice_busy || media_playing || id(ui_active_app) != 1;
+              return voice_busy || id(ui_active_app) != 1;
           then:
             - lambda: id(artwork_download_deferred) = true;
           else:
@@ -470,26 +454,13 @@ script:
                 src: album_art_background
             - lambda: |-
                 auto *img = id(album_art_background_widget);
-                int src_w = id(album_art_background).get_width();
-                int src_h = id(album_art_background).get_height();
-                if (src_w <= 0 || src_h <= 0) {
-                  src_w = 800;
-                  src_h = 800;
-                }
-                const int target_w = 800;
-                const int target_h = 800;
-                const uint32_t scale_x = (uint32_t) (((uint64_t) target_w * LV_SCALE_NONE + src_w - 1) / src_w);
-                const uint32_t scale_y = (uint32_t) (((uint64_t) target_h * LV_SCALE_NONE + src_h - 1) / src_h);
-                uint32_t scale = scale_x > scale_y ? scale_x : scale_y;
-                if (scale == 0) {
-                  scale = 1;
-                }
-                const int scaled_w = (int) (((int64_t) src_w * scale + LV_SCALE_NONE - 1) / LV_SCALE_NONE);
-                const int scaled_h = (int) (((int64_t) src_h * scale + LV_SCALE_NONE - 1) / LV_SCALE_NONE);
-                lv_obj_set_size(img, src_w, src_h);
+                lv_obj_set_pos(img, 0, 0);
+                lv_obj_set_size(img, 800, 800);
+                lv_image_set_inner_align(img, LV_IMAGE_ALIGN_CENTER);
                 lv_image_set_pivot(img, 0, 0);
-                lv_image_set_scale(img, scale);
-                lv_obj_set_pos(img, (target_w - scaled_w) / 2, (target_h - scaled_h) / 2);
+                lv_image_set_scale(img, LV_SCALE_NONE);
+                lv_image_set_offset_x(img, 0);
+                lv_image_set_offset_y(img, 0);
             - lvgl.widget.hide: figma_media_artwork_widget
             - lvgl.widget.show: album_art_background_widget
             - lvgl.widget.show:
@@ -502,12 +473,15 @@ script:
   - id: media_handle_artwork_error
     mode: restart
     then:
-      - lvgl.widget.hide: album_art_background_widget
-      - lvgl.widget.show: figma_media_artwork_widget
-      - lvgl.widget.hide:
-          - artwork_primary_overlay
-          - artwork_scrim
-      - lvgl.widget.show: artwork_error_label
+      - if:
+          condition:
+            lambda: 'return lv_obj_has_flag(id(album_art_background_widget), LV_OBJ_FLAG_HIDDEN);'
+          then:
+            - lvgl.widget.show: figma_media_artwork_widget
+            - lvgl.widget.hide:
+                - artwork_primary_overlay
+                - artwork_scrim
+            - lvgl.widget.show: artwork_error_label
       - if:
           condition:
             lambda: 'return id(ui_page) == 0;'
@@ -586,6 +560,11 @@ text_sensor:
                 } else {
                   id(title_received_once) = true;
                 }
+            - if:
+                condition:
+                  lambda: 'return !id(last_artwork_url).empty() && id(ui_active_app) == 1;'
+                then:
+                  - script.execute: debounce_artwork_download
             - script.execute: start_hide_track_info_timer
           else:
             - lvgl.label.update:
@@ -638,32 +617,11 @@ text_sensor:
     internal: true
     on_value:
       - lambda: |-
-          if (x.empty()) {
-            id(last_artwork_url) = "";
-            id(media_handle_artwork_error).execute();
-            return;
-          }
-
-          std::string path = x;
-          while (!path.empty() && (path.back() == '\n' || path.back() == '\r' || path.back() == ' ')) path.pop_back();
-          std::string url = (path.rfind("http://", 0) == 0 || path.rfind("https://", 0) == 0)
-              ? path : (id(ha_base_url) + path);
-          url = esphome::artwork_image::cap_artwork_url(url, 800);
-          if (url == id(last_artwork_url)) return;
-          id(last_artwork_url) = url;
-          const int phase = id(voice_assistant_phase);
-          const bool voice_busy = phase != ${voice_assist_idle_phase_id} &&
-                                  phase != ${voice_assist_not_ready_phase_id};
-          const bool state_known = id(media_player_state_sensor).has_state();
-          const bool media_playing = !state_known ||
-                                     id(media_player_state_sensor).state == "playing" ||
-                                     id(media_action_pending) ||
-                                     (int32_t)(id(artwork_block_until) - millis()) > 0;
-          if (voice_busy || media_playing || id(ui_active_app) != 1) {
-            id(artwork_download_deferred) = true;
-            return;
-          }
-          id(debounce_artwork_download).execute();
+          // SendSpin ArtworkRole supplies negotiated binary artwork. Keep the
+          // metadata URL only as diagnostic state and do not fetch arbitrary
+          // remote artwork URLs from the UI task.
+          id(last_artwork_url) = "";
+          id(last_artwork_refresh_ms) = millis();
 
   - platform: template
     id: media_player_state_sensor
@@ -675,8 +633,7 @@ text_sensor:
             lambda: 'return x == "playing";'
           then:
             - lambda: |-
-                id(artwork_block_until) = millis() + 30000;
-                id(artwork_download_deferred) = true;
+                id(artwork_block_until) = 0;
             - lvgl.widget.show: play_button
             - script.execute: media_update_main_control
             - if:

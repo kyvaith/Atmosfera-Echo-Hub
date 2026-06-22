@@ -13,3 +13,4 @@ update:
     id: firmware_update
     name: Firmware
     source: ${firmware_manifest_url}
+    update_interval: never

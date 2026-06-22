@@ -7,10 +7,13 @@ sensor:
     name: "WiFi RSSI"
     entity_category: diagnostic
     disabled_by_default: true
-    update_interval: 10s
+    # Keep this slow by default. On ESP32-P4 with continuous DSI scanout,
+    # frequent hosted-radio diagnostics can contend with PSRAM/SDIO enough to
+    # show up as rare display flashes.
+    update_interval: 5min
 
 interval:
-  - interval: 30s
+  - interval: 5min
     then:
       - lambda: |-
           const bool connected = esphome::wifi::global_wifi_component != nullptr &&

@@ -19,7 +19,9 @@ light:
   name: "Display Backlight"
   output: backlight_output
   restore_mode: ALWAYS_OFF
-  default_transition_length: 250ms
+  # Keep runtime brightness changes immediate while we diagnose rare flashes.
+  # Boot still uses an explicit fade-in in modules/common/core.yaml.
+  default_transition_length: 0ms
 
 i2c:
   id: touchscreen_bus
@@ -35,6 +37,7 @@ display:
   color_depth: 24
   pixel_mode: 24
   draw_rounding: 4
+  # Keep the panel at the timing recommended by Waveshare's ESP-IDF examples.
   pclk_frequency: 48MHz
   lane_bit_rate: 1.5Gbps
   use_dma2d: true

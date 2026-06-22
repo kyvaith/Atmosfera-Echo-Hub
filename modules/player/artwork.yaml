@@ -1,7 +1,7 @@
 # Album artwork download and decoding.
 # artwork_image keeps artwork handling off the main YAML and applies the LVGL byte order consistently.
 image:
-  - file: "assets/images/figma/media_artwork_figma_composed_800.png"
+  - file: "assets/images/figma/media_artwork_figma_composed_800.jpg"
     id: album_art_placeholder
     type: RGB565
     byte_order: little_endian
@@ -15,8 +15,11 @@ artwork_image:
     format: AUTO
     type: RGB565
     byte_order: little_endian
+    resize: 800x800
+    sendspin_id: sendspin_hub
+    sendspin_slot: 0
     placeholder: album_art_placeholder
-    buffer_size: 65536
+    buffer_size: 131072
     allow_insecure_local_urls: true
     on_download_finished:
       - script.execute: media_apply_artwork

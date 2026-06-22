@@ -1,0 +1,49 @@
+diff --git a/esphome/components/lvgl/ppa/lv_draw_ppa_img.c b/esphome/components/lvgl/ppa/lv_draw_ppa_img.c
+index 65b2157a8..17e3df166 100644
+--- a/esphome/components/lvgl/ppa/lv_draw_ppa_img.c
++++ b/esphome/components/lvgl/ppa/lv_draw_ppa_img.c
+@@ -228,6 +228,15 @@ void lv_draw_ppa_img_srm(lv_draw_task_t * t, const lv_draw_image_dsc_t * dsc,
+     lv_draw_ppa_cache_msync(decoded->data, decoded->data_size, ESP_CACHE_MSYNC_FLAG_DIR_C2M);
+ 
+     uint32_t out_bpp = (dest_cf == LV_COLOR_FORMAT_RGB565) ? 2u :
+                        (dest_cf == LV_COLOR_FORMAT_RGB888)  ? 3u : 4u;
++    uint32_t src_bpp = lv_color_format_get_size(src_cf);
++    uint32_t src_stride = decoded->header.stride ? decoded->header.stride : (src_w * src_bpp);
++    if(src_bpp == 0 || (src_stride % src_bpp) != 0) {
++        LV_LOG_WARN("PPA SRM scale skipped: invalid src stride=%u px=%u",
++                    (unsigned)src_stride, (unsigned)src_bpp);
++        lv_image_decoder_close(&decoder_dsc);
++        return;
++    }
++    uint32_t src_stride_px = src_stride / src_bpp;
+     uint32_t dest_stride = dest_buf->header.stride ? dest_buf->header.stride : (dest_buf->header.w * out_bpp);
+     if(out_bpp == 0 || (dest_stride % out_bpp) != 0) {
+         LV_LOG_WARN("PPA SRM scale skipped: invalid dest stride=%u px=%u",
+@@ -244,7 +253,7 @@ void lv_draw_ppa_img_srm(lv_draw_task_t * t, const lv_draw_image_dsc_t * dsc,
+     lv_memzero(&cfg, sizeof(cfg));
+ 
+     cfg.in.buffer         = (void *)decoded->data;
+-    cfg.in.pic_w          = src_w;
++    cfg.in.pic_w          = src_stride_px;
+     cfg.in.pic_h          = src_h;
+     cfg.in.block_w        = src_bw;
+     cfg.in.block_h        = src_bh;
+@@ -414,7 +423,16 @@ void lv_draw_ppa_img_rotate(lv_draw_task_t * t, const lv_draw_image_dsc_t * dsc,
+     lv_memzero(&cfg, sizeof(cfg));
+ 
+     /* Input: full source image block */
++    uint32_t src_bpp_r = lv_color_format_get_size(src_cf);
++    uint32_t src_stride_r = decoded->header.stride ? decoded->header.stride : (src_w * src_bpp_r);
++    if(src_bpp_r == 0 || (src_stride_r % src_bpp_r) != 0) {
++        LV_LOG_WARN("PPA SRM rotate skipped: invalid src stride=%u px=%u",
++                    (unsigned)src_stride_r, (unsigned)src_bpp_r);
++        lv_image_decoder_close(&decoder_dsc);
++        return;
++    }
++    uint32_t src_stride_px_r = src_stride_r / src_bpp_r;
+     cfg.in.buffer         = (void *)decoded->data;
+-    cfg.in.pic_w          = src_w;
++    cfg.in.pic_w          = src_stride_px_r;
+     cfg.in.pic_h          = src_h;
+     cfg.in.block_w        = src_w;
+     cfg.in.block_h        = src_h;

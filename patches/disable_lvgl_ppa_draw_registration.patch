@@ -1,0 +1,47 @@
+diff --git a/esphome/components/lvgl/lvgl_esphome.cpp b/esphome/components/lvgl/lvgl_esphome.cpp
+--- a/esphome/components/lvgl/lvgl_esphome.cpp
++++ b/esphome/components/lvgl/lvgl_esphome.cpp
+@@ -884,8 +884,12 @@ void LvglComponent::dump_config() {
+ #ifdef USE_LVGL_PPA
+   ESP_LOGCONFIG(TAG, "  PPA SRM (display rotation): %s",
+                 s_display_srm_client != nullptr ? "registered (HW)" : "failed (SW fallback)");
++#ifdef USE_LVGL_PPA_DRAW
+   ESP_LOGCONFIG(TAG, "  PPA SW-blend handler (v9):  registered (RGB565 fills/blends → HW)");
+   ESP_LOGCONFIG(TAG, "  PPA draw unit:              registered (canvas/image → HW)");
++#else
++  ESP_LOGCONFIG(TAG, "  PPA LVGL draw/blend:        disabled (SRM-only mode)");
++#endif
+ #else
+   ESP_LOGCONFIG(TAG, "  PPA acceleration: disabled (use_ppa: false)");
+ #endif
+@@ -906,6 +910,7 @@ void LvglComponent::esphome_lvgl_init() {
+ void LvglComponent::esphome_lvgl_init() {
+   lv_init();
+ #ifdef USE_LVGL_PPA
++#ifdef USE_LVGL_PPA_DRAW
+   // Two PPA paths active at once for max coverage:
+   //
+   //   1) lv_draw_ppa unit (full draw unit, lv_draw_ppa_init)
+@@ -923,6 +928,7 @@ void LvglComponent::esphome_lvgl_init() {
+   // RGB565 camera canvas, this added ~50 ms of LVGL overhead per frame.
+   // Enabling (1) brings image drawing back onto PPA hardware.
+   lv_draw_ppa_init();
++#endif
+ 
+   // Register a dedicated PPA SRM client for display framebuffer rotation.
+   // This is independent of the LVGL draw pipeline and stays enabled.
+@@ -2706,11 +2712,13 @@ void LvglComponent::setup() {
+                                                                          : LV_DISPLAY_RENDER_MODE_PARTIAL));
+   this->buffers_configured_ = true;
+ 
+-#ifdef USE_LVGL_PPA
++#if defined(USE_LVGL_PPA) && defined(USE_LVGL_PPA_DRAW)
+   // Espressif esp-iot-solution PPA SW blend handler — accelerates all
+   // RGB565 SW blend paths (text, gradients post-rasterize, partial blends).
+   // Complements the higher-level PPA draw unit in lv_draw_ppa.c.
+   lvgl_port_ppa_v9_init(this->disp_);
++#elif defined(USE_LVGL_PPA)
++  ESP_LOGI(TAG, "PPA SRM enabled; LVGL draw/blend PPA registration disabled");
+ #endif
+ 
+ #ifdef USE_LVGL_FPS_BENCHMARK

@@ -1,6 +1,32 @@
 # Touch controller.
 # Home pages use lightweight swipe tracking here. The high-performance snapshot
 # compositor is intentionally not part of the upstream-PR integration test build.
+globals:
+  - id: display_touch_wake_pending
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: display_touch_wake_start_ms
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+  - id: display_touch_wake_start_x
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: display_touch_wake_start_y
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: display_touch_wake_last_x
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: display_touch_wake_last_y
+    type: int
+    restore_value: no
+    initial_value: '0'
+
 touchscreen:
   - platform: gt911
     id: my_touchscreen
@@ -11,7 +37,13 @@ touchscreen:
       then:
         - lambda: |-
             if (id(boot_sequence_done) && !id(display_backlight).current_values.is_on()) {
-              id(display_wake).execute();
+              id(display_touch_wake_pending) = true;
+              id(display_touch_wake_start_ms) = millis();
+              id(display_touch_wake_start_x) = touch.x;
+              id(display_touch_wake_start_y) = touch.y;
+              id(display_touch_wake_last_x) = touch.x;
+              id(display_touch_wake_last_y) = touch.y;
+              return;
             }
 
             const int page = id(ui_page);
@@ -42,11 +74,25 @@ touchscreen:
             id(app_close_last_x) = touch.x;
             id(app_close_last_y) = touch.y;
 
+            id(settings_scroll_tracking) = id(ui_active_app) == 2 && !id(app_close_tracking);
+            id(settings_scroll_dragging) = false;
+            id(settings_scroll_start_x) = touch.x;
+            id(settings_scroll_start_y) = touch.y;
+            id(settings_scroll_last_x) = touch.x;
+            id(settings_scroll_last_y) = touch.y;
+            id(settings_scroll_start_scroll_y) = lv_obj_get_scroll_y(id(settings_root));
+            id(settings_scroll_last_render_ms) = 0;
+
     on_update:
       then:
         - lambda: |-
             if (touches.empty()) return;
             const auto &touch = touches[0];
+            if (id(display_touch_wake_pending)) {
+              id(display_touch_wake_last_x) = touch.x;
+              id(display_touch_wake_last_y) = touch.y;
+              return;
+            }
             if (id(app_close_tracking)) {
               id(app_close_last_x) = touch.x;
               id(app_close_last_y) = touch.y;
@@ -65,6 +111,39 @@ touchscreen:
                 id(app_close_tracking) = false;
                 return;
               }
+            }
+            if (id(settings_scroll_tracking)) {
+              id(settings_scroll_last_x) = touch.x;
+              id(settings_scroll_last_y) = touch.y;
+              const int dx = id(settings_scroll_last_x) - id(settings_scroll_start_x);
+              const int dy = id(settings_scroll_last_y) - id(settings_scroll_start_y);
+              constexpr int start_y = 8;
+              constexpr uint32_t render_interval_ms = 8;
+
+              if (!id(settings_scroll_dragging)) {
+                if (abs(dy) < start_y || abs(dy) <= abs(dx) + 4) return;
+
+                if (!lvgl_esphome_snapshot_scroll_begin(id(settings_root), 800, 800)) {
+                  id(settings_scroll_tracking) = false;
+                  return;
+                }
+                id(settings_scroll_dragging) = true;
+                id(ui_touch_click_block_until_ms) = millis() + 700;
+                lv_indev_reset(nullptr, nullptr);
+                for (lv_indev_t *indev = lv_indev_get_next(nullptr); indev != nullptr;
+                     indev = lv_indev_get_next(indev)) {
+                  lv_indev_wait_release(indev);
+                }
+              }
+
+              const uint32_t now = millis();
+              if (id(settings_scroll_last_render_ms) != 0 &&
+                  now - id(settings_scroll_last_render_ms) < render_interval_ms) {
+                return;
+              }
+              id(settings_scroll_last_render_ms) = now;
+              lvgl_esphome_snapshot_scroll_update(id(settings_scroll_start_scroll_y) - dy);
+              return;
             }
             if (!id(tile_swipe_tracking)) return;
 
@@ -139,6 +218,19 @@ touchscreen:
     on_release:
       then:
         - lambda: |-
+            if (id(display_touch_wake_pending)) {
+              const uint32_t held_ms = millis() - id(display_touch_wake_start_ms);
+              const int dx = id(display_touch_wake_last_x) - id(display_touch_wake_start_x);
+              const int dy = id(display_touch_wake_last_y) - id(display_touch_wake_start_y);
+              const bool deliberate_wake =
+                  held_ms >= 80 && held_ms <= 2500 && abs(dx) <= 120 && abs(dy) <= 120;
+              id(display_touch_wake_pending) = false;
+              if (deliberate_wake && id(boot_sequence_done) &&
+                  !id(display_backlight).current_values.is_on()) {
+                id(display_wake).execute();
+              }
+              return;
+            }
             if (id(app_close_tracking)) {
               const int dx = id(app_close_last_x) - id(app_close_start_x);
               const int dy = id(app_close_last_y) - id(app_close_start_y);
@@ -148,6 +240,22 @@ touchscreen:
               id(app_close_tracking) = false;
               id(app_close_dragging) = false;
               lvgl_esphome_snapshot_app_clear_prepared_close();
+            }
+            if (id(settings_scroll_tracking)) {
+              const int dx = id(settings_scroll_last_x) - id(settings_scroll_start_x);
+              const int dy = id(settings_scroll_last_y) - id(settings_scroll_start_y);
+              const bool was_dragging = id(settings_scroll_dragging);
+              if (was_dragging) {
+                lvgl_esphome_snapshot_scroll_finish(id(settings_scroll_start_scroll_y) - dy);
+                id(ui_touch_click_block_until_ms) = millis() + 300;
+              } else if (abs(dx) > 10 || abs(dy) > 10) {
+                id(ui_touch_click_block_until_ms) = millis() + 300;
+                lvgl_esphome_snapshot_scroll_end();
+              }
+              id(settings_scroll_tracking) = false;
+              id(settings_scroll_dragging) = false;
+              id(settings_scroll_last_render_ms) = 0;
+              if (was_dragging) return;
             }
             if (!id(tile_swipe_tracking)) {
               return;

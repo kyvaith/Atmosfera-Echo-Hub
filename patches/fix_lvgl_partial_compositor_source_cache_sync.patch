@@ -1,0 +1,20 @@
+diff --git a/esphome/components/lvgl/lvgl_esphome.cpp b/esphome/components/lvgl/lvgl_esphome.cpp
+--- a/esphome/components/lvgl/lvgl_esphome.cpp
++++ b/esphome/components/lvgl/lvgl_esphome.cpp
+@@ -1455,6 +1455,16 @@ bool LvglComponent::partial_compositor_flush_(lv_display_t *disp_drv, const lv_a
+   job.color_p = color_p;
+   job.last = lv_display_flush_is_last(disp_drv);
+   job.t0 = t0;
++#if LV_COLOR_DEPTH == 32
++  constexpr size_t BYTES_PER_PIXEL = 3;
++#else
++  constexpr size_t BYTES_PER_PIXEL = LV_COLOR_DEPTH / 8;
++#endif
++  const size_t src_bytes = (size_t) lv_area_get_width(area) * (size_t) lv_area_get_height(area) * BYTES_PER_PIXEL;
++  /* The worker task runs on another core. If LVGL rendered the partial buffer
++   * in cached PSRAM, write it back before handing the pointer to the worker. */
++  lvgl_cache_msync_external(color_p, src_bytes, ESP_CACHE_MSYNC_FLAG_DIR_C2M);
++  __sync_synchronize();
+   if (xQueueSend(this->partial_compositor_queue_, &job, pdMS_TO_TICKS(20)) != pdTRUE) {
+     ESP_LOGW(TAG, "LVGL partial framebuffer compositor queue full; falling back to synchronous flush");
+     return false;
