@@ -207,22 +207,20 @@ script:
       - delay: 80ms
       - lambda: |-
           ESP_LOGW("boot.diag",
-                   "tile snapshot prewarm: begin page=%d internal=%uK/%uK psram=%uK/%uK",
+                   "tile snapshot window: begin page=%d internal=%uK/%uK psram=%uK/%uK",
                    id(ui_page),
                    (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
                    (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
                    (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                    (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
           lv_obj_update_layout(lv_obj_get_parent(id(controls_root_1)));
-          const bool p12 = lvgl_esphome_snapshot_cache_pair(id(controls_root_1), id(controls_root_2), 800);
-          const bool p23 = lvgl_esphome_snapshot_cache_pair(id(controls_root_2), id(controls_root_3), 800);
-          const bool p34 = lvgl_esphome_snapshot_cache_pair(id(controls_root_3), id(controls_root_4), 800);
-          id(ui_tile_snapshots_ready) = p12 && p23 && p34;
-          id(ui_tile_snapshot_prepared_page) = id(ui_tile_snapshots_ready) ? -1 : 0;
+          const bool prepared = lvgl_esphome_snapshot_cache_tile_window(
+              id(controls_root_1), id(controls_root_2), id(controls_root_3), id(controls_root_4), id(ui_page), 800);
+          id(ui_tile_snapshots_ready) = prepared;
+          id(ui_tile_snapshot_prepared_page) = prepared ? id(ui_page) : 0;
           ESP_LOGW("boot.diag",
-                   "tile snapshot prewarm: done p12=%u p23=%u p34=%u ready=%u internal=%uK/%uK psram=%uK/%uK",
-                   (unsigned) p12, (unsigned) p23, (unsigned) p34,
-                   (unsigned) id(ui_tile_snapshots_ready),
+                   "tile snapshot window: done page=%d ready=%u internal=%uK/%uK psram=%uK/%uK",
+                   id(ui_page), (unsigned) id(ui_tile_snapshots_ready),
                    (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
                    (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
                    (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
@@ -234,36 +232,32 @@ script:
       - delay: 550ms
       - lambda: |-
           if (id(ui_active_app) != 0 || id(ui_page) < 1 || id(ui_page) > 4) return;
-          if (id(ui_tile_snapshots_ready) &&
-              (id(ui_tile_snapshot_prepared_page) == -1 ||
-               id(ui_tile_snapshot_prepared_page) == id(ui_page))) return;
+          if (id(ui_tile_snapshots_ready) && id(ui_tile_snapshot_prepared_page) == id(ui_page)) return;
+          if (lvgl_esphome_snapshot_is_active()) {
+            id(ui_tile_snapshots_ready) = false;
+            id(ui_tile_snapshot_prepared_page) = 0;
+            id(ui_refresh_tile_snapshots).execute();
+            return;
+          }
           static uint32_t boot_snapshot_diag_budget = 4;
           const bool log_boot_snapshot = boot_snapshot_diag_budget > 0;
           if (log_boot_snapshot) {
             boot_snapshot_diag_budget--;
             ESP_LOGW("boot.diag",
-                     "tile snapshot refresh: begin page=%d internal=%uK/%uK psram=%uK/%uK",
+                     "tile snapshot window refresh: begin page=%d internal=%uK/%uK psram=%uK/%uK",
                      id(ui_page),
                      (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
                      (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
                      (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                      (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
           }
-          bool prepared = true;
-          if (id(ui_page) == 1) {
-            prepared = lvgl_esphome_snapshot_cache_pair(id(controls_root_1), id(controls_root_2), 800);
-          } else if (id(ui_page) == 2) {
-            prepared = lvgl_esphome_snapshot_cache_pair(id(controls_root_2), id(controls_root_3), 800);
-          } else if (id(ui_page) == 3) {
-            prepared = lvgl_esphome_snapshot_cache_pair(id(controls_root_3), id(controls_root_4), 800);
-          } else {
-            prepared = lvgl_esphome_snapshot_cache_pair(id(controls_root_3), id(controls_root_4), 800);
-          }
+          const bool prepared = lvgl_esphome_snapshot_cache_tile_window(
+              id(controls_root_1), id(controls_root_2), id(controls_root_3), id(controls_root_4), id(ui_page), 800);
           id(ui_tile_snapshots_ready) = prepared;
           id(ui_tile_snapshot_prepared_page) = prepared ? id(ui_page) : 0;
           if (log_boot_snapshot || !prepared) {
             ESP_LOGW("boot.diag",
-                     "tile snapshot refresh: done page=%d prepared=%u internal=%uK/%uK psram=%uK/%uK",
+                     "tile snapshot window refresh: done page=%d prepared=%u internal=%uK/%uK psram=%uK/%uK",
                      id(ui_page), (unsigned) prepared,
                      (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
                      (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
@@ -290,36 +284,6 @@ script:
             lv_obj_align(roots[i], LV_ALIGN_CENTER, (i + 1 - page) * 800, 0);
           }
           lv_obj_update_layout(lv_obj_get_parent(id(controls_root_1)));
-      - lvgl.page.show:
-          id: controls_page
-          animation: NONE
-          time: 50ms
-
-  - id: ui_prewarm_app_snapshots
-    mode: single
-    then:
-      - script.execute: ui_prepare_player_page
-      - lvgl.page.show:
-          id: music_page
-          animation: NONE
-          time: 50ms
-      - delay: 80ms
-      - lambda: |-
-          lvgl_esphome_snapshot_cache_page(id(wear_root));
-      - script.execute: media_hide_lottie_visual
-      - script.execute: ui_prepare_settings_page
-      - lvgl.page.show:
-          id: settings_page
-          animation: NONE
-          time: 50ms
-      - delay: 80ms
-      - lambda: |-
-          lvgl_esphome_snapshot_cache_page(id(settings_root));
-          lv_obj_clear_flag(id(voice_assistant_overlay), LV_OBJ_FLAG_HIDDEN);
-          lv_obj_update_layout(id(voice_assistant_overlay));
-          lvgl_esphome_snapshot_cache_page(id(voice_assistant_overlay));
-          lv_obj_add_flag(id(voice_assistant_overlay), LV_OBJ_FLAG_HIDDEN);
-      - script.execute: ui_show_tiles_1
       - lvgl.page.show:
           id: controls_page
           animation: NONE
