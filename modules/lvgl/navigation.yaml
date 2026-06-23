@@ -15,6 +15,14 @@ globals:
     type: int
     restore_value: no
     initial_value: '0'
+  - id: ui_tile_snapshots_ready
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: ui_tile_snapshot_prepared_page
+    type: int
+    restore_value: no
+    initial_value: '0'
   - id: ui_touch_click_block_until_ms
     type: uint32_t
     restore_value: no
@@ -186,12 +194,49 @@ script:
           value: '4'
       - script.execute: ui_apply_tile_positions
 
+  - id: ui_build_tile_snapshots_now
+    mode: single
+    then:
+      - globals.set:
+          id: ui_tile_snapshots_ready
+          value: 'false'
+      - globals.set:
+          id: ui_tile_snapshot_prepared_page
+          value: '0'
+      - script.execute: ui_set_tile_visibility_1
+      - delay: 80ms
+      - lambda: |-
+          ESP_LOGW("boot.diag",
+                   "tile snapshot prewarm: begin page=%d internal=%uK/%uK psram=%uK/%uK",
+                   id(ui_page),
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+                   (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+                   (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
+          lv_obj_update_layout(lv_obj_get_parent(id(controls_root_1)));
+          const bool p12 = lvgl_esphome_snapshot_cache_pair(id(controls_root_1), id(controls_root_2), 800);
+          const bool p23 = lvgl_esphome_snapshot_cache_pair(id(controls_root_2), id(controls_root_3), 800);
+          const bool p34 = lvgl_esphome_snapshot_cache_pair(id(controls_root_3), id(controls_root_4), 800);
+          id(ui_tile_snapshots_ready) = p12 && p23 && p34;
+          id(ui_tile_snapshot_prepared_page) = id(ui_tile_snapshots_ready) ? -1 : 0;
+          ESP_LOGW("boot.diag",
+                   "tile snapshot prewarm: done p12=%u p23=%u p34=%u ready=%u internal=%uK/%uK psram=%uK/%uK",
+                   (unsigned) p12, (unsigned) p23, (unsigned) p34,
+                   (unsigned) id(ui_tile_snapshots_ready),
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+                   (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+                   (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
+
   - id: ui_refresh_tile_snapshots
     mode: restart
     then:
       - delay: 550ms
       - lambda: |-
           if (id(ui_active_app) != 0 || id(ui_page) < 1 || id(ui_page) > 4) return;
+          if (id(ui_tile_snapshots_ready) &&
+              (id(ui_tile_snapshot_prepared_page) == -1 ||
+               id(ui_tile_snapshot_prepared_page) == id(ui_page))) return;
           static uint32_t boot_snapshot_diag_budget = 4;
           const bool log_boot_snapshot = boot_snapshot_diag_budget > 0;
           if (log_boot_snapshot) {
@@ -204,13 +249,22 @@ script:
                      (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                      (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
           }
-          const bool p12 = lvgl_esphome_snapshot_cache_pair(id(controls_root_1), id(controls_root_2), 800);
-          const bool p23 = lvgl_esphome_snapshot_cache_pair(id(controls_root_2), id(controls_root_3), 800);
-          const bool p34 = lvgl_esphome_snapshot_cache_pair(id(controls_root_3), id(controls_root_4), 800);
-          if (log_boot_snapshot || !p12 || !p23 || !p34) {
+          bool prepared = true;
+          if (id(ui_page) == 1) {
+            prepared = lvgl_esphome_snapshot_cache_pair(id(controls_root_1), id(controls_root_2), 800);
+          } else if (id(ui_page) == 2) {
+            prepared = lvgl_esphome_snapshot_cache_pair(id(controls_root_2), id(controls_root_3), 800);
+          } else if (id(ui_page) == 3) {
+            prepared = lvgl_esphome_snapshot_cache_pair(id(controls_root_3), id(controls_root_4), 800);
+          } else {
+            prepared = lvgl_esphome_snapshot_cache_pair(id(controls_root_3), id(controls_root_4), 800);
+          }
+          id(ui_tile_snapshots_ready) = prepared;
+          id(ui_tile_snapshot_prepared_page) = prepared ? id(ui_page) : 0;
+          if (log_boot_snapshot || !prepared) {
             ESP_LOGW("boot.diag",
-                     "tile snapshot refresh: done p12=%u p23=%u p34=%u internal=%uK/%uK psram=%uK/%uK",
-                     (unsigned) p12, (unsigned) p23, (unsigned) p34,
+                     "tile snapshot refresh: done page=%d prepared=%u internal=%uK/%uK psram=%uK/%uK",
+                     id(ui_page), (unsigned) prepared,
                      (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
                      (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
                      (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
