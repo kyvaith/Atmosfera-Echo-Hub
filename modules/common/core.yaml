@@ -26,13 +26,33 @@ esphome:
     - delay: 1s
     - script.execute: boot_show_esphome_animation
     - delay: 6s
+    - lambda: |-
+        ESP_LOGW("boot.diag",
+                 "boot transition: hide animation internal=%uK/%uK psram=%uK/%uK",
+                 (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+                 (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
+                 (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+                 (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
     - script.execute: boot_hide_esphome_animation
+    - lambda: |-
+        ESP_LOGW("boot.diag", "boot transition: show tiles page=%d", id(ui_page));
     - script.execute: ui_show_tiles_1
+    - lambda: |-
+        ESP_LOGW("boot.diag", "boot transition: show controls page");
     - lvgl.page.show:
         id: controls_page
+    - lambda: |-
+        ESP_LOGW("boot.diag",
+                 "boot transition: controls shown internal=%uK/%uK psram=%uK/%uK",
+                 (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+                 (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
+                 (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+                 (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
     - globals.set:
         id: boot_sequence_done
         value: 'true'
+    - lambda: |-
+        ESP_LOGW("boot.diag", "boot transition: done");
     - script.execute: ui_apply_settings_state
 
 ota:
