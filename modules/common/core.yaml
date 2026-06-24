@@ -21,9 +21,11 @@ esphome:
         id: boot_page
     - delay: 250ms
     - script.execute: ui_build_tile_snapshots_now
+    - script.wait: ui_build_tile_snapshots_now
     - output.turn_off: backlight_output
     - light.turn_off:
         id: display_backlight
+    - delay: 1s
     - light.turn_on:
         id: display_backlight
         brightness: !lambda 'return id(settings_display_brightness).state / 100.0f;'
@@ -100,9 +102,7 @@ api:
           });
         }
       }
-  - script.execute: subscribe_media_player
-  - script.execute: subscribe_media_queue_sensor
-  - script.execute: subscribe_speaker_group_sensor
+  - script.execute: subscribe_media_after_boot
   on_client_disconnected:
   - lambda: |-
       ESP_LOGD("api.diag", "DISCONNECTED client=%s address=%s uptime=%lums wifi_connected=%s rssi=%.0fdBm internal_free=%uKiB psram_free=%uKiB",

@@ -32,10 +32,12 @@ esp_afe:
   aec_filter_length: 4
   aec_nlp_level: normal
   # BSS microphone-array speech enhancement is expensive on ESP32-P4 when the
-  # realtime assistant is also rendering UI and streaming audio. Keep AEC/NS,
-  # but let the realtime backend/server VAD own turn-taking.
+  # realtime assistant is also rendering UI and streaming audio. Keep AEC for
+  # speaker echo, but leave noise suppression off; ESP-SR warns that NS can
+  # reduce speech-recognition accuracy, and the realtime backend can handle
+  # noise more contextually.
   se_enabled: false
-  ns_enabled: true
+  ns_enabled: false
   # Continuous local VAD registers a background mic consumer. That can keep the
   # AFE fetch task alive without a real wake-word/session consumer and eventually
   # starve the post-AFE microphone path.

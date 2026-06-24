@@ -23,6 +23,18 @@ globals:
     type: int
     restore_value: no
     initial_value: '0'
+  - id: ui_tile_snapshot_cached_first
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: ui_tile_snapshot_cached_last
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: ui_snapshot_io_busy
+    type: bool
+    restore_value: no
+    initial_value: 'false'
   - id: ui_touch_click_block_until_ms
     type: uint32_t
     restore_value: no
@@ -145,6 +157,47 @@ interval:
             - script.execute: ui_close_app
 
 script:
+  - id: ui_touch_block_for_drag
+    mode: restart
+    then:
+      - lambda: |-
+          id(ui_touch_click_block_until_ms) = millis() + 700;
+          lv_obj_clear_flag(id(ui_touch_blocker), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_move_foreground(id(ui_touch_blocker));
+          lv_indev_reset(nullptr, nullptr);
+          for (lv_indev_t *indev = lv_indev_get_next(nullptr); indev != nullptr;
+               indev = lv_indev_get_next(indev)) {
+            lv_indev_wait_release(indev);
+          }
+
+  - id: ui_release_touch_blocker
+    mode: restart
+    then:
+      - delay: 180ms
+      - lvgl.widget.hide: ui_touch_blocker
+
+  - id: ui_update_page_indicator
+    then:
+      - lambda: |-
+          lv_obj_t *dots[] = {
+            id(page_indicator_1),
+            id(page_indicator_2),
+            id(page_indicator_3),
+            id(page_indicator_4),
+          };
+          int page = id(ui_page);
+          if (page < 1 || page > 4) page = 1;
+          int x = 352;
+          for (int i = 0; i < 4; i++) {
+            const bool active = (i + 1) == page;
+            const int w = active ? 30 : 10;
+            lv_obj_set_x(dots[i], x);
+            lv_obj_set_width(dots[i], w);
+            lv_obj_set_style_bg_color(dots[i], lv_color_hex(active ? 0xD3E3FD : 0x5C5F5E), 0);
+            x += w + 12;
+          }
+          lvgl_esphome_snapshot_swipe_set_page_indicator(page, 4);
+
   - id: ui_apply_tile_positions
     then:
       - lambda: |-
@@ -161,6 +214,7 @@ script:
             lv_obj_clear_flag(roots[i], LV_OBJ_FLAG_HIDDEN);
             lv_obj_align(roots[i], LV_ALIGN_CENTER, (i + 1 - page) * 800, 0);
           }
+      - script.execute: ui_update_page_indicator
 
   - id: ui_reset_tile_roots
     then:
@@ -198,47 +252,104 @@ script:
     mode: single
     then:
       - globals.set:
+          id: ui_snapshot_io_busy
+          value: 'true'
+      - globals.set:
           id: ui_tile_snapshots_ready
           value: 'false'
       - globals.set:
           id: ui_tile_snapshot_prepared_page
           value: '0'
-      - script.execute: ui_set_tile_visibility_1
+      - globals.set:
+          id: ui_tile_snapshot_cached_first
+          value: '0'
+      - globals.set:
+          id: ui_tile_snapshot_cached_last
+          value: '0'
+      # Build the full tile page cache while the display is still dark.
+      # Swipes compose neighboring pages from these raw snapshots, avoiding
+      # runtime snapshot generation without keeping huge panoramas in PSRAM.
+      - script.execute: ui_set_tile_visibility_2
       - delay: 80ms
       - lambda: |-
           ESP_LOGW("boot.diag",
-                   "tile snapshot window: begin page=%d internal=%uK/%uK psram=%uK/%uK",
-                   id(ui_page),
+                   "tile snapshot cache: begin raw pages internal=%uK/%uK psram=%uK/%uK",
                    (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
                    (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
                    (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                    (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
           lv_obj_update_layout(lv_obj_get_parent(id(controls_root_1)));
-          const bool prepared = lvgl_esphome_snapshot_cache_tile_window(
-              id(controls_root_1), id(controls_root_2), id(controls_root_3), id(controls_root_4), id(ui_page), 800);
+          bool prepared = true;
+          prepared = lvgl_esphome_snapshot_cache_raw_page(id(controls_root_1)) && prepared;
+          prepared = lvgl_esphome_snapshot_cache_raw_page(id(controls_root_2)) && prepared;
+          prepared = lvgl_esphome_snapshot_cache_raw_page(id(controls_root_3)) && prepared;
+          prepared = lvgl_esphome_snapshot_cache_raw_page(id(controls_root_4)) && prepared;
           id(ui_tile_snapshots_ready) = prepared;
-          id(ui_tile_snapshot_prepared_page) = prepared ? id(ui_page) : 0;
+          id(ui_tile_snapshot_prepared_page) = prepared ? 1 : 0;
+          id(ui_tile_snapshot_cached_first) = prepared ? 1 : 0;
+          id(ui_tile_snapshot_cached_last) = prepared ? 4 : 0;
           ESP_LOGW("boot.diag",
-                   "tile snapshot window: done page=%d ready=%u internal=%uK/%uK psram=%uK/%uK",
-                   id(ui_page), (unsigned) id(ui_tile_snapshots_ready),
+                   "tile snapshot cache: done raw pages range=%d-%d ready=%u internal=%uK/%uK psram=%uK/%uK",
+                   id(ui_tile_snapshot_cached_first), id(ui_tile_snapshot_cached_last),
+                   (unsigned) id(ui_tile_snapshots_ready),
                    (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
                    (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
                    (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                    (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
+          ESP_LOGW("boot.diag",
+                   "app snapshot cache: begin compressed pages internal=%uK/%uK psram=%uK/%uK",
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+                   (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+                   (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
+          atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
+          id(album_art_background).set_sendspin_paused(true);
+          lv_obj_add_flag(id(media_action_spinner_arc), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_clear_flag(id(media_main_icon_label), LV_OBJ_FLAG_HIDDEN);
+          bool apps_prepared = true;
+          apps_prepared = lvgl_esphome_snapshot_cache_compressed_page(id(wear_root)) && apps_prepared;
+          apps_prepared = lvgl_esphome_snapshot_cache_compressed_page(id(settings_root)) && apps_prepared;
+          apps_prepared = lvgl_esphome_snapshot_cache_compressed_page(id(voice_assistant_overlay)) && apps_prepared;
+          ESP_LOGW("boot.diag",
+                   "app snapshot cache: done compressed ready=%u internal=%uK/%uK psram=%uK/%uK",
+                   (unsigned) apps_prepared,
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+                   (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+                   (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
+      - script.execute: ui_set_tile_visibility_1
+      - delay: 40ms
+      - globals.set:
+          id: ui_snapshot_io_busy
+          value: 'false'
 
   - id: ui_refresh_tile_snapshots
-    mode: restart
+    mode: queued
+    max_runs: 2
     then:
       - delay: 550ms
       - lambda: |-
           if (id(ui_active_app) != 0 || id(ui_page) < 1 || id(ui_page) > 4) return;
-          if (id(ui_tile_snapshots_ready) && id(ui_tile_snapshot_prepared_page) == id(ui_page)) return;
-          if (lvgl_esphome_snapshot_is_active()) {
-            id(ui_tile_snapshots_ready) = false;
-            id(ui_tile_snapshot_prepared_page) = 0;
+          const int required_first = std::max(1, id(ui_page) - 1);
+          const int required_last = std::min(4, id(ui_page) + 1);
+          if (id(ui_tile_snapshots_ready) &&
+              id(ui_tile_snapshot_cached_first) <= required_first &&
+              id(ui_tile_snapshot_cached_last) >= required_last) {
+            return;
+          }
+          if (id(ui_snapshot_io_busy)) {
             id(ui_refresh_tile_snapshots).execute();
             return;
           }
+          if (lvgl_esphome_snapshot_is_active()) {
+            id(ui_tile_snapshots_ready) = false;
+            id(ui_tile_snapshot_prepared_page) = 0;
+            id(ui_tile_snapshot_cached_first) = 0;
+            id(ui_tile_snapshot_cached_last) = 0;
+            id(ui_refresh_tile_snapshots).execute();
+            return;
+          }
+          id(ui_snapshot_io_busy) = true;
           static uint32_t boot_snapshot_diag_budget = 4;
           const bool log_boot_snapshot = boot_snapshot_diag_budget > 0;
           if (log_boot_snapshot) {
@@ -255,15 +366,19 @@ script:
               id(controls_root_1), id(controls_root_2), id(controls_root_3), id(controls_root_4), id(ui_page), 800);
           id(ui_tile_snapshots_ready) = prepared;
           id(ui_tile_snapshot_prepared_page) = prepared ? id(ui_page) : 0;
+          id(ui_tile_snapshot_cached_first) = prepared ? required_first : 0;
+          id(ui_tile_snapshot_cached_last) = prepared ? required_last : 0;
           if (log_boot_snapshot || !prepared) {
             ESP_LOGW("boot.diag",
-                     "tile snapshot window refresh: done page=%d prepared=%u internal=%uK/%uK psram=%uK/%uK",
-                     id(ui_page), (unsigned) prepared,
+                     "tile snapshot window refresh: done page=%d range=%d-%d prepared=%u internal=%uK/%uK psram=%uK/%uK",
+                     id(ui_page), id(ui_tile_snapshot_cached_first), id(ui_tile_snapshot_cached_last),
+                     (unsigned) prepared,
                      (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
                      (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
                      (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                      (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
           }
+          id(ui_snapshot_io_busy) = false;
 
   - id: ui_show_home_page
     mode: restart
@@ -284,6 +399,7 @@ script:
             lv_obj_align(roots[i], LV_ALIGN_CENTER, (i + 1 - page) * 800, 0);
           }
           lv_obj_update_layout(lv_obj_get_parent(id(controls_root_1)));
+      - script.execute: ui_update_page_indicator
       - lvgl.page.show:
           id: controls_page
           animation: NONE
@@ -296,28 +412,52 @@ script:
           condition:
             lambda: |-
               return id(ui_active_app) == 0 &&
+                     !id(ui_snapshot_io_busy) &&
                      (int32_t) (millis() - id(ui_touch_click_block_until_ms)) >= 0;
           then:
             - script.stop: ui_refresh_tile_snapshots
+            - globals.set:
+                id: ui_snapshot_io_busy
+                value: 'true'
             - lambda: |-
                 if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
-                id(ui_active_app) = 1;
                 id(ui_touch_click_block_until_ms) = millis() + 800;
-                lv_obj_clear_flag(id(app_close_gesture_zone), LV_OBJ_FLAG_HIDDEN);
-                lv_obj_move_foreground(id(app_close_gesture_zone));
-            - script.execute: ui_prepare_player_page
+                lv_obj_add_flag(id(media_action_spinner_arc), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_clear_flag(id(media_main_icon_label), LV_OBJ_FLAG_HIDDEN);
             - lambda: |-
                 lv_obj_t *home = id(controls_root_1);
                 if (id(ui_home_page) == 2) home = id(controls_root_2);
                 else if (id(ui_home_page) == 3) home = id(controls_root_3);
                 else if (id(ui_home_page) == 4) home = id(controls_root_4);
                 lvgl_esphome_snapshot_app_open(id(wear_root), home, 800, 500);
-            - delay: 440ms
+            - wait_until:
+                condition:
+                  lambda: 'return !lvgl_esphome_snapshot_is_active();'
+                timeout: 1500ms
+            - script.execute: ui_prepare_player_page
             - lvgl.page.show:
                 id: music_page
                 animation: NONE
                 time: 50ms
-            - delay: 100ms
+            - lambda: |-
+                lvgl_esphome_snapshot_app_release_open_hold();
+            - lambda: |-
+                id(ui_active_app) = 1;
+                lv_obj_clear_flag(id(app_close_gesture_zone), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_move_foreground(id(app_close_gesture_zone));
+            - delay: 40ms
+            - globals.set:
+                id: ui_snapshot_io_busy
+                value: 'false'
+            - script.execute: media_update_main_control
+            - delay: 350ms
+            - if:
+                condition:
+                  lambda: 'return id(ui_active_app) == 1 && !id(ui_snapshot_io_busy);'
+                then:
+                  - lambda: |-
+                      id(album_art_background).set_sendspin_paused(false);
+                  - script.execute: media_resume_deferred_artwork
 
   - id: ui_open_settings_app
     mode: restart
@@ -326,28 +466,43 @@ script:
           condition:
             lambda: |-
               return id(ui_active_app) == 0 &&
+                     !id(ui_snapshot_io_busy) &&
                      (int32_t) (millis() - id(ui_touch_click_block_until_ms)) >= 0;
           then:
             - script.stop: ui_refresh_tile_snapshots
+            - globals.set:
+                id: ui_snapshot_io_busy
+                value: 'true'
             - lambda: |-
                 if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
-                id(ui_active_app) = 2;
                 id(ui_touch_click_block_until_ms) = millis() + 800;
-                lv_obj_clear_flag(id(app_close_gesture_zone), LV_OBJ_FLAG_HIDDEN);
-                lv_obj_move_foreground(id(app_close_gesture_zone));
-            - script.execute: ui_prepare_settings_page
             - lambda: |-
                 lv_obj_t *home = id(controls_root_1);
                 if (id(ui_home_page) == 2) home = id(controls_root_2);
                 else if (id(ui_home_page) == 3) home = id(controls_root_3);
                 else if (id(ui_home_page) == 4) home = id(controls_root_4);
                 lvgl_esphome_snapshot_app_open(id(settings_root), home, 800, 500);
-            - delay: 440ms
+            - wait_until:
+                condition:
+                  lambda: 'return !lvgl_esphome_snapshot_is_active();'
+                timeout: 750ms
+            - script.execute: ui_prepare_settings_page
             - lvgl.page.show:
                 id: settings_page
                 animation: NONE
                 time: 50ms
-            - delay: 100ms
+            - lambda: |-
+                lvgl_esphome_snapshot_app_release_open_hold();
+            - lambda: |-
+                id(ui_active_app) = 2;
+                lv_obj_clear_flag(id(app_close_gesture_zone), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_move_foreground(id(app_close_gesture_zone));
+            - delay: 80ms
+            - lambda: |-
+                lvgl_esphome_snapshot_scroll_prepare(id(settings_root), 800, 800);
+            - globals.set:
+                id: ui_snapshot_io_busy
+                value: 'false'
 
   - id: ui_open_voice_app
     mode: restart
@@ -356,24 +511,32 @@ script:
           condition:
             lambda: |-
               return id(ui_active_app) == 0 &&
+                     !id(ui_snapshot_io_busy) &&
                      (int32_t) (millis() - id(ui_touch_click_block_until_ms)) >= 0;
           then:
             - script.stop: ui_refresh_tile_snapshots
+            - globals.set:
+                id: ui_snapshot_io_busy
+                value: 'true'
             - lambda: |-
                 if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
-                id(ui_active_app) = 3;
                 id(ui_touch_click_block_until_ms) = millis() + 800;
                 lv_obj_t *home = id(controls_root_1);
                 if (id(ui_home_page) == 2) home = id(controls_root_2);
                 else if (id(ui_home_page) == 3) home = id(controls_root_3);
                 else if (id(ui_home_page) == 4) home = id(controls_root_4);
+                lvgl_esphome_snapshot_app_open(id(voice_assistant_overlay), home, 800, 500);
+            - wait_until:
+                condition:
+                  lambda: 'return !lvgl_esphome_snapshot_is_active();'
+                timeout: 750ms
+            - lambda: |-
+                id(ui_active_app) = 3;
                 lv_obj_clear_flag(id(voice_assistant_overlay), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_update_layout(id(voice_assistant_overlay));
-                lvgl_esphome_snapshot_app_open(id(voice_assistant_overlay), home, 800, 500);
-                lv_obj_add_flag(id(voice_assistant_overlay), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_clear_flag(id(app_close_gesture_zone), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_move_foreground(id(app_close_gesture_zone));
-            - delay: 440ms
+                lvgl_esphome_snapshot_app_release_open_hold();
             - if:
                 condition:
                   switch.is_off: voice_assistant_mute_switch
@@ -405,6 +568,9 @@ script:
                       id(voice_assistant_response_text).publish_state("Microphone muted");
                   - script.execute: display_wake
                   - script.execute: voice_assistant_update_overlay
+            - globals.set:
+                id: ui_snapshot_io_busy
+                value: 'false'
 
   - id: ui_close_app
     mode: restart
@@ -413,9 +579,16 @@ script:
           condition:
             lambda: 'return id(ui_active_app) != 0;'
           then:
+            - globals.set:
+                id: ui_snapshot_io_busy
+                value: 'true'
             - lambda: |-
                 lv_obj_t *app = nullptr;
-                if (id(ui_active_app) == 1) app = id(wear_root);
+                if (id(ui_active_app) == 1) {
+                  lv_obj_add_flag(id(media_action_spinner_arc), LV_OBJ_FLAG_HIDDEN);
+                  lv_obj_clear_flag(id(media_main_icon_label), LV_OBJ_FLAG_HIDDEN);
+                  app = id(wear_root);
+                }
                 else if (id(ui_active_app) == 2) app = id(settings_root);
                 else if (id(ui_active_app) == 3) app = id(voice_assistant_overlay);
                 lv_obj_t *home = id(controls_root_1);
@@ -423,12 +596,14 @@ script:
                 else if (id(ui_home_page) == 3) home = id(controls_root_3);
                 else if (id(ui_home_page) == 4) home = id(controls_root_4);
                 if (app != nullptr) {
-                  lvgl_esphome_snapshot_app_close(app, home, 800, 400, 200, 500);
+                  lvgl_esphome_snapshot_app_close(app, home, 800, 400, 600, 500);
                 }
             - if:
                 condition:
                   lambda: 'return id(ui_active_app) == 1;'
                 then:
+                  - lambda: |-
+                      id(album_art_background).set_sendspin_paused(true);
                   - lvgl.widget.hide:
                       - volume_overlay
                       - queue_panel
@@ -438,25 +613,33 @@ script:
                 condition:
                   lambda: 'return id(ui_active_app) == 3;'
                 then:
-                  - lambda: 'id(va)->send_interrupt();'
+                  - lambda: 'id(va)->end_session();'
                   - speaker.stop: assistant_speaker
                   - switch.turn_off: timer_ringing
+                  - switch.turn_off: voice_audio_processing_switch
                   - lambda: 'id(voice_assistant_phase) = ${voice_assist_idle_phase_id};'
-                  - script.execute: voice_assistant_update_overlay
                   - if:
                       condition:
                         and:
-                          - switch.is_off: voice_assistant_mute_switch
-                          - lambda: 'return id(va)->is_connected();'
+                        - switch.is_off: voice_assistant_mute_switch
+                        - lambda: 'return id(va)->is_connected();'
                       then:
-                        - switch.turn_on: voice_audio_processing_switch
                         - micro_wake_word.start:
-            - delay: 440ms
+                        - script.execute: voice_assistant_apply_idle_wake_word
+            - wait_until:
+                condition:
+                  lambda: 'return !lvgl_esphome_snapshot_is_active();'
+                timeout: 750ms
             - globals.set:
                 id: ui_active_app
                 value: '0'
+            - script.execute: voice_assistant_update_overlay
             - lvgl.widget.hide: app_close_gesture_zone
+            - lvgl.widget.hide: ui_touch_blocker
             - delay: 100ms
+            - globals.set:
+                id: ui_snapshot_io_busy
+                value: 'false'
 
   - id: ui_show_tiles_1
     then:

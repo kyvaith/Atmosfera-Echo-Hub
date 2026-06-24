@@ -318,10 +318,10 @@ lvgl:
                             entity_id: "{{ target }}"
                           data:
                             temperature: "22"
-              - obj: { x: 360, y: 716, width: 30, height: 10, radius: 5, bg_color: 0xD3E3FD, bg_opa: 100%, border_width: 0, scrollable: false }
-              - obj: { x: 402, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
-              - obj: { x: 424, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
-              - obj: { x: 446, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 360, y: 716, width: 30, height: 10, radius: 5, bg_color: 0xD3E3FD, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 402, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 424, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 446, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
 
         - obj:
             id: controls_root_2
@@ -618,10 +618,10 @@ lvgl:
                         long_mode: DOT
                         text_color: 0xC4C7C5
                         text_font: roboto_14
-              - obj: { x: 360, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
-              - obj: { x: 382, y: 716, width: 30, height: 10, radius: 5, bg_color: 0xD3E3FD, bg_opa: 100%, border_width: 0, scrollable: false }
-              - obj: { x: 424, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
-              - obj: { x: 446, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 360, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 382, y: 716, width: 30, height: 10, radius: 5, bg_color: 0xD3E3FD, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 424, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 446, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
 
         - obj:
             id: controls_root_3
@@ -897,10 +897,10 @@ lvgl:
                               return (int32_t) (millis() - id(ui_touch_click_block_until_ms)) >= 0;
                           then:
                             - script.execute: ui_show_tiles_4
-              - obj: { x: 360, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
-              - obj: { x: 382, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
-              - obj: { x: 404, y: 716, width: 30, height: 10, radius: 5, bg_color: 0xD3E3FD, bg_opa: 100%, border_width: 0, scrollable: false }
-              - obj: { x: 446, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 360, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 382, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 404, y: 716, width: 30, height: 10, radius: 5, bg_color: 0xD3E3FD, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 446, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
 
         - obj:
             id: controls_root_4
@@ -1198,11 +1198,16 @@ lvgl:
                   on_click:
                     then:
                       - script.execute: ui_open_voice_app
-              - obj: { x: 360, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
-              - obj: { x: 382, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
-              - obj: { x: 404, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
-              - obj: { x: 426, y: 716, width: 30, height: 10, radius: 5, bg_color: 0xD3E3FD, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 360, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 382, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 404, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 426, y: 716, width: 30, height: 10, radius: 5, bg_color: 0xD3E3FD, bg_opa: 100%, border_width: 0, scrollable: false }
 
+
+        - obj: { id: page_indicator_1, x: 352, y: 716, width: 30, height: 10, radius: 5, bg_color: 0xD3E3FD, bg_opa: 100%, border_width: 0, scrollable: false, clickable: false }
+        - obj: { id: page_indicator_2, x: 394, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false, clickable: false }
+        - obj: { id: page_indicator_3, x: 416, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false, clickable: false }
+        - obj: { id: page_indicator_4, x: 438, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false, clickable: false }
 
         - obj:
             id: screen_tone_overlay_controls

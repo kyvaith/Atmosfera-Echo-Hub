@@ -50,6 +50,7 @@ lvgl:
                   width: 800
                   height: 800
                   src: album_art_background
+                  antialias: false
                   opa: 100%
                   hidden: true
 

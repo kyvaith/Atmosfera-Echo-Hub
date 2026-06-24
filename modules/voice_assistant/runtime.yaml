@@ -106,7 +106,7 @@ globals:
 
 micro_wake_word:
   id: wake_word_engine
-  ring_buffer_duration: 500ms
+  ring_buffer_duration: 1000ms
   microphone:
     microphone: voice_microphone
     channels: 0
@@ -252,6 +252,7 @@ switch:
           then:
             - switch.turn_off: voice_audio_processing_switch
             - micro_wake_word.start:
+            - script.execute: voice_assistant_apply_idle_wake_word
             - lambda: id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
             - script.execute: voice_assistant_update_overlay
       - script.execute: ui_update_voice_mute_state
@@ -405,9 +406,7 @@ va_client:
               then:
                 - switch.turn_off: voice_audio_processing_switch
                 - micro_wake_word.start:
-                - micro_wake_word.enable_model: okay_nabu
-                - micro_wake_word.enable_model: hey_jarvis
-                - micro_wake_word.disable_model: stop
+                - script.execute: voice_assistant_apply_idle_wake_word
           - script.execute: voice_assistant_stop_word_watchdog
           - script.execute: voice_assistant_resume_paused_media
           - script.execute: media_resume_deferred_artwork
@@ -448,6 +447,7 @@ va_client:
         then:
           - switch.turn_off: voice_audio_processing_switch
           - micro_wake_word.start:
+          - script.execute: voice_assistant_apply_idle_wake_word
   on_followup_opened:
     - lambda: |-
         id(voice_assistant_phase) = ${voice_assist_listening_phase_id};
@@ -482,6 +482,7 @@ voice_assistant:
         then:
           - switch.turn_off: voice_audio_processing_switch
           - micro_wake_word.start:
+          - script.execute: voice_assistant_apply_idle_wake_word
     - script.execute: voice_assistant_update_overlay
   on_client_disconnected:
     - voice_assistant.stop:
@@ -519,6 +520,7 @@ voice_assistant:
           - delay: 250ms
           - switch.turn_off: voice_audio_processing_switch
           - micro_wake_word.start:
+          - script.execute: voice_assistant_apply_idle_wake_word
   on_start:
     - switch.turn_on: voice_audio_processing_switch
     - lambda: |-
@@ -700,6 +702,7 @@ voice_assistant:
                       - delay: 250ms
                       - switch.turn_off: voice_audio_processing_switch
                       - micro_wake_word.start:
+                      - script.execute: voice_assistant_apply_idle_wake_word
                 - if:
                     condition:
                       lambda: return id(voice_assistant_paused_media);
@@ -737,6 +740,22 @@ voice_assistant:
     - script.execute: voice_assistant_update_overlay
 
 script:
+  - id: voice_assistant_apply_idle_wake_word
+    mode: restart
+    then:
+      - micro_wake_word.disable_model: stop
+      - if:
+          condition:
+            lambda: |-
+              const auto &wake_word = id(settings_wake_word).state;
+              return wake_word == "hey_jarvis" || wake_word == "Hey Jarvis" || wake_word == "hey jarvis";
+          then:
+            - micro_wake_word.disable_model: okay_nabu
+            - micro_wake_word.enable_model: hey_jarvis
+          else:
+            - micro_wake_word.enable_model: okay_nabu
+            - micro_wake_word.disable_model: hey_jarvis
+
   - id: voice_assistant_stop_word_watchdog
     mode: restart
     then:
@@ -766,7 +785,7 @@ script:
           id(voice_assistant_stop_requested) = true;
           id(voice_assistant_reply_seen) = false;
           id(voice_assistant_auto_continue_pending) = false;
-          id(va)->send_interrupt();
+          id(va)->end_session();
           id(voice_assistant_tts_active) = false;
       - speaker.stop: assistant_speaker
       - switch.turn_off: voice_audio_processing_switch
@@ -806,6 +825,7 @@ script:
             - delay: 250ms
             - switch.turn_off: voice_audio_processing_switch
             - micro_wake_word.start:
+            - script.execute: voice_assistant_apply_idle_wake_word
       - script.execute: voice_assistant_resume_paused_media
 
   - id: voice_assistant_resume_paused_media

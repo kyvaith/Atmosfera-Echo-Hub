@@ -18,6 +18,7 @@ artwork_image:
     resize: 800x800
     sendspin_id: sendspin_hub
     sendspin_slot: 0
+    sendspin_paused: true
     placeholder: album_art_placeholder
     buffer_size: 131072
     allow_insecure_local_urls: true

@@ -6,10 +6,13 @@ lvgl:
   touchscreens:
     - my_touchscreen
   update_interval: 10ms
-  buffer_size: 6%
+  # Keep LVGL on full/direct rendering. The partial framebuffer compositor was
+  # faster in a few synthetic paths, but on this RGB888 MIPI DSI panel it caused
+  # persistent horizontal artifacts with artwork and assistant screens.
+  buffer_size: 100%
   draw_rounding: 32
-  direct_mode: false
-  full_refresh: false
+  direct_mode: true
+  full_refresh: true
   byte_order: little_endian
   bg_color: 0x000000
   fps_benchmark: true
@@ -49,6 +52,18 @@ lvgl:
           y: 700
           width: 800
           height: 100
+          bg_opa: 0%
+          border_width: 0
+          pad_all: 0
+          scrollable: false
+          clickable: true
+          hidden: true
+      - obj:
+          id: ui_touch_blocker
+          x: 0
+          y: 0
+          width: 800
+          height: 800
           bg_opa: 0%
           border_width: 0
           pad_all: 0
