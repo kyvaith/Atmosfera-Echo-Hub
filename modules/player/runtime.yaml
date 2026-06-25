@@ -504,7 +504,6 @@ script:
                 if (!lv_obj_has_flag(id(artwork_error_label), LV_OBJ_FLAG_HIDDEN)) {
                   lv_obj_add_flag(id(artwork_error_label), LV_OBJ_FLAG_HIDDEN);
                 }
-                lv_obj_invalidate(img);
                 lv_refr_now(nullptr);
             - script.execute: media_hide_lottie_visual
             - script.execute: start_hide_track_info_timer
