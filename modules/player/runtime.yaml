@@ -488,6 +488,9 @@ script:
                 id(artwork_download_deferred) = false;
                 auto *img = id(album_art_background_widget);
                 auto *src = id(album_art_background).get_lv_image_dsc();
+                const uint32_t artwork_trace_id = id(album_art_background).get_trace_id();
+                ESP_LOGW("artwork.ui", "artwork trace #%u ui apply start uptime=%lums src=%p img=%p",
+                         artwork_trace_id, millis(), src, img);
                 lv_image_set_src(img, src);
                 if (!lv_obj_has_flag(id(figma_media_artwork_widget), LV_OBJ_FLAG_HIDDEN)) {
                   lv_obj_add_flag(id(figma_media_artwork_widget), LV_OBJ_FLAG_HIDDEN);
@@ -504,7 +507,10 @@ script:
                 if (!lv_obj_has_flag(id(artwork_error_label), LV_OBJ_FLAG_HIDDEN)) {
                   lv_obj_add_flag(id(artwork_error_label), LV_OBJ_FLAG_HIDDEN);
                 }
+                const uint32_t refresh_start_us = micros();
                 lv_refr_now(nullptr);
+                ESP_LOGW("artwork.ui", "artwork trace #%u ui refresh done refresh_us=%lu uptime=%lums",
+                         artwork_trace_id, (unsigned long) (micros() - refresh_start_us), millis());
             - script.execute: media_hide_lottie_visual
             - script.execute: start_hide_track_info_timer
 
