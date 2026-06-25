@@ -508,8 +508,8 @@ script:
                   lv_obj_add_flag(id(artwork_error_label), LV_OBJ_FLAG_HIDDEN);
                 }
                 const uint32_t refresh_start_us = micros();
-                lv_refr_now(nullptr);
-                ESP_LOGW("artwork.ui", "artwork trace #%u ui refresh done refresh_us=%lu uptime=%lums",
+                lv_obj_invalidate(img);
+                ESP_LOGW("artwork.ui", "artwork trace #%u ui invalidate done invalidate_us=%lu uptime=%lums",
                          artwork_trace_id, (unsigned long) (micros() - refresh_start_us), millis());
             - script.execute: media_hide_lottie_visual
             - script.execute: start_hide_track_info_timer
