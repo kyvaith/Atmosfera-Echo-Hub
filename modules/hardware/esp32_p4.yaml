@@ -45,7 +45,7 @@ esp32:
       CONFIG_ESP_IPC_ENABLE: "y"
       # Isolated JPEG/DMA2D tuning. Keep LVGL/PPA burst length on its default;
       # this one only affects the hardware JPEG decoder path used by artwork.
-      CONFIG_ESPHOME_JPEG_DMA2D_BURST_LENGTH: "8"
+      CONFIG_ESPHOME_JPEG_DMA2D_BURST_LENGTH: "1"
       # Keep ESP32-P4 revision selection explicit so IDF does not silently
       # downgrade PPA/DMA2D code paths for older silicon assumptions.
       CONFIG_ESP_REV_MIN_FULL: "0"

@@ -19,6 +19,7 @@ Every hypothesis should have a measurable outcome before it is kept.
 - PPA SRM source cache sync was measured and was not the dominant cost.
 - DSI FIFO can hit zero around artwork update windows even when the standard underrun flag is not raised.
 - Placeholder/image color order is correct with little-endian RGB565.
+- Plain 1:1 opaque artwork no longer routes through PPA SRM; logs show `srm=0`, but FIFO can still hit zero during hardware JPEG output.
 
 ### Active Hypothesis
 
@@ -32,3 +33,4 @@ The next fixes should reduce duplicated transfers or isolate DMA pressure around
 - Compare blue flashes with and without active-buffer JPEG decode using the same firmware baseline.
 - Avoid extra staging copies for complete SendSpin JPEG payloads.
 - Do not route plain 1:1 opaque images through PPA SRM; reserve SRM for real scale/rotate/mirror work.
+- Test JPEG-only DMA2D burst length `1` to reduce PSRAM bus pressure during 800x800 hardware decode.
