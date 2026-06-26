@@ -31,3 +31,4 @@ The next fixes should reduce duplicated transfers or isolate DMA pressure around
 - Keep DSI FIFO diagnostics around JPEG decode, LVGL image source swap, and first redraw.
 - Compare blue flashes with and without active-buffer JPEG decode using the same firmware baseline.
 - Avoid extra staging copies for complete SendSpin JPEG payloads.
+- Do not route plain 1:1 opaque images through PPA SRM; reserve SRM for real scale/rotate/mirror work.
