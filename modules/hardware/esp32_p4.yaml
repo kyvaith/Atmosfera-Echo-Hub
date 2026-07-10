@@ -43,9 +43,6 @@ esp32:
       CONFIG_LCD_DSI_ISR_CACHE_SAFE: "y"
       CONFIG_LCD_DSI_OBJ_FORCE_INTERNAL: "y"
       CONFIG_ESP_IPC_ENABLE: "y"
-      # Isolated JPEG/DMA2D tuning. Keep LVGL/PPA burst length on its default;
-      # this one only affects the hardware JPEG decoder path used by artwork.
-      CONFIG_ESPHOME_JPEG_DMA2D_BURST_LENGTH: "1"
       # Keep ESP32-P4 revision selection explicit so IDF does not silently
       # downgrade PPA/DMA2D code paths for older silicon assumptions.
       CONFIG_ESP_REV_MIN_FULL: "0"
@@ -72,6 +69,14 @@ psram:
   speed: 200MHz
 
 esp32_jpeg:
+  # Hardware JPEG is still used by snapshot/cache paths. Live album artwork is
+  # decoded in software, because ESP-IDF's monolithic JPEG DMA2D output can
+  # starve DSI scanout on the 800x800 panel.
+  jpeg_dma2d_axi_burstiness: 1
+  # Keep the remaining JPEG DMA2D master conservative without throttling the
+  # regular LVGL/PPA draw path.
+  jpeg_dma2d_peak_level: 1
+  jpeg_dma2d_transaction_level: 10
 
 esp_ldo:
   - channel: 3

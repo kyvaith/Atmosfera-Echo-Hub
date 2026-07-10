@@ -103,6 +103,10 @@ globals:
     type: bool
     restore_value: false
     initial_value: 'false'
+  - id: voice_assistant_realtime_idle_pending
+    type: bool
+    restore_value: false
+    initial_value: 'false'
 
 micro_wake_word:
   id: wake_word_engine
@@ -221,10 +225,20 @@ micro_wake_word:
                                         id(voice_assistant_reply_seen) = false;
                                         id(voice_assistant_auto_continue_pending) = false;
                                         id(voice_assistant_stop_requested) = false;
+                                        id(voice_assistant_realtime_idle_pending) = false;
                                         id(voice_assistant_request_text).publish_state("");
                                         id(voice_assistant_response_text).publish_state("");
                                     - script.execute: voice_assistant_update_overlay
                                     - switch.turn_on: voice_audio_processing_switch
+                                    - script.execute: ui_play_va_listening_sound
+                                    - script.wait: ui_play_va_listening_sound
+                                    - if:
+                                        condition:
+                                          switch.is_on: voice_assistant_wake_sound_switch
+                                        then:
+                                          - delay: !lambda 'return id(va)->get_wake_open_delay_ms();'
+                                        else:
+                                          - delay: 250ms
                                     - lambda: 'id(va)->start_session();'
 
 switch:
@@ -261,7 +275,7 @@ switch:
     id: voice_assistant_wake_sound_switch
     name: "Voice Assistant Wake Sound"
     optimistic: true
-    restore_mode: RESTORE_DEFAULT_OFF
+    restore_mode: RESTORE_DEFAULT_ON
     entity_category: config
     icon: "mdi:music-note"
     on_turn_on:
@@ -369,9 +383,11 @@ va_client:
   on_phase:
     - lambda: |-
         if (phase == "idle") {
-          id(voice_assistant_tts_active) = false;
-          id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
-        } else if (phase == "listening") {
+          id(voice_assistant_realtime_idle_pending) = true;
+          return;
+        }
+        id(voice_assistant_realtime_idle_pending) = false;
+        if (phase == "listening") {
           id(voice_assistant_phase) = ${voice_assist_listening_phase_id};
           id(voice_assistant_tts_active) = false;
         } else if (phase == "thinking") {
@@ -389,27 +405,13 @@ va_client:
         condition:
           lambda: 'return phase == "listening" || phase == "thinking" || phase == "replying";'
         then:
+          - script.stop: voice_assistant_handle_realtime_idle
           - switch.turn_on: voice_audio_processing_switch
     - if:
         condition:
           lambda: 'return phase == "idle";'
         then:
-          - mixer_speaker.apply_ducking:
-              id: media_mixing_input
-              decibel_reduction: 0
-              duration: 1s
-          - if:
-              condition:
-                and:
-                  - switch.is_off: voice_assistant_mute_switch
-                  - lambda: 'return id(va)->is_connected();'
-              then:
-                - switch.turn_off: voice_audio_processing_switch
-                - micro_wake_word.start:
-                - script.execute: voice_assistant_apply_idle_wake_word
-          - script.execute: voice_assistant_stop_word_watchdog
-          - script.execute: voice_assistant_resume_paused_media
-          - script.execute: media_resume_deferred_artwork
+          - script.execute: voice_assistant_handle_realtime_idle
     - if:
         condition:
           lambda: 'return phase == "thanks";'
@@ -440,6 +442,7 @@ va_client:
         id(voice_assistant_phase) = ${voice_assist_not_ready_phase_id};
         id(voice_assistant_tts_active) = false;
         id(voice_assistant_response_text).publish_state("Realtime backend unavailable");
+    - script.execute: ui_play_va_error_sound
     - script.execute: voice_assistant_update_overlay
     - if:
         condition:
@@ -450,6 +453,7 @@ va_client:
           - script.execute: voice_assistant_apply_idle_wake_word
   on_followup_opened:
     - lambda: |-
+        id(voice_assistant_realtime_idle_pending) = false;
         id(voice_assistant_phase) = ${voice_assist_listening_phase_id};
         id(voice_assistant_tts_active) = false;
     - script.execute: voice_assistant_update_overlay
@@ -508,6 +512,7 @@ voice_assistant:
           - lambda: |-
               id(voice_assistant_phase) = ${voice_assist_error_phase_id};
               id(voice_assistant_response_text).publish_state(message);
+          - script.execute: ui_play_va_error_sound
           - script.execute: voice_assistant_update_overlay
     - mixer_speaker.apply_ducking:
         id: media_mixing_input
@@ -756,6 +761,36 @@ script:
             - micro_wake_word.enable_model: okay_nabu
             - micro_wake_word.disable_model: hey_jarvis
 
+  - id: voice_assistant_handle_realtime_idle
+    mode: restart
+    then:
+      - delay: 1500ms
+      - if:
+          condition:
+            lambda: 'return id(voice_assistant_realtime_idle_pending);'
+          then:
+            - lambda: |-
+                id(voice_assistant_realtime_idle_pending) = false;
+                id(voice_assistant_tts_active) = false;
+                id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
+            - script.execute: voice_assistant_update_overlay
+            - mixer_speaker.apply_ducking:
+                id: media_mixing_input
+                decibel_reduction: 0
+                duration: 1s
+            - if:
+                condition:
+                  and:
+                    - switch.is_off: voice_assistant_mute_switch
+                    - lambda: 'return id(va)->is_connected();'
+                then:
+                  - switch.turn_off: voice_audio_processing_switch
+                  - micro_wake_word.start:
+                  - script.execute: voice_assistant_apply_idle_wake_word
+            - script.execute: voice_assistant_stop_word_watchdog
+            - script.execute: voice_assistant_resume_paused_media
+            - script.execute: media_resume_deferred_artwork
+
   - id: voice_assistant_stop_word_watchdog
     mode: restart
     then:
@@ -783,6 +818,7 @@ script:
                      (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024));
           }
           id(voice_assistant_stop_requested) = true;
+          id(voice_assistant_realtime_idle_pending) = false;
           id(voice_assistant_reply_seen) = false;
           id(voice_assistant_auto_continue_pending) = false;
           id(va)->end_session();
@@ -794,6 +830,7 @@ script:
   - id: voice_assistant_finish_conversation
     mode: restart
     then:
+      - script.stop: voice_assistant_handle_realtime_idle
       - mixer_speaker.apply_ducking:
           id: media_mixing_input
           decibel_reduction: 0
@@ -812,6 +849,7 @@ script:
           then:
             - delay: 1s
       - lambda: |-
+          id(voice_assistant_realtime_idle_pending) = false;
           id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
           id(voice_assistant_tts_active) = false;
       - script.execute: voice_assistant_update_overlay

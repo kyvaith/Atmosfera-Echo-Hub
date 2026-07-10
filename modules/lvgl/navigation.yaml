@@ -143,7 +143,6 @@ globals:
     type: uint32_t
     restore_value: no
     initial_value: '0'
-
 interval:
   - interval: 25ms
     then:
@@ -165,16 +164,120 @@ script:
           lv_obj_clear_flag(id(ui_touch_blocker), LV_OBJ_FLAG_HIDDEN);
           lv_obj_move_foreground(id(ui_touch_blocker));
           lv_indev_reset(nullptr, nullptr);
-          for (lv_indev_t *indev = lv_indev_get_next(nullptr); indev != nullptr;
-               indev = lv_indev_get_next(indev)) {
-            lv_indev_wait_release(indev);
-          }
 
   - id: ui_release_touch_blocker
     mode: restart
     then:
-      - delay: 180ms
+      - lambda: |-
+          id(ui_touch_click_block_until_ms) = millis() + 700;
+          lv_indev_reset(nullptr, nullptr);
+      - delay: 220ms
+      - lambda: |-
+          lv_indev_reset(nullptr, nullptr);
       - lvgl.widget.hide: ui_touch_blocker
+
+  - id: ui_disable_settings_rows_for_drag
+    mode: restart
+    then:
+      - lambda: |-
+          auto clear_state_tree = [](lv_obj_t *obj) {
+            if (obj == nullptr) return;
+            lv_obj_clear_state(obj, static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
+            const uint32_t child_count = lv_obj_get_child_count(obj);
+            for (uint32_t i = 0; i < child_count; i++) {
+              lv_obj_t *child = lv_obj_get_child(obj, i);
+              if (child != nullptr) {
+                lv_obj_clear_state(child, static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
+              }
+            }
+          };
+          lv_obj_t *rows[] = {
+            id(settings_true_colour_button),
+            id(settings_screen_tone_button),
+            id(settings_perf_overlay_button),
+            id(settings_system_logs_button),
+            id(settings_perf_logs_button),
+            id(settings_swipe_logs_button),
+            id(settings_beta_firmware_button),
+            id(settings_display_brightness_button),
+            id(settings_display_timeout_button),
+            id(settings_voice_mute_button),
+            id(settings_wake_sound_button),
+            id(settings_wake_sensitivity_button),
+          };
+          for (auto *row : rows) {
+            if (row == nullptr) continue;
+            lv_obj_remove_flag(row, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_remove_flag(row, LV_OBJ_FLAG_CLICK_FOCUSABLE);
+            clear_state_tree(row);
+          }
+
+  - id: ui_restore_settings_rows_after_drag
+    mode: restart
+    then:
+      - delay: 20ms
+      - lambda: |-
+          auto clear_state_tree = [](lv_obj_t *obj) {
+            if (obj == nullptr) return;
+            lv_obj_clear_state(obj, static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
+            const uint32_t child_count = lv_obj_get_child_count(obj);
+            for (uint32_t i = 0; i < child_count; i++) {
+              lv_obj_t *child = lv_obj_get_child(obj, i);
+              if (child != nullptr) {
+                lv_obj_clear_state(child, static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
+              }
+            }
+          };
+          lv_obj_t *rows[] = {
+            id(settings_true_colour_button),
+            id(settings_screen_tone_button),
+            id(settings_perf_overlay_button),
+            id(settings_system_logs_button),
+            id(settings_perf_logs_button),
+            id(settings_swipe_logs_button),
+            id(settings_beta_firmware_button),
+            id(settings_display_brightness_button),
+            id(settings_display_timeout_button),
+            id(settings_voice_mute_button),
+            id(settings_wake_sound_button),
+            id(settings_wake_sensitivity_button),
+          };
+          for (auto *row : rows) {
+            if (row == nullptr) continue;
+            lv_obj_remove_flag(row, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_remove_flag(row, LV_OBJ_FLAG_CLICK_FOCUSABLE);
+            clear_state_tree(row);
+          }
+          lv_indev_reset(nullptr, nullptr);
+          for (auto *row : rows) {
+            if (row == nullptr) continue;
+            clear_state_tree(row);
+          }
+
+  - id: ui_prepare_settings_rows_for_touch
+    mode: restart
+    then:
+      - lambda: |-
+          lv_obj_t *rows[] = {
+            id(settings_true_colour_button),
+            id(settings_screen_tone_button),
+            id(settings_perf_overlay_button),
+            id(settings_system_logs_button),
+            id(settings_perf_logs_button),
+            id(settings_swipe_logs_button),
+            id(settings_beta_firmware_button),
+            id(settings_display_brightness_button),
+            id(settings_display_timeout_button),
+            id(settings_voice_mute_button),
+            id(settings_wake_sound_button),
+            id(settings_wake_sensitivity_button),
+          };
+          for (auto *row : rows) {
+            if (row == nullptr) continue;
+            lv_obj_remove_flag(row, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_remove_flag(row, LV_OBJ_FLAG_CLICK_FOCUSABLE);
+            lv_obj_clear_state(row, static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
+          }
 
   - id: ui_update_page_indicator
     then:
@@ -193,7 +296,7 @@ script:
             const int w = active ? 30 : 10;
             lv_obj_set_x(dots[i], x);
             lv_obj_set_width(dots[i], w);
-            lv_obj_set_style_bg_color(dots[i], lv_color_hex(active ? 0xD3E3FD : 0x5C5F5E), 0);
+            lv_obj_set_style_bg_color(dots[i], lv_color_hex(active ? 0xF2F2F2 : 0x5C5F5E), 0);
             x += w + 12;
           }
           lvgl_esphome_snapshot_swipe_set_page_indicator(page, 4);
@@ -215,6 +318,41 @@ script:
             lv_obj_align(roots[i], LV_ALIGN_CENTER, (i + 1 - page) * 800, 0);
           }
       - script.execute: ui_update_page_indicator
+
+  - id: ui_hide_home_content_for_boot
+    then:
+      - lambda: |-
+          lv_obj_t *objects[] = {
+            id(controls_root_1),
+            id(controls_root_2),
+            id(controls_root_3),
+            id(controls_root_4),
+            id(page_indicator_1),
+            id(page_indicator_2),
+            id(page_indicator_3),
+            id(page_indicator_4),
+          };
+          for (auto *obj : objects) {
+            if (obj != nullptr) {
+              lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+            }
+          }
+
+  - id: ui_show_home_content_after_boot
+    then:
+      - lambda: |-
+          lv_obj_t *indicators[] = {
+            id(page_indicator_1),
+            id(page_indicator_2),
+            id(page_indicator_3),
+            id(page_indicator_4),
+          };
+          for (auto *obj : indicators) {
+            if (obj != nullptr) {
+              lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
+            }
+          }
+      - script.execute: ui_apply_tile_positions
 
   - id: ui_reset_tile_roots
     then:
@@ -302,9 +440,9 @@ script:
                    (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
                    (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                    (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
-          atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
           id(album_art_background).set_sendspin_paused(true);
-          lv_obj_add_flag(id(media_action_spinner_arc), LV_OBJ_FLAG_HIDDEN);
+          atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
+          atmosfera_ui::media_wavy_arc_set_value(id(last_media_progress_percent));
           lv_obj_clear_flag(id(media_main_icon_label), LV_OBJ_FLAG_HIDDEN);
           bool apps_prepared = true;
           apps_prepared = lvgl_esphome_snapshot_cache_compressed_page(id(wear_root)) && apps_prepared;
@@ -422,7 +560,8 @@ script:
             - lambda: |-
                 if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
                 id(ui_touch_click_block_until_ms) = millis() + 800;
-                lv_obj_add_flag(id(media_action_spinner_arc), LV_OBJ_FLAG_HIDDEN);
+                atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
+                atmosfera_ui::media_wavy_arc_set_value(id(last_media_progress_percent));
                 lv_obj_clear_flag(id(media_main_icon_label), LV_OBJ_FLAG_HIDDEN);
             - lambda: |-
                 lv_obj_t *home = id(controls_root_1);
@@ -450,7 +589,7 @@ script:
                 id: ui_snapshot_io_busy
                 value: 'false'
             - script.execute: media_update_main_control
-            - delay: 350ms
+            - delay: 1200ms
             - if:
                 condition:
                   lambda: 'return id(ui_active_app) == 1 && !id(ui_snapshot_io_busy);'
@@ -497,7 +636,7 @@ script:
                 id(ui_active_app) = 2;
                 lv_obj_clear_flag(id(app_close_gesture_zone), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_move_foreground(id(app_close_gesture_zone));
-            - delay: 80ms
+            - delay: 20ms
             - lambda: |-
                 lvgl_esphome_snapshot_scroll_prepare(id(settings_root), 800, 800);
             - globals.set:
@@ -536,6 +675,10 @@ script:
                 lv_obj_update_layout(id(voice_assistant_overlay));
                 lv_obj_clear_flag(id(app_close_gesture_zone), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_move_foreground(id(app_close_gesture_zone));
+                lv_obj_move_foreground(id(voice_assistant_overlay));
+                if (id(perf_overlay_label) != nullptr && id(settings_perf_overlay_switch).state) {
+                  lv_obj_move_foreground(id(perf_overlay_label));
+                }
                 lvgl_esphome_snapshot_app_release_open_hold();
             - if:
                 condition:
@@ -553,6 +696,15 @@ script:
                         - script.execute: display_wake
                         - script.execute: voice_assistant_update_overlay
                         - switch.turn_on: voice_audio_processing_switch
+                        - script.execute: ui_play_va_listening_sound
+                        - script.wait: ui_play_va_listening_sound
+                        - if:
+                            condition:
+                              switch.is_on: voice_assistant_wake_sound_switch
+                            then:
+                              - delay: !lambda 'return id(va)->get_wake_open_delay_ms();'
+                            else:
+                              - delay: 250ms
                         - lambda: 'id(va)->start_session();'
                       else:
                         - lambda: |-
@@ -585,11 +737,15 @@ script:
             - lambda: |-
                 lv_obj_t *app = nullptr;
                 if (id(ui_active_app) == 1) {
-                  lv_obj_add_flag(id(media_action_spinner_arc), LV_OBJ_FLAG_HIDDEN);
+                  atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
+                  atmosfera_ui::media_wavy_arc_set_value(id(last_media_progress_percent));
                   lv_obj_clear_flag(id(media_main_icon_label), LV_OBJ_FLAG_HIDDEN);
                   app = id(wear_root);
                 }
-                else if (id(ui_active_app) == 2) app = id(settings_root);
+                else if (id(ui_active_app) == 2) {
+                  lvgl_esphome_snapshot_scroll_end();
+                  app = id(settings_root);
+                }
                 else if (id(ui_active_app) == 3) app = id(voice_assistant_overlay);
                 lv_obj_t *home = id(controls_root_1);
                 if (id(ui_home_page) == 2) home = id(controls_root_2);
@@ -697,6 +853,7 @@ script:
           y: 0
       - lambda: |-
           atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
+          atmosfera_ui::media_wavy_arc_set_value(id(last_media_progress_percent));
       - if:
           condition:
             lambda: 'return lv_obj_has_flag(id(album_art_background_widget), LV_OBJ_FLAG_HIDDEN);'
@@ -712,6 +869,7 @@ script:
       - lvgl.widget.update:
           id: settings_root
           y: 0
+      - script.execute: ui_prepare_settings_rows_for_touch
       - script.execute: media_hide_lottie_visual
       - globals.set:
           id: ui_page

@@ -4,7 +4,6 @@ image:
   - file: "assets/images/figma/media_artwork_figma_composed_800.jpg"
     id: album_art_placeholder
     type: RGB565
-    byte_order: little_endian
 http_request:
   id: http_req
   verify_ssl: true
@@ -14,8 +13,12 @@ artwork_image:
     id: album_art_background
     format: AUTO
     type: RGB565
-    byte_order: little_endian
     resize: 800x800
+    darken: 0
+    # Hardware JPEG is used together with the DSI/DMA2D QoS throttles in
+    # modules/common/core.yaml. Software JPEG writes the full 800x800 output
+    # from the CPU and can still starve the DSI reader on the PSRAM bus.
+    hardware_jpeg: true
     sendspin_id: sendspin_hub
     sendspin_slot: 0
     sendspin_paused: true

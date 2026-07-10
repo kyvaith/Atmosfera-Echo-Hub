@@ -1,11 +1,12 @@
 # Local audio pipeline and SendSpin transport.
 # This keeps the amplifier, I2S codec, resampler and media_player entities in one hardware-oriented package.
+
 switch:
   - platform: gpio
     id: pa_enable
     name: "Speaker Amplifier"
     pin: GPIO53
-    restore_mode: ALWAYS_ON
+    restore_mode: ALWAYS_OFF
 
   - platform: esp_audio_stack
     esp_audio_stack_id: audio_stack
@@ -72,7 +73,7 @@ esp_audio_stack:
   dma_frame_num: 256
   audio_effects:
     rate_cvt_complexity: 3
-    rate_cvt_perf_type: memory
+    rate_cvt_perf_type: speed
   codec:
     i2c_id: touchscreen_bus
     input:
@@ -143,10 +144,28 @@ speaker:
     sample_rate: 48000
     bits_per_sample: 16
 
+audio_file:
+  - id: boot_chime_file
+    file:
+      type: local
+      path: assets/sounds/boot.flac
+  - id: va_listening_chime_file
+    file:
+      type: local
+      path: assets/sounds/va-listening.flac
+  - id: va_error_chime_file
+    file:
+      type: local
+      path: assets/sounds/va-error.flac
+
 media_source:
   - platform: audio_http
     id: http_announcement_source
     buffer_size: 250000
+
+  - platform: audio_file
+    id: local_audio_file_source
+    task_stack_in_psram: true
 
   - platform: sendspin
     id: sendspin_media_source
@@ -170,6 +189,7 @@ media_player:
       num_channels: 1
       sources:
         - http_announcement_source
+        - local_audio_file_source
     media_pipeline:
       speaker: media_speaker
       sources:
@@ -178,9 +198,15 @@ media_player:
       sample_rate: 48000
       num_channels: 1
     on_announcement:
-      - script.execute:
-          id: voice_assistant_mark_stage
-          stage: "announcement"
+      - if:
+          condition:
+            lambda: |-
+              return id(voice_assistant_tts_active) ||
+                     id(voice_assistant_phase) == ${voice_assist_replying_phase_id};
+          then:
+            - script.execute:
+                id: voice_assistant_mark_stage
+                stage: "announcement"
       - mixer_speaker.apply_ducking:
           id: media_mixing_input
           decibel_reduction: 20
@@ -215,3 +241,32 @@ media_player:
           id: media_player_state_sensor
           state: !lambda |-
             return std::string(esphome::media_player::media_player_state_to_string(id(sendspin_group).state));
+
+script:
+  - id: ui_play_boot_sound
+    mode: restart
+    then:
+      - media_player.play_media:
+          id: local_music_player
+          media_url: "audio-file://boot_chime_file"
+          announcement: true
+
+  - id: ui_play_va_listening_sound
+    mode: restart
+    then:
+      - if:
+          condition:
+            switch.is_on: voice_assistant_wake_sound_switch
+          then:
+            - media_player.play_media:
+                id: local_music_player
+                media_url: "audio-file://va_listening_chime_file"
+                announcement: true
+
+  - id: ui_play_va_error_sound
+    mode: restart
+    then:
+      - media_player.play_media:
+          id: local_music_player
+          media_url: "audio-file://va_error_chime_file"
+          announcement: true

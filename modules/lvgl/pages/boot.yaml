@@ -5,6 +5,19 @@ script:
     mode: restart
     then:
       - lambda: |-
+          lv_obj_clear_flag(id(boot_overlay), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_move_foreground(id(boot_overlay));
+          if (id(boot_esphome_animation) != nullptr) {
+            auto *ctx = static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(id(boot_esphome_animation)));
+            esphome::lvgl::lottie_hide(ctx);
+          }
+
+  - id: boot_start_esphome_animation
+    mode: restart
+    then:
+      - lambda: |-
+          lv_obj_clear_flag(id(boot_overlay), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_move_foreground(id(boot_overlay));
           if (id(boot_esphome_animation) != nullptr) {
             auto *ctx = static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(id(boot_esphome_animation)));
             esphome::lvgl::lottie_show(ctx, true);
@@ -18,27 +31,4 @@ script:
             auto *ctx = static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(id(boot_esphome_animation)));
             esphome::lvgl::lottie_hide(ctx);
           }
-
-lvgl:
-  pages:
-    - id: boot_page
-      bg_color: 0x000000
-      widgets:
-        - lottie:
-            id: boot_esphome_animation
-            file: "assets/animations/ESPHome.json"
-            width: 240
-            height: 305
-            align: CENTER
-            y: -64
-            loop: false
-            auto_start: true
-            hidden: true
-        - label:
-            text: "Atmosfera Echo Hub"
-            align: CENTER
-            y: 198
-            width: 480
-            text_align: CENTER
-            text_color: 0xF2F2F2
-            text_font: roboto_24
+          lv_obj_add_flag(id(boot_overlay), LV_OBJ_FLAG_HIDDEN);

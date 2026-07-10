@@ -119,39 +119,19 @@ lvgl:
                         text_color: 0xF5EEFB
                         text_font: wear_time_40
 
-              - obj:
-                  id: media_header_bolt_surface
-                  x: 207
-                  y: 92
-                  width: 53
-                  height: 53
-                  radius: 27
-                  bg_color: 0xEADDFF
-                  bg_opa: 100%
-                  border_width: 0
-                  pad_all: 0
-                  scrollable: false
-                  clickable: false
-                  widgets:
-                    - label:
-                        text: "\uE833"
-                        align: CENTER
-                        text_color: 0x21005D
-                        text_font: material_symbols_30
-
               - button:
                   id: speaker_group_button
-                  width: 147
-                  height: 107
+                  width: 96
+                  height: 70
                   align: CENTER
                   x: 0
-                  y: 293
+                  y: 312
                   bg_color: 0xF5EEFB
                   bg_opa: 16%
                   border_width: 0
                   outline_width: 0
                   shadow_width: 0
-                  radius: 53
+                  radius: 35
                   pad_all: 0
                   scrollable: false
                   gesture_bubble: true
@@ -164,7 +144,7 @@ lvgl:
                         text: "\uE050"
                         align: CENTER
                         text_color: 0xF5EEFB
-                        text_font: material_symbols_58
+                        text_font: material_symbols_36
                   on_click:
                     then:
                       - script.execute: open_speaker_group_panel
@@ -196,12 +176,12 @@ lvgl:
               - label:
                   id: title_label
                   text: "No Track"
-                  x: 280
+                  align: TOP_MID
                   y: 82
-                  width: 342
+                  width: 520
                   height: 66
                   long_mode: DOT
-                  text_align: LEFT
+                  text_align: CENTER
                   text_color: 0xF5EEFB
                   text_font: wear_title_53
                   text_letter_space: 1
@@ -262,11 +242,11 @@ lvgl:
               - button:
                   id: queue_button
                   align: CENTER
-                  x: -218
-                  y: 213
-                  width: 147
-                  height: 107
-                  radius: 53
+                  x: -194
+                  y: 232
+                  width: 96
+                  height: 70
+                  radius: 35
                   bg_color: 0xF5EEFB
                   bg_opa: 16%
                   border_width: 0
@@ -284,7 +264,7 @@ lvgl:
                         text: "\uE03D"
                         align: CENTER
                         text_color: 0xF5EEFB
-                        text_font: material_symbols_58
+                        text_font: material_symbols_36
                   on_click:
                     then:
                       - script.execute: open_queue_panel
@@ -292,11 +272,11 @@ lvgl:
               - button:
                   id: more_menu_button
                   align: CENTER
-                  x: 218
-                  y: 213
-                  width: 147
-                  height: 107
-                  radius: 53
+                  x: 194
+                  y: 232
+                  width: 96
+                  height: 70
+                  radius: 35
                   bg_color: 0xF5EEFB
                   bg_opa: 16%
                   border_width: 0
@@ -314,7 +294,7 @@ lvgl:
                         text: "\uE5D4"
                         align: CENTER
                         text_color: 0xF5EEFB
-                        text_font: material_symbols_58
+                        text_font: material_symbols_36
                   on_click:
                     then:
                       - script.execute: show_volume_overlay
@@ -322,11 +302,11 @@ lvgl:
               - button:
                   id: prev_button
                   align: CENTER
-                  x: -253
+                  x: -281
                   y: 0
-                  width: 160
-                  height: 210
-                  radius: 80
+                  width: 104
+                  height: 137
+                  radius: 52
                   bg_color: 0xD9C2FF
                   bg_opa: 100%
                   border_width: 0
@@ -344,7 +324,7 @@ lvgl:
                         text: "\uE045"
                         align: CENTER
                         text_color: 0x3F006B
-                        text_font: material_symbols_58
+                        text_font: material_symbols_36
                   on_click:
                     then:
                       - script.execute: media_show_action_spinner
@@ -353,11 +333,11 @@ lvgl:
               - button:
                   id: next_button
                   align: CENTER
-                  x: 253
+                  x: 281
                   y: 0
-                  width: 160
-                  height: 210
-                  radius: 80
+                  width: 104
+                  height: 137
+                  radius: 52
                   bg_color: 0xD9C2FF
                   bg_opa: 100%
                   border_width: 0
@@ -375,7 +355,7 @@ lvgl:
                         text: "\uE044"
                         align: CENTER
                         text_color: 0x3F006B
-                        text_font: material_symbols_58
+                        text_font: material_symbols_36
                   on_click:
                     then:
                       - script.execute: media_show_action_spinner
@@ -388,7 +368,7 @@ lvgl:
                   height: 267
                   min_value: 0
                   max_value: 100
-                  value: 0
+                  value: 100
                   start_angle: 0
                   end_angle: 359
                   rotation: 270
@@ -400,13 +380,13 @@ lvgl:
                   scrollable: false
                   clickable: false
                   arc_color: 0x261B30
-                  arc_width: 12
-                  arc_opa: 100%
+                  arc_width: 13
+                  arc_opa: 0%
                   arc_rounded: true
                   indicator:
                     arc_color: 0xEDD9F9
-                    arc_width: 12
-                    arc_opa: 100%
+                    arc_width: 13
+                    arc_opa: 0%
                     arc_rounded: true
                   knob:
                     bg_opa: 0%
@@ -447,11 +427,11 @@ lvgl:
                   align: CENTER
                   x: 0
                   y: 0
-                  width: 192
-                  height: 192
-                  radius: 96
+                  width: 267
+                  height: 267
+                  radius: 134
                   bg_color: 0xE4C2FF
-                  bg_opa: 100%
+                  bg_opa: 0%
                   border_width: 0
                   outline_width: 0
                   shadow_width: 0
@@ -462,6 +442,7 @@ lvgl:
                   style_transition_path: ease_out
                   pressed:
                     bg_color: 0xD6B4F2
+                    bg_opa: 0%
                   widgets:
                     - label:
                         id: media_main_icon_label

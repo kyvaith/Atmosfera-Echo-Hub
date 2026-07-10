@@ -180,6 +180,9 @@ font:
       - "\U0000e037" # play_arrow
       - "\U0000e044" # skip_next
       - "\U0000e045" # skip_previous
+      - "\U0000e050" # volume_up
+      - "\U0000e03d" # queue_music
+      - "\U0000e5d4" # more_vert
       - "\U0000e5cd" # close
 
   - file: "gfonts://Material+Symbols+Rounded"

@@ -318,7 +318,7 @@ lvgl:
                             entity_id: "{{ target }}"
                           data:
                             temperature: "22"
-              - obj: { hidden: true, x: 360, y: 716, width: 30, height: 10, radius: 5, bg_color: 0xD3E3FD, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 360, y: 716, width: 30, height: 10, radius: 5, bg_color: 0xF2F2F2, bg_opa: 100%, border_width: 0, scrollable: false }
               - obj: { hidden: true, x: 402, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
               - obj: { hidden: true, x: 424, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
               - obj: { hidden: true, x: 446, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
@@ -619,7 +619,7 @@ lvgl:
                         text_color: 0xC4C7C5
                         text_font: roboto_14
               - obj: { hidden: true, x: 360, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
-              - obj: { hidden: true, x: 382, y: 716, width: 30, height: 10, radius: 5, bg_color: 0xD3E3FD, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 382, y: 716, width: 30, height: 10, radius: 5, bg_color: 0xF2F2F2, bg_opa: 100%, border_width: 0, scrollable: false }
               - obj: { hidden: true, x: 424, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
               - obj: { hidden: true, x: 446, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
 
@@ -899,7 +899,7 @@ lvgl:
                             - script.execute: ui_show_tiles_4
               - obj: { hidden: true, x: 360, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
               - obj: { hidden: true, x: 382, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
-              - obj: { hidden: true, x: 404, y: 716, width: 30, height: 10, radius: 5, bg_color: 0xD3E3FD, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 404, y: 716, width: 30, height: 10, radius: 5, bg_color: 0xF2F2F2, bg_opa: 100%, border_width: 0, scrollable: false }
               - obj: { hidden: true, x: 446, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
 
         - obj:
@@ -1115,7 +1115,7 @@ lvgl:
                         text_font: roboto_14
                   on_click:
                     then:
-                      - switch.toggle: pa_enable
+                      - switch.turn_on: pa_enable
               - button:
                   id: tile_settings_button
                   x: 112
@@ -1201,10 +1201,10 @@ lvgl:
               - obj: { hidden: true, x: 360, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
               - obj: { hidden: true, x: 382, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
               - obj: { hidden: true, x: 404, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
-              - obj: { hidden: true, x: 426, y: 716, width: 30, height: 10, radius: 5, bg_color: 0xD3E3FD, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 426, y: 716, width: 30, height: 10, radius: 5, bg_color: 0xF2F2F2, bg_opa: 100%, border_width: 0, scrollable: false }
 
 
-        - obj: { id: page_indicator_1, x: 352, y: 716, width: 30, height: 10, radius: 5, bg_color: 0xD3E3FD, bg_opa: 100%, border_width: 0, scrollable: false, clickable: false }
+        - obj: { id: page_indicator_1, x: 352, y: 716, width: 30, height: 10, radius: 5, bg_color: 0xF2F2F2, bg_opa: 100%, border_width: 0, scrollable: false, clickable: false }
         - obj: { id: page_indicator_2, x: 394, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false, clickable: false }
         - obj: { id: page_indicator_3, x: 416, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false, clickable: false }
         - obj: { id: page_indicator_4, x: 438, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false, clickable: false }

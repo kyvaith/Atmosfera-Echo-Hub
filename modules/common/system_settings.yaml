@@ -14,15 +14,16 @@ script:
       condition:
         lambda: 'return id(boot_sequence_done);'
       then:
-      - delay: 250ms
       - lambda: |-
           ESP_LOGW("backlight.diag", "wake brightness=%.0f%% uptime=%lums",
                    id(settings_display_brightness).state,
                    (unsigned long) millis());
       - light.turn_on:
           id: display_backlight
-          brightness: !lambda 'return id(settings_display_brightness).state / 100.0f;'
-          transition_length: 0ms
+          brightness: !lambda |-
+            const float b = id(settings_display_brightness).state;
+            return (b < 28.0f ? 28.0f : b) / 100.0f;
+          transition_length: 1800ms
 
 switch:
 - platform: template
@@ -92,7 +93,7 @@ switch:
   id: settings_perf_logs_switch
   name: "Performance Logs"
   optimistic: true
-  restore_mode: RESTORE_DEFAULT_OFF
+  restore_mode: ALWAYS_OFF
   on_turn_on:
   - script.execute: ui_update_perf_logs_state
   on_turn_off:
@@ -101,7 +102,7 @@ switch:
   id: settings_swipe_logs_switch
   name: "Swipe Debug Logs"
   optimistic: true
-  restore_mode: RESTORE_DEFAULT_OFF
+  restore_mode: ALWAYS_OFF
   on_turn_on:
   - script.execute: ui_update_swipe_logs_state
   on_turn_off:
@@ -111,7 +112,7 @@ number:
 - platform: template
   id: settings_display_brightness
   name: "Display Brightness"
-  min_value: 5
+  min_value: 28
   max_value: 100
   step: 5
   initial_value: 85
@@ -135,7 +136,9 @@ number:
                    (unsigned long) millis());
       - light.turn_on:
           id: display_backlight
-          brightness: !lambda 'return id(settings_display_brightness).state / 100.0f;'
+          brightness: !lambda |-
+            const float b = id(settings_display_brightness).state;
+            return (b < 28.0f ? 28.0f : b) / 100.0f;
           transition_length: 0ms
 
 - platform: template

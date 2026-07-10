@@ -9,6 +9,47 @@ esphome:
     version: ${firmware_version}
   platformio_options:
     board_build.flash_mode: qio
+    # These are project-local compile-time toggles consumed by patched
+    # ESPHome/ESP-IDF code. They are not Kconfig symbols, so sdkconfig_options
+    # would silently drop them.
+    build_flags:
+      - -DCONFIG_ESPHOME_JPEG_DMA2D_BURST_LENGTH=1
+      - -DCONFIG_ESPHOME_JPEG_DMA2D_DESC_BURST_DISABLE=1
+      - -DCONFIG_ESPHOME_JPEG_DMA2D_SKIP_PRE_OUTPUT_MSYNC=1
+      - -DCONFIG_ESPHOME_JPEG_DMA2D_RUNTIME_SKIP_POST_OUTPUT_MSYNC=1
+      - -DCONFIG_ESPHOME_JPEG_DMA2D_OUTPUT_MSYNC_CHUNK=16384
+      - -DCONFIG_ESPHOME_JPEG_DMA2D_OUTPUT_MSYNC_YIELD=1
+      - -DCONFIG_ESPHOME_JPEG_DECODER_INTERNAL_INPUT_MAX_BYTES=131072
+      - -DCONFIG_ESPHOME_JPEG_DECODER_DIRECT_PSRAM_INPUT=1
+      - -DCONFIG_ESPHOME_ARTWORK_SKIP_DMA_OUTPUT_MSYNC=1
+      - -DCONFIG_ESPHOME_ARTWORK_CACHE_SYNC_CHUNK=4096
+      - -DCONFIG_ESPHOME_ARTWORK_CACHE_SYNC_FIFO_MIN=896
+      - -DCONFIG_ESPHOME_ARTWORK_CACHE_SYNC_WAIT_US=3000
+      - -DCONFIG_ESPHOME_ARTWORK_POST_DECODE_DSI_QUIET_MS=24
+      - -DCONFIG_ESPHOME_DSI_MSYNC_CHUNK=32768
+      - -DCONFIG_ESPHOME_DSI_CACHE_WRITE_QOS=0
+      - -DCONFIG_ESPHOME_DSI_CACHE_READ_QOS=8
+      - -DCONFIG_ESPHOME_DSI_CPU_WRITE_QOS=0
+      - -DCONFIG_ESPHOME_DSI_CPU_READ_QOS=8
+      - -DCONFIG_ESPHOME_DSI_GDMA_WRITE_QOS=0
+      - -DCONFIG_ESPHOME_DSI_GDMA_READ_QOS=4
+      - -DCONFIG_ESPHOME_MIPI_DSI_DMA_FLOW_CONTROLLER=1
+      - -DCONFIG_ESPHOME_MIPI_DSI_DISABLE_FRAME_ACK=1
+      - -DCONFIG_ESPHOME_MIPI_DSI_CONTINUOUS_HS_CLOCK=1
+      - -DCONFIG_ESPHOME_LVGL_PPA_DSI_BACKPRESSURE=1
+      - -DCONFIG_ESPHOME_LVGL_PPA_DSI_FIFO_MIN=768
+      - -DCONFIG_ESPHOME_LVGL_PPA_DSI_WAIT_US=3000
+      - -DCONFIG_ESPHOME_LVGL_SW_ARTWORK_DSI_BACKPRESSURE=1
+      - -DCONFIG_ESPHOME_LVGL_SW_ARTWORK_DSI_FIFO_MIN=896
+      - -DCONFIG_ESPHOME_LVGL_SW_ARTWORK_DSI_WAIT_US=3000
+      - -DCONFIG_ESPHOME_LVGL_SW_ARTWORK_DSI_ROW_PERIOD=4
+      - -DCONFIG_ESPHOME_LVGL_PPA_BLEND_BAND_HEIGHT=32
+      - -DCONFIG_ESPHOME_LVGL_PPA_SRM_BURST_LENGTH=128
+      - -DCONFIG_ESPHOME_LVGL_PPA_SRM_BAND_HEIGHT=32
+      - -DCONFIG_ESPHOME_LVGL_PPA_SKIP_DMA_SOURCE_MSYNC=1
+      - -DCONFIG_ESPHOME_LVGL_PPA_SRM_AXI_BURSTINESS=4
+      - -DCONFIG_ESPHOME_LVGL_PPA_SRM_PEAK_LEVEL=2
+      - -DCONFIG_ESPHOME_LVGL_PPA_SRM_TRANSACTION_LEVEL=4
     extra_scripts:
       - "pre:../../../tools/patch_espidf_freertos_static_alloc.py"
   on_boot:
@@ -17,22 +58,27 @@ esphome:
     - output.turn_off: backlight_output
     - light.turn_off:
         id: display_backlight
+    - lambda: |-
+        id(album_art_background).set_sendspin_paused(true);
     - lvgl.page.show:
-        id: boot_page
+        id: controls_page
     - delay: 250ms
     - script.execute: ui_build_tile_snapshots_now
     - script.wait: ui_build_tile_snapshots_now
     - output.turn_off: backlight_output
     - light.turn_off:
         id: display_backlight
-    - delay: 1s
+    - script.execute: boot_show_esphome_animation
+    - delay: 600ms
     - light.turn_on:
         id: display_backlight
-        brightness: !lambda 'return id(settings_display_brightness).state / 100.0f;'
-        transition_length: 2s
-    - delay: 1s
-    - script.execute: boot_show_esphome_animation
-    - delay: 6s
+        brightness: !lambda |-
+          const float b = id(settings_display_brightness).state;
+          return (b < 28.0f ? 28.0f : b) / 100.0f;
+        transition_length: 2400ms
+    - delay: 2600ms
+    - script.execute: boot_start_esphome_animation
+    - delay: 4200ms
     - lambda: |-
         ESP_LOGW("boot.diag",
                  "boot transition: hide animation internal=%uK/%uK psram=%uK/%uK",
@@ -41,13 +87,7 @@ esphome:
                  (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                  (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
     - script.execute: boot_hide_esphome_animation
-    - lambda: |-
-        ESP_LOGW("boot.diag", "boot transition: show tiles page=%d", id(ui_page));
-    - script.execute: ui_show_tiles_1
-    - lambda: |-
-        ESP_LOGW("boot.diag", "boot transition: show controls page");
-    - lvgl.page.show:
-        id: controls_page
+    - script.execute: ui_show_home_content_after_boot
     - lambda: |-
         ESP_LOGW("boot.diag",
                  "boot transition: controls shown internal=%uK/%uK psram=%uK/%uK",
@@ -55,6 +95,13 @@ esphome:
                  (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
                  (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                  (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
+    - switch.turn_on: pa_enable
+    - delay: 120ms
+    - media_player.unmute: local_music_player
+    - media_player.volume_set:
+        id: local_music_player
+        volume: 50%
+    - script.execute: ui_play_boot_sound
     - globals.set:
         id: boot_sequence_done
         value: 'true'
@@ -67,6 +114,24 @@ ota:
 
 api:
   homeassistant_states: true
+  actions:
+    - action: debug_open_player
+      then:
+        - script.execute: ui_open_player_app
+    - action: debug_next_track
+      then:
+        - media_player.next: sendspin_group
+    - action: debug_previous_track
+      then:
+        - media_player.previous: sendspin_group
+    - action: debug_set_artwork
+      variables:
+        url: string
+      then:
+        - artwork_image.set_url:
+            id: album_art_background
+            update: true
+            url: !lambda 'return url;'
   on_client_connected:
   - lambda: |-
       ESP_LOGD("api.diag", "CONNECTED client=%s address=%s uptime=%lums internal_free=%uKiB psram_free=%uKiB",
