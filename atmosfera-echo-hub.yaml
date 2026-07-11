@@ -59,6 +59,7 @@ packages:
   lvgl_settings_page: !include modules/lvgl/pages/settings.yaml
   lvgl_player_page: !include modules/lvgl/pages/player.yaml
   lvgl_voice_assistant_overlay: !include modules/lvgl/pages/voice_assistant.yaml
+  lvgl_global_overlay: !include modules/lvgl/pages/global_overlay.yaml
 
   player_settings: !include modules/player/settings.yaml
   player_artwork: !include modules/player/artwork.yaml

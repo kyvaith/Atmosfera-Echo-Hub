@@ -117,7 +117,7 @@ lvgl:
                         text: "9:30"
                         align: CENTER
                         text_color: 0xF5EEFB
-                        text_font: wear_time_40
+                        text_font: roboto_34
 
               - button:
                   id: speaker_group_button
@@ -183,7 +183,7 @@ lvgl:
                   long_mode: DOT
                   text_align: CENTER
                   text_color: 0xF5EEFB
-                  text_font: wear_title_53
+                  text_font: wear_body_47
                   text_letter_space: 1
 
               - label:
@@ -196,7 +196,7 @@ lvgl:
                   long_mode: DOT
                   text_align: CENTER
                   text_color: 0xF5EEFB
-                  text_font: wear_body_47
+                  text_font: roboto_36
                   text_letter_space: 1
 
               - label:
@@ -327,8 +327,14 @@ lvgl:
                         text_font: material_symbols_36
                   on_click:
                     then:
-                      - script.execute: media_show_action_spinner
-                      - media_player.previous: sendspin_group
+                      - if:
+                          condition:
+                            lambda: |-
+                              return id(display_backlight).current_values.is_on() &&
+                                     (int32_t)(millis() - id(ui_touch_click_block_until_ms)) >= 0;
+                          then:
+                            - script.execute: media_show_action_spinner
+                            - media_player.previous: sendspin_group
 
               - button:
                   id: next_button
@@ -358,8 +364,14 @@ lvgl:
                         text_font: material_symbols_36
                   on_click:
                     then:
-                      - script.execute: media_show_action_spinner
-                      - media_player.next: sendspin_group
+                      - if:
+                          condition:
+                            lambda: |-
+                              return id(display_backlight).current_values.is_on() &&
+                                     (int32_t)(millis() - id(ui_touch_click_block_until_ms)) >= 0;
+                          then:
+                            - script.execute: media_show_action_spinner
+                            - media_player.next: sendspin_group
 
               - arc:
                   id: media_main_progress_arc
@@ -427,9 +439,9 @@ lvgl:
                   align: CENTER
                   x: 0
                   y: 0
-                  width: 267
-                  height: 267
-                  radius: 134
+                  width: 178
+                  height: 178
+                  radius: 89
                   bg_color: 0xE4C2FF
                   bg_opa: 0%
                   border_width: 0
@@ -438,11 +450,11 @@ lvgl:
                   pad_all: 0
                   scrollable: false
                   gesture_bubble: true
-                  style_transition_time: 90ms
+                  style_transition_time: 160ms
                   style_transition_path: ease_out
                   pressed:
-                    bg_color: 0xD6B4F2
-                    bg_opa: 0%
+                    bg_color: 0x000000
+                    bg_opa: 14%
                   widgets:
                     - label:
                         id: media_main_icon_label
@@ -452,8 +464,14 @@ lvgl:
                         text_font: material_symbols_86
                   on_click:
                     then:
-                      - script.execute: media_show_action_spinner
-                      - media_player.toggle: sendspin_group
+                      - if:
+                          condition:
+                            lambda: |-
+                              return id(display_backlight).current_values.is_on() &&
+                                     (int32_t)(millis() - id(ui_touch_click_block_until_ms)) >= 0;
+                          then:
+                            - script.execute: media_show_action_spinner
+                            - media_player.toggle: sendspin_group
 
               - obj:
                   id: queue_panel

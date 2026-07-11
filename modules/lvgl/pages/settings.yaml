@@ -20,6 +20,7 @@ lvgl:
             widgets:
               - label:
                   text: "Settings"
+                  hidden: true
                   align: TOP_MID
                   y: 46
                   width: 520
@@ -28,6 +29,7 @@ lvgl:
                   text_font: roboto_24
               - label:
                   text: "Device"
+                  hidden: true
                   align: TOP_MID
                   y: 82
                   width: 96
@@ -39,6 +41,15 @@ lvgl:
                   pad_bottom: 5
                   text_color: 0xC4C7C5
                   text_font: roboto_16
+              - label:
+                  id: settings_time_label
+                  text: "9:30"
+                  align: TOP_MID
+                  y: 12
+                  width: 180
+                  text_align: CENTER
+                  text_color: 0xF5EEFB
+                  text_font: roboto_34
               - button:
                   id: settings_true_colour_button
                   x: 112

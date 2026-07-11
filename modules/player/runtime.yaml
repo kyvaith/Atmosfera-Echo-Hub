@@ -25,8 +25,16 @@ globals:
     type: int
     restore_value: no
     initial_value: '-1'
+  - id: last_media_progress_permille
+    type: int
+    restore_value: no
+    initial_value: '-1'
   - id: last_position_timestamp
     type: int
+    restore_value: no
+    initial_value: '0'
+  - id: last_position_millis
+    type: uint32_t
     restore_value: no
     initial_value: '0'
   - id: title_received_once
@@ -128,8 +136,10 @@ script:
           id(title_received_once) = false;
           id(last_media_position) = 0.0f;
           id(last_media_progress_percent) = -1;
+          id(last_media_progress_permille) = -1;
           id(ha_position_epoch) = 0;
           id(last_position_timestamp) = 0;
+          id(last_position_millis) = 0;
           id(last_artwork_url) = "";
           id(artist_has_content) = false;
           id(subscription_gen) += 1;
@@ -139,7 +149,14 @@ script:
           if (now.is_valid()) {
             char time_buf[6];
             snprintf(time_buf, sizeof(time_buf), "%d:%02d", now.hour, now.minute);
+            lv_label_set_text(id(global_time_label), time_buf);
+            lv_label_set_text(id(home_time_label_1), time_buf);
+            lv_label_set_text(id(home_time_label_2), time_buf);
+            lv_label_set_text(id(home_time_label_3), time_buf);
+            lv_label_set_text(id(home_time_label_4), time_buf);
             lv_label_set_text(id(top_status_label), time_buf);
+            lv_label_set_text(id(settings_time_label), time_buf);
+            lv_label_set_text(id(voice_assistant_time_label), time_buf);
           }
           lv_label_set_text(id(title_label), "No Track");
           lv_label_set_text(id(artist_label), "-");
@@ -152,6 +169,7 @@ script:
           lv_obj_add_flag(id(artwork_primary_overlay), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(artwork_scrim), LV_OBJ_FLAG_HIDDEN);
           id(last_media_progress_percent) = 0;
+          id(last_media_progress_permille) = 0;
           id(media_update_main_control).execute();
 
           int gen = id(subscription_gen);
@@ -307,30 +325,47 @@ script:
           bool playing = id(media_player_state_sensor).has_state()
               && (id(media_player_state_sensor).state == "PLAYING" ||
                   id(media_player_state_sensor).state == "playing");
+          bool paused = id(media_player_state_sensor).has_state()
+              && (id(media_player_state_sensor).state == "PAUSED" ||
+                  id(media_player_state_sensor).state == "paused");
+          bool active_media = id(media_player_state_sensor).has_state()
+              && id(media_player_state_sensor).state != "IDLE"
+              && id(media_player_state_sensor).state != "idle"
+              && id(media_player_state_sensor).state != "OFF"
+              && id(media_player_state_sensor).state != "off"
+              && id(media_player_state_sensor).state != "STANDBY"
+              && id(media_player_state_sensor).state != "standby";
 
           auto t = id(ha_time).now();
           if (playing && t.is_valid() && id(ha_position_epoch) != 0 && id(media_position_sensor).has_state()) {
             pos = id(media_position_sensor).state + (float)(t.timestamp - id(ha_position_epoch));
+          } else if (playing && id(last_position_millis) != 0) {
+            pos += (float)(millis() - id(last_position_millis)) / 1000.0f;
           }
 
           if (pos < 0.0f) pos = 0.0f;
           if (dur > 0.0f && pos > dur) pos = dur;
-          id(last_media_position) = pos;
+          if (playing) id(last_media_position) = pos;
           if (t.is_valid()) id(last_position_timestamp) = t.timestamp;
+          id(last_position_millis) = millis();
 
-          const int progress_range = 100;
+          const int progress_range = 1000;
           int value = 0;
-          if (dur > 0.0f) {
+          if (paused && id(last_media_progress_permille) >= 0) {
+            value = id(last_media_progress_permille);
+          } else if (dur > 0.0f) {
             value = (int)((pos / dur) * (float)progress_range + 0.5f);
-          } else if (playing) {
+          } else if (playing || active_media) {
             value = progress_range;
           }
           if (value < 0) value = 0;
           if (value > progress_range) value = progress_range;
           atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
-          atmosfera_ui::media_wavy_arc_set_value(value);
-          if (value != id(last_media_progress_percent)) {
-            id(last_media_progress_percent) = value;
+          atmosfera_ui::media_wavy_arc_set_value_permille(value);
+          const int percent = (value + 5) / 10;
+          if (value != id(last_media_progress_permille)) {
+            id(last_media_progress_permille) = value;
+            id(last_media_progress_percent) = percent;
             id(media_update_main_control).execute();
           }
 
@@ -364,19 +399,34 @@ script:
     mode: restart
     then:
       - lambda: |-
-          int progress = id(last_media_progress_percent);
+          int progress = id(last_media_progress_permille);
+          if (progress < 0 && id(last_media_progress_percent) >= 0) progress = id(last_media_progress_percent) * 10;
           if (progress < 0) progress = 0;
-          if (progress > 100) progress = 100;
+          if (progress > 1000) progress = 1000;
           const bool playing = id(media_player_state_sensor).has_state()
               && (id(media_player_state_sensor).state == "PLAYING" ||
                   id(media_player_state_sensor).state == "playing");
+          const bool active_media = id(media_player_state_sensor).has_state()
+              && id(media_player_state_sensor).state != "IDLE"
+              && id(media_player_state_sensor).state != "idle"
+              && id(media_player_state_sensor).state != "OFF"
+              && id(media_player_state_sensor).state != "off"
+              && id(media_player_state_sensor).state != "STANDBY"
+              && id(media_player_state_sensor).state != "standby";
           const float dur = id(media_duration_sensor).has_state() ? id(media_duration_sensor).state : 0.0f;
-          if (playing && dur <= 0.0f) {
-            progress = 100;
+          if (dur <= 0.0f && active_media) {
+            progress = 1000;
+          } else if (progress < 0) {
+            progress = 0;
           }
           atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
-          atmosfera_ui::media_wavy_arc_set_value(progress);
+          atmosfera_ui::media_wavy_arc_set_value_permille(progress);
           atmosfera_ui::media_wavy_arc_set_playing(playing);
+          atmosfera_ui::media_wavy_arc_set_pending(id(media_action_pending));
+          if (id(media_action_pending)) {
+            lv_obj_clear_flag(id(media_main_icon_label), LV_OBJ_FLAG_HIDDEN);
+            return;
+          }
           if (playing) {
             lv_label_set_text(id(media_main_icon_label), "\U0000e034");
           } else {
@@ -389,17 +439,39 @@ script:
     then:
       - lambda: |-
           id(media_action_pending) = true;
-          id(media_action_spinner_angle) = 270;
-          lv_arc_set_rotation(id(media_action_spinner_arc), id(media_action_spinner_angle));
-          lv_obj_clear_flag(id(media_action_spinner_arc), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(media_action_spinner_arc), LV_OBJ_FLAG_HIDDEN);
+          atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
+          atmosfera_ui::media_wavy_arc_set_pending(false);
+      - script.execute: media_show_action_progress_delayed
       - script.execute: media_action_spinner_timeout
 
   - id: media_hide_action_spinner
     mode: restart
     then:
+      - script.stop: media_show_action_progress_delayed
       - lambda: |-
           id(media_action_pending) = false;
           lv_obj_add_flag(id(media_action_spinner_arc), LV_OBJ_FLAG_HIDDEN);
+          atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
+          atmosfera_ui::media_wavy_arc_set_pending(false);
+          id(media_update_main_control).execute();
+
+  - id: media_show_action_progress_delayed
+    mode: restart
+    then:
+      - delay: 1s
+      - lambda: |-
+          if (!id(media_action_pending)) {
+            return;
+          }
+          atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
+          atmosfera_ui::media_wavy_arc_set_pending(true);
+
+  - id: media_hide_action_spinner_delayed
+    mode: restart
+    then:
+      - delay: 450ms
+      - script.execute: media_hide_action_spinner
 
   - id: media_action_spinner_timeout
     mode: restart
@@ -410,10 +482,87 @@ script:
   - id: show_volume_overlay
     mode: restart
     then:
-      - lvgl.widget.show: volume_overlay
       - lambda: |-
-          lv_obj_move_foreground(id(volume_overlay));
+          id(global_volume_time_press_tracking) = false;
+          lv_obj_add_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(global_time_button), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_clear_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_move_foreground(id(global_volume_overlay));
+          const int pct = atmosfera_ui::clamp_volume_pct(id(global_volume_pct));
+          id(global_volume_knob_pct) = pct;
+          atmosfera_ui::volume_overlay_update(
+              id(global_volume_arc), id(global_volume_knob), id(global_volume_pct_label), pct, pct);
+          lv_obj_fade_in(id(global_volume_overlay), 120, 0);
+          lv_obj_invalidate(id(global_volume_overlay));
+          lv_refr_now(nullptr);
       - script.execute: volume_overlay_timeout
+
+  - id: global_volume_begin_drag
+    mode: restart
+    then:
+      - script.stop: volume_overlay_timeout
+      - lambda: |-
+          id(global_volume_time_press_tracking) = false;
+          id(global_volume_dragging) = true;
+          id(global_volume_drag_start_x) = id(global_volume_time_press_start_x);
+          if (id(global_volume_drag_start_x) < 20) id(global_volume_drag_start_x) = 20;
+          if (id(global_volume_drag_start_x) > 780) id(global_volume_drag_start_x) = 780;
+          id(global_volume_drag_start_pct) = atmosfera_ui::clamp_volume_pct(id(global_volume_pct));
+          id(global_volume_knob_pct) = 50;
+          lv_obj_add_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(global_time_button), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_clear_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_move_foreground(id(global_volume_overlay));
+          atmosfera_ui::volume_overlay_update_drag_point(
+              id(global_volume_arc), id(global_volume_knob), id(global_volume_pct_label),
+              id(global_volume_drag_start_pct), 50,
+              id(global_volume_time_press_start_x), id(global_volume_time_press_start_y));
+          lv_obj_fade_in(id(global_volume_overlay), 120, 0);
+          lv_obj_invalidate(id(global_volume_overlay));
+          lv_refr_now(nullptr);
+
+  - id: global_volume_long_press_guard
+    mode: restart
+    then:
+      - delay: 450ms
+      - if:
+          condition:
+            lambda: |-
+              return id(global_volume_time_press_tracking) && !id(global_volume_dragging);
+          then:
+            - script.execute: global_volume_begin_drag
+
+  - id: global_volume_finish_drag
+    mode: restart
+    then:
+      - lambda: |-
+          id(global_volume_time_press_tracking) = false;
+          id(global_volume_dragging) = false;
+          if (id(global_volume_pct) != id(global_volume_last_sent_pct)) {
+            id(global_volume_send_pending) = true;
+          }
+          lv_obj_fade_out(id(global_volume_overlay), 120, 0);
+          lv_obj_clear_flag(id(global_time_button), LV_OBJ_FLAG_HIDDEN);
+      - script.execute: global_volume_send_to_ha
+      - delay: 130ms
+      - lvgl.widget.hide: global_volume_overlay
+
+  - id: global_volume_send_to_ha
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return id(global_volume_send_pending);'
+          then:
+            - lambda: |-
+                id(global_volume_send_pending) = false;
+                id(global_volume_last_sent_pct) = atmosfera_ui::clamp_volume_pct(id(global_volume_pct));
+                id(global_volume_last_send_ms) = millis();
+                id(volume_pending_pct) = id(global_volume_last_sent_pct);
+                id(volume_pending_until) = millis() + 1500;
+            - media_player.volume_set:
+                id: sendspin_group
+                volume: !lambda 'return atmosfera_ui::clamp_volume_pct(id(global_volume_pct)) / 100.0f;'
 
   - id: open_queue_panel
     mode: restart
@@ -434,7 +583,17 @@ script:
     mode: restart
     then:
       - delay: 2500ms
-      - lvgl.widget.hide: volume_overlay
+      - lambda: |-
+          if (!id(global_volume_dragging)) {
+            lv_obj_fade_out(id(global_volume_overlay), 120, 0);
+            lv_obj_clear_flag(id(global_time_button), LV_OBJ_FLAG_HIDDEN);
+          }
+      - delay: 130ms
+      - if:
+          condition:
+            lambda: 'return !id(global_volume_dragging);'
+          then:
+            - lvgl.widget.hide: global_volume_overlay
 
   - id: main_volume_step
     mode: restart
@@ -442,11 +601,15 @@ script:
       direction: int
     then:
       - lambda: |-
-          int pct = lv_arc_get_value(id(volume_arc)) + (direction > 0 ? 1 : -1);
-          if (pct < 0) pct = 0;
-          if (pct > 100) pct = 100;
+          int pct = atmosfera_ui::clamp_volume_pct(id(global_volume_pct) + (direction > 0 ? 1 : -1));
+          id(global_volume_pct) = pct;
+          id(global_volume_knob_pct) = pct;
           id(volume_updating_from_ha) = false;
-          lv_arc_set_value(id(volume_arc), pct);
+          atmosfera_ui::volume_overlay_update(
+              id(global_volume_arc), id(global_volume_knob), id(global_volume_pct_label), pct, pct);
+          id(global_volume_send_pending) = true;
+          id(global_volume_last_send_ms) = 0;
+      - script.execute: global_volume_send_to_ha
       - script.execute: show_volume_overlay
 
   - id: media_show_lottie_visual
@@ -594,9 +757,11 @@ text_sensor:
                 if (id(title_received_once)) {
                   id(last_media_position) = 0.0f;
                   id(last_media_progress_percent) = -1;
+                  id(last_media_progress_permille) = -1;
                   id(ha_position_epoch) = 0;
                   auto t = id(ha_time).now();
                   if (t.is_valid()) id(last_position_timestamp) = t.timestamp;
+                  id(last_position_millis) = millis();
                   id(refresh_progress_bar_from_state).execute();
                 } else {
                   id(title_received_once) = true;
@@ -668,7 +833,6 @@ text_sensor:
     id: media_player_state_sensor
     internal: true
     on_value:
-      - script.execute: media_hide_action_spinner
       - if:
           condition:
             lambda: 'return x == "PLAYING" || x == "playing";'
@@ -687,12 +851,14 @@ text_sensor:
                 then:
                   - script.execute: show_track_info
             - script.execute: start_hide_track_info_timer
+            - script.execute: media_hide_action_spinner_delayed
       - if:
           condition:
             lambda: 'return x == "PAUSED" || x == "paused" || x == "IDLE" || x == "idle" || x == "OFF" || x == "off" || x == "STANDBY" || x == "standby";'
           then:
             - lambda: 'id(artwork_block_until) = 0;'
             - script.execute: media_update_main_control
+            - script.execute: media_hide_action_spinner_delayed
             - script.stop: start_hide_track_info_timer
             - script.execute: media_resume_deferred_artwork
       - if:
@@ -703,7 +869,9 @@ text_sensor:
                 id(last_media_position) = 0.0f;
                 id(ha_position_epoch) = 0;
                 id(last_position_timestamp) = 0;
+                id(last_position_millis) = 0;
                 id(last_media_progress_percent) = -1;
+                id(last_media_progress_permille) = -1;
             - lambda: |-
                 atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
                 atmosfera_ui::media_wavy_arc_set_value(0);
@@ -787,6 +955,7 @@ sensor:
           } else if (t.is_valid()) {
             id(last_position_timestamp) = t.timestamp;
           }
+          id(last_position_millis) = millis();
           if (id(last_media_position) < 0.0f) id(last_media_position) = 0.0f;
           id(refresh_progress_bar_from_state).execute();
 
@@ -810,18 +979,21 @@ sensor:
             id(volume_pending_until) = 0;
           }
           id(volume_updating_from_ha) = true;
-          lv_arc_set_value(id(volume_arc), pct);
+          id(global_volume_pct) = pct;
+          if (!id(global_volume_dragging)) {
+            id(global_volume_knob_pct) = pct;
+          }
+          atmosfera_ui::volume_overlay_update(
+              id(global_volume_arc), id(global_volume_knob), id(global_volume_pct_label),
+              pct, id(global_volume_knob_pct));
           id(volume_updating_from_ha) = false;
-          char buf[8];
-          snprintf(buf, sizeof(buf), "%d%%", pct);
-          lv_label_set_text(id(volume_pct_label), buf);
           if (id(speaker_count) <= 1) {
             id(speaker_volumes)[0] = volume;
             id(update_speaker_group_panel).execute();
           }
 
 interval:
-  - interval: 80ms
+  - interval: 50ms
     then:
       - if:
           condition:
@@ -833,29 +1005,40 @@ interval:
                           id(media_player_state_sensor).state == "playing")));
           then:
             - lambda: |-
-                if (id(media_action_pending)) {
-                  id(media_action_spinner_angle) += 22;
-                  if (id(media_action_spinner_angle) >= 360) id(media_action_spinner_angle) -= 360;
-                  lv_arc_set_rotation(id(media_action_spinner_arc), id(media_action_spinner_angle));
-                }
-                atmosfera_ui::media_wavy_arc_tick(-7.5f);
+                atmosfera_ui::media_wavy_arc_tick(-3.0f);
 
-  - interval: 1s
+  - interval: 250ms
     then:
       - if:
           condition:
             lambda: |-
               const int phase = id(voice_assistant_phase);
-              return id(ui_active_app) == 1 &&
-                     (phase == ${voice_assist_idle_phase_id} || phase == ${voice_assist_not_ready_phase_id});
+              return id(ui_active_app) == 1
+                  && id(media_duration_sensor).has_state()
+                  && id(media_duration_sensor).state > 0.0f
+                  && id(media_player_state_sensor).has_state()
+                  && (id(media_player_state_sensor).state == "PLAYING" ||
+                      id(media_player_state_sensor).state == "playing")
+                  && (phase == ${voice_assist_idle_phase_id} || phase == ${voice_assist_not_ready_phase_id});
           then:
-            - lambda: |-
-                auto now = id(ha_time).now();
-                if (now.is_valid()) {
-                  char time_buf[6];
-                  snprintf(time_buf, sizeof(time_buf), "%d:%02d", now.hour, now.minute);
-                  lv_label_set_text(id(top_status_label), time_buf);
-                }
+            - script.execute: refresh_progress_bar_from_state
+
+  - interval: 1s
+    then:
+      - lambda: |-
+          auto now = id(ha_time).now();
+          if (now.is_valid()) {
+            char time_buf[6];
+            snprintf(time_buf, sizeof(time_buf), "%d:%02d", now.hour, now.minute);
+            lv_label_set_text(id(global_time_label), time_buf);
+            lv_label_set_text(id(home_time_label_1), time_buf);
+            lv_label_set_text(id(home_time_label_2), time_buf);
+            lv_label_set_text(id(home_time_label_3), time_buf);
+            lv_label_set_text(id(home_time_label_4), time_buf);
+            lv_label_set_text(id(top_status_label), time_buf);
+            lv_label_set_text(id(settings_time_label), time_buf);
+            lv_label_set_text(id(voice_assistant_time_label), time_buf);
+          }
       - if:
           condition:
             lambda: |-

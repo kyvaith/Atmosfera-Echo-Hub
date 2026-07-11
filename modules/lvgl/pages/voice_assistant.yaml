@@ -18,6 +18,15 @@ lvgl:
                 clickable: true
                 hidden: true
                 widgets:
+                  - label:
+                        id: voice_assistant_time_label
+                        text: "9:30"
+                        align: TOP_MID
+                        y: 12
+                        width: 180
+                        text_align: CENTER
+                        text_color: 0xF5EEFB
+                        text_font: roboto_34
                   - obj:
                         id: voice_assistant_orb_shell
                         width: 220

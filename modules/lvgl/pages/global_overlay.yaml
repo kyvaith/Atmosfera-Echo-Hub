@@ -1,0 +1,157 @@
+# Global Wear OS status overlay.
+# It sits on top_layer after app overlays, so the clock and volume control stay
+# consistent on home, player, settings and voice assistant screens.
+esphome:
+  includes:
+    - static/ui_volume_overlay.h
+
+globals:
+  - id: global_volume_time_press_tracking
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: global_volume_dragging
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: global_volume_time_press_start_ms
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+  - id: global_volume_time_press_start_x
+    type: int
+    restore_value: no
+    initial_value: '400'
+  - id: global_volume_time_press_start_y
+    type: int
+    restore_value: no
+    initial_value: '36'
+  - id: global_volume_drag_start_x
+    type: int
+    restore_value: no
+    initial_value: '400'
+  - id: global_volume_drag_start_pct
+    type: int
+    restore_value: no
+    initial_value: '50'
+  - id: global_volume_knob_pct
+    type: int
+    restore_value: no
+    initial_value: '50'
+  - id: global_volume_pct
+    type: int
+    restore_value: no
+    initial_value: '50'
+  - id: global_volume_last_sent_pct
+    type: int
+    restore_value: no
+    initial_value: '-1'
+  - id: global_volume_last_send_ms
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+  - id: global_volume_send_pending
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+lvgl:
+  top_layer:
+    widgets:
+      - button:
+          id: global_time_button
+          width: 180
+          height: 52
+          align: TOP_MID
+          x: 0
+          y: 10
+          bg_opa: 0%
+          border_width: 0
+          outline_width: 0
+          shadow_width: 0
+          radius: 26
+          pad_all: 0
+          scrollable: false
+          clickable: false
+          hidden: true
+          widgets:
+            - label:
+                id: global_time_label
+                text: "9:30"
+                align: CENTER
+                text_color: 0xF5EEFB
+                text_opa: 0%
+                text_font: roboto_34
+
+      - obj:
+          id: global_volume_overlay
+          x: 0
+          y: 0
+          width: 800
+          height: 800
+          bg_color: 0x000000
+          bg_opa: 72%
+          border_width: 0
+          pad_all: 0
+          scrollable: false
+          clickable: true
+          hidden: true
+          widgets:
+            - arc:
+                id: global_volume_arc
+                x: 35
+                y: 35
+                width: 730
+                height: 730
+                min_value: 0
+                max_value: 100
+                value: 50
+                start_angle: 180
+                end_angle: 360
+                adjustable: false
+                arc_color: 0x382949
+                arc_width: 15
+                arc_rounded: true
+                bg_opa: 0%
+                indicator:
+                  arc_color: 0xF5EEFB
+                  arc_width: 15
+                  arc_rounded: true
+                knob:
+                  bg_opa: 0%
+                  border_width: 0
+                  width: 0
+                  height: 0
+            - obj:
+                id: global_volume_knob
+                x: 372
+                y: 15
+                width: 56
+                height: 56
+                radius: 28
+                bg_color: 0xFFFFFF
+                bg_opa: 100%
+                border_width: 0
+                shadow_width: 0
+                pad_all: 0
+                scrollable: false
+                clickable: false
+            - obj:
+                id: global_volume_value_scrim
+                align: CENTER
+                width: 800
+                height: 800
+                radius: 0
+                bg_color: 0x000000
+                bg_opa: 0%
+                border_width: 0
+                pad_all: 0
+                scrollable: false
+                clickable: false
+                widgets:
+                  - label:
+                      id: global_volume_pct_label
+                      text: "50%"
+                      align: CENTER
+                      text_color: 0xF5EEFB
+                      text_font: roboto_volume_112

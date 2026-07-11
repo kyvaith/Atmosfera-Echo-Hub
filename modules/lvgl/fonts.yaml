@@ -123,6 +123,27 @@ font:
       - GF_Latin_Core
     ignore_missing_glyphs: true
 
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 700
+    id: roboto_volume_112
+    size: 112
+    bpp: 2
+    glyphs:
+      - "0"
+      - "1"
+      - "2"
+      - "3"
+      - "4"
+      - "5"
+      - "6"
+      - "7"
+      - "8"
+      - "9"
+      - "%"
+    ignore_missing_glyphs: true
+
   - file: "gfonts://Material+Symbols+Rounded"
     id: material_symbols_24
     size: 24

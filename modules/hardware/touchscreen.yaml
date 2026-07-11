@@ -38,7 +38,22 @@ touchscreen:
         - lambda: |-
             if (id(boot_sequence_done) && !id(display_backlight).current_values.is_on()) {
               id(display_touch_wake_pending) = false;
+              id(ui_touch_click_block_until_ms) = millis() + 900;
+              lv_indev_reset(nullptr, nullptr);
               id(display_wake).execute();
+              return;
+            }
+
+            id(global_volume_time_press_tracking) = false;
+            if (id(boot_sequence_done) && id(display_backlight).current_values.is_on() &&
+                !id(ui_snapshot_io_busy) &&
+                touch.x >= 280 && touch.x <= 520 && touch.y >= 0 && touch.y <= 84) {
+              id(global_volume_time_press_tracking) = true;
+              id(global_volume_time_press_start_ms) = millis();
+              id(global_volume_time_press_start_x) = touch.x;
+              id(global_volume_time_press_start_y) = touch.y;
+              id(ui_touch_click_block_until_ms) = millis() + 1500;
+              id(global_volume_long_press_guard).execute();
               return;
             }
 
@@ -95,6 +110,37 @@ touchscreen:
             if (id(display_touch_wake_pending)) {
               id(display_touch_wake_last_x) = touch.x;
               id(display_touch_wake_last_y) = touch.y;
+              return;
+            }
+            if (id(global_volume_dragging)) {
+              const int knob_pct = atmosfera_ui::volume_arc_pct_from_point(touch.x, touch.y);
+              const int pct = atmosfera_ui::volume_drag_value_from_visual_pct(
+                  knob_pct, id(global_volume_drag_start_pct));
+              id(global_volume_pct) = pct;
+              id(global_volume_knob_pct) = knob_pct;
+              atmosfera_ui::volume_overlay_update_drag_point(
+                  id(global_volume_arc), id(global_volume_knob), id(global_volume_pct_label),
+                  pct, knob_pct, touch.x, touch.y);
+              const uint32_t now = millis();
+              if (pct != id(global_volume_last_sent_pct) &&
+                  (now - id(global_volume_last_send_ms) >= 90 || pct == 0 || pct == 100)) {
+                id(global_volume_send_pending) = true;
+                id(global_volume_send_to_ha).execute();
+              }
+              id(ui_touch_click_block_until_ms) = millis() + 700;
+              return;
+            }
+            if (id(global_volume_time_press_tracking)) {
+              const int dx = touch.x - id(global_volume_time_press_start_x);
+              const int dy = touch.y - id(global_volume_time_press_start_y);
+              if (abs(dx) > 90 || abs(dy) > 90) {
+                id(global_volume_time_press_tracking) = false;
+                id(global_volume_long_press_guard).stop();
+                return;
+              }
+              if (millis() - id(global_volume_time_press_start_ms) >= 450) {
+                id(global_volume_begin_drag).execute();
+              }
               return;
             }
             if (id(app_close_tracking)) {
@@ -250,8 +296,21 @@ touchscreen:
               id(display_touch_wake_pending) = false;
               if (deliberate_wake && id(boot_sequence_done) &&
                   !id(display_backlight).current_values.is_on()) {
+                id(ui_touch_click_block_until_ms) = millis() + 900;
+                lv_indev_reset(nullptr, nullptr);
                 id(display_wake).execute();
               }
+              return;
+            }
+            if (id(global_volume_dragging)) {
+              id(ui_touch_click_block_until_ms) = millis() + 900;
+              id(global_volume_finish_drag).execute();
+              return;
+            }
+            if (id(global_volume_time_press_tracking)) {
+              id(global_volume_time_press_tracking) = false;
+              id(global_volume_long_press_guard).stop();
+              id(ui_touch_click_block_until_ms) = millis() + 500;
               return;
             }
             if (id(app_close_tracking)) {

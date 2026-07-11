@@ -23,6 +23,7 @@ lvgl:
             widgets:
               - label:
                   text: "Room"
+                  hidden: true
                   align: TOP_MID
                   y: 46
                   width: 420
@@ -31,6 +32,7 @@ lvgl:
                   text_font: roboto_24
               - label:
                   text: "1 / 4"
+                  hidden: true
                   align: TOP_MID
                   y: 82
                   width: 96
@@ -42,6 +44,15 @@ lvgl:
                   pad_bottom: 4
                   text_color: 0xC4C7C5
                   text_font: roboto_14
+              - label:
+                  id: home_time_label_1
+                  text: "9:30"
+                  align: TOP_MID
+                  y: 12
+                  width: 180
+                  text_align: CENTER
+                  text_color: 0xF5EEFB
+                  text_font: roboto_34
               - button:
                   id: tile_light_button
                   x: 112
@@ -339,6 +350,7 @@ lvgl:
             widgets:
               - label:
                   text: "Security"
+                  hidden: true
                   align: TOP_MID
                   y: 46
                   width: 420
@@ -347,6 +359,7 @@ lvgl:
                   text_font: roboto_24
               - label:
                   text: "2 / 4"
+                  hidden: true
                   align: TOP_MID
                   y: 82
                   width: 96
@@ -358,6 +371,15 @@ lvgl:
                   pad_bottom: 4
                   text_color: 0xC4C7C5
                   text_font: roboto_14
+              - label:
+                  id: home_time_label_2
+                  text: "9:30"
+                  align: TOP_MID
+                  y: 12
+                  width: 180
+                  text_align: CENTER
+                  text_color: 0xF5EEFB
+                  text_font: roboto_34
               - button:
                   id: tile_cover_button
                   x: 112
@@ -639,6 +661,7 @@ lvgl:
             widgets:
               - label:
                   text: "Sensors"
+                  hidden: true
                   align: TOP_MID
                   y: 46
                   width: 420
@@ -647,6 +670,7 @@ lvgl:
                   text_font: roboto_24
               - label:
                   text: "3 / 4"
+                  hidden: true
                   align: TOP_MID
                   y: 82
                   width: 96
@@ -658,6 +682,15 @@ lvgl:
                   pad_bottom: 4
                   text_color: 0xC4C7C5
                   text_font: roboto_14
+              - label:
+                  id: home_time_label_3
+                  text: "9:30"
+                  align: TOP_MID
+                  y: 12
+                  width: 180
+                  text_align: CENTER
+                  text_color: 0xF5EEFB
+                  text_font: roboto_34
               - button:
                   id: tile_sensor_button
                   x: 112
@@ -918,6 +951,7 @@ lvgl:
             widgets:
               - label:
                   text: "System"
+                  hidden: true
                   align: TOP_MID
                   y: 46
                   width: 420
@@ -926,6 +960,7 @@ lvgl:
                   text_font: roboto_24
               - label:
                   text: "4 / 4"
+                  hidden: true
                   align: TOP_MID
                   y: 82
                   width: 96
@@ -937,6 +972,15 @@ lvgl:
                   pad_bottom: 4
                   text_color: 0xC4C7C5
                   text_font: roboto_14
+              - label:
+                  id: home_time_label_4
+                  text: "9:30"
+                  align: TOP_MID
+                  y: 12
+                  width: 180
+                  text_align: CENTER
+                  text_color: 0xF5EEFB
+                  text_font: roboto_34
               - button:
                   id: tile_fan_button
                   x: 112
