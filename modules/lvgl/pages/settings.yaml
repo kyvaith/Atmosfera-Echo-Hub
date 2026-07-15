@@ -43,6 +43,7 @@ lvgl:
                   text_font: roboto_16
               - label:
                   id: settings_time_label
+                  hidden: true
                   text: "9:30"
                   align: TOP_MID
                   y: 12

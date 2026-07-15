@@ -112,6 +112,8 @@ micro_wake_word:
   id: wake_word_engine
   ring_buffer_duration: 1000ms
   microphone:
+    # One ref-counted source serves wake-word and conversation streaming. The
+    # explicit handoff below stops inference before realtime uplink starts.
     microphone: voice_microphone
     channels: 0
     gain_factor: 4
@@ -229,6 +231,7 @@ micro_wake_word:
                                         id(voice_assistant_request_text).publish_state("");
                                         id(voice_assistant_response_text).publish_state("");
                                     - script.execute: voice_assistant_update_overlay
+                                    - micro_wake_word.stop:
                                     - switch.turn_on: voice_audio_processing_switch
                                     - script.execute: ui_play_va_listening_sound
                                     - script.wait: ui_play_va_listening_sound
@@ -985,29 +988,37 @@ script:
   - id: voice_assistant_update_overlay
     mode: restart
     then:
-      - if:
-          condition:
-            lambda: |-
-              const int phase = id(voice_assistant_phase);
-              const bool active_phase = phase != ${voice_assist_idle_phase_id} &&
-                                        phase != ${voice_assist_not_ready_phase_id};
-              return id(ui_active_app) == 3 || active_phase;
-          then:
-            - lvgl.widget.show: voice_assistant_overlay
-            - lambda: |-
-                if (id(voice_assistant_overlay) != nullptr) {
-                  lv_obj_move_foreground(id(voice_assistant_overlay));
-                }
-                if (id(perf_overlay_label) != nullptr && id(settings_perf_overlay_switch).state) {
-                  lv_obj_move_foreground(id(perf_overlay_label));
-                }
-          else:
-            - lvgl.widget.hide: voice_assistant_overlay
       - lambda: |-
           const int phase = id(voice_assistant_phase);
           const bool active_phase = phase != ${voice_assist_idle_phase_id} &&
                                     phase != ${voice_assist_not_ready_phase_id};
           const bool visible = id(ui_active_app) == 3 || active_phase;
+
+          // The marquee uses a direct framebuffer strip, so it must be stopped
+          // before the assistant overlay becomes visible or it can paint above
+          // the overlay after its delayed two-second start.
+          if (visible && (id(title_marquee_active) || atmosfera_ui::title_marquee_direct_is_active())) {
+            id(title_marquee_active) = false;
+            id(title_marquee_start_ms) = 0;
+            id(title_marquee_scroll_ms) = 0;
+            atmosfera_ui::title_marquee_direct_end(true);
+            if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
+          }
+
+          // Phase and transcript callbacks can repeat the same state. Keep
+          // those events from invalidating the complete assistant overlay.
+          if (id(voice_assistant_overlay) != nullptr) {
+            const bool hidden = lv_obj_has_flag(id(voice_assistant_overlay), LV_OBJ_FLAG_HIDDEN);
+            if (visible && hidden) {
+              lv_obj_remove_flag(id(voice_assistant_overlay), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_move_foreground(id(voice_assistant_overlay));
+              if (id(perf_overlay_label) != nullptr && id(settings_perf_overlay_switch).state) {
+                lv_obj_move_foreground(id(perf_overlay_label));
+              }
+            } else if (!visible && !hidden) {
+              lv_obj_add_flag(id(voice_assistant_overlay), LV_OBJ_FLAG_HIDDEN);
+            }
+          }
 
           const char *status = "Assistant";
           uint32_t accent = 0xC3EDCF;
@@ -1034,19 +1045,37 @@ script:
             accent = 0xFD7267;
           }
 
+          const auto set_label_if_changed = [](lv_obj_t *label, const char *text) {
+            if (label == nullptr) {
+              return;
+            }
+            const char *current = lv_label_get_text(label);
+            if (current == nullptr || strcmp(current, text) != 0) {
+              lv_label_set_text(label, text);
+            }
+          };
+
+          static bool accent_initialized = false;
+          static uint32_t last_accent = 0;
           if (id(voice_assistant_status_label) != nullptr) {
-            lv_label_set_text(id(voice_assistant_status_label), status);
-            lv_obj_set_style_text_color(id(voice_assistant_status_label), lv_color_hex(accent), 0);
+            set_label_if_changed(id(voice_assistant_status_label), status);
+            if (!accent_initialized || accent != last_accent) {
+              lv_obj_set_style_text_color(id(voice_assistant_status_label), lv_color_hex(accent), 0);
+            }
           }
-          if (id(voice_assistant_orb_shell) != nullptr) {
+          if (id(voice_assistant_orb_shell) != nullptr &&
+              (!accent_initialized || accent != last_accent)) {
             lv_obj_set_style_border_color(id(voice_assistant_orb_shell), lv_color_hex(accent), 0);
             lv_obj_set_style_shadow_color(id(voice_assistant_orb_shell), lv_color_hex(accent), 0);
           }
+          accent_initialized = true;
+          last_accent = accent;
+
           if (id(voice_assistant_you_label) != nullptr) {
-            const std::string request = id(voice_assistant_request_text).state;
-            lv_label_set_text(id(voice_assistant_you_label), request.empty() ? "" : request.c_str());
+            const auto &request = id(voice_assistant_request_text).state;
+            set_label_if_changed(id(voice_assistant_you_label), request.c_str());
           }
           if (id(voice_assistant_response_label) != nullptr) {
-            const std::string response = id(voice_assistant_response_text).state;
-            lv_label_set_text(id(voice_assistant_response_label), response.empty() ? "" : response.c_str());
+            const auto &response = id(voice_assistant_response_text).state;
+            set_label_if_changed(id(voice_assistant_response_label), response.c_str());
           }

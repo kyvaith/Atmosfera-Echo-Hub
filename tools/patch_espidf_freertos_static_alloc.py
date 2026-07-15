@@ -12,6 +12,7 @@
 # pylint: disable=undefined-variable
 from contextlib import suppress
 from pathlib import Path
+import os
 import re
 
 env = None
@@ -147,6 +148,12 @@ def _restore_app_startup(framework_path: Path) -> None:
 
 
 def main() -> None:
+    # ESP-IDF 5.5+ with the hosted Wi-Fi/audio/LVGL graph can exceed Windows'
+    # CreateProcess command-line length during CMake compiler probes. CMake's
+    # Ninja response-file mode keeps those invocations short and is harmless on
+    # platforms that do not need it.
+    os.environ.setdefault("CMAKE_NINJA_FORCE_RESPONSE_FILE", "ON")
+
     framework_dir = env.PioPlatform().get_package_dir("framework-espidf")
     if not framework_dir:
         raise RuntimeError("framework-espidf package directory not found")

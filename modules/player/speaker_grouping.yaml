@@ -64,11 +64,22 @@ script:
       - globals.set:
           id: media_speaker_panel_open
           value: 'true'
+      - lambda: |-
+          atmosfera_ui::media_wavy_arc_set_direct_present(false);
+          atmosfera_ui::title_marquee_direct_end(true);
+          if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
       - lvgl.widget.show: speaker_group_panel
       - lambda: |-
           lv_obj_move_foreground(id(speaker_group_panel));
-      - script.execute: parse_speakers
-      - script.execute: update_group_state
+          lv_obj_invalidate(id(speaker_group_panel));
+          lv_refr_now(nullptr);
+      - if:
+          condition:
+            lambda: 'return id(speaker_count) <= 0;'
+          then:
+            - script.execute: parse_speakers
+            - delay: 20ms
+      - script.execute: update_speaker_group_panel
 
   - id: close_speaker_group_panel
     mode: restart
@@ -301,7 +312,7 @@ script:
     then:
       - lambda: |-
           std::string selected = id(media_player_entity).state;
-          if (selected.empty()) selected = "${tile_media_entity}";
+          if (selected.empty() || selected == "media_player.sendspin_group") selected = "${tile_media_entity}";
           for (int i = 0; i < 16; i++) {
             id(speaker_entity_ids)[i] = "";
             id(speaker_names)[i] = "";
@@ -319,7 +330,9 @@ script:
           if (volume < 0.0f) volume = 0.0f;
           if (volume > 1.0f) volume = 1.0f;
           id(speaker_volumes)[0] = volume;
-          id(update_speaker_group_panel).execute();
+          if (id(media_speaker_panel_open)) {
+            id(update_speaker_group_panel).execute();
+          }
 
   - id: update_group_state
     mode: restart
@@ -358,7 +371,11 @@ script:
             }
             id(speaker_grouped)[i] = grouped;
           }
-      - script.execute: update_speaker_group_panel
+      - if:
+          condition:
+            lambda: 'return id(media_speaker_panel_open);'
+          then:
+            - script.execute: update_speaker_group_panel
 
   - id: update_speaker_group_panel
     mode: restart
@@ -381,37 +398,74 @@ script:
                                  id(speaker_volume_8), id(speaker_volume_9), id(speaker_volume_10), id(speaker_volume_11),
                                  id(speaker_volume_12), id(speaker_volume_13), id(speaker_volume_14), id(speaker_volume_15)};
 
+          static bool last_visible[16] = {};
+          static bool last_grouped[16] = {};
+          static int last_pct[16] = {};
+          static std::string last_names[16];
+          static int last_grouped_count = -1;
+          static bool last_scrollable = true;
+
+          const bool should_scroll = id(speaker_count) >= 5;
+          if (should_scroll != last_scrollable) {
+            if (should_scroll) {
+              lv_obj_add_flag(id(speaker_list_container), LV_OBJ_FLAG_SCROLLABLE);
+            } else {
+              lv_obj_scroll_to_y(id(speaker_list_container), 0, LV_ANIM_OFF);
+              lv_obj_remove_flag(id(speaker_list_container), LV_OBJ_FLAG_SCROLLABLE);
+            }
+            last_scrollable = should_scroll;
+          }
+
           int grouped_count = 0;
           for (int i = 0; i < id(speaker_count); i++) {
             if (id(speaker_grouped)[i]) grouped_count++;
           }
-          char group_buf[48];
-          snprintf(group_buf, sizeof(group_buf), "%d speakers", grouped_count);
-          lv_label_set_text(id(speaker_group_count_label), group_buf);
+          if (grouped_count != last_grouped_count) {
+            char group_buf[48];
+            snprintf(group_buf, sizeof(group_buf), "%d speakers", grouped_count);
+            lv_label_set_text(id(speaker_group_count_label), group_buf);
+            last_grouped_count = grouped_count;
+          }
 
           for (int i = 0; i < 16; i++) {
             if (i >= id(speaker_count)) {
-              lv_obj_add_flag(rows[i], LV_OBJ_FLAG_HIDDEN);
+              if (last_visible[i]) {
+                lv_obj_add_flag(rows[i], LV_OBJ_FLAG_HIDDEN);
+                last_visible[i] = false;
+              }
               continue;
             }
 
-            lv_obj_clear_flag(rows[i], LV_OBJ_FLAG_HIDDEN);
-            lv_label_set_text(names[i], id(speaker_names)[i].c_str());
-            lv_label_set_text(states[i], id(speaker_grouped)[i] ? "Grouped" : "Available");
+            const bool became_visible = !last_visible[i];
+            if (became_visible) {
+              lv_obj_clear_flag(rows[i], LV_OBJ_FLAG_HIDDEN);
+              last_visible[i] = true;
+            }
+            if (became_visible || last_names[i] != id(speaker_names)[i]) {
+              lv_label_set_text(names[i], id(speaker_names)[i].c_str());
+              last_names[i] = id(speaker_names)[i];
+            }
 
             int pct = (int)(id(speaker_volumes)[i] * 100.0f + 0.5f);
-            char vol_buf[12];
-            snprintf(vol_buf, sizeof(vol_buf), "%d%%", pct);
-            lv_label_set_text(volumes[i], vol_buf);
+            if (became_visible || pct != last_pct[i]) {
+              char vol_buf[12];
+              snprintf(vol_buf, sizeof(vol_buf), "%d%%", pct);
+              lv_label_set_text(volumes[i], vol_buf);
+              last_pct[i] = pct;
+            }
 
-            if (id(speaker_grouped)[i]) {
-              lv_obj_set_style_bg_color(rows[i], lv_color_hex(0x0F5223), 0);
-              lv_obj_set_style_border_color(rows[i], lv_color_hex(0xC3EDCF), 0);
-              lv_obj_set_style_text_color(states[i], lv_color_hex(0xC3EDCF), 0);
-            } else {
-              lv_obj_set_style_bg_color(rows[i], lv_color_hex(0x332E3C), 0);
-              lv_obj_set_style_border_color(rows[i], lv_color_hex(0x5C5F5E), 0);
-              lv_obj_set_style_text_color(states[i], lv_color_hex(0xC4C7C5), 0);
+            if (became_visible || id(speaker_grouped)[i] != last_grouped[i]) {
+              lv_label_set_text(states[i], id(speaker_grouped)[i] ? "Grouped" : "Available");
+              if (id(speaker_grouped)[i]) {
+                lv_obj_set_style_bg_color(rows[i], lv_color_hex(0x0F5223), 0);
+                lv_obj_set_style_border_color(rows[i], lv_color_hex(0xC3EDCF), 0);
+                lv_obj_set_style_text_color(states[i], lv_color_hex(0xC3EDCF), 0);
+              } else {
+                lv_obj_set_style_bg_color(rows[i], lv_color_hex(0x332E3C), 0);
+                lv_obj_set_style_border_color(rows[i], lv_color_hex(0x5C5F5E), 0);
+                lv_obj_set_style_text_color(states[i], lv_color_hex(0xC4C7C5), 0);
+              }
+              last_grouped[i] = id(speaker_grouped)[i];
             }
           }
 
@@ -470,7 +524,9 @@ script:
             id(speaker_volume_pending_from_pct)[slot] = current_pct;
             id(speaker_volume_pending_direction)[slot] = direction > 0 ? 1 : -1;
             id(speaker_volume_pending_until)[slot] = millis() + 1500;
-            id(update_speaker_group_panel).execute();
+            if (id(media_speaker_panel_open)) {
+              id(update_speaker_group_panel).execute();
+            }
           }
       - homeassistant.service:
           service: !lambda 'return direction > 0 ? "media_player.volume_up" : "media_player.volume_down";'
@@ -504,7 +560,6 @@ script:
                 id(speaker_volume_pending_until)[i] = millis() + 1500;
               }
               id(group_vol_index) = i + 1;
-              id(update_speaker_group_panel).execute();
               return true;
           then:
             - homeassistant.service:
@@ -514,6 +569,11 @@ script:
                 data_template:
                   entity_id: "{{ target }}"
             - delay: 120ms
+      - if:
+          condition:
+            lambda: 'return id(media_speaker_panel_open);'
+          then:
+            - script.execute: update_speaker_group_panel
 
 text_sensor:
   - platform: template
@@ -521,6 +581,8 @@ text_sensor:
     internal: true
     on_value:
       then:
+        # Discovery changes are infrequent. Parse once when HA publishes them
+        # so opening the panel never pays the parsing/sorting cost.
         - script.execute: parse_speakers
 
   - platform: template
@@ -528,4 +590,8 @@ text_sensor:
     internal: true
     on_value:
       then:
-        - script.execute: update_group_state
+        - if:
+            condition:
+              lambda: 'return id(media_speaker_panel_open);'
+            then:
+              - script.execute: update_group_state

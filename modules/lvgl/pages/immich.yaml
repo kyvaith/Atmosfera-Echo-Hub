@@ -1,0 +1,182 @@
+# Immich photo browser app. It uses the same fullscreen app/snapshot lifecycle as
+# Player, Settings and Voice Assistant, but keeps only one active decoded photo.
+lvgl:
+  pages:
+    - id: immich_page
+      bg_color: 0x000000
+      widgets:
+        - obj:
+            id: immich_root
+            width: 800
+            height: 800
+            align: CENTER
+            bg_color: 0x000000
+            bg_opa: 100%
+            border_width: 0
+            radius: 0
+            pad_all: 0
+            scrollable: false
+            hidden: true
+            widgets:
+              - image:
+                  id: immich_photo_widget
+                  x: 0
+                  y: 0
+                  width: 800
+                  height: 800
+                  src: immich_photo_image
+                  antialias: false
+                  hidden: true
+              - obj:
+                  id: immich_photo_scrim
+                  x: 0
+                  y: 0
+                  width: 800
+                  height: 800
+                  bg_color: 0x000000
+                  bg_opa: 24%
+                  border_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+              - button:
+                  id: immich_prev_button
+                  x: 52
+                  y: 336
+                  width: 94
+                  height: 128
+                  radius: 47
+                  bg_color: 0xF5EEFB
+                  bg_opa: 20%
+                  border_width: 0
+                  shadow_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  widgets:
+                    - label:
+                        text: "\uE045"
+                        align: CENTER
+                        text_color: 0xF5EEFB
+                        text_font: material_symbols_36
+                  on_click:
+                    then:
+                      - script.execute: immich_previous_photo
+              - button:
+                  id: immich_next_button
+                  x: 654
+                  y: 336
+                  width: 94
+                  height: 128
+                  radius: 47
+                  bg_color: 0xF5EEFB
+                  bg_opa: 20%
+                  border_width: 0
+                  shadow_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  widgets:
+                    - label:
+                        text: "\uE044"
+                        align: CENTER
+                        text_color: 0xF5EEFB
+                        text_font: material_symbols_36
+                  on_click:
+                    then:
+                      - script.execute: immich_fetch_next_photo
+              - button:
+                  id: immich_play_pause_button
+                  align: BOTTOM_MID
+                  y: -92
+                  width: 128
+                  height: 78
+                  radius: 39
+                  bg_color: 0xF5EEFB
+                  bg_opa: 18%
+                  border_width: 0
+                  shadow_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  widgets:
+                    - label:
+                        id: immich_play_pause_icon
+                        text: "\uE034"
+                        align: CENTER
+                        text_color: 0xF5EEFB
+                        text_font: material_symbols_36
+                  on_click:
+                    then:
+                      - switch.toggle: immich_slideshow_enabled
+                      - lambda: |-
+                          lv_label_set_text(id(immich_play_pause_icon),
+                                            id(immich_slideshow_enabled).state ? "\U0000e034" : "\U0000e037");
+              - obj:
+                  id: immich_metadata_panel
+                  align: BOTTOM_MID
+                  y: -184
+                  width: 520
+                  height: 110
+                  radius: 45
+                  bg_color: 0x000000
+                  bg_opa: 45%
+                  border_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+                  widgets:
+                    - label:
+                        id: immich_title_label
+                        text: "Immich"
+                        align: TOP_MID
+                        y: 20
+                        width: 440
+                        text_align: CENTER
+                        long_mode: DOT
+                        text_color: 0xF5EEFB
+                        text_font: roboto_24
+                    - label:
+                        id: immich_meta_label
+                        text: "Photo Browser"
+                        align: TOP_MID
+                        y: 58
+                        width: 440
+                        text_align: CENTER
+                        long_mode: DOT
+                        text_color: 0xC4C7C5
+                        text_font: roboto_16
+              - obj:
+                  id: immich_empty_state
+                  align: CENTER
+                  width: 520
+                  height: 250
+                  radius: 64
+                  bg_color: 0x101010
+                  bg_opa: 92%
+                  border_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+                  widgets:
+                    - label:
+                        text: "\uE3F4"
+                        align: TOP_MID
+                        y: 36
+                        text_color: 0xD3E3FD
+                        text_font: material_symbols_58
+                    - label:
+                        text: "Immich Photos"
+                        align: TOP_MID
+                        y: 105
+                        width: 420
+                        text_align: CENTER
+                        text_color: 0xF2F2F2
+                        text_font: roboto_30
+                    - label:
+                        id: immich_status_label
+                        text: "Configure server URL and API key"
+                        align: TOP_MID
+                        y: 154
+                        width: 420
+                        text_align: CENTER
+                        long_mode: WRAP
+                        text_color: 0xC4C7C5
+                        text_font: roboto_16

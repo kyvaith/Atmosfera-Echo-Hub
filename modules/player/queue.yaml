@@ -26,12 +26,36 @@ globals:
     type: bool[7]
     restore_value: no
     initial_value: '{false}'
+  - id: media_queue_subscription_gen
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: subscribed_media_queue_entity
+    type: std::string
+    restore_value: no
+    initial_value: '""'
 
 script:
   - id: subscribe_media_queue_sensor
     mode: restart
     then:
-      # Kept as a compatibility wrapper because boot/runtime code already calls this script.
+      - lambda: |-
+          if (esphome::api::global_api_server == nullptr) return;
+          const std::string entity = "sensor.atmosfera_echo_hub_media_queue";
+          if (entity == id(subscribed_media_queue_entity)) return;
+
+          id(media_queue_subscription_gen) += 1;
+          id(subscribed_media_queue_entity) = entity;
+          const int gen = id(media_queue_subscription_gen);
+          int *gen_ptr = &id(media_queue_subscription_gen);
+          using state_cb = std::function<void(esphome::StringRef)>;
+          esphome::api::global_api_server->subscribe_home_assistant_state(
+              entity, esphome::optional<std::string>("data"),
+              state_cb([gen, gen_ptr](esphome::StringRef state) {
+                if (gen != *gen_ptr) return;
+                id(media_queue_sensor).publish_state(state.str());
+              }));
+          ESP_LOGI("media_queue", "Subscribed to '%s' data attribute", entity.c_str());
       - script.execute: refresh_music_assistant_queue
 
   - id: refresh_music_assistant_queue
@@ -95,18 +119,60 @@ script:
                         id(media_queue_count) = 0;
                         id(update_media_queue_panel).execute();
           else:
-            - lambda: |-
-                id(media_queue_count) = 0;
-                id(media_queue_current_index) = 0;
-                for (int i = 0; i < 7; i++) {
-                  id(media_queue_titles)[i] = "";
-                  id(media_queue_artists)[i] = "";
-                  id(media_queue_durations)[i] = "";
-                  id(media_queue_current)[i] = false;
-                }
-                lv_label_set_text(id(queue_empty_label), "Set Music Assistant API");
-                ESP_LOGD("media_queue", "Music Assistant API URL/token not configured");
-                id(update_media_queue_panel).execute();
+            - script.execute: parse_media_queue_sensor
+
+  - id: parse_media_queue_sensor
+    mode: restart
+    then:
+      - lambda: |-
+          id(media_queue_count) = 0;
+          id(media_queue_current_index) = 0;
+          for (int i = 0; i < 7; i++) {
+            id(media_queue_titles)[i] = "";
+            id(media_queue_artists)[i] = "";
+            id(media_queue_durations)[i] = "";
+            id(media_queue_current)[i] = false;
+          }
+
+          const std::string raw = id(media_queue_sensor).state;
+          if (raw.empty() || raw == "None" || raw == "unknown" || raw == "unavailable") {
+            lv_label_set_text(id(queue_empty_label), "Waiting for Music Assistant queue");
+            id(update_media_queue_panel).execute();
+            return;
+          }
+
+          size_t line_start = 0;
+          int count = 0;
+          while (line_start <= raw.size() && count < 7) {
+            const size_t line_end = raw.find('\n', line_start);
+            const std::string line = line_end == std::string::npos
+                                         ? raw.substr(line_start)
+                                         : raw.substr(line_start, line_end - line_start);
+            size_t field_start = 0;
+            std::string fields[4];
+            for (int field = 0; field < 4; field++) {
+              const size_t field_end = line.find('\t', field_start);
+              fields[field] = field_end == std::string::npos
+                                  ? line.substr(field_start)
+                                  : line.substr(field_start, field_end - field_start);
+              if (field_end == std::string::npos) break;
+              field_start = field_end + 1;
+            }
+            if (!fields[1].empty()) {
+              const bool current = fields[0] == "1" || fields[0] == "true";
+              id(media_queue_current)[count] = current;
+              id(media_queue_titles)[count] = fields[1];
+              id(media_queue_artists)[count] = fields[2];
+              id(media_queue_durations)[count] = fields[3];
+              if (current) id(media_queue_current_index) = count;
+              count++;
+            }
+            if (line_end == std::string::npos) break;
+            line_start = line_end + 1;
+          }
+          id(media_queue_count) = count;
+          ESP_LOGD("media_queue", "Loaded %d queue rows from Home Assistant", count);
+          id(update_media_queue_panel).execute();
 
   - id: parse_music_assistant_queue_response
     mode: restart
@@ -304,3 +370,11 @@ script:
               lv_obj_set_style_bg_opa(rows[i], LV_OPA_80, 0);
             }
           }
+
+text_sensor:
+  - platform: template
+    id: media_queue_sensor
+    internal: true
+    on_value:
+      then:
+        - script.execute: parse_media_queue_sensor

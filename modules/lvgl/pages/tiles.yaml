@@ -46,6 +46,7 @@ lvgl:
                   text_font: roboto_14
               - label:
                   id: home_time_label_1
+                  hidden: true
                   text: "9:30"
                   align: TOP_MID
                   y: 12
@@ -373,6 +374,7 @@ lvgl:
                   text_font: roboto_14
               - label:
                   id: home_time_label_2
+                  hidden: true
                   text: "9:30"
                   align: TOP_MID
                   y: 12
@@ -684,6 +686,7 @@ lvgl:
                   text_font: roboto_14
               - label:
                   id: home_time_label_3
+                  hidden: true
                   text: "9:30"
                   align: TOP_MID
                   y: 12
@@ -974,6 +977,7 @@ lvgl:
                   text_font: roboto_14
               - label:
                   id: home_time_label_4
+                  hidden: true
                   text: "9:30"
                   align: TOP_MID
                   y: 12
@@ -1136,13 +1140,13 @@ lvgl:
                   gesture_bubble: true
                   widgets:
                     - label:
-                        text: "\uE050"
+                        text: "\uE3F4"
                         x: 28
                         y: 23
                         text_color: 0xD3E3FD
                         text_font: material_symbols_24
                     - label:
-                        text: "Audio"
+                        text: "Photos"
                         x: 82
                         y: 14
                         width: 330
@@ -1150,7 +1154,7 @@ lvgl:
                         text_color: 0xF2F2F2
                         text_font: roboto_20
                     - label:
-                        text: "Amp"
+                        text: "Immich"
                         x: 82
                         y: 45
                         width: 330
@@ -1159,7 +1163,7 @@ lvgl:
                         text_font: roboto_14
                   on_click:
                     then:
-                      - switch.turn_on: pa_enable
+                      - script.execute: ui_open_immich_app
               - button:
                   id: tile_settings_button
                   x: 112

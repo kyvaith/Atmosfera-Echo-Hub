@@ -162,6 +162,7 @@ font:
       - "\U0000e405" # music_note
       - "\U0000e310" # headphones
       - "\U0000e5d4" # more_vert
+      - "\U0000e3f4" # photo_library
 
   - file: "gfonts://Material+Symbols+Rounded"
     id: material_symbols_30
@@ -219,6 +220,7 @@ font:
       - "\U0000e5d4" # more_vert
       - "\U0000e034" # pause
       - "\U0000e037" # play_arrow
+      - "\U0000e3f4" # photo_library
 
   - file: "gfonts://Material+Symbols+Rounded"
     id: material_symbols_86

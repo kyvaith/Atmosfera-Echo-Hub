@@ -1,0 +1,343 @@
+# Immich photo browser runtime.
+esphome:
+  includes:
+    - static/ui_immich_helpers.h
+
+globals:
+  - id: immich_current_asset_id
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: immich_current_url
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: immich_previous_url
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: immich_current_title
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: immich_current_subtitle
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: immich_fetch_in_flight
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: immich_image_loaded
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: immich_last_photo_ms
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+  - id: immich_consecutive_failures
+    type: int
+    restore_value: no
+    initial_value: '0'
+
+artwork_image:
+  - url: "https://placehold.co/800x800/101010/3a3a3a.jpg"
+    id: immich_photo_image
+    format: JPEG
+    type: RGB565
+    resize: 800x800
+    hardware_jpeg: true
+    placeholder: album_art_placeholder
+    buffer_size: 131072
+    allow_insecure_local_urls: true
+    request_headers:
+      x-api-key: !lambda 'return id(immich_api_key_text).state;'
+    on_download_finished:
+      - script.execute: immich_apply_photo
+    on_error:
+      - lambda: |-
+          id(immich_image_loaded) = false;
+          id(immich_consecutive_failures)++;
+          ESP_LOGW("immich", "Image download failed url=%s failures=%d",
+                   id(immich_current_url).c_str(), id(immich_consecutive_failures));
+          lv_label_set_text(id(immich_status_label), "Image download failed");
+          lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
+
+script:
+  - id: immich_apply_photo
+    mode: restart
+    then:
+      - lambda: |-
+          auto *src = id(immich_photo_image).get_lv_image_dsc();
+          const int w = id(immich_photo_image).get_width();
+          const int h = id(immich_photo_image).get_height();
+          ESP_LOGW("immich", "Photo apply: %dx%d src=%p widget=%p root_hidden=%d page=%d active_screen=%p immich_page=%p url=%s",
+                   w, h, src, id(immich_photo_widget),
+                   (int) lv_obj_has_flag(id(immich_root), LV_OBJ_FLAG_HIDDEN),
+                   id(ui_page), lv_screen_active(), id(immich_page), id(immich_current_url).c_str());
+          if (src == nullptr || w <= 0 || h <= 0) {
+            id(immich_image_loaded) = false;
+            lv_label_set_text(id(immich_status_label), "Image decoded without LVGL source");
+            lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
+            return;
+          }
+          id(immich_image_loaded) = true;
+          lv_image_set_src(id(immich_photo_widget), src);
+          lv_obj_set_pos(id(immich_photo_widget), 0, 0);
+          lv_obj_set_size(id(immich_photo_widget), 800, 800);
+          lv_obj_set_style_opa(id(immich_photo_widget), LV_OPA_COVER, 0);
+          lv_obj_clear_flag(id(immich_photo_widget), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_move_background(id(immich_photo_widget));
+          lv_obj_move_foreground(id(immich_photo_scrim));
+          lv_obj_move_foreground(id(immich_prev_button));
+          lv_obj_move_foreground(id(immich_next_button));
+          lv_obj_move_foreground(id(immich_play_pause_button));
+          lv_obj_move_foreground(id(immich_metadata_panel));
+          ESP_LOGW("immich", "Photo visible flags: image_hidden=%d empty_hidden=%d scrim_hidden=%d image_child=%d empty_child=%d",
+                   (int) lv_obj_has_flag(id(immich_photo_widget), LV_OBJ_FLAG_HIDDEN),
+                   (int) lv_obj_has_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN),
+                   (int) lv_obj_has_flag(id(immich_photo_scrim), LV_OBJ_FLAG_HIDDEN),
+                   (int) lv_obj_get_index(id(immich_photo_widget)),
+                   (int) lv_obj_get_index(id(immich_empty_state)));
+          lv_obj_invalidate(id(immich_photo_widget));
+
+  - id: immich_reset_slideshow
+    mode: restart
+    then:
+      - lambda: |-
+          id(immich_fetch_in_flight) = false;
+          id(immich_image_loaded) = false;
+          id(immich_consecutive_failures) = 0;
+          id(immich_current_asset_id) = "";
+          id(immich_current_url) = "";
+          id(immich_previous_url) = "";
+          lv_label_set_text(id(immich_title_label), "Immich");
+          lv_label_set_text(id(immich_meta_label), "Waiting for photos");
+          lv_label_set_text(id(immich_status_label), "Configure Immich URL and API key");
+          lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
+      - if:
+          condition:
+            lambda: 'return id(ui_active_app) == 4;'
+          then:
+            - script.execute: immich_fetch_next_photo
+
+  - id: immich_opened
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(immich_current_url).empty() &&
+                     atmosfera_ui::immich_valid_base_url(id(immich_url).state) &&
+                     !id(immich_api_key_text).state.empty();
+          then:
+            - script.execute: immich_fetch_next_photo
+
+  - id: immich_fetch_next_photo
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: |-
+              if (id(immich_fetch_in_flight)) return false;
+              if (esphome::wifi::global_wifi_component == nullptr ||
+                  !esphome::wifi::global_wifi_component->is_connected()) return false;
+              if (!atmosfera_ui::immich_valid_base_url(id(immich_url).state) || id(immich_api_key_text).state.empty()) {
+                lv_label_set_text(id(immich_status_label), "Configure Immich URL and API key");
+                lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
+                return false;
+              }
+              if (!atmosfera_ui::immich_source_ready(id(immich_photo_source).current_option(),
+                                                     id(immich_album_ids).state,
+                                                     id(immich_person_ids).state,
+                                                     id(immich_tag_ids).state)) {
+                lv_label_set_text(id(immich_status_label), "Select IDs for this photo source");
+                lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
+                return false;
+              }
+              return true;
+          then:
+            - lambda: |-
+                id(immich_fetch_in_flight) = true;
+                ESP_LOGW("immich", "Fetch start source=%s album=%s key_len=%u url=%s",
+                         id(immich_photo_source).current_option().c_str(),
+                         id(immich_album_ids).state.c_str(),
+                         (unsigned) id(immich_api_key_text).state.size(),
+                         id(immich_url).state.c_str());
+                lv_label_set_text(id(immich_status_label), "Loading Immich photo...");
+                lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
+            - if:
+                condition:
+                  lambda: 'return id(immich_photo_source).current_option() == "Memories";'
+                then:
+                  - script.execute: immich_fetch_memory_photo
+                else:
+                  - script.execute: immich_fetch_random_photo
+
+  - id: immich_fetch_random_photo
+    mode: restart
+    then:
+      - http_request.post:
+          id: http_req
+          url: !lambda 'return atmosfera_ui::immich_trim_url(id(immich_url).state) + "/api/search/random";'
+          capture_response: true
+          max_response_buffer_size: 32kB
+          request_headers:
+            Content-Type: application/json
+            Accept: application/json
+            x-api-key: !lambda 'return id(immich_api_key_text).state.c_str();'
+          body: !lambda |-
+            const std::string orientation = id(immich_orientation_filter).current_option();
+            const int size = orientation == "Any" ? 4 : 10;
+            return atmosfera_ui::immich_search_body(
+              size,
+              id(immich_photo_source).current_option(),
+              id(immich_album_ids).state,
+              id(immich_person_ids).state,
+              id(immich_tag_ids).state,
+              id(immich_date_from).state,
+              id(immich_date_to).state);
+          on_response:
+            then:
+              - lambda: |-
+                  id(immich_fetch_in_flight) = false;
+                  ESP_LOGW("immich", "Random response status=%d body=%uB",
+                           response->status_code, (unsigned) body.size());
+                  if (response->status_code != 200) {
+                    id(immich_consecutive_failures)++;
+                    std::string msg = "Immich HTTP " + std::to_string(response->status_code);
+                    lv_label_set_text(id(immich_status_label), msg.c_str());
+                    lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
+                    ESP_LOGW("immich", "%s", msg.c_str());
+                    return;
+                  }
+                  atmosfera_ui::ImmichPhoto photo;
+                  if (!atmosfera_ui::immich_parse_asset_response(body, atmosfera_ui::immich_trim_url(id(immich_url).state),
+                                                                 id(immich_orientation_filter).current_option(), &photo,
+                                                                 id(immich_current_asset_id))) {
+                    id(immich_consecutive_failures)++;
+                    lv_label_set_text(id(immich_status_label), "No matching image found");
+                    lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
+                    return;
+                  }
+                  id(immich_current_asset_id) = photo.asset_id;
+                  id(immich_previous_url) = id(immich_current_url);
+                  id(immich_current_url) = photo.image_url;
+                  id(immich_current_title) = photo.date.empty() ? "Immich Photo" : photo.date;
+                  id(immich_current_subtitle) = !photo.location.empty() ? photo.location :
+                                               (!photo.person.empty() ? photo.person : id(immich_photo_source).current_option());
+                  ESP_LOGW("immich", "Selected asset=%s url=%s title=%s",
+                           id(immich_current_asset_id).c_str(),
+                           id(immich_current_url).c_str(),
+                           id(immich_current_title).c_str());
+                  lv_label_set_text(id(immich_title_label), id(immich_current_title).c_str());
+                  lv_label_set_text(id(immich_meta_label), id(immich_current_subtitle).c_str());
+                  lv_obj_add_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
+                  id(immich_last_photo_ms) = millis();
+              - if:
+                  condition:
+                    lambda: 'return !id(immich_current_url).empty();'
+                  then:
+                    - artwork_image.set_url:
+                        id: immich_photo_image
+                        update: true
+                        url: !lambda 'return id(immich_current_url);'
+          on_error:
+            then:
+              - lambda: |-
+                  id(immich_fetch_in_flight) = false;
+                  id(immich_consecutive_failures)++;
+                  lv_label_set_text(id(immich_status_label), "Immich request failed");
+                  lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
+
+  - id: immich_fetch_memory_photo
+    mode: restart
+    then:
+      - http_request.get:
+          id: http_req
+          url: !lambda |-
+            auto now = id(ha_time).now();
+            char day[32];
+            if (now.is_valid()) {
+              snprintf(day, sizeof(day), "%04d-%02d-%02dT00:00:00.000Z", now.year, now.month, now.day_of_month);
+            } else {
+              snprintf(day, sizeof(day), "2026-01-01T00:00:00.000Z");
+            }
+            return atmosfera_ui::immich_trim_url(id(immich_url).state) + "/api/memories?type=on_this_day&for=" + day;
+          capture_response: true
+          max_response_buffer_size: 96kB
+          request_headers:
+            Accept: application/json
+            x-api-key: !lambda 'return id(immich_api_key_text).state.c_str();'
+          on_response:
+            then:
+              - lambda: |-
+                  id(immich_fetch_in_flight) = false;
+                  ESP_LOGW("immich", "Memory response status=%d body=%uB",
+                           response->status_code, (unsigned) body.size());
+                  if (response->status_code != 200) {
+                    lv_label_set_text(id(immich_status_label), "No memories today");
+                    lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
+                    return;
+                  }
+                  atmosfera_ui::ImmichPhoto photo;
+                  if (!atmosfera_ui::immich_parse_memory_response(body, atmosfera_ui::immich_trim_url(id(immich_url).state), &photo)) {
+                    lv_label_set_text(id(immich_status_label), "No memories today");
+                    lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
+                    return;
+                  }
+                  id(immich_current_asset_id) = photo.asset_id;
+                  id(immich_previous_url) = id(immich_current_url);
+                  id(immich_current_url) = photo.image_url;
+                  id(immich_current_title) = photo.date.empty() ? "Memory" : photo.date;
+                  id(immich_current_subtitle) = "On this day";
+                  lv_label_set_text(id(immich_title_label), id(immich_current_title).c_str());
+                  lv_label_set_text(id(immich_meta_label), id(immich_current_subtitle).c_str());
+                  lv_obj_add_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
+                  id(immich_last_photo_ms) = millis();
+              - if:
+                  condition:
+                    lambda: 'return !id(immich_current_url).empty();'
+                  then:
+                    - artwork_image.set_url:
+                        id: immich_photo_image
+                        update: true
+                        url: !lambda 'return id(immich_current_url);'
+          on_error:
+            then:
+              - lambda: |-
+                  id(immich_fetch_in_flight) = false;
+                  lv_label_set_text(id(immich_status_label), "Immich memories request failed");
+                  lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
+
+  - id: immich_previous_photo
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return !id(immich_previous_url).empty();'
+          then:
+            - lambda: |-
+                std::swap(id(immich_current_url), id(immich_previous_url));
+                lv_label_set_text(id(immich_status_label), "Previous photo");
+            - artwork_image.set_url:
+                id: immich_photo_image
+                update: true
+                url: !lambda 'return id(immich_current_url);'
+
+interval:
+  - interval: 1s
+    then:
+      - if:
+          condition:
+            lambda: |-
+              if (id(ui_active_app) != 4) return false;
+              if (!id(immich_slideshow_enabled).state) return false;
+              if (id(immich_fetch_in_flight)) return false;
+              const uint32_t interval_ms = (uint32_t) (id(immich_slide_interval_seconds).state * 1000.0f);
+              if (interval_ms < 5000) return false;
+              return id(immich_last_photo_ms) != 0 && millis() - id(immich_last_photo_ms) > interval_ms;
+          then:
+            - script.execute: immich_fetch_next_photo

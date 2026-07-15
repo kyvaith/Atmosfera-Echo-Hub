@@ -69,9 +69,10 @@ psram:
   speed: 200MHz
 
 esp32_jpeg:
-  # Hardware JPEG is still used by snapshot/cache paths. Live album artwork is
-  # decoded in software, because ESP-IDF's monolithic JPEG DMA2D output can
-  # starve DSI scanout on the 800x800 panel.
+  # Keep the ESP32-P4 hardware JPEG decoder on the live artwork path. Full
+  # 800x800 covers can exceed ESP-IDF's short default timeout when DMA2D is
+  # throttled to leave headroom for DSI scanout.
+  decoder_timeout: 450ms
   jpeg_dma2d_axi_burstiness: 1
   # Keep the remaining JPEG DMA2D master conservative without throttling the
   # regular LVGL/PPA draw path.

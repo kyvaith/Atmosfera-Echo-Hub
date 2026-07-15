@@ -7,9 +7,10 @@ script:
       - lambda: |-
           lv_obj_clear_flag(id(boot_overlay), LV_OBJ_FLAG_HIDDEN);
           lv_obj_move_foreground(id(boot_overlay));
+          lv_obj_set_style_opa(id(boot_esphome_wordmark), LV_OPA_TRANSP, LV_PART_MAIN);
           if (id(boot_esphome_animation) != nullptr) {
             auto *ctx = static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(id(boot_esphome_animation)));
-            esphome::lvgl::lottie_hide(ctx);
+            esphome::lvgl::lottie_prepare(ctx);
           }
 
   - id: boot_start_esphome_animation
@@ -22,6 +23,24 @@ script:
             auto *ctx = static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(id(boot_esphome_animation)));
             esphome::lvgl::lottie_show(ctx, true);
           }
+      - script.execute: boot_reveal_esphome_wordmark
+
+  - id: boot_reveal_esphome_wordmark
+    mode: restart
+    then:
+      - delay: 3200ms
+      - lambda: |-
+          lv_anim_delete(id(boot_esphome_wordmark), nullptr);
+          lv_anim_t animation;
+          lv_anim_init(&animation);
+          lv_anim_set_var(&animation, id(boot_esphome_wordmark));
+          lv_anim_set_values(&animation, LV_OPA_TRANSP, LV_OPA_COVER);
+          lv_anim_set_duration(&animation, 520);
+          lv_anim_set_path_cb(&animation, lv_anim_path_ease_out);
+          lv_anim_set_exec_cb(&animation, [](void *target, int32_t value) {
+            lv_obj_set_style_opa(static_cast<lv_obj_t *>(target), static_cast<lv_opa_t>(value), LV_PART_MAIN);
+          });
+          lv_anim_start(&animation);
 
   - id: boot_hide_esphome_animation
     mode: restart
@@ -29,6 +48,20 @@ script:
       - lambda: |-
           if (id(boot_esphome_animation) != nullptr) {
             auto *ctx = static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(id(boot_esphome_animation)));
+            // Stop the renderer but retain its final frame until the opaque
+            // boot overlay is removed. Hiding it earlier exposes a blank logo
+            // between the splash and the already prepared home screen.
+            esphome::lvgl::lottie_pause(ctx, false);
+          }
+
+  - id: boot_finish_esphome_overlay
+    mode: restart
+    then:
+      - lambda: |-
+          lv_anim_delete(id(boot_esphome_wordmark), nullptr);
+          lv_obj_add_flag(id(boot_overlay), LV_OBJ_FLAG_HIDDEN);
+          if (id(boot_esphome_animation) != nullptr) {
+            auto *ctx = static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(id(boot_esphome_animation)));
             esphome::lvgl::lottie_hide(ctx);
           }
-          lv_obj_add_flag(id(boot_overlay), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_set_style_opa(id(boot_esphome_wordmark), LV_OPA_TRANSP, LV_PART_MAIN);

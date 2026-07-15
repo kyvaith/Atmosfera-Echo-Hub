@@ -1,25 +1,39 @@
-# Home Assistant package for Atmosfera Echo Hub queue display.
+# Home Assistant package for the Atmosfera Echo Hub queue display.
 #
-# Install as a Home Assistant package, for example:
-#   homeassistant:
-#     packages:
-#       atmosfera_echo_hub_media_queue: !include packages/atmosfera_echo_hub_media_queue.yaml
+# Required secrets on the Home Assistant host:
+#   aeh_music_assistant_api_url: "http://music-assistant-host:8095/api"
+#   aeh_music_assistant_authorization: "Bearer <Music Assistant token>"
 #
-# The ESPHome firmware subscribes to sensor.atmosfera_echo_hub_media_queue
-# attribute "data". Keep the tab/newline format stable: current, title,
-# artist, duration.
-#
-# Player resolution order:
-# 1. The device runtime selector: text.atmosfera_echo_hub_media_player
-# 2. Manual HA fallback: input_text.atmosfera_echo_hub_queue_player
-# 3. media_player.sendspin_group
+# The official music_assistant.get_queue action exposes queue metadata plus the
+# current and next item. The REST command below uses that metadata to fetch a
+# seven-row window from player_queues/items, including previous tracks.
 
 input_text:
   atmosfera_echo_hub_queue_player:
     name: Atmosfera Echo Hub Queue Player
     icon: mdi:speaker
-    initial: media_player.sendspin_group
+    initial: media_player.atmosfera_echo_hub
     max: 120
+
+rest_command:
+  atmosfera_echo_hub_get_queue_items:
+    url: !secret aeh_music_assistant_api_url
+    method: POST
+    headers:
+      accept: "application/json, text/html"
+      authorization: !secret aeh_music_assistant_authorization
+    payload: >-
+      {
+        "message_id": "aeh_queue",
+        "command": "player_queues/items",
+        "args": {
+          "queue_id": {{ queue_id | to_json }},
+          "limit": {{ limit | int(7) }},
+          "offset": {{ offset | int(0) }}
+        }
+      }
+    content_type: "application/json; charset=utf-8"
+    timeout: 10
 
 template:
   - triggers:
@@ -29,14 +43,12 @@ template:
         entity_id:
           - text.atmosfera_echo_hub_media_player
           - input_text.atmosfera_echo_hub_queue_player
-          - media_player.sendspin_group
+          - media_player.atmosfera_echo_hub
       - trigger: time_pattern
         seconds: "/5"
     actions:
-      - action: music_assistant.get_queue
-        continue_on_error: true
-        data:
-          entity_id: >-
+      - variables:
+          selected_player: >-
             {% set device_player = states('text.atmosfera_echo_hub_media_player') %}
             {% set manual_player = states('input_text.atmosfera_echo_hub_queue_player') %}
             {% if device_player is string and device_player.startswith('media_player.') %}
@@ -44,69 +56,59 @@ template:
             {% elif manual_player is string and manual_player.startswith('media_player.') %}
               {{ manual_player }}
             {% else %}
-              media_player.sendspin_group
+              media_player.atmosfera_echo_hub
             {% endif %}
+      - action: music_assistant.get_queue
+        continue_on_error: true
+        data:
+          entity_id: "{{ selected_player }}"
         response_variable: queue_info
+      - variables:
+          queue_details: >-
+            {% set response = queue_info | default({}) %}
+            {{ response.get(selected_player, {}) if response is mapping else {} }}
+          active_queue_id: >-
+            {% set queue = queue_details | default({}) %}
+            {% set from_response = queue.get('queue_id', '') if queue is mapping else '' %}
+            {{ from_response or state_attr(selected_player, 'active_queue') or selected_player.removeprefix('media_player.') }}
+          active_queue_index: >-
+            {% set queue = queue_details | default({}) %}
+            {{ (queue.get('current_index', 0) if queue is mapping else 0) | int(0) }}
+          active_queue_offset: "{{ [active_queue_index | int(0) - 3, 0] | max }}"
+      - action: rest_command.atmosfera_echo_hub_get_queue_items
+        continue_on_error: true
+        data:
+          queue_id: "{{ active_queue_id }}"
+          limit: 7
+          offset: "{{ active_queue_offset }}"
+        response_variable: queue_items_response
     sensor:
       - name: Atmosfera Echo Hub Media Queue
         unique_id: atmosfera_echo_hub_media_queue
         icon: mdi:playlist-music
         state: >-
-          {% set device_player = states('text.atmosfera_echo_hub_media_player') %}
-          {% set manual_player = states('input_text.atmosfera_echo_hub_queue_player') %}
-          {% if device_player is string and device_player.startswith('media_player.') %}
-            {% set player = device_player %}
-          {% elif manual_player is string and manual_player.startswith('media_player.') %}
-            {% set player = manual_player %}
-          {% else %}
-            {% set player = 'media_player.sendspin_group' %}
-          {% endif %}
-          {% set response = queue_info | default({}) %}
-          {% set queue = response.get(player, {}) if response is mapping else {} %}
-          {% set items = queue.get('items', []) if queue is mapping else queue.items | default([], true) %}
-          {% if items | count > 0 %}
-            {{ items | count }}
-          {% else %}
-            {% set current_item = queue.get('current_item', queue.current_item | default(none, true)) if queue is mapping else queue.current_item | default(none, true) %}
-            {% set next_item = queue.get('next_item', queue.next_item | default(none, true)) if queue is mapping else queue.next_item | default(none, true) %}
-            {{ (1 if current_item else 0) + (1 if next_item else 0) }}
-          {% endif %}
+          {% set response = queue_items_response | default({}) %}
+          {% set content = response.get('content', '{}') if response is mapping else '{}' %}
+          {% set payload = content | from_json({}) if content is string and content else content %}
+          {% set result = payload.get('result', []) if payload is mapping else payload %}
+          {% set items = result.get('items', []) if result is mapping else result %}
+          {{ items | count if items is iterable and items is not string and items is not mapping else 0 }}
         attributes:
-          player: >-
-            {% set device_player = states('text.atmosfera_echo_hub_media_player') %}
-            {% set manual_player = states('input_text.atmosfera_echo_hub_queue_player') %}
-            {% if device_player is string and device_player.startswith('media_player.') %}
-              {{ device_player }}
-            {% elif manual_player is string and manual_player.startswith('media_player.') %}
-              {{ manual_player }}
-            {% else %}
-              media_player.sendspin_group
-            {% endif %}
-          current_index: >-
-            {% set device_player = states('text.atmosfera_echo_hub_media_player') %}
-            {% set manual_player = states('input_text.atmosfera_echo_hub_queue_player') %}
-            {% if device_player is string and device_player.startswith('media_player.') %}
-              {% set player = device_player %}
-            {% elif manual_player is string and manual_player.startswith('media_player.') %}
-              {% set player = manual_player %}
-            {% else %}
-              {% set player = 'media_player.sendspin_group' %}
-            {% endif %}
-            {% set response = queue_info | default({}) %}
-            {% set queue = response.get(player, {}) if response is mapping else {} %}
-            {{ (queue.get('current_index', queue.current_index | default(0, true)) if queue is mapping else queue.current_index | default(0, true)) | int(0) }}
+          player: "{{ selected_player | default('media_player.atmosfera_echo_hub', true) }}"
+          queue_id: "{{ active_queue_id | default('', true) }}"
+          current_index: "{{ active_queue_index | default(0, true) | int(0) }}"
           updated_at: "{{ now().isoformat() }}"
           data: >-
             {% macro clean(value) -%}
               {{- (value | default('', true) | string | replace('\t', ' ') | replace('\n', ' ') | replace('\r', ' ') | replace('|', ' ') | trim)[:64] -}}
             {%- endmacro %}
             {% macro title_from(item) -%}
-              {%- set media = item.media_item | default({}, true) -%}
-              {{- media.name | default(item.name | default('', true), true) -}}
+              {%- set media = item.media_item | default(item.item | default({}, true), true) -%}
+              {{- media.name | default(media.title | default(item.name | default(item.title | default('', true), true), true), true) -}}
             {%- endmacro %}
             {% macro artist_from(item) -%}
-              {%- set media = item.media_item | default({}, true) -%}
-              {%- set artist = media.artist_str | default(item.artist | default('', true), true) -%}
+              {%- set media = item.media_item | default(item.item | default({}, true), true) -%}
+              {%- set artist = media.artist_str | default(media.artist | default(item.artist_str | default(item.artist | default('', true), true), true), true) -%}
               {%- if artist is mapping -%}
                 {{- artist.get('name', '') -}}
               {%- else -%}
@@ -114,45 +116,37 @@ template:
               {%- endif -%}
             {%- endmacro %}
             {% macro duration_from(item) -%}
-              {%- set media = item.media_item | default({}, true) -%}
-              {%- set duration = media.duration | default(item.duration | default(0, true), true) -%}
-              {%- set duration_i = duration | int(0) -%}
-              {{- ((duration_i // 60) ~ ':' ~ ('%02d' | format(duration_i % 60))) if duration_i > 0 else '' -}}
+              {%- set media = item.media_item | default(item.item | default({}, true), true) -%}
+              {%- set duration = media.duration | default(item.duration | default(0, true), true) | int(0) -%}
+              {{- ((duration // 60) ~ ':' ~ ('%02d' | format(duration % 60))) if duration > 0 else '' -}}
             {%- endmacro %}
-            {% set device_player = states('text.atmosfera_echo_hub_media_player') %}
-            {% set manual_player = states('input_text.atmosfera_echo_hub_queue_player') %}
-            {% if device_player is string and device_player.startswith('media_player.') %}
-              {% set player = device_player %}
-            {% elif manual_player is string and manual_player.startswith('media_player.') %}
-              {% set player = manual_player %}
-            {% else %}
-              {% set player = 'media_player.sendspin_group' %}
-            {% endif %}
-            {% set response = queue_info | default({}) %}
-            {% set queue = response.get(player, {}) if response is mapping else {} %}
-            {% set items = queue.get('items', []) if queue is mapping else queue.items | default([], true) %}
-            {% set current_index = (queue.get('current_index', queue.current_index | default(0, true)) if queue is mapping else queue.current_index | default(0, true)) | int(0) %}
+            {% set response = queue_items_response | default({}) %}
+            {% set content = response.get('content', '{}') if response is mapping else '{}' %}
+            {% set payload = content | from_json({}) if content is string and content else content %}
+            {% set result = payload.get('result', []) if payload is mapping else payload %}
+            {% set items = result.get('items', []) if result is mapping else result %}
+            {% set items = items if items is iterable and items is not string and items is not mapping else [] %}
+            {% set current_index = active_queue_index | default(0, true) | int(0) %}
+            {% set offset = active_queue_offset | default(0, true) | int(0) %}
             {% set ns = namespace(lines=[]) %}
-            {% for item in items %}
-              {% set row_index = loop.index0 %}
-              {% if row_index >= current_index and (ns.lines | count) < 7 %}
-                {% set title = clean(title_from(item)) %}
-                {% set current = '1' if row_index == current_index else '0' %}
-                {% if title %}
-                  {% set ns.lines = ns.lines + [current ~ '\t' ~ title ~ '\t' ~ clean(artist_from(item)) ~ '\t' ~ clean(duration_from(item))] %}
-                {% endif %}
+            {% for item in items[:7] %}
+              {% set title = clean(title_from(item)) %}
+              {% if title %}
+                {% set current = '1' if offset + loop.index0 == current_index else '0' %}
+                {% set ns.lines = ns.lines + [current ~ '\t' ~ title ~ '\t' ~ clean(artist_from(item)) ~ '\t' ~ clean(duration_from(item))] %}
               {% endif %}
             {% endfor %}
             {% if ns.lines | count == 0 %}
-              {% set current_item = queue.get('current_item', queue.current_item | default(none, true)) if queue is mapping else queue.current_item | default(none, true) %}
-              {% set next_item = queue.get('next_item', queue.next_item | default(none, true)) if queue is mapping else queue.next_item | default(none, true) %}
+              {% set queue = queue_details | default({}, true) %}
+              {% set current_item = queue.get('current_item') if queue is mapping else none %}
+              {% set next_item = queue.get('next_item') if queue is mapping else none %}
               {% if current_item %}
                 {% set title = clean(title_from(current_item)) %}
                 {% if title %}
                   {% set ns.lines = ns.lines + ['1\t' ~ title ~ '\t' ~ clean(artist_from(current_item)) ~ '\t' ~ clean(duration_from(current_item))] %}
                 {% endif %}
               {% endif %}
-              {% if next_item and (ns.lines | count) < 7 %}
+              {% if next_item and ns.lines | count < 7 %}
                 {% set title = clean(title_from(next_item)) %}
                 {% if title %}
                   {% set ns.lines = ns.lines + ['0\t' ~ title ~ '\t' ~ clean(artist_from(next_item)) ~ '\t' ~ clean(duration_from(next_item))] %}

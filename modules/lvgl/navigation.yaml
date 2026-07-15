@@ -278,6 +278,132 @@ script:
             lv_obj_remove_flag(row, LV_OBJ_FLAG_CLICK_FOCUSABLE);
             lv_obj_clear_state(row, static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
           }
+      - script.execute: ui_prepare_immediate_pressed_feedback
+
+  - id: ui_prepare_immediate_pressed_feedback
+    mode: single
+    then:
+      - lambda: |-
+          static lv_style_t pressed_style;
+          static bool initialized = false;
+          if (!initialized) {
+            lv_style_init(&pressed_style);
+            lv_style_set_bg_opa(&pressed_style, 178);
+            initialized = true;
+          }
+          lv_obj_t *buttons[] = {
+            id(settings_true_colour_button), id(settings_screen_tone_button),
+            id(settings_perf_overlay_button), id(settings_system_logs_button),
+            id(settings_perf_logs_button), id(settings_swipe_logs_button),
+            id(settings_beta_firmware_button), id(settings_display_brightness_button),
+            id(settings_display_timeout_button), id(settings_voice_mute_button),
+            id(settings_wake_sound_button), id(settings_wake_sensitivity_button),
+            id(tile_light_button), id(tile_switch_button), id(tile_scene_button),
+            id(tile_trigger_button), id(tile_climate_button), id(tile_cover_button),
+            id(tile_garage_button), id(tile_lock_button), id(tile_alarm_button),
+            id(tile_door_window_button), id(tile_presence_button), id(tile_sensor_button),
+            id(tile_weather_button), id(tile_clock_button), id(tile_world_clock_button),
+            id(tile_media_button), id(tile_subpage_button), id(tile_fan_button),
+            id(tile_fan_speed_button), id(tile_webhook_button), id(tile_internal_button),
+            id(tile_settings_button), id(tile_voice_button),
+          };
+          for (auto *button : buttons) {
+            if (button != nullptr) {
+              lv_obj_add_style(button, &pressed_style, LV_PART_MAIN | LV_STATE_PRESSED);
+            }
+          }
+
+  - id: ui_disable_home_tiles_for_drag
+    mode: restart
+    then:
+      - lambda: |-
+          auto clear_state_tree = [](lv_obj_t *obj) {
+            if (obj == nullptr) return;
+            lv_obj_clear_state(obj, static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
+            const uint32_t child_count = lv_obj_get_child_count(obj);
+            for (uint32_t i = 0; i < child_count; i++) {
+              lv_obj_t *child = lv_obj_get_child(obj, i);
+              if (child != nullptr) {
+                lv_obj_clear_state(child, static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
+              }
+            }
+          };
+          lv_obj_t *buttons[] = {
+            id(tile_light_button), id(tile_switch_button), id(tile_scene_button),
+            id(tile_trigger_button), id(tile_climate_button), id(tile_cover_button),
+            id(tile_garage_button), id(tile_lock_button), id(tile_alarm_button),
+            id(tile_door_window_button), id(tile_presence_button), id(tile_sensor_button),
+            id(tile_weather_button), id(tile_clock_button), id(tile_world_clock_button),
+            id(tile_media_button), id(tile_subpage_button), id(tile_fan_button),
+            id(tile_fan_speed_button), id(tile_webhook_button), id(tile_internal_button),
+            id(tile_settings_button), id(tile_voice_button),
+          };
+          for (auto *button : buttons) {
+            if (button == nullptr) continue;
+            lv_obj_remove_flag(button, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_remove_flag(button, LV_OBJ_FLAG_CLICK_FOCUSABLE);
+            clear_state_tree(button);
+          }
+          lv_obj_remove_flag(id(light_brightness_slider), LV_OBJ_FLAG_CLICKABLE);
+          clear_state_tree(id(light_brightness_slider));
+
+  # Home tile taps are dispatched manually on touch release, just like the
+  # settings rows. Keep LVGL from entering PRESSED while a horizontal gesture
+  # is still undecided; the brightness slider remains native and interactive.
+  - id: ui_prepare_home_tiles_for_touch
+    mode: restart
+    then:
+      - lambda: |-
+          auto clear_state_tree = [](lv_obj_t *obj) {
+            if (obj == nullptr) return;
+            lv_obj_clear_state(obj, static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
+            const uint32_t child_count = lv_obj_get_child_count(obj);
+            for (uint32_t i = 0; i < child_count; i++) {
+              lv_obj_t *child = lv_obj_get_child(obj, i);
+              if (child != nullptr) {
+                lv_obj_clear_state(child, static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
+              }
+            }
+          };
+          lv_obj_t *buttons[] = {
+            id(tile_light_button), id(tile_switch_button), id(tile_scene_button),
+            id(tile_trigger_button), id(tile_climate_button), id(tile_cover_button),
+            id(tile_garage_button), id(tile_lock_button), id(tile_alarm_button),
+            id(tile_door_window_button), id(tile_presence_button), id(tile_sensor_button),
+            id(tile_weather_button), id(tile_clock_button), id(tile_world_clock_button),
+            id(tile_media_button), id(tile_subpage_button), id(tile_fan_button),
+            id(tile_fan_speed_button), id(tile_webhook_button), id(tile_internal_button),
+            id(tile_settings_button), id(tile_voice_button),
+          };
+          for (auto *button : buttons) {
+            if (button == nullptr) continue;
+            lv_obj_remove_flag(button, LV_OBJ_FLAG_CLICKABLE);
+            lv_obj_remove_flag(button, LV_OBJ_FLAG_CLICK_FOCUSABLE);
+            clear_state_tree(button);
+          }
+
+  - id: ui_restore_home_tiles_after_drag
+    mode: restart
+    then:
+      - delay: 450ms
+      - lambda: |-
+          lv_obj_t *buttons[] = {
+            id(tile_light_button), id(tile_switch_button), id(tile_scene_button),
+            id(tile_trigger_button), id(tile_climate_button), id(tile_cover_button),
+            id(tile_garage_button), id(tile_lock_button), id(tile_alarm_button),
+            id(tile_door_window_button), id(tile_presence_button), id(tile_sensor_button),
+            id(tile_weather_button), id(tile_clock_button), id(tile_world_clock_button),
+            id(tile_media_button), id(tile_subpage_button), id(tile_fan_button),
+            id(tile_fan_speed_button), id(tile_webhook_button), id(tile_internal_button),
+            id(tile_settings_button), id(tile_voice_button),
+          };
+          for (auto *button : buttons) {
+            if (button == nullptr) continue;
+            lv_obj_clear_state(button, static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
+          }
+          lv_obj_clear_state(id(light_brightness_slider),
+                             static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
+          lv_obj_add_flag(id(light_brightness_slider), LV_OBJ_FLAG_CLICKABLE);
 
   - id: ui_update_page_indicator
     then:
@@ -353,6 +479,9 @@ script:
             }
           }
       - script.execute: ui_apply_tile_positions
+      - script.wait: ui_apply_tile_positions
+      - script.execute: ui_prepare_immediate_pressed_feedback
+      - script.execute: ui_prepare_home_tiles_for_touch
 
   - id: ui_reset_tile_roots
     then:
@@ -416,12 +545,48 @@ script:
                    (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
                    (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                    (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
-          lv_obj_update_layout(lv_obj_get_parent(id(controls_root_1)));
+          lv_obj_t *roots[] = {
+            id(controls_root_1),
+            id(controls_root_2),
+            id(controls_root_3),
+            id(controls_root_4),
+          };
+          lv_obj_t *dots[] = {
+            id(page_indicator_1),
+            id(page_indicator_2),
+            id(page_indicator_3),
+            id(page_indicator_4),
+          };
+          lvgl_esphome_snapshot_set_clock_font(id(roboto_34)->get_lv_font());
+          lv_obj_add_flag(id(global_time_button), LV_OBJ_FLAG_HIDDEN);
+          for (auto *dot : dots) {
+            if (dot != nullptr) lv_obj_add_flag(dot, LV_OBJ_FLAG_HIDDEN);
+          }
+          auto apply_page = [&](int page) {
+            id(ui_page) = page;
+            for (int i = 0; i < 4; i++) {
+              if (roots[i] == nullptr) continue;
+              lv_obj_clear_flag(roots[i], LV_OBJ_FLAG_HIDDEN);
+              lv_obj_align(roots[i], LV_ALIGN_CENTER, (i + 1 - page) * 800, 0);
+            }
+            int x = 352;
+            for (int i = 0; i < 4; i++) {
+              if (dots[i] == nullptr) continue;
+              const bool active = (i + 1) == page;
+              const int w = active ? 30 : 10;
+              lv_obj_set_x(dots[i], x);
+              lv_obj_set_width(dots[i], w);
+              lv_obj_set_style_bg_color(dots[i], lv_color_hex(active ? 0xF2F2F2 : 0x5C5F5E), 0);
+              x += w + 12;
+            }
+            lvgl_esphome_snapshot_swipe_set_page_indicator(page, 4);
+            lv_obj_update_layout(lv_obj_get_parent(id(controls_root_1)));
+          };
           bool prepared = true;
-          prepared = lvgl_esphome_snapshot_cache_raw_page(id(controls_root_1)) && prepared;
-          prepared = lvgl_esphome_snapshot_cache_raw_page(id(controls_root_2)) && prepared;
-          prepared = lvgl_esphome_snapshot_cache_raw_page(id(controls_root_3)) && prepared;
-          prepared = lvgl_esphome_snapshot_cache_raw_page(id(controls_root_4)) && prepared;
+          for (int page = 1; page <= 4; page++) {
+            apply_page(page);
+            prepared = lvgl_esphome_snapshot_cache_current_frame_raw_page(roots[page - 1]) && prepared;
+          }
           id(ui_tile_snapshots_ready) = prepared;
           id(ui_tile_snapshot_prepared_page) = prepared ? 1 : 0;
           id(ui_tile_snapshot_cached_first) = prepared ? 1 : 0;
@@ -441,13 +606,19 @@ script:
                    (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                    (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
           id(album_art_background).set_sendspin_paused(true);
+          atmosfera_ui::media_wavy_arc_set_background(
+              id(album_art_placeholder).get_lv_image_dsc(), false);
           atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
           atmosfera_ui::media_wavy_arc_set_value(id(last_media_progress_percent));
-          lv_obj_clear_flag(id(media_main_icon_label), LV_OBJ_FLAG_HIDDEN);
           bool apps_prepared = true;
           apps_prepared = lvgl_esphome_snapshot_cache_compressed_page(id(wear_root)) && apps_prepared;
           apps_prepared = lvgl_esphome_snapshot_cache_compressed_page(id(settings_root)) && apps_prepared;
           apps_prepared = lvgl_esphome_snapshot_cache_compressed_page(id(voice_assistant_overlay)) && apps_prepared;
+          apps_prepared = lvgl_esphome_snapshot_cache_compressed_page(id(immich_root)) && apps_prepared;
+          lv_obj_clear_flag(id(global_time_button), LV_OBJ_FLAG_HIDDEN);
+          for (auto *dot : dots) {
+            if (dot != nullptr) lv_obj_clear_flag(dot, LV_OBJ_FLAG_HIDDEN);
+          }
           ESP_LOGW("boot.diag",
                    "app snapshot cache: done compressed ready=%u internal=%uK/%uK psram=%uK/%uK",
                    (unsigned) apps_prepared,
@@ -562,7 +733,6 @@ script:
                 id(ui_touch_click_block_until_ms) = millis() + 800;
                 atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
                 atmosfera_ui::media_wavy_arc_set_value(id(last_media_progress_percent));
-                lv_obj_clear_flag(id(media_main_icon_label), LV_OBJ_FLAG_HIDDEN);
             - lambda: |-
                 lv_obj_t *home = id(controls_root_1);
                 if (id(ui_home_page) == 2) home = id(controls_root_2);
@@ -589,14 +759,7 @@ script:
                 id: ui_snapshot_io_busy
                 value: 'false'
             - script.execute: media_update_main_control
-            - delay: 1200ms
-            - if:
-                condition:
-                  lambda: 'return id(ui_active_app) == 1 && !id(ui_snapshot_io_busy);'
-                then:
-                  - lambda: |-
-                      id(album_art_background).set_sendspin_paused(false);
-                  - script.execute: media_resume_deferred_artwork
+            - script.execute: media_resume_artwork_after_player_open
 
   - id: ui_open_settings_app
     mode: restart
@@ -638,7 +801,11 @@ script:
                 lv_obj_move_foreground(id(app_close_gesture_zone));
             - delay: 20ms
             - lambda: |-
-                lvgl_esphome_snapshot_scroll_prepare(id(settings_root), 800, 800);
+                const bool prepared = lvgl_esphome_snapshot_scroll_prepare(id(settings_root), 800, 800);
+                ESP_LOGW("settings.snapshot", "initial bitmap prepare=%s psram_free=%uK largest=%uK",
+                         prepared ? "ok" : "failed",
+                         (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+                         (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
             - globals.set:
                 id: ui_snapshot_io_busy
                 value: 'false'
@@ -688,6 +855,19 @@ script:
                       condition:
                         lambda: 'return id(va)->is_connected();'
                       then:
+                        - if:
+                            condition:
+                              media_player.is_playing: local_music_player
+                            then:
+                              - globals.set:
+                                  id: voice_assistant_paused_media
+                                  value: 'true'
+                              - media_player.pause: local_music_player
+                              - delay: 300ms
+                            else:
+                              - globals.set:
+                                  id: voice_assistant_paused_media
+                                  value: 'false'
                         - lambda: |-
                             id(voice_assistant_phase) = ${voice_assist_waiting_phase_id};
                             id(voice_assistant_tts_active) = false;
@@ -695,6 +875,7 @@ script:
                             id(voice_assistant_response_text).publish_state("");
                         - script.execute: display_wake
                         - script.execute: voice_assistant_update_overlay
+                        - micro_wake_word.stop:
                         - switch.turn_on: voice_audio_processing_switch
                         - script.execute: ui_play_va_listening_sound
                         - script.wait: ui_play_va_listening_sound
@@ -724,6 +905,50 @@ script:
                 id: ui_snapshot_io_busy
                 value: 'false'
 
+  - id: ui_open_immich_app
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_active_app) == 0 &&
+                     !id(ui_snapshot_io_busy) &&
+                     (int32_t) (millis() - id(ui_touch_click_block_until_ms)) >= 0;
+          then:
+            - script.stop: ui_refresh_tile_snapshots
+            - globals.set:
+                id: ui_snapshot_io_busy
+                value: 'true'
+            - lambda: |-
+                if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
+                id(ui_touch_click_block_until_ms) = millis() + 800;
+                lv_obj_t *home = id(controls_root_1);
+                if (id(ui_home_page) == 2) home = id(controls_root_2);
+                else if (id(ui_home_page) == 3) home = id(controls_root_3);
+                else if (id(ui_home_page) == 4) home = id(controls_root_4);
+                lvgl_esphome_snapshot_app_open(id(immich_root), home, 800, 500);
+            - wait_until:
+                condition:
+                  lambda: 'return !lvgl_esphome_snapshot_is_active();'
+                timeout: 750ms
+            - script.execute: ui_prepare_immich_page
+            - lvgl.page.show:
+                id: immich_page
+                animation: NONE
+                time: 50ms
+            - lambda: |-
+                id(ui_active_app) = 4;
+                lv_obj_clear_flag(id(immich_root), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_update_layout(id(immich_root));
+                lv_obj_clear_flag(id(app_close_gesture_zone), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_move_foreground(id(app_close_gesture_zone));
+                lvgl_esphome_snapshot_app_release_open_hold();
+            - delay: 20ms
+            - globals.set:
+                id: ui_snapshot_io_busy
+                value: 'false'
+            - script.execute: immich_opened
+
   - id: ui_close_app
     mode: restart
     then:
@@ -737,9 +962,10 @@ script:
             - lambda: |-
                 lv_obj_t *app = nullptr;
                 if (id(ui_active_app) == 1) {
+                  atmosfera_ui::media_wavy_arc_set_direct_present(false);
+                  atmosfera_ui::title_marquee_direct_end(true);
                   atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
                   atmosfera_ui::media_wavy_arc_set_value(id(last_media_progress_percent));
-                  lv_obj_clear_flag(id(media_main_icon_label), LV_OBJ_FLAG_HIDDEN);
                   app = id(wear_root);
                 }
                 else if (id(ui_active_app) == 2) {
@@ -747,11 +973,13 @@ script:
                   app = id(settings_root);
                 }
                 else if (id(ui_active_app) == 3) app = id(voice_assistant_overlay);
+                else if (id(ui_active_app) == 4) app = id(immich_root);
                 lv_obj_t *home = id(controls_root_1);
                 if (id(ui_home_page) == 2) home = id(controls_root_2);
                 else if (id(ui_home_page) == 3) home = id(controls_root_3);
                 else if (id(ui_home_page) == 4) home = id(controls_root_4);
                 if (app != nullptr) {
+                  lvgl_esphome_snapshot_app_prepare_close(app);
                   lvgl_esphome_snapshot_app_close(app, home, 800, 400, 600, 500);
                 }
             - if:
@@ -852,8 +1080,10 @@ script:
           id: wear_root
           y: 0
       - lambda: |-
+          id(album_art_background).set_sendspin_paused(false);
           atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
           atmosfera_ui::media_wavy_arc_set_value(id(last_media_progress_percent));
+      - script.execute: media_title_marquee_reset_and_start
       - if:
           condition:
             lambda: 'return lv_obj_has_flag(id(album_art_background_widget), LV_OBJ_FLAG_HIDDEN);'
@@ -875,6 +1105,23 @@ script:
           id: ui_page
           value: '5'
       - script.execute: ui_apply_settings_state
+
+  - id: ui_prepare_immich_page
+    then:
+      - lvgl.widget.show: immich_root
+      - lvgl.widget.update:
+          id: immich_root
+          y: 0
+      - script.execute: media_hide_lottie_visual
+      - globals.set:
+          id: ui_page
+          value: '6'
+      - lambda: |-
+          lv_label_set_text(id(immich_play_pause_icon),
+                            id(immich_slideshow_enabled).state ? "\U0000e034" : "\U0000e037");
+          if (id(immich_image_loaded)) {
+            id(immich_apply_photo).execute();
+          }
 
   - id: ui_show_settings
     then:
@@ -1085,15 +1332,28 @@ script:
   - id: ui_apply_settings_state
     then:
       - script.execute: ui_apply_diagnostics_logging_state
+      - script.wait: ui_apply_diagnostics_logging_state
       - script.execute: ui_update_true_colour_state
+      - script.wait: ui_update_true_colour_state
       - script.execute: ui_update_screen_tone_state
+      - script.wait: ui_update_screen_tone_state
       - script.execute: ui_update_perf_overlay_state
+      - script.wait: ui_update_perf_overlay_state
       - script.execute: ui_update_system_logs_state
+      - script.wait: ui_update_system_logs_state
       - script.execute: ui_update_perf_logs_state
+      - script.wait: ui_update_perf_logs_state
       - script.execute: ui_update_swipe_logs_state
+      - script.wait: ui_update_swipe_logs_state
       - script.execute: ui_update_beta_firmware_state
+      - script.wait: ui_update_beta_firmware_state
       - script.execute: ui_update_display_brightness_state
+      - script.wait: ui_update_display_brightness_state
       - script.execute: ui_update_display_timeout_state
+      - script.wait: ui_update_display_timeout_state
       - script.execute: ui_update_voice_mute_state
+      - script.wait: ui_update_voice_mute_state
       - script.execute: ui_update_wake_sound_state
+      - script.wait: ui_update_wake_sound_state
       - script.execute: ui_update_wake_sensitivity_state
+      - script.wait: ui_update_wake_sensitivity_state

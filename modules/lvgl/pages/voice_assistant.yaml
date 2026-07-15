@@ -20,6 +20,7 @@ lvgl:
                 widgets:
                   - label:
                         id: voice_assistant_time_label
+                        hidden: true
                         text: "9:30"
                         align: TOP_MID
                         y: 12
@@ -141,9 +142,11 @@ lvgl:
                         style_transition_path: ease_out
                         pressed:
                           bg_opa: 100%
-                        on_click:
+                        on_press:
                           then:
-                            - script.execute: voice_assistant_stop_conversation
+                            - lambda: |-
+                                id(voice_assistant_stop_requested) = true;
+                                id(app_close_requested) = true;
                         widgets:
                           - label:
                                 text: "\uE5CD"

@@ -15,6 +15,10 @@ artwork_image:
     type: RGB565
     resize: 800x800
     darken: 0
+    # Precompose the player scrim once on the background decode task. Keeping
+    # this out of LVGL avoids a full-screen alpha blend on every artwork swap.
+    scrim_color: 0x210F48
+    scrim_opacity: 60
     # Hardware JPEG is used together with the DSI/DMA2D QoS throttles in
     # modules/common/core.yaml. Software JPEG writes the full 800x800 output
     # from the CPU and can still starve the DSI reader on the PSRAM bus.

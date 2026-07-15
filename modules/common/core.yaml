@@ -4,6 +4,7 @@ esphome:
   name: ${name}
   friendly_name: ${friendly_name}
   min_version: ${esphome_min_version}
+  build_path: C:/aeh-build/${name}
   project:
     name: "${project_namespace}.${friendly_name}"
     version: ${firmware_version}
@@ -26,35 +27,40 @@ esphome:
       - -DCONFIG_ESPHOME_ARTWORK_CACHE_SYNC_FIFO_MIN=896
       - -DCONFIG_ESPHOME_ARTWORK_CACHE_SYNC_WAIT_US=3000
       - -DCONFIG_ESPHOME_ARTWORK_POST_DECODE_DSI_QUIET_MS=24
+      - -DCONFIG_ESPHOME_ARTWORK_LOCAL_HTTP_DSI_QUIET_MS=48
       - -DCONFIG_ESPHOME_DSI_MSYNC_CHUNK=32768
       - -DCONFIG_ESPHOME_DSI_CACHE_WRITE_QOS=0
-      - -DCONFIG_ESPHOME_DSI_CACHE_READ_QOS=8
+      - -DCONFIG_ESPHOME_DSI_CACHE_READ_QOS=1
       - -DCONFIG_ESPHOME_DSI_CPU_WRITE_QOS=0
-      - -DCONFIG_ESPHOME_DSI_CPU_READ_QOS=8
+      - -DCONFIG_ESPHOME_DSI_CPU_READ_QOS=1
       - -DCONFIG_ESPHOME_DSI_GDMA_WRITE_QOS=0
-      - -DCONFIG_ESPHOME_DSI_GDMA_READ_QOS=4
+      - -DCONFIG_ESPHOME_DSI_GDMA_READ_QOS=15
+      - -DCONFIG_ESPHOME_DSI_STRESS_DIAGNOSTICS=1
       - -DCONFIG_ESPHOME_MIPI_DSI_DMA_FLOW_CONTROLLER=1
       - -DCONFIG_ESPHOME_MIPI_DSI_DISABLE_FRAME_ACK=1
       - -DCONFIG_ESPHOME_MIPI_DSI_CONTINUOUS_HS_CLOCK=1
       - -DCONFIG_ESPHOME_LVGL_PPA_DSI_BACKPRESSURE=1
-      - -DCONFIG_ESPHOME_LVGL_PPA_DSI_FIFO_MIN=768
-      - -DCONFIG_ESPHOME_LVGL_PPA_DSI_WAIT_US=3000
+      - -DCONFIG_ESPHOME_LVGL_PPA_DSI_FIFO_MIN=1000
+      - -DCONFIG_ESPHOME_LVGL_PPA_DSI_WAIT_US=6000
       - -DCONFIG_ESPHOME_LVGL_SW_ARTWORK_DSI_BACKPRESSURE=1
       - -DCONFIG_ESPHOME_LVGL_SW_ARTWORK_DSI_FIFO_MIN=896
       - -DCONFIG_ESPHOME_LVGL_SW_ARTWORK_DSI_WAIT_US=3000
       - -DCONFIG_ESPHOME_LVGL_SW_ARTWORK_DSI_ROW_PERIOD=4
-      - -DCONFIG_ESPHOME_LVGL_PPA_BLEND_BAND_HEIGHT=32
+      - -DCONFIG_ESPHOME_LVGL_PPA_BLEND_BAND_HEIGHT=1
+      - -DCONFIG_ESPHOME_LVGL_PPA_BLEND_BAND_GAP_US=100
       - -DCONFIG_ESPHOME_LVGL_PPA_SRM_BURST_LENGTH=128
-      - -DCONFIG_ESPHOME_LVGL_PPA_SRM_BAND_HEIGHT=32
+      - -DCONFIG_ESPHOME_LVGL_PPA_SRM_BAND_HEIGHT=8
+      - -DCONFIG_ESPHOME_LVGL_PPA_SRM_BAND_GAP_US=25
       - -DCONFIG_ESPHOME_LVGL_PPA_SKIP_DMA_SOURCE_MSYNC=1
       - -DCONFIG_ESPHOME_LVGL_PPA_SRM_AXI_BURSTINESS=4
       - -DCONFIG_ESPHOME_LVGL_PPA_SRM_PEAK_LEVEL=2
       - -DCONFIG_ESPHOME_LVGL_PPA_SRM_TRANSACTION_LEVEL=4
     extra_scripts:
-      - "pre:../../../tools/patch_espidf_freertos_static_alloc.py"
+      - "pre:C:/Users/kyvai/atmosfera-echo-hub/tools/patch_espidf_freertos_static_alloc.py"
   on_boot:
     priority: 600
     then:
+    - micro_wake_word.stop:
     - output.turn_off: backlight_output
     - light.turn_off:
         id: display_backlight
@@ -65,17 +71,34 @@ esphome:
     - delay: 250ms
     - script.execute: ui_build_tile_snapshots_now
     - script.wait: ui_build_tile_snapshots_now
+    - lambda: |-
+        lvgl_esphome_snapshot_dsi_quiet_ms(450);
     - output.turn_off: backlight_output
     - light.turn_off:
         id: display_backlight
     - script.execute: boot_show_esphome_animation
-    - delay: 600ms
+    - wait_until:
+        condition:
+          lambda: |-
+            if (id(boot_esphome_animation) == nullptr) return true;
+            auto *ctx = static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(id(boot_esphome_animation)));
+            return esphome::lvgl::lottie_is_ready(ctx);
+        timeout: 4s
+    - lambda: |-
+        ESP_LOGW("boot.diag",
+                 "boot lottie prepared internal=%uK/%uK psram=%uK/%uK",
+                 (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+                 (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
+                 (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+                 (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
+        lvgl_esphome_snapshot_dsi_quiet_ms(450);
+    - lambda: 'id(backlight_output).set_next_fade_duration(2400);'
     - light.turn_on:
         id: display_backlight
         brightness: !lambda |-
           const float b = id(settings_display_brightness).state;
           return (b < 28.0f ? 28.0f : b) / 100.0f;
-        transition_length: 2400ms
+        transition_length: 0ms
     - delay: 2600ms
     - script.execute: boot_start_esphome_animation
     - delay: 4200ms
@@ -86,28 +109,57 @@ esphome:
                  (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
                  (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                  (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
+        lvgl_esphome_dsi_mark_stress("boot-hide-overlay", 700);
     - script.execute: boot_hide_esphome_animation
-    - script.execute: ui_show_home_content_after_boot
+    - script.wait: boot_hide_esphome_animation
     - lambda: |-
+        lvgl_esphome_dsi_mark_stress("boot-show-home-apply", 1500);
+    - script.execute: ui_show_home_content_after_boot
+    - script.wait: ui_show_home_content_after_boot
+    - script.execute: ui_apply_settings_state
+    - script.wait: ui_apply_settings_state
+    - lambda: |-
+        lv_timer_handler();
+        lv_refr_now(nullptr);
+        lv_timer_handler();
+        lvgl_esphome_snapshot_dsi_quiet_ms(450);
         ESP_LOGW("boot.diag",
                  "boot transition: controls shown internal=%uK/%uK psram=%uK/%uK",
                  (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
                  (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
                  (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                  (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
+    - script.execute: boot_finish_esphome_overlay
+    - script.wait: boot_finish_esphome_overlay
+    - lambda: |-
+        lv_refr_now(nullptr);
+        lvgl_esphome_snapshot_dsi_quiet_ms(450);
+    - delay: 700ms
+    - lambda: |-
+        lvgl_esphome_snapshot_dsi_quiet_ms(450);
+        lvgl_esphome_dsi_mark_stress("boot-pa-enable", 500);
     - switch.turn_on: pa_enable
-    - delay: 120ms
+    - lambda: |-
+        lvgl_esphome_snapshot_dsi_quiet_ms(240);
+        lvgl_esphome_dsi_mark_stress("boot-audio-unmute", 600);
+    - delay: 240ms
     - media_player.unmute: local_music_player
     - media_player.volume_set:
         id: local_music_player
         volume: 50%
+    - lambda: |-
+        lvgl_esphome_snapshot_dsi_quiet_ms(240);
+        lvgl_esphome_dsi_mark_stress("boot-boot-sound", 1200);
     - script.execute: ui_play_boot_sound
+    - lambda: |-
+        lvgl_esphome_dsi_mark_stress("boot-done-flag", 600);
     - globals.set:
         id: boot_sequence_done
         value: 'true'
+    - micro_wake_word.start:
+    - script.execute: voice_assistant_apply_idle_wake_word
     - lambda: |-
         ESP_LOGW("boot.diag", "boot transition: done");
-    - script.execute: ui_apply_settings_state
 
 ota:
 - platform: esphome
@@ -118,6 +170,27 @@ api:
     - action: debug_open_player
       then:
         - script.execute: ui_open_player_app
+    - action: debug_open_settings
+      then:
+        - script.execute: ui_open_settings_app
+    - action: debug_open_voice
+      then:
+        - script.execute: ui_open_voice_app
+    - action: debug_open_queue
+      then:
+        - script.execute: open_queue_panel
+    - action: debug_open_speaker_group
+      then:
+        - script.execute: open_speaker_group_panel
+    - action: debug_close_app
+      then:
+        - script.execute: ui_close_app
+    - action: debug_open_immich
+      then:
+        - script.execute: ui_open_immich_app
+    - action: debug_next_immich_photo
+      then:
+        - script.execute: immich_fetch_next_photo
     - action: debug_next_track
       then:
         - media_player.next: sendspin_group
@@ -185,7 +258,9 @@ time:
 
 logger:
   hardware_uart: UART0
-  level: WARN
+  # Compile INFO support so the on-device diagnostics switches can enable it,
+  # while keeping normal operation quiet through initial_level.
+  level: INFO
   initial_level: WARN
   logs:
     wifi: WARN

@@ -1,0 +1,182 @@
+# Immich runtime configuration. These are exposed as HA/device settings and keep
+# the photo-frame app usable before a server is available.
+text:
+  - platform: template
+    name: "Immich: Server URL"
+    id: immich_url
+    entity_category: config
+    optimistic: false
+    restore_value: true
+    initial_value: !secret immich_url
+    min_length: 0
+    max_length: 255
+    mode: text
+    icon: "mdi:web"
+    set_action:
+      - lambda: |-
+          std::string url = atmosfera_ui::immich_trim_url(x);
+          if (!url.empty() && !atmosfera_ui::immich_valid_base_url(url)) {
+            ESP_LOGW("immich", "Immich URL must start with http:// or https://");
+            return;
+          }
+          id(immich_url).publish_state(url);
+          global_preferences->sync();
+      - script.execute: immich_reset_slideshow
+
+  - platform: template
+    name: "Immich: Auth Token"
+    id: immich_api_key_text
+    entity_category: config
+    optimistic: false
+    restore_value: true
+    initial_value: !secret immich_auth_token
+    min_length: 0
+    max_length: 255
+    mode: password
+    icon: "mdi:key"
+    set_action:
+      - lambda: |-
+          id(immich_api_key_text).publish_state(x);
+          global_preferences->sync();
+      - script.execute: immich_reset_slideshow
+
+  - platform: template
+    name: "Immich: Album IDs"
+    id: immich_album_ids
+    entity_category: config
+    optimistic: false
+    restore_value: true
+    initial_value: !secret immich_album_ids
+    min_length: 0
+    max_length: 255
+    mode: text
+    icon: "mdi:folder-image"
+    set_action:
+      - lambda: 'id(immich_album_ids).publish_state(x);'
+      - script.execute: immich_reset_slideshow
+
+  - platform: template
+    name: "Immich: Person IDs"
+    id: immich_person_ids
+    entity_category: config
+    optimistic: false
+    restore_value: true
+    initial_value: ""
+    min_length: 0
+    max_length: 255
+    mode: text
+    icon: "mdi:account-group"
+    set_action:
+      - lambda: 'id(immich_person_ids).publish_state(x);'
+      - script.execute: immich_reset_slideshow
+
+  - platform: template
+    name: "Immich: Tag IDs"
+    id: immich_tag_ids
+    entity_category: config
+    optimistic: false
+    restore_value: true
+    initial_value: ""
+    min_length: 0
+    max_length: 255
+    mode: text
+    icon: "mdi:tag-multiple"
+    set_action:
+      - lambda: 'id(immich_tag_ids).publish_state(x);'
+      - script.execute: immich_reset_slideshow
+
+  - platform: template
+    name: "Immich: Date From"
+    id: immich_date_from
+    entity_category: config
+    optimistic: false
+    restore_value: true
+    initial_value: ""
+    min_length: 0
+    max_length: 10
+    mode: text
+    icon: "mdi:calendar-start"
+    set_action:
+      - lambda: 'id(immich_date_from).publish_state(x);'
+      - script.execute: immich_reset_slideshow
+
+  - platform: template
+    name: "Immich: Date To"
+    id: immich_date_to
+    entity_category: config
+    optimistic: false
+    restore_value: true
+    initial_value: ""
+    min_length: 0
+    max_length: 10
+    mode: text
+    icon: "mdi:calendar-end"
+    set_action:
+      - lambda: 'id(immich_date_to).publish_state(x);'
+      - script.execute: immich_reset_slideshow
+
+select:
+  - platform: template
+    name: "Immich: Photo Source"
+    id: immich_photo_source
+    entity_category: config
+    options:
+      - "All Photos"
+      - "Favorites"
+      - "Album"
+      - "Person"
+      - "Tag"
+      - "Memories"
+    initial_option: "Album"
+    optimistic: true
+    restore_value: true
+    icon: "mdi:image-filter-frames"
+    on_value:
+      then:
+        - script.execute: immich_reset_slideshow
+
+  - platform: template
+    name: "Immich: Orientation"
+    id: immich_orientation_filter
+    entity_category: config
+    options:
+      - "Any"
+      - "Portrait Only"
+      - "Landscape Only"
+    initial_option: "Any"
+    optimistic: true
+    restore_value: true
+    icon: "mdi:phone-rotate-portrait"
+    on_value:
+      then:
+        - script.execute: immich_reset_slideshow
+
+number:
+  - platform: template
+    name: "Immich: Slideshow Interval"
+    id: immich_slide_interval_seconds
+    entity_category: config
+    min_value: 5
+    max_value: 600
+    step: 5
+    initial_value: 30
+    optimistic: true
+    restore_value: true
+    icon: "mdi:timer-outline"
+
+switch:
+  - platform: template
+    name: "Immich: Slideshow"
+    id: immich_slideshow_enabled
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    icon: "mdi:play-box-multiple"
+
+  - platform: template
+    name: "Immich: Metadata"
+    id: immich_metadata_enabled
+    entity_category: config
+    optimistic: true
+    restore_mode: RESTORE_DEFAULT_ON
+    icon: "mdi:information-outline"

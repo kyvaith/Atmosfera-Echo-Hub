@@ -5,6 +5,10 @@ globals:
   type: bool
   restore_value: no
   initial_value: 'false'
+- id: settings_perf_overlay_enabled
+  type: bool
+  restore_value: true
+  initial_value: 'false'
 
 script:
 - id: display_wake
@@ -18,12 +22,18 @@ script:
           ESP_LOGW("backlight.diag", "wake brightness=%.0f%% uptime=%lums",
                    id(settings_display_brightness).state,
                    (unsigned long) millis());
+      - if:
+          condition:
+            lambda: 'return id(ui_active_app) == 1;'
+          then:
+            - script.execute: media_title_marquee_reset_and_start
+      - lambda: 'id(backlight_output).set_next_fade_duration(3600);'
       - light.turn_on:
           id: display_backlight
           brightness: !lambda |-
             const float b = id(settings_display_brightness).state;
             return (b < 28.0f ? 28.0f : b) / 100.0f;
-          transition_length: 1800ms
+          transition_length: 0ms
 
 switch:
 - platform: template
@@ -72,11 +82,22 @@ switch:
 - platform: template
   id: settings_perf_overlay_switch
   name: "Performance Overlay"
-  optimistic: true
-  restore_mode: RESTORE_DEFAULT_OFF
-  on_turn_on:
+  lambda: 'return id(settings_perf_overlay_enabled);'
+  turn_on_action:
+  - globals.set:
+      id: settings_perf_overlay_enabled
+      value: 'true'
+  - switch.template.publish:
+      id: settings_perf_overlay_switch
+      state: true
   - script.execute: ui_update_perf_overlay_state
-  on_turn_off:
+  turn_off_action:
+  - globals.set:
+      id: settings_perf_overlay_enabled
+      value: 'false'
+  - switch.template.publish:
+      id: settings_perf_overlay_switch
+      state: false
   - script.execute: ui_update_perf_overlay_state
 - platform: template
   id: settings_system_logs_switch
@@ -87,16 +108,28 @@ switch:
   - logger.set_level: INFO
   - script.execute: ui_update_system_logs_state
   on_turn_off:
-  - logger.set_level: WARN
+  - if:
+      condition:
+        switch.is_off: settings_perf_logs_switch
+      then:
+      - logger.set_level: WARN
   - script.execute: ui_update_system_logs_state
 - platform: template
   id: settings_perf_logs_switch
   name: "Performance Logs"
   optimistic: true
-  restore_mode: ALWAYS_OFF
+  restore_mode: RESTORE_DEFAULT_OFF
   on_turn_on:
+  - logger.set_level: INFO
+  - lambda: lvgl_esphome_set_perf_logging_enabled(true);
   - script.execute: ui_update_perf_logs_state
   on_turn_off:
+  - lambda: lvgl_esphome_set_perf_logging_enabled(false);
+  - if:
+      condition:
+        switch.is_off: settings_system_logs_switch
+      then:
+      - logger.set_level: WARN
   - script.execute: ui_update_perf_logs_state
 - platform: template
   id: settings_swipe_logs_switch

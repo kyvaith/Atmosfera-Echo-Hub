@@ -114,6 +114,7 @@ lvgl:
                   widgets:
                     - label:
                         id: top_status_label
+                        hidden: true
                         text: "9:30"
                         align: CENTER
                         text_color: 0xF5EEFB
@@ -173,18 +174,55 @@ lvgl:
                         height: 1
                         hidden: true
 
-              - label:
-                  id: title_label
-                  text: "No Track"
+              - obj:
+                  id: title_marquee_viewport
                   align: TOP_MID
                   y: 82
                   width: 520
                   height: 66
-                  long_mode: DOT
-                  text_align: CENTER
-                  text_color: 0xF5EEFB
-                  text_font: wear_body_47
-                  text_letter_space: 1
+                  bg_color: 0x000000
+                  bg_opa: 100%
+                  border_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+                  overflow_visible: false
+                  widgets:
+                    - image:
+                        id: title_marquee_background_widget
+                        x: -140
+                        y: -82
+                        width: 800
+                        height: 800
+                        src: album_art_placeholder
+                        antialias: false
+                        opa: 100%
+                    - obj:
+                        id: title_marquee_scrim
+                        x: 0
+                        y: 0
+                        width: 520
+                        height: 66
+                        bg_color: 0x210F48
+                        bg_opa: 60%
+                        border_width: 0
+                        radius: 0
+                        pad_all: 0
+                        scrollable: false
+                        clickable: false
+                        hidden: true
+                    - label:
+                        id: title_label
+                        text: "No Track"
+                        x: 0
+                        y: 0
+                        width: 520
+                        height: 66
+                        long_mode: CLIP
+                        text_align: CENTER
+                        text_color: 0xF5EEFB
+                        text_font: wear_body_47
+                        text_letter_space: 1
 
               - label:
                   id: artist_label
@@ -315,8 +353,6 @@ lvgl:
                   pad_all: 0
                   scrollable: false
                   gesture_bubble: true
-                  style_transition_time: 90ms
-                  style_transition_path: ease_out
                   pressed:
                     bg_color: 0xCBB2F5
                   widgets:
@@ -352,8 +388,6 @@ lvgl:
                   pad_all: 0
                   scrollable: false
                   gesture_bubble: true
-                  style_transition_time: 90ms
-                  style_transition_path: ease_out
                   pressed:
                     bg_color: 0xCBB2F5
                   widgets:
@@ -373,105 +407,102 @@ lvgl:
                             - script.execute: media_show_action_spinner
                             - media_player.next: sendspin_group
 
-              - arc:
-                  id: media_main_progress_arc
+              # This opaque render island lets LVGL stop at the animated control
+              # instead of redrawing the artwork and scrim underneath it.
+              - obj:
+                  id: media_main_control_surface
                   align: CENTER
-                  width: 267
-                  height: 267
-                  min_value: 0
-                  max_value: 100
-                  value: 100
-                  start_angle: 0
-                  end_angle: 359
-                  rotation: 270
-                  adjustable: false
-                  mode: NORMAL
-                  bg_opa: 0%
+                  width: 243
+                  height: 243
+                  bg_color: 0x000000
+                  bg_opa: 100%
                   border_width: 0
+                  radius: 0
                   pad_all: 0
                   scrollable: false
                   clickable: false
-                  arc_color: 0x261B30
-                  arc_width: 13
-                  arc_opa: 0%
-                  arc_rounded: true
-                  indicator:
-                    arc_color: 0xEDD9F9
-                    arc_width: 13
-                    arc_opa: 0%
-                    arc_rounded: true
-                  knob:
-                    bg_opa: 0%
-
-              - arc:
-                  id: media_action_spinner_arc
-                  align: CENTER
-                  width: 224
-                  height: 224
-                  min_value: 0
-                  max_value: 100
-                  value: 17
-                  start_angle: 0
-                  end_angle: 359
-                  rotation: 270
-                  adjustable: false
-                  mode: NORMAL
-                  bg_opa: 0%
-                  border_width: 0
-                  pad_all: 0
-                  scrollable: false
-                  clickable: false
-                  hidden: true
-                  arc_color: 0x000000
-                  arc_width: 8
-                  arc_opa: 0%
-                  arc_rounded: true
-                  indicator:
-                    arc_color: 0xF5EEFB
-                    arc_width: 8
-                    arc_opa: 72%
-                    arc_rounded: true
-                  knob:
-                    bg_opa: 0%
-
-              - button:
-                  id: play_button
-                  align: CENTER
-                  x: 0
-                  y: 0
-                  width: 178
-                  height: 178
-                  radius: 89
-                  bg_color: 0xE4C2FF
-                  bg_opa: 0%
-                  border_width: 0
-                  outline_width: 0
-                  shadow_width: 0
-                  pad_all: 0
-                  scrollable: false
-                  gesture_bubble: true
-                  style_transition_time: 160ms
-                  style_transition_path: ease_out
-                  pressed:
-                    bg_color: 0x000000
-                    bg_opa: 14%
                   widgets:
-                    - label:
-                        id: media_main_icon_label
-                        text: "\uE037"
+                    - image:
+                        id: media_main_progress_arc
                         align: CENTER
-                        text_color: 0x400060
-                        text_font: material_symbols_86
-                  on_click:
-                    then:
-                      - if:
-                          condition:
-                            lambda: |-
-                              return id(display_backlight).current_values.is_on() &&
-                                     (int32_t)(millis() - id(ui_touch_click_block_until_ms)) >= 0;
+                        width: 243
+                        height: 243
+                        src: album_art_placeholder
+                        antialias: false
+                        opa: 100%
+                        scrollable: false
+                        clickable: false
+
+                    - arc:
+                        id: media_action_spinner_arc
+                        align: CENTER
+                        width: 224
+                        height: 224
+                        min_value: 0
+                        max_value: 100
+                        value: 17
+                        start_angle: 0
+                        end_angle: 359
+                        rotation: 270
+                        adjustable: false
+                        mode: NORMAL
+                        bg_opa: 0%
+                        border_width: 0
+                        pad_all: 0
+                        scrollable: false
+                        clickable: false
+                        hidden: true
+                        arc_color: 0x000000
+                        arc_width: 8
+                        arc_opa: 0%
+                        arc_rounded: true
+                        indicator:
+                          arc_color: 0xF5EEFB
+                          arc_width: 8
+                          arc_opa: 72%
+                          arc_rounded: true
+                        knob:
+                          bg_opa: 0%
+
+                    - button:
+                        id: play_button
+                        align: CENTER
+                        x: 0
+                        y: 0
+                        width: 178
+                        height: 178
+                        radius: 89
+                        bg_color: 0xE4C2FF
+                        bg_opa: 0%
+                        border_width: 0
+                        outline_width: 0
+                        shadow_width: 0
+                        pad_all: 0
+                        scrollable: false
+                        gesture_bubble: true
+                        style_transition_time: 160ms
+                        style_transition_path: ease_out
+                        pressed:
+                          bg_color: 0x000000
+                          bg_opa: 14%
+                        widgets:
+                          - label:
+                              id: media_main_icon_label
+                              text: "\uE037"
+                              align: CENTER
+                              text_color: 0x400060
+                              text_font: material_symbols_86
+                              hidden: true
+                        on_click:
                           then:
-                            - script.execute: media_show_action_spinner
-                            - media_player.toggle: sendspin_group
+                            - if:
+                                condition:
+                                  lambda: |-
+                                    return id(display_backlight).current_values.is_on() &&
+                                           (int32_t)(millis() - id(ui_touch_click_block_until_ms)) >= 0;
+                                then:
+                                  - script.execute: media_show_action_spinner
+                                  - media_player.toggle: sendspin_group
 
               - obj:
                   id: queue_panel
@@ -479,7 +510,7 @@ lvgl:
                   y: 0
                   width: 800
                   height: 800
-                  bg_color: 0x000000
+                  bg_color: 0x303030
                   bg_opa: 100%
                   border_width: 0
                   radius: 0
@@ -876,16 +907,6 @@ lvgl:
                   scrollable: false
                   hidden: true
                   widgets:
-                    - obj:
-                        width: 760
-                        height: 760
-                        align: CENTER
-                        bg_color: 0x303030
-                        border_width: 1
-                        border_color: 0x5C5F5E
-                        radius: 380
-                        pad_all: 0
-                        scrollable: false
                     - label:
                         text: "Speakers"
                         align: TOP_MID
@@ -997,6 +1018,8 @@ lvgl:
                         border_width: 0
                         pad_all: 0
                         scrollable: true
+                        scroll_elastic: false
+                        scroll_momentum: false
                         scrollbar_mode: auto
                         layout:
                           type: flex

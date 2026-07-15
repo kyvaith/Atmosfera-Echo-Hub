@@ -1,3 +1,15 @@
+# Static portions of the ESPHome boot mark stay outside Lottie. Only the
+# animated white trace is rasterized for every frame.
+image:
+  - file: "assets/images/esphome_house.svg"
+    id: boot_esphome_house_asset
+    type: RGB
+    transparency: alpha_channel
+  - file: "assets/images/esphome_wordmark.svg"
+    id: boot_esphome_wordmark_asset
+    type: RGB
+    transparency: alpha_channel
+
 # LVGL renderer configuration.
 # Page definitions are split into modules/lvgl/pages so the renderer settings stay easy to scan.
 lvgl:
@@ -49,9 +61,9 @@ lvgl:
       - obj:
           id: app_close_gesture_zone
           x: 0
-          y: 700
+          y: 750
           width: 800
-          height: 100
+          height: 50
           bg_opa: 0%
           border_width: 0
           pad_all: 0
@@ -84,16 +96,44 @@ lvgl:
           clickable: true
           hidden: true
           widgets:
-            - lottie:
-                id: boot_esphome_animation
-                file: "assets/animations/ESPHome.json"
+            - obj:
+                id: boot_esphome_logo
                 width: 240
                 height: 305
                 align: CENTER
                 y: -64
-                loop: false
-                auto_start: false
-                hidden: true
+                bg_opa: 0%
+                border_width: 0
+                pad_all: 0
+                scrollable: false
+                clickable: false
+                widgets:
+                  - image:
+                      id: boot_esphome_house
+                      x: 0
+                      y: 0
+                      width: 240
+                      height: 240
+                      src: boot_esphome_house_asset
+                  - lottie:
+                      id: boot_esphome_animation
+                      file: "assets/animations/ESPHome_line.json"
+                      x: 68
+                      y: 72
+                      width: 104
+                      height: 148
+                      opaque_background: 0x18BCF2
+                      loop: false
+                      auto_start: false
+                      hidden: true
+                  - image:
+                      id: boot_esphome_wordmark
+                      x: 0
+                      y: 264
+                      width: 240
+                      height: 41
+                      src: boot_esphome_wordmark_asset
+                      opa: 0%
             - label:
                 text: "Atmosfera Echo Hub"
                 align: CENTER
@@ -119,6 +159,7 @@ lvgl:
             - lambda: |-
                 ESP_LOGW("backlight.diag", "idle off uptime=%lums",
                          (unsigned long) millis());
+            - lambda: 'id(backlight_output).set_next_fade_duration(3600);'
             - light.turn_off:
                 id: display_backlight
                 transition_length: 0ms

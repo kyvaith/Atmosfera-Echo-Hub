@@ -54,6 +54,8 @@ touchscreen:
               id(global_volume_time_press_start_y) = touch.y;
               id(ui_touch_click_block_until_ms) = millis() + 1500;
               id(global_volume_long_press_guard).execute();
+              atmosfera_ui::volume_overlay_direct_prepare(
+                  id(global_volume_arc), id(global_volume_knob), id(global_volume_pct_label));
               return;
             }
 
@@ -69,24 +71,16 @@ touchscreen:
             id(tile_swipe_last_x) = touch.x;
             id(tile_swipe_last_y) = touch.y;
             id(tile_swipe_last_render_ms) = 0;
+            if (id(tile_swipe_tracking)) {
+              id(ui_prepare_home_tiles_for_touch).execute();
+            }
 
-            id(app_close_tracking) = id(ui_active_app) != 0 && !id(ui_snapshot_io_busy) && touch.y >= 700;
+            // Reserve only the bottom 50 px for the system close gesture. The
+            // previous 180 px software zone swallowed the queue and speaker
+            // grouping buttons before LVGL could dispatch their click event.
+            id(app_close_tracking) = id(ui_active_app) != 0 && touch.y >= 750;
             if (id(ui_active_app) == 3 && touch.x >= 320 && touch.x <= 480 && touch.y >= 708) {
               id(app_close_tracking) = false;
-            }
-            if (id(app_close_tracking)) {
-              id(ui_touch_block_for_drag).execute();
-              lv_obj_t *app = nullptr;
-              if (id(ui_active_app) == 1) {
-                app = id(wear_root);
-              } else if (id(ui_active_app) == 2) {
-                app = id(settings_root);
-              } else if (id(ui_active_app) == 3) {
-                app = id(voice_assistant_overlay);
-              }
-              if (app != nullptr) {
-                lvgl_esphome_snapshot_app_prepare_close(app);
-              }
             }
             id(app_close_dragging) = false;
             id(app_close_start_x) = touch.x;
@@ -116,16 +110,27 @@ touchscreen:
               const int knob_pct = atmosfera_ui::volume_arc_pct_from_point(touch.x, touch.y);
               const int pct = atmosfera_ui::volume_drag_value_from_visual_pct(
                   knob_pct, id(global_volume_drag_start_pct));
+              const int previous_pct = id(global_volume_pct);
               id(global_volume_pct) = pct;
               id(global_volume_knob_pct) = knob_pct;
-              atmosfera_ui::volume_overlay_update_drag_point(
-                  id(global_volume_arc), id(global_volume_knob), id(global_volume_pct_label),
-                  pct, knob_pct, touch.x, touch.y);
+              // Audio follows every distinct percentage immediately. Coalesce
+              // only the expensive LVGL redraws so the overlay cannot build a
+              // queue of stale touch frames behind the finger.
+              static uint32_t last_volume_visual_ms = 0;
               const uint32_t now = millis();
-              if (pct != id(global_volume_last_sent_pct) &&
-                  (now - id(global_volume_last_send_ms) >= 90 || pct == 0 || pct == 100)) {
+              if (now - last_volume_visual_ms >= 33U || pct == 0 || pct == 100) {
+                last_volume_visual_ms = now;
+                atmosfera_ui::volume_overlay_update_drag_point(
+                    id(global_volume_arc), id(global_volume_knob), id(global_volume_pct_label),
+                    pct, knob_pct, touch.x, touch.y);
+              }
+              if (pct != previous_pct) {
+                // Keep the hardware output under the finger. Home Assistant is
+                // updated once, when the drag ends.
+                id(audio_stack).set_output_volume(pct / 100.0f);
+              }
+              if (pct != id(global_volume_last_sent_pct)) {
                 id(global_volume_send_pending) = true;
-                id(global_volume_send_to_ha).execute();
               }
               id(ui_touch_click_block_until_ms) = millis() + 700;
               return;
@@ -136,6 +141,7 @@ touchscreen:
               if (abs(dx) > 90 || abs(dy) > 90) {
                 id(global_volume_time_press_tracking) = false;
                 id(global_volume_long_press_guard).stop();
+                atmosfera_ui::volume_overlay_direct_cancel_prepare();
                 return;
               }
               if (millis() - id(global_volume_time_press_start_ms) >= 450) {
@@ -154,9 +160,16 @@ touchscreen:
               }
               if (!id(app_close_dragging) && dy_up >= close_start_y && dy_up > abs(dx) + 4) {
                 id(app_close_dragging) = true;
-                id(ui_touch_block_for_drag).execute();
-                id(app_close_requested) = true;
                 id(app_close_tracking) = false;
+                id(ui_touch_block_for_drag).execute();
+                if (id(ui_active_app) == 1) {
+                  atmosfera_ui::media_wavy_arc_set_direct_present(false);
+                  atmosfera_ui::title_marquee_direct_end(true);
+                }
+                // Latch the gesture immediately. Capturing the closing frame
+                // belongs to ui_close_app in the main loop, never to this
+                // latency-sensitive touchscreen callback.
+                id(app_close_requested) = true;
                 return;
               }
             }
@@ -239,6 +252,7 @@ touchscreen:
                 id(tile_swipe_next_page) = 0;
                 id(tile_swipe_next_x) = dir > 0 ? width : -width;
                 id(tile_swipe_last_render_ms) = 0;
+                id(ui_disable_home_tiles_for_drag).execute();
                 id(ui_touch_block_for_drag).execute();
                 return;
               }
@@ -250,6 +264,7 @@ touchscreen:
                 return;
               }
               id(tile_swipe_dragging) = true;
+              id(ui_disable_home_tiles_for_drag).execute();
               id(ui_touch_block_for_drag).execute();
               id(tile_swipe_next_page) = next_page;
               id(tile_swipe_next_x) = next_x;
@@ -310,18 +325,20 @@ touchscreen:
             if (id(global_volume_time_press_tracking)) {
               id(global_volume_time_press_tracking) = false;
               id(global_volume_long_press_guard).stop();
+              atmosfera_ui::volume_overlay_direct_cancel_prepare();
               id(ui_touch_click_block_until_ms) = millis() + 500;
               return;
             }
             if (id(app_close_tracking)) {
               const int dx = id(app_close_last_x) - id(app_close_start_x);
               const int dy = id(app_close_last_y) - id(app_close_start_y);
-              if (abs(dx) > 10 || abs(dy) > 10) {
+              const bool moved = abs(dx) > 10 || abs(dy) > 10;
+              if (moved) {
                 id(ui_touch_click_block_until_ms) = millis() + 300;
               }
               id(app_close_tracking) = false;
               id(app_close_dragging) = false;
-              id(ui_release_touch_blocker).execute();
+              if (moved) id(ui_release_touch_blocker).execute();
               lvgl_esphome_snapshot_app_clear_prepared_close();
             }
             if (id(settings_scroll_tracking)) {
@@ -398,11 +415,14 @@ touchscreen:
             const int dy = id(tile_swipe_last_y) - id(tile_swipe_start_y);
             const int abs_dx = abs(dx);
             const int abs_dy = abs(dy);
+            const bool was_dragging = id(tile_swipe_dragging);
+            const bool was_tap = !was_dragging && abs_dx <= 10 && abs_dy <= 10;
             constexpr int width = 800;
             constexpr int commit_x = width / 4;
             if (id(tile_swipe_dragging) || abs_dx > 10 || abs_dy > 10) {
               id(ui_touch_click_block_until_ms) = millis() + 300;
               id(ui_release_touch_blocker).execute();
+              id(ui_restore_home_tiles_after_drag).execute();
             }
 
             auto clamp_i = [](int value, int lo, int hi) -> int {
@@ -466,6 +486,44 @@ touchscreen:
               if (id(settings_swipe_logs_switch).state) {
                 ESP_LOGI("touch.swipe", "page=%d next=%d latched=%d dx=%d",
                          page, next_page, id(tile_swipe_commit_latched), dx);
+              }
+            }
+
+            if (was_tap) {
+              const int x = id(tile_swipe_last_x);
+              const int y = id(tile_swipe_last_y);
+              auto send_click = [&](lv_obj_t *button) -> bool {
+                if (button == nullptr || !lv_obj_is_visible(button)) return false;
+                lv_area_t area;
+                lv_obj_get_coords(button, &area);
+                if (x < area.x1 || x > area.x2 || y < area.y1 || y > area.y2) return false;
+                lv_obj_add_state(button, LV_STATE_PRESSED);
+                lv_obj_invalidate(button);
+                lv_obj_send_event(button, LV_EVENT_CLICKED, nullptr);
+                lv_timer_t *timer = lv_timer_create([](lv_timer_t *timer) {
+                  auto *pressed_button = static_cast<lv_obj_t *>(lv_timer_get_user_data(timer));
+                  if (pressed_button != nullptr) {
+                    lv_obj_clear_state(pressed_button,
+                        static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
+                    lv_obj_invalidate(pressed_button);
+                  }
+                  lv_timer_delete(timer);
+                }, 90, button);
+                if (timer != nullptr) lv_timer_set_repeat_count(timer, 1);
+                return true;
+              };
+              lv_obj_t *buttons[] = {
+                id(tile_light_button), id(tile_switch_button), id(tile_scene_button),
+                id(tile_trigger_button), id(tile_climate_button), id(tile_cover_button),
+                id(tile_garage_button), id(tile_lock_button), id(tile_alarm_button),
+                id(tile_door_window_button), id(tile_presence_button), id(tile_sensor_button),
+                id(tile_weather_button), id(tile_clock_button), id(tile_world_clock_button),
+                id(tile_media_button), id(tile_subpage_button), id(tile_fan_button),
+                id(tile_fan_speed_button), id(tile_webhook_button), id(tile_internal_button),
+                id(tile_settings_button), id(tile_voice_button),
+              };
+              for (auto *button : buttons) {
+                if (send_click(button)) break;
               }
             }
 

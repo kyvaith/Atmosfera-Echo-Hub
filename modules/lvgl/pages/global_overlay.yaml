@@ -73,14 +73,14 @@ lvgl:
           pad_all: 0
           scrollable: false
           clickable: false
-          hidden: true
+          hidden: false
           widgets:
             - label:
                 id: global_time_label
                 text: "9:30"
                 align: CENTER
                 text_color: 0xF5EEFB
-                text_opa: 0%
+                text_opa: 100%
                 text_font: roboto_34
 
       - obj:
