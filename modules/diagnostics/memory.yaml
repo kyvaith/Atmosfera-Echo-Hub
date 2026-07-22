@@ -5,6 +5,7 @@ esphome:
     - <esp_heap_caps.h>
     - <esp_psram.h>
     - <sdkconfig.h>
+    - static/task_runtime_profiler.h
 
 text_sensor:
   - platform: template

@@ -14,24 +14,6 @@ text:
     max_length: 100
     on_value:
       - script.execute: subscribe_media_player
-      - delay: 500ms
-      - if:
-          condition:
-            lambda: |-
-              std::string entity = id(media_player_entity).state;
-              return id(boot_sequence_done)
-                  && !entity.empty()
-                  && entity.rfind("media_player.", 0) == 0
-                  && esphome::api::global_api_server != nullptr
-                  && esphome::api::global_api_server->is_connected();
-          then:
-            - logger.log:
-                level: INFO
-                tag: media_select
-                format: "Rebooting to apply media player subscription"
-            - lambda: 'global_preferences->sync();'
-            - delay: 200ms
-            - lambda: 'App.safe_reboot();'
 
   - platform: template
     name: "Music Assistant API URL"

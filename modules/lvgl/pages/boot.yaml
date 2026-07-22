@@ -5,6 +5,7 @@ script:
     mode: restart
     then:
       - lambda: |-
+          const int64_t started_us = esp_timer_get_time();
           lv_obj_clear_flag(id(boot_overlay), LV_OBJ_FLAG_HIDDEN);
           lv_obj_move_foreground(id(boot_overlay));
           lv_obj_set_style_opa(id(boot_esphome_wordmark), LV_OPA_TRANSP, LV_PART_MAIN);
@@ -12,24 +13,47 @@ script:
             auto *ctx = static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(id(boot_esphome_animation)));
             esphome::lvgl::lottie_prepare(ctx);
           }
+          ESP_LOGW("boot.diag", "lottie prepare requested in %uus",
+                   static_cast<unsigned>(esp_timer_get_time() - started_us));
 
   - id: boot_start_esphome_animation
     mode: restart
     then:
       - lambda: |-
+          const int64_t started_us = esp_timer_get_time();
           lv_obj_clear_flag(id(boot_overlay), LV_OBJ_FLAG_HIDDEN);
           lv_obj_move_foreground(id(boot_overlay));
           if (id(boot_esphome_animation) != nullptr) {
             auto *ctx = static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(id(boot_esphome_animation)));
             esphome::lvgl::lottie_show(ctx, true);
           }
+          ESP_LOGW("boot.diag", "lottie visible/restart requested in %uus",
+                   static_cast<unsigned>(esp_timer_get_time() - started_us));
       - script.execute: boot_reveal_esphome_wordmark
 
   - id: boot_reveal_esphome_wordmark
     mode: restart
     then:
-      - delay: 3200ms
+      - wait_until:
+          condition:
+            lambda: |-
+              if (id(boot_esphome_animation) == nullptr) return true;
+              auto *ctx = static_cast<esphome::lvgl::LottieContext *>(
+                  lv_obj_get_user_data(id(boot_esphome_animation)));
+              return esphome::lvgl::lottie_is_complete(ctx);
+          timeout: 4500ms
       - lambda: |-
+          ESP_LOGW("boot.diag", "wordmark fade begin uptime=%lums", (unsigned long) millis());
+          // Cached playback presents directly to DSI, so the canvas may still
+          // contain an earlier frame. Pin the completed trace into the canvas
+          // before any normal LVGL redraw, then reclaim the 11 MB frame cache.
+          if (id(boot_esphome_animation) != nullptr) {
+            auto *ctx = static_cast<esphome::lvgl::LottieContext *>(
+                lv_obj_get_user_data(id(boot_esphome_animation)));
+            // This trace is cumulative. Preserve the fullest cached frame in
+            // case ThorVG treats the Lottie out-point as an empty final slot.
+            esphome::lvgl::lottie_release_completed_frame_cache(ctx, true);
+          }
           lv_anim_delete(id(boot_esphome_wordmark), nullptr);
           lv_anim_t animation;
           lv_anim_init(&animation);
@@ -41,23 +65,41 @@ script:
             lv_obj_set_style_opa(static_cast<lv_obj_t *>(target), static_cast<lv_opa_t>(value), LV_PART_MAIN);
           });
           lv_anim_start(&animation);
+      # Keep both the final Lottie trace and the completed wordmark fade on the
+      # opaque boot overlay until the already-rendered home frame is ready.
+      - delay: 560ms
+      - lambda: |-
+          auto *frame = id(my_display).get_presented_frame_buffer();
+          lv_area_t area{};
+          uint32_t white_pixels = 0;
+          if (frame != nullptr && id(boot_esphome_animation) != nullptr) {
+            lv_obj_get_coords(id(boot_esphome_animation), &area);
+            for (int y = area.y1; y <= area.y2; y++) {
+              const uint8_t *row = frame + (static_cast<size_t>(y) * 800U + area.x1) * 3U;
+              for (int x = area.x1; x <= area.x2; x++, row += 3U) {
+                white_pixels += row[0] > 210U && row[1] > 210U && row[2] > 210U;
+              }
+            }
+          }
+          ESP_LOGW("boot.diag", "final trace after fade: white=%u area=%d,%d-%d,%d fb=%p",
+                   (unsigned) white_pixels, area.x1, area.y1, area.x2, area.y2, frame);
 
   - id: boot_hide_esphome_animation
     mode: restart
     then:
       - lambda: |-
-          if (id(boot_esphome_animation) != nullptr) {
-            auto *ctx = static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(id(boot_esphome_animation)));
-            // Stop the renderer but retain its final frame until the opaque
-            // boot overlay is removed. Hiding it earlier exposes a blank logo
-            // between the splash and the already prepared home screen.
-            esphome::lvgl::lottie_pause(ctx, false);
-          }
+          const int64_t started_us = esp_timer_get_time();
+          // Playback is already complete here. lottie_pause(ctx, false) still
+          // marks the widget runtime-hidden and invalidates it, which erased
+          // the completed trace before the opaque overlay hand-off.
+          ESP_LOGW("boot.diag", "lottie final frame retained in %uus",
+                   static_cast<unsigned>(esp_timer_get_time() - started_us));
 
   - id: boot_finish_esphome_overlay
     mode: restart
     then:
       - lambda: |-
+          const int64_t started_us = esp_timer_get_time();
           lv_anim_delete(id(boot_esphome_wordmark), nullptr);
           lv_obj_add_flag(id(boot_overlay), LV_OBJ_FLAG_HIDDEN);
           if (id(boot_esphome_animation) != nullptr) {
@@ -65,3 +107,5 @@ script:
             esphome::lvgl::lottie_hide(ctx);
           }
           lv_obj_set_style_opa(id(boot_esphome_wordmark), LV_OPA_TRANSP, LV_PART_MAIN);
+          ESP_LOGW("boot.diag", "boot overlay hidden/resources released in %uus",
+                   static_cast<unsigned>(esp_timer_get_time() - started_us));

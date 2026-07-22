@@ -170,6 +170,10 @@ media_source:
   - platform: sendspin
     id: sendspin_media_source
     sample_rate: 48000
+    # The physical DAC path is mono. Request lossless PCM mono so the P4 does
+    # not spend a core decoding stereo FLAC only to downmix it afterwards.
+    supported_codecs: [pcm]
+    supported_channels: [1]
     buffer_size: 600000
     task_stack_in_psram: false
     decode_memory: psram

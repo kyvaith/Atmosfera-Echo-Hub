@@ -14,20 +14,62 @@ esphome:
     # ESPHome/ESP-IDF code. They are not Kconfig symbols, so sdkconfig_options
     # would silently drop them.
     build_flags:
-      - -DCONFIG_ESPHOME_JPEG_DMA2D_BURST_LENGTH=1
+      # JPEG is a one-shot producer competing with the continuously scanned
+      # DSI framebuffer. A 64-byte burst leaves arbitration points for DSI
+      # without reducing image quality or the 128-byte LVGL/PPA animation path.
+      - -DCONFIG_ESPHOME_JPEG_DMA2D_BURST_LENGTH=64
       - -DCONFIG_ESPHOME_JPEG_DMA2D_DESC_BURST_DISABLE=1
-      - -DCONFIG_ESPHOME_JPEG_DMA2D_SKIP_PRE_OUTPUT_MSYNC=1
+      - -DCONFIG_ESPHOME_JPEG_DMA2D_PRE_OUTPUT_MSYNC_CHUNK=65536
+      - -DCONFIG_ESPHOME_JPEG_DMA2D_PRE_OUTPUT_MSYNC_YIELD=1
       - -DCONFIG_ESPHOME_JPEG_DMA2D_RUNTIME_SKIP_POST_OUTPUT_MSYNC=1
       - -DCONFIG_ESPHOME_JPEG_DMA2D_OUTPUT_MSYNC_CHUNK=16384
       - -DCONFIG_ESPHOME_JPEG_DMA2D_OUTPUT_MSYNC_YIELD=1
       - -DCONFIG_ESPHOME_JPEG_DECODER_INTERNAL_INPUT_MAX_BYTES=131072
       - -DCONFIG_ESPHOME_JPEG_DECODER_DIRECT_PSRAM_INPUT=1
+      - -DCONFIG_ESPHOME_JPEG_BUFFER_DIAGNOSTICS=0
       - -DCONFIG_ESPHOME_ARTWORK_SKIP_DMA_OUTPUT_MSYNC=1
+      - -DCONFIG_ESPHOME_ARTWORK_BUFFER_DIAGNOSTICS=0
       - -DCONFIG_ESPHOME_ARTWORK_CACHE_SYNC_CHUNK=4096
-      - -DCONFIG_ESPHOME_ARTWORK_CACHE_SYNC_FIFO_MIN=896
+      - -DCONFIG_ESPHOME_ARTWORK_CACHE_SYNC_FIFO_MIN=832
       - -DCONFIG_ESPHOME_ARTWORK_CACHE_SYNC_WAIT_US=3000
-      - -DCONFIG_ESPHOME_ARTWORK_POST_DECODE_DSI_QUIET_MS=24
-      - -DCONFIG_ESPHOME_ARTWORK_LOCAL_HTTP_DSI_QUIET_MS=48
+      - -DCONFIG_ESPHOME_ARTWORK_POST_DECODE_DSI_QUIET_MS=0
+      - -DCONFIG_ESPHOME_ARTWORK_LOCAL_HTTP_DSI_QUIET_MS=0
+      # Local Immich requests used to let the HTTP client write 4 KiB chunks
+      # straight into PSRAM. Keep the socket-side buffer internal and copy one
+      # cache-sized block at a time so DSI keeps arbitration opportunities.
+      - -DCONFIG_ESPHOME_ARTWORK_LOCAL_HTTP_RX_BUFFER_SIZE=1024
+      - -DCONFIG_ESPHOME_ARTWORK_LOCAL_HTTP_STAGING_SIZE=4096
+      - -DCONFIG_ESPHOME_ARTWORK_LOCAL_HTTP_READ_CHUNK=4096
+      - -DCONFIG_ESPHOME_ARTWORK_LOCAL_HTTP_COPY_FIFO_GUARD=1
+      - -DCONFIG_ESPHOME_ARTWORK_LOCAL_HTTP_COPY_CHUNK=1024
+      # Leave one scheduler tick between PSRAM writes. The FIFO guard alone
+      # can approve several adjacent writes while the display still has data,
+      # then all of them reach the shared bus before DSI can recover.
+      - -DCONFIG_ESPHOME_ARTWORK_LOCAL_HTTP_COPY_DELAY_TICKS=1
+      # Bound each physical C6 read so its measured DMA occupancy, including
+      # arbitration overhead, fits inside vertical blanking. HTTP still drains
+      # 4 KiB at a time; only the underlying CMD53 transactions are split.
+      - -DCONFIG_ESPHOME_ESP_HOSTED_SDIO_RX_CHUNK_SIZE=1024
+      # The measured idle FIFO floor is 894-895 words. Keep the guard below
+      # that floor so a safe vblank slot is actually attainable; the SDIO
+      # helper now waits for one instead of eventually transferring anyway.
+      - -DCONFIG_ESPHOME_ESP_HOSTED_SDIO_DSI_FIFO_MIN=832
+      - -DCONFIG_ESPHOME_ESP_HOSTED_SDIO_DSI_FIFO_WAIT_US=3000
+      # Parse the C6 stream incrementally from one 1 KiB internal DMA buffer.
+      # This removes the two growing 20-28 KiB stream buffers whose fallback to
+      # PSRAM could contend with the continuously scanned DSI framebuffer.
+      - -DCONFIG_ESPHOME_ESP_HOSTED_SDIO_INCREMENTAL_RX=1
+      # Keep MTU-sized lwIP payloads in internal RAM while capacity is
+      # available. This avoids a second PSRAM write for every Wi-Fi packet;
+      # the patched driver falls back safely and vblank-guards only that rare
+      # external-memory copy.
+      - -DCONFIG_ESPHOME_ESP_HOSTED_SDIO_RX_NETWORK_INTERNAL=1
+      # Allocate the latency-critical 48 KiB raw SDIO RX pool before ESP-Hosted
+      # creates its queues, while internal RAM is still contiguous. Keep the
+      # generic 40 KiB transport pool on the normal allocator so audio/LVGL
+      # retain enough internal RAM after boot.
+      - -DCONFIG_ESPHOME_ESP_HOSTED_SDIO_RX_INTERNAL_MEMPOOL=1
+      - -DCONFIG_ESPHOME_ESP_HOSTED_COMMON_INTERNAL_MEMPOOL=0
       - -DCONFIG_ESPHOME_DSI_MSYNC_CHUNK=32768
       - -DCONFIG_ESPHOME_DSI_CACHE_WRITE_QOS=0
       - -DCONFIG_ESPHOME_DSI_CACHE_READ_QOS=1
@@ -35,28 +77,56 @@ esphome:
       - -DCONFIG_ESPHOME_DSI_CPU_READ_QOS=1
       - -DCONFIG_ESPHOME_DSI_GDMA_WRITE_QOS=0
       - -DCONFIG_ESPHOME_DSI_GDMA_READ_QOS=15
+      # Frame callbacks now only acknowledge autonomous GDMA reload progress.
+      # Keep them above default-priority SDMMC traffic so buffer
+      # handoffs are observed promptly during Wi-Fi bursts.
+      - -DCONFIG_ESPHOME_MIPI_DSI_GDMA_INTR_PRIORITY=3
+      # Temporary dense FIFO sampling inside explicitly marked JPEG/transition
+      # windows. Remove after the blue-flash source is classified.
       - -DCONFIG_ESPHOME_DSI_STRESS_DIAGNOSTICS=1
       - -DCONFIG_ESPHOME_MIPI_DSI_DMA_FLOW_CONTROLLER=1
       - -DCONFIG_ESPHOME_MIPI_DSI_DISABLE_FRAME_ACK=1
       - -DCONFIG_ESPHOME_MIPI_DSI_CONTINUOUS_HS_CLOCK=1
       - -DCONFIG_ESPHOME_LVGL_PPA_DSI_BACKPRESSURE=1
-      - -DCONFIG_ESPHOME_LVGL_PPA_DSI_FIFO_MIN=1000
+      - -DCONFIG_ESPHOME_LVGL_PPA_DSI_FIFO_MIN=832
       - -DCONFIG_ESPHOME_LVGL_PPA_DSI_WAIT_US=6000
       - -DCONFIG_ESPHOME_LVGL_SW_ARTWORK_DSI_BACKPRESSURE=1
-      - -DCONFIG_ESPHOME_LVGL_SW_ARTWORK_DSI_FIFO_MIN=896
+      - -DCONFIG_ESPHOME_LVGL_SW_ARTWORK_DSI_FIFO_MIN=832
       - -DCONFIG_ESPHOME_LVGL_SW_ARTWORK_DSI_WAIT_US=3000
       - -DCONFIG_ESPHOME_LVGL_SW_ARTWORK_DSI_ROW_PERIOD=4
-      - -DCONFIG_ESPHOME_LVGL_PPA_BLEND_BAND_HEIGHT=1
-      - -DCONFIG_ESPHOME_LVGL_PPA_BLEND_BAND_GAP_US=100
+      - -DCONFIG_ESPHOME_LVGL_PPA_BLEND_BAND_HEIGHT=32
+      - -DCONFIG_ESPHOME_LVGL_PPA_BLEND_BAND_GAP_US=0
       - -DCONFIG_ESPHOME_LVGL_PPA_SRM_BURST_LENGTH=128
-      - -DCONFIG_ESPHOME_LVGL_PPA_SRM_BAND_HEIGHT=8
-      - -DCONFIG_ESPHOME_LVGL_PPA_SRM_BAND_GAP_US=25
+      - -DCONFIG_ESPHOME_LVGL_PPA_SRM_BAND_HEIGHT=32
+      - -DCONFIG_ESPHOME_LVGL_PPA_SRM_BAND_GAP_US=0
+      # Split full-screen transforms into phase-aligned vertical strips. A
+      # single 800x800 SRM transaction can complete with unwritten rows on P4.
+      - -DCONFIG_ESPHOME_LVGL_PPA_SRM_TRANSFORM_BAND_HEIGHT=220
+      - -DCONFIG_ESPHOME_LVGL_PPA_SRM_TRANSFORM_BAND_GAP_US=0
+      # ESP-IDF 5.5 performs the macro-block split internally. One SRM command
+      # preserves scaler phase and avoids four task/driver submissions per frame.
+      - -DCONFIG_ESPHOME_LVGL_PPA_DIRECT_FULL_FRAME=1
+      - -DCONFIG_ESPHOME_LVGL_PPA_SRM_ANIMATION_BURST_LENGTH=128
+      - -DCONFIG_ESPHOME_LVGL_PPA_DIRECT_ANIMATION_BURST_LENGTH=128
+      # Persistent regional animations share the PSRAM bus with the DSI scan.
+      # Keep full-screen transforms at 128 while giving wave/marquee updates
+      # shorter arbitration bursts and a FIFO-margin gate.
+      - -DCONFIG_ESPHOME_LVGL_PPA_DIRECT_REGION_BURST_LENGTH=128
+      - -DCONFIG_ESPHOME_LVGL_PPA_DIRECT_REGION_DSI_FIFO_MIN=832
+      - -DCONFIG_ESPHOME_LVGL_PPA_DIRECT_REGION_DSI_WAIT_US=3000
+      - -DCONFIG_ESPHOME_LVGL_SNAPSHOT_DMA2D_M2M=1
+      - -DCONFIG_ESPHOME_LVGL_PPA_SRM_TRANSFORM_DSI_FIFO_MIN=832
+      - -DCONFIG_ESPHOME_LVGL_PPA_SRM_TRANSFORM_DSI_WAIT_US=3000
+      - -DCONFIG_ESPHOME_LVGL_PPA_SRM_TRANSFORM_POST_WAIT=0
       - -DCONFIG_ESPHOME_LVGL_PPA_SKIP_DMA_SOURCE_MSYNC=1
       - -DCONFIG_ESPHOME_LVGL_PPA_SRM_AXI_BURSTINESS=4
       - -DCONFIG_ESPHOME_LVGL_PPA_SRM_PEAK_LEVEL=2
       - -DCONFIG_ESPHOME_LVGL_PPA_SRM_TRANSACTION_LEVEL=4
+      - -DCONFIG_ESPHOME_LVGL_PPA_SRM_WRITE_PRIORITY=0
+      - -DCONFIG_ESPHOME_LVGL_PPA_SRM_READ_PRIORITY=0
     extra_scripts:
       - "pre:C:/Users/kyvai/atmosfera-echo-hub/tools/patch_espidf_freertos_static_alloc.py"
+      - "post:C:/Users/kyvai/atmosfera-echo-hub/tools/patch_esp_hosted_sdio_streaming.py"
   on_boot:
     priority: 600
     then:
@@ -69,13 +139,10 @@ esphome:
     - lvgl.page.show:
         id: controls_page
     - delay: 250ms
-    - script.execute: ui_build_tile_snapshots_now
-    - script.wait: ui_build_tile_snapshots_now
-    - lambda: |-
-        lvgl_esphome_snapshot_dsi_quiet_ms(450);
-    - output.turn_off: backlight_output
-    - light.turn_off:
-        id: display_backlight
+    # Reserve the full Lottie frame cache while PSRAM is still contiguous.
+    # Tile snapshots are deliberately built afterwards; doing this in the
+    # opposite order fragmented the largest block and forced live vector
+    # rendering during the visible splash animation.
     - script.execute: boot_show_esphome_animation
     - wait_until:
         condition:
@@ -84,6 +151,47 @@ esphome:
             auto *ctx = static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(id(boot_esphome_animation)));
             return esphome::lvgl::lottie_is_ready(ctx);
         timeout: 4s
+    # Apply persisted UI state while the panel is still dark. Performing these
+    # label/style updates during the splash-to-home hand-off can starve DSI.
+    - script.execute: ui_apply_settings_state
+    - script.wait: ui_apply_settings_state
+    # Install pressed-state styles and disable native tile click handling while
+    # the panel is dark. These one-time tree walks used to run during the
+    # visible splash-to-home hand-off and could block the DSI feed for >1 s.
+    - script.execute: ui_prepare_immediate_pressed_feedback
+    - script.wait: ui_prepare_immediate_pressed_feedback
+    - script.execute: ui_prepare_home_tiles_for_touch
+    - script.wait: ui_prepare_home_tiles_for_touch
+    - script.execute: ui_build_tile_snapshots_now
+    - script.wait: ui_build_tile_snapshots_now
+    # Preserve large contiguous blocks for the raw home-page cache first. The
+    # encoded artwork buffers are then reserved once, while the panel is still
+    # dark, and reused for every Music Assistant/Immich image.
+    - lambda: |-
+        const bool player_reserved = id(album_art_background).reserve_download_buffer();
+        const bool immich_a_reserved = id(immich_photo_image).reserve_download_buffer();
+        const bool immich_b_reserved = id(immich_photo_image_b).reserve_download_buffer();
+        const bool immich_a_http = id(immich_photo_image).reserve_local_http_client(id(immich_url).state);
+        const bool immich_b_http = id(immich_photo_image_b).reserve_local_http_client(id(immich_url).state);
+        ESP_LOGW("boot.diag", "JPEG input buffers reserved player=%d immich=%d/%d http=%d/%d psram=%uK/%uK",
+                 player_reserved, immich_a_reserved, immich_b_reserved, immich_a_http, immich_b_http,
+                 (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+                 (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
+    # Wi-Fi scan/association briefly consumes enough memory bandwidth to make
+    # an otherwise fast Lottie frame miss its visible cadence. Keep the panel
+    # dark until association has settled, with a bounded offline fallback.
+    - wait_until:
+        condition:
+          lambda: |-
+            return esphome::wifi::global_wifi_component != nullptr &&
+                   esphome::wifi::global_wifi_component->is_connected();
+        timeout: 6s
+    - delay: 300ms
+    - lambda: |-
+        lvgl_esphome_snapshot_dsi_quiet_ms(450);
+    - output.turn_off: backlight_output
+    - light.turn_off:
+        id: display_backlight
     - lambda: |-
         ESP_LOGW("boot.diag",
                  "boot lottie prepared internal=%uK/%uK psram=%uK/%uK",
@@ -101,7 +209,7 @@ esphome:
         transition_length: 0ms
     - delay: 2600ms
     - script.execute: boot_start_esphome_animation
-    - delay: 4200ms
+    - script.wait: boot_reveal_esphome_wordmark
     - lambda: |-
         ESP_LOGW("boot.diag",
                  "boot transition: hide animation internal=%uK/%uK psram=%uK/%uK",
@@ -112,16 +220,30 @@ esphome:
         lvgl_esphome_dsi_mark_stress("boot-hide-overlay", 700);
     - script.execute: boot_hide_esphome_animation
     - script.wait: boot_hide_esphome_animation
+    # The fourth raw page does not fit until the completed Lottie frame cache
+    # has been released. Prepare it while the opaque boot overlay still hides
+    # the home tree, so the first 3->4 swipe never pays this decode cost.
+    - script.execute: ui_finish_boot_tile_snapshot_cache
+    - script.wait: ui_finish_boot_tile_snapshot_cache
     - lambda: |-
+        auto *frame = id(my_display).get_presented_frame_buffer();
+        lv_area_t area{};
+        uint32_t white_pixels = 0;
+        if (frame != nullptr && id(boot_esphome_animation) != nullptr) {
+          lv_obj_get_coords(id(boot_esphome_animation), &area);
+          for (int y = area.y1; y <= area.y2; y++) {
+            const uint8_t *row = frame + (static_cast<size_t>(y) * 800U + area.x1) * 3U;
+            for (int x = area.x1; x <= area.x2; x++, row += 3U) {
+              white_pixels += row[0] > 210U && row[1] > 210U && row[2] > 210U;
+            }
+          }
+        }
+        ESP_LOGW("boot.diag", "final trace before home: white=%u fb=%p",
+                 (unsigned) white_pixels, frame);
         lvgl_esphome_dsi_mark_stress("boot-show-home-apply", 1500);
     - script.execute: ui_show_home_content_after_boot
     - script.wait: ui_show_home_content_after_boot
-    - script.execute: ui_apply_settings_state
-    - script.wait: ui_apply_settings_state
     - lambda: |-
-        lv_timer_handler();
-        lv_refr_now(nullptr);
-        lv_timer_handler();
         lvgl_esphome_snapshot_dsi_quiet_ms(450);
         ESP_LOGW("boot.diag",
                  "boot transition: controls shown internal=%uK/%uK psram=%uK/%uK",
@@ -167,12 +289,112 @@ ota:
 api:
   homeassistant_states: true
   actions:
+    - action: debug_restart
+      then:
+        - lambda: 'App.safe_reboot();'
+    - action: debug_test_long_title
+      then:
+        - lambda: |-
+            id(media_title_sensor).publish_state(
+                "A deliberately long Atmosfera Echo Hub title used to benchmark smooth marquee rendering");
+        - script.execute: media_title_marquee_reset_and_start
+    - action: debug_benchmark_home_swipe
+      then:
+        - lambda: |-
+            if (id(ui_active_app) != 0 || id(ui_snapshot_io_busy)) return;
+            id(ui_page) = 1;
+            id(ui_home_page) = 1;
+            lvgl_esphome_set_swipe_logging_enabled(true);
+            lvgl_esphome_snapshot_swipe_set_page_indicator(1, 4);
+            if (!lvgl_esphome_snapshot_swipe_begin(
+                    id(controls_root_1), id(controls_root_2), 800, 800)) {
+              ESP_LOGW("swipe.bench", "Unable to start synthetic home swipe");
+            }
+        - repeat:
+            count: 31
+            then:
+              - lambda: |-
+                  const int x = -static_cast<int>(((iteration + 1U) * 480U) / 31U);
+                  lvgl_esphome_snapshot_swipe_request_update(x, 800 + x);
+              - delay: 16ms
+        - lambda: |-
+            lvgl_esphome_snapshot_swipe_request_finish(-800, 0, 280, true);
+        # Reproduce a real chained gesture while the first page is still
+        # settling instead of waiting for the previous animation to go idle.
+        - delay: 32ms
+        - lambda: |-
+            id(ui_page) = 2;
+            id(ui_home_page) = 2;
+            lvgl_esphome_snapshot_swipe_set_page_indicator(2, 4);
+            if (!lvgl_esphome_snapshot_swipe_begin(
+                    id(controls_root_2), id(controls_root_3), 800, 800)) {
+              ESP_LOGW("swipe.bench", "Unable to start immediate synthetic 2->3 swipe");
+            }
+        - repeat:
+            count: 31
+            then:
+              - lambda: |-
+                  const int x = -static_cast<int>(((iteration + 1U) * 480U) / 31U);
+                  lvgl_esphome_snapshot_swipe_request_update(x, 800 + x);
+              - delay: 16ms
+        - lambda: |-
+            lvgl_esphome_snapshot_swipe_request_finish(-800, 0, 280, true);
+        - delay: 420ms
+        - lambda: |-
+            id(ui_page) = 3;
+            id(ui_home_page) = 3;
+            lvgl_esphome_set_swipe_logging_enabled(id(settings_swipe_logs_switch).state);
+        - script.execute: ui_apply_tile_positions
+    - action: debug_task_profile
+      then:
+        - lambda: |-
+            atmosfera_diag::log_task_runtime_profile();
     - action: debug_open_player
       then:
         - script.execute: ui_open_player_app
+    - action: debug_wake
+      then:
+        - script.execute: display_wake
+    - action: debug_player_toggle
+      then:
+        # Exercise the exact same path as the centre player button.
+        - lambda: |-
+            ESP_LOGW("player.diag", "toggle: begin");
+        - script.execute: media_show_action_spinner
+        - lambda: |-
+            ESP_LOGW("player.diag", "toggle: spinner scheduled");
+        - media_player.toggle: sendspin_group
+        - lambda: |-
+            ESP_LOGW("player.diag", "toggle: command returned");
     - action: debug_open_settings
       then:
         - script.execute: ui_open_settings_app
+    - action: debug_benchmark_settings_scroll
+      then:
+        - lambda: |-
+            if (id(ui_active_app) != 2 || id(ui_snapshot_io_busy)) {
+              ESP_LOGW("settings.bench", "Settings must be open and idle");
+              return;
+            }
+            lvgl_esphome_set_perf_logging_enabled(true);
+            lvgl_esphome_set_swipe_logging_enabled(true);
+            if (!lvgl_esphome_snapshot_scroll_begin(id(settings_root), 800, 800)) {
+              ESP_LOGW("settings.bench", "Unable to start synthetic scroll");
+              return;
+            }
+            ESP_LOGI("settings.bench", "Synthetic scroll started");
+        - repeat:
+            count: 31
+            then:
+              - lambda: |-
+                  const int y = static_cast<int>(((iteration + 1U) * 420U) / 31U);
+                  lvgl_esphome_snapshot_scroll_update(y);
+              - delay: 16ms
+        - lambda: |-
+            lvgl_esphome_snapshot_scroll_finish_retain(420);
+            ESP_LOGI("settings.bench", "Synthetic scroll finished");
+            lvgl_esphome_set_perf_logging_enabled(id(settings_perf_logs_switch).state);
+            lvgl_esphome_set_swipe_logging_enabled(id(settings_swipe_logs_switch).state);
     - action: debug_open_voice
       then:
         - script.execute: ui_open_voice_app
@@ -190,7 +412,7 @@ api:
         - script.execute: ui_open_immich_app
     - action: debug_next_immich_photo
       then:
-        - script.execute: immich_fetch_next_photo
+        - script.execute: immich_next_photo_now
     - action: debug_next_track
       then:
         - media_player.next: sendspin_group
@@ -205,6 +427,23 @@ api:
             id: album_art_background
             update: true
             url: !lambda 'return url;'
+    - action: debug_player_state
+      then:
+        - lambda: |-
+            ESP_LOGW("media.wave",
+                     "state app=%d page=%d busy=%s backlight_current=%s backlight_target=%s media=%s "
+                     "speaker=%s queue=%s panel=%s drag=%s global_volume=%s local_volume=%s",
+                     id(ui_active_app), id(ui_page), YESNO(id(ui_snapshot_io_busy)),
+                     YESNO(id(display_backlight).current_values.is_on()),
+                     YESNO(id(display_backlight).remote_values.is_on()),
+                     id(media_player_state_sensor).has_state() ? id(media_player_state_sensor).state.c_str() : "<none>",
+                     YESNO(id(media_speaker_panel_open)),
+                     YESNO(!lv_obj_has_flag(id(queue_panel), LV_OBJ_FLAG_HIDDEN)),
+                     YESNO(!lv_obj_has_flag(id(speaker_group_panel), LV_OBJ_FLAG_HIDDEN)),
+                     YESNO(id(global_volume_dragging)),
+                     YESNO(!lv_obj_has_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN)),
+                     YESNO(!lv_obj_has_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN)));
+            atmosfera_ui::media_wavy_arc_log_state("api diagnostic");
   on_client_connected:
   - lambda: |-
       ESP_LOGD("api.diag", "CONNECTED client=%s address=%s uptime=%lums internal_free=%uKiB psram_free=%uKiB",
@@ -234,10 +473,7 @@ api:
           }
           const std::string realtime_url = "ws://" + host + ":${ha_openai_realtime_port}/";
           ESP_LOGD("api.diag", "Detected realtime backend URL: %s", realtime_url.c_str());
-          id(va)->set_timeout("detected_realtime_backend_url", 1500, [realtime_url]() {
-            ESP_LOGD("api.diag", "Using detected realtime backend URL: %s", realtime_url.c_str());
-            id(va)->set_url(realtime_url);
-          });
+          id(voice_assistant_connect_realtime_after_boot).execute(realtime_url);
         }
       }
   - script.execute: subscribe_media_after_boot

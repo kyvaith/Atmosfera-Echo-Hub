@@ -1,4 +1,4 @@
-# ESP-IDF 6.0.1 workaround for ESP32-P4 boot-time FreeRTOS heap starvation.
+# ESP-IDF 5.5+ workaround for ESP32-P4 boot-time FreeRTOS heap starvation.
 #
 # IDF's common FreeRTOS port allocates IDLE and Timer task buffers from
 # pvPortMalloc() even when static allocation is enabled. On our large ESP32-P4
@@ -160,7 +160,7 @@ def main() -> None:
 
     framework_path = Path(framework_dir)
     idf_version = _read_idf_version(framework_path)
-    if idf_version[0] != 6:
+    if idf_version < (5, 5, 0) or idf_version >= (7, 0, 0):
         print(
             "FreeRTOS static allocation patch: skipped "
             f"ESP-IDF {idf_version[0]}.{idf_version[1]}.{idf_version[2]}"

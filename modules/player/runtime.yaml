@@ -102,6 +102,14 @@ globals:
     type: uint32_t
     restore_value: no
     initial_value: '0'
+  - id: media_applied_artwork_trace_id
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+  - id: artwork_decode_ui_guard
+    type: bool
+    restore_value: no
+    initial_value: 'false'
   - id: title_marquee_active
     type: bool
     restore_value: no
@@ -192,7 +200,6 @@ script:
           lv_obj_add_flag(id(album_art_background_widget), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(artwork_primary_overlay), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(artwork_scrim), LV_OBJ_FLAG_HIDDEN);
-          lv_image_set_src(id(title_marquee_background_widget), id(album_art_placeholder).get_lv_image_dsc());
           lv_obj_add_flag(id(title_marquee_scrim), LV_OBJ_FLAG_HIDDEN);
           atmosfera_ui::media_wavy_arc_set_background(
               id(album_art_placeholder).get_lv_image_dsc(), false);
@@ -350,12 +357,12 @@ script:
             return;
           }
           id(album_art_background).set_sendspin_paused(false);
-      - script.execute: media_resume_deferred_artwork
-      - script.execute: media_apply_artwork
-      - delay: 250ms
       - if:
           condition:
-            lambda: 'return id(ui_active_app) == 1 && !id(ui_snapshot_io_busy);'
+            lambda: |-
+              return id(ui_active_app) == 1 && !id(ui_snapshot_io_busy) &&
+                     id(album_art_background).get_width() > 0 &&
+                     id(album_art_background).get_height() > 0;
           then:
             - script.execute: media_apply_artwork
 
@@ -810,24 +817,61 @@ script:
                                       phase != ${voice_assist_not_ready_phase_id};
               return voice_busy || id(ui_snapshot_io_busy) || !id(boot_sequence_done) || id(ui_active_app) != 1;
           then:
-            - lambda: id(artwork_download_deferred) = true;
+            - lambda: |-
+                id(artwork_download_deferred) = true;
+                if (id(artwork_decode_ui_guard)) {
+                  auto *display = lv_obj_get_display(id(wear_root));
+                  if (display != nullptr) lv_display_enable_invalidation(display, true);
+                  lvgl_esphome_direct_regions_pause(false, 0);
+                  id(artwork_decode_ui_guard) = false;
+                }
           else:
+            # Hide the idle visual before publishing the artwork so both
+            # visibility changes are rendered in the same full frame.
+            - script.execute: media_hide_lottie_visual
             - lambda: |-
                 if (id(album_art_background).get_width() <= 0 || id(album_art_background).get_height() <= 0) {
                   id(artwork_download_deferred) = true;
+                  if (id(artwork_decode_ui_guard)) {
+                    auto *display = lv_obj_get_display(id(wear_root));
+                    if (display != nullptr) lv_display_enable_invalidation(display, true);
+                    lvgl_esphome_direct_regions_pause(false, 0);
+                    id(artwork_decode_ui_guard) = false;
+                  }
                   return;
                 }
                 id(artwork_download_deferred) = false;
                 auto *img = id(album_art_background_widget);
                 auto *src = id(album_art_background).get_lv_image_dsc();
                 const uint32_t artwork_trace_id = id(album_art_background).get_trace_id();
+                const bool source_changed =
+                    artwork_trace_id == 0 || artwork_trace_id != id(media_applied_artwork_trace_id) ||
+                    lv_image_get_src(img) != src;
+                auto *display = lv_obj_get_display(id(wear_root));
+                const bool decode_guard_active = id(artwork_decode_ui_guard);
+                const bool invalidation_enabled =
+                    display != nullptr && lv_display_is_invalidation_enabled(display);
+                // The wave and marquee write directly into small DSI regions.
+                // Drain and pause the shared regional queue before LVGL
+                // repaints the full artwork frame. Merely disabling the two
+                // producers still left an already queued PPA transaction able
+                // to overwrite the newly rendered framebuffer.
+                if (source_changed && !decode_guard_active && !lvgl_esphome_direct_regions_pause(true, 150)) {
+                  ESP_LOGW("artwork.ui", "regional compositor drain timed out before artwork refresh");
+                }
+                atmosfera_ui::media_wavy_arc_set_direct_present(false);
+                atmosfera_ui::title_marquee_direct_end(true);
+                if (invalidation_enabled) {
+                  lv_display_enable_invalidation(display, false);
+                }
                 ESP_LOGD("artwork.ui", "artwork trace #%u ui apply start uptime=%lums src=%p img=%p",
                          artwork_trace_id, millis(), src, img);
-                lv_image_set_src(img, src);
-                atmosfera_ui::title_marquee_direct_end(true);
-                lv_image_set_src(id(title_marquee_background_widget), src);
-                lv_obj_add_flag(id(title_marquee_scrim), LV_OBJ_FLAG_HIDDEN);
-                atmosfera_ui::media_wavy_arc_set_background(src, false);
+                if (source_changed) {
+                  lv_image_set_src(img, src);
+                  atmosfera_ui::title_marquee_direct_end(true);
+                  lv_obj_add_flag(id(title_marquee_scrim), LV_OBJ_FLAG_HIDDEN);
+                  id(media_applied_artwork_trace_id) = artwork_trace_id;
+                }
                 if (!lv_obj_has_flag(id(figma_media_artwork_widget), LV_OBJ_FLAG_HIDDEN)) {
                   lv_obj_add_flag(id(figma_media_artwork_widget), LV_OBJ_FLAG_HIDDEN);
                 }
@@ -839,18 +883,49 @@ script:
                 if (!lv_obj_has_flag(id(artwork_error_label), LV_OBJ_FLAG_HIDDEN)) {
                   lv_obj_add_flag(id(artwork_error_label), LV_OBJ_FLAG_HIDDEN);
                 }
-                lv_obj_invalidate(img);
+                if (display != nullptr && (invalidation_enabled || decode_guard_active)) {
+                  lv_display_enable_invalidation(display, true);
+                }
+                if (source_changed) {
+                  // Direct/full-refresh mode turns this into one complete
+                  // player frame. Do not call lv_refr_now() here: this script
+                  // runs from the artwork completion callback, and a nested
+                  // synchronous refresh can wait on the display pipeline for
+                  // many seconds. The normal LVGL loop renders the queued
+                  // frame while the regional compositors remain quiescent.
+                  lv_obj_invalidate(id(wear_root));
+                }
+            # Yield the ESPHome loop so LVGL can render and present the single
+            # invalidated frame before the direct wave/marquee writers resume.
+            - delay: 80ms
+            - lambda: |-
+                // Keep the direct-rendered control backdrop in lockstep with
+                // the LVGL artwork. Opening Player with an already decoded
+                // image does not arm artwork_decode_ui_guard, but still needs
+                // to replace the boot-time placeholder under the wave.
+                auto *src = id(album_art_background).get_lv_image_dsc();
+                atmosfera_ui::media_wavy_arc_set_background(src, false);
+                if (id(artwork_decode_ui_guard)) {
+                  lvgl_esphome_direct_regions_pause(false, 0);
+                  id(artwork_decode_ui_guard) = false;
+                }
                 ESP_LOGD("artwork.ui", "artwork trace #%u ui source applied uptime=%lums",
-                         artwork_trace_id, millis());
-            - script.execute: media_hide_lottie_visual
+                         id(album_art_background).get_trace_id(), millis());
+            - script.execute: media_title_marquee_reset_and_start
             - script.execute: start_hide_track_info_timer
 
   - id: media_handle_artwork_error
     mode: restart
     then:
       - lambda: |-
+          id(media_applied_artwork_trace_id) = 0;
+          if (id(artwork_decode_ui_guard)) {
+            auto *display = lv_obj_get_display(id(wear_root));
+            if (display != nullptr) lv_display_enable_invalidation(display, true);
+            lvgl_esphome_direct_regions_pause(false, 0);
+            id(artwork_decode_ui_guard) = false;
+          }
           atmosfera_ui::title_marquee_direct_end(true);
-          lv_image_set_src(id(title_marquee_background_widget), id(album_art_placeholder).get_lv_image_dsc());
           lv_obj_add_flag(id(title_marquee_scrim), LV_OBJ_FLAG_HIDDEN);
           atmosfera_ui::media_wavy_arc_set_background(
               id(album_art_placeholder).get_lv_image_dsc(), false);
@@ -1017,6 +1092,10 @@ text_sensor:
           condition:
             lambda: 'return x == "PLAYING" || x == "playing";'
           then:
+            # Stop the fallback Lottie before artwork/network work starts. It
+            # otherwise keeps rasterizing behind the player during the most
+            # bandwidth-sensitive part of playback startup.
+            - script.execute: media_hide_lottie_visual
             - lambda: |-
                 id(artwork_block_until) = 0;
                 if (id(ui_active_app) == 1) {
@@ -1182,91 +1261,102 @@ sensor:
           }
 
 interval:
-  - interval: 25ms
+  - interval: 16ms
     then:
       - lambda: |-
+          static uint32_t marquee_last_submit_ms = 0;
+          atmosfera_ui::title_marquee_direct_service();
           const bool player_visible = id(ui_active_app) == 1 && id(display_backlight).remote_values.is_on();
-          const bool player_uncovered = player_visible
-              && !id(ui_snapshot_io_busy)
-              && !id(media_speaker_panel_open)
-              && lv_obj_has_flag(id(queue_panel), LV_OBJ_FLAG_HIDDEN)
-              && lv_obj_has_flag(id(speaker_group_panel), LV_OBJ_FLAG_HIDDEN)
-              && !id(global_volume_dragging)
-              && lv_obj_has_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN)
-              && lv_obj_has_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN);
+          uint16_t blocker_mask = 0;
+          if (!player_visible) blocker_mask |= 1U << 0;
+          if (id(ui_snapshot_io_busy)) blocker_mask |= 1U << 1;
+          if (id(media_speaker_panel_open)) blocker_mask |= 1U << 2;
+          if (!lv_obj_has_flag(id(queue_panel), LV_OBJ_FLAG_HIDDEN)) blocker_mask |= 1U << 3;
+          if (!lv_obj_has_flag(id(speaker_group_panel), LV_OBJ_FLAG_HIDDEN)) blocker_mask |= 1U << 4;
+          if (id(global_volume_dragging)) blocker_mask |= 1U << 5;
+          if (!lv_obj_has_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN)) blocker_mask |= 1U << 6;
+          if (!lv_obj_has_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN)) blocker_mask |= 1U << 7;
+          const bool player_uncovered = blocker_mask == 0;
+          static uint16_t previous_blocker_mask = 0xFFFF;
+          if (id(settings_perf_logs_switch).state && player_visible && blocker_mask != previous_blocker_mask) {
+            ESP_LOGI("media.wave", "direct-present blockers=0x%02X snapshot=%s speaker=%s queue=%s panel=%s drag=%s global_vol=%s local_vol=%s",
+                     blocker_mask,
+                     YESNO(id(ui_snapshot_io_busy)), YESNO(id(media_speaker_panel_open)),
+                     YESNO(!lv_obj_has_flag(id(queue_panel), LV_OBJ_FLAG_HIDDEN)),
+                     YESNO(!lv_obj_has_flag(id(speaker_group_panel), LV_OBJ_FLAG_HIDDEN)),
+                     YESNO(id(global_volume_dragging)),
+                     YESNO(!lv_obj_has_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN)),
+                     YESNO(!lv_obj_has_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN)));
+          }
+          previous_blocker_mask = player_visible ? blocker_mask : 0xFFFF;
           atmosfera_ui::media_wavy_arc_set_direct_present(player_uncovered);
-          // Core 1 rasterizes the next wave frame; only the LVGL task presents
-          // the completed buffer so PPA is never driven concurrently.
+
+          // Compose the title strip before submitting the ready waveform. The
+          // regional compositor can then collect both requests in one DSI
+          // frame instead of presenting two independently competing frames.
+          if (id(title_marquee_active)) {
+            if (!player_visible) {
+              marquee_last_submit_ms = 0;
+              id(title_marquee_active) = false;
+              atmosfera_ui::title_marquee_direct_end(true);
+              if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
+            } else if (!player_uncovered) {
+              marquee_last_submit_ms = 0;
+              if (atmosfera_ui::title_marquee_direct_is_active()) {
+                atmosfera_ui::title_marquee_direct_end(true);
+                if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
+              }
+            } else {
+              const int overflow = id(title_marquee_text_width) - 520;
+              if (overflow <= 0 || id(title_marquee_scroll_ms) == 0) {
+                marquee_last_submit_ms = 0;
+                id(title_marquee_active) = false;
+                atmosfera_ui::title_marquee_direct_end(true);
+                if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
+              } else {
+                const uint32_t now = millis();
+                const uint32_t elapsed = now - id(title_marquee_start_ms);
+                if (elapsed >= id(title_marquee_scroll_ms) + 700U) {
+                  marquee_last_submit_ms = 0;
+                  id(title_marquee_active) = false;
+                  if (atmosfera_ui::title_marquee_direct_is_active()) {
+                    atmosfera_ui::title_marquee_direct_update(0);
+                    atmosfera_ui::title_marquee_direct_end(true);
+                  }
+                  if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
+                } else if (elapsed < id(title_marquee_scroll_ms)) {
+                  const int x = -((int64_t) overflow * (int64_t) elapsed /
+                                  (int64_t) id(title_marquee_scroll_ms));
+                  if (atmosfera_ui::title_marquee_direct_is_active()) {
+                    // Position remains time-based, but a text strip does not
+                    // need to consume one PPA transaction every 16 ms. At
+                    // ~31 Hz it stays visually continuous while leaving every
+                    // other regional slot to the 60-Hz play animation.
+                    if (marquee_last_submit_ms == 0 || now - marquee_last_submit_ms >= 32U) {
+                      if (atmosfera_ui::title_marquee_direct_update(x)) {
+                        marquee_last_submit_ms = now;
+                      }
+                    }
+                  } else if (lv_obj_get_x(id(title_label)) != x) {
+                    lv_obj_set_x(id(title_label), x);
+                  }
+                }
+              }
+            }
+          } else {
+            marquee_last_submit_ms = 0;
+          }
+
+          // The worker on the core opposite ESPHome rasterizes the next
+          // regional frame. The UI loop only submits the completed buffer, so
+          // audio can pre-empt drawing without blocking component processing.
           atmosfera_ui::media_wavy_arc_present_ready();
           if (player_uncovered &&
               (id(media_action_pending) ||
                (id(media_player_state_sensor).has_state() &&
                 (id(media_player_state_sensor).state == "PLAYING" ||
                  id(media_player_state_sensor).state == "playing")))) {
-            // Keep the requested angular speed, but present twice as many
-            // smaller phase steps so rotation no longer looks like 20 FPS.
             atmosfera_ui::media_wavy_arc_tick(3.0f);
-          }
-
-  # Marquee position is time-based and sampled at display cadence. The direct
-  # compositor skips duplicate integer-pixel positions, so this stays smooth
-  # without redrawing the strip 60 times per second at slower scroll speeds.
-  - interval: 16ms
-    then:
-      - lambda: |-
-          const bool player_visible = id(ui_active_app) == 1 && id(display_backlight).remote_values.is_on();
-          const bool player_uncovered = player_visible
-              && !id(ui_snapshot_io_busy)
-              && !id(media_speaker_panel_open)
-              && lv_obj_has_flag(id(queue_panel), LV_OBJ_FLAG_HIDDEN)
-              && lv_obj_has_flag(id(speaker_group_panel), LV_OBJ_FLAG_HIDDEN)
-              && !id(global_volume_dragging)
-              && lv_obj_has_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN)
-              && lv_obj_has_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN);
-          if (!id(title_marquee_active)) {
-            return;
-          }
-          if (!player_visible) {
-            id(title_marquee_active) = false;
-            atmosfera_ui::title_marquee_direct_end(true);
-            if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
-            return;
-          }
-          if (!player_uncovered) {
-            if (atmosfera_ui::title_marquee_direct_is_active()) {
-              atmosfera_ui::title_marquee_direct_end(true);
-              if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
-            }
-            return;
-          }
-
-          const int overflow = id(title_marquee_text_width) - 520;
-          if (overflow <= 0 || id(title_marquee_scroll_ms) == 0) {
-            id(title_marquee_active) = false;
-            atmosfera_ui::title_marquee_direct_end(true);
-            if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
-            return;
-          }
-
-          const uint32_t now = millis();
-          const uint32_t elapsed = now - id(title_marquee_start_ms);
-          if (elapsed >= id(title_marquee_scroll_ms) + 700U) {
-            id(title_marquee_active) = false;
-            if (atmosfera_ui::title_marquee_direct_is_active()) {
-              atmosfera_ui::title_marquee_direct_update(0);
-              atmosfera_ui::title_marquee_direct_end(true);
-            }
-            if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
-            return;
-          }
-
-          if (elapsed < id(title_marquee_scroll_ms)) {
-            const int x = -((int64_t) overflow * (int64_t) elapsed / (int64_t) id(title_marquee_scroll_ms));
-            if (atmosfera_ui::title_marquee_direct_is_active()) {
-              atmosfera_ui::title_marquee_direct_update(x);
-            } else if (lv_obj_get_x(id(title_label)) != x) {
-              lv_obj_set_x(id(title_label), x);
-            }
           }
 
   - interval: 100ms

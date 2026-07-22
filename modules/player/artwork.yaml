@@ -27,8 +27,23 @@ artwork_image:
     sendspin_slot: 0
     sendspin_paused: true
     placeholder: album_art_placeholder
-    buffer_size: 131072
+    # Retained compressed-input capacity prevents per-track PSRAM reallocations
+    # in the same critical window as continuous MIPI DSI scanout.
+    buffer_size: 262144
     allow_insecure_local_urls: true
+    on_decode_start:
+      - lambda: |-
+          if (id(ui_active_app) != 1 || id(artwork_decode_ui_guard)) {
+            return;
+          }
+          id(artwork_decode_ui_guard) = true;
+          lvgl_esphome_direct_regions_pause(true, 150);
+          atmosfera_ui::media_wavy_arc_set_direct_present(false);
+          atmosfera_ui::title_marquee_direct_end(true);
+          auto *display = lv_obj_get_display(id(wear_root));
+          if (display != nullptr) {
+            lv_display_enable_invalidation(display, false);
+          }
     on_download_finished:
       - script.execute: media_apply_artwork
     on_error:

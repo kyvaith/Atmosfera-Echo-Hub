@@ -4,6 +4,7 @@ lvgl:
   pages:
     - id: immich_page
       bg_color: 0x000000
+      bg_opa: 0%
       widgets:
         - obj:
             id: immich_root
@@ -11,13 +12,32 @@ lvgl:
             height: 800
             align: CENTER
             bg_color: 0x000000
-            bg_opa: 100%
+            bg_opa: 0%
             border_width: 0
             radius: 0
             pad_all: 0
             scrollable: false
+            overflow_visible: false
             hidden: true
+            on_swipe_left:
+              - script.execute: immich_next_photo_now
+            on_swipe_right:
+              - script.execute: immich_previous_photo
             widgets:
+              - obj:
+                  id: immich_background
+                  x: 0
+                  y: 0
+                  width: 800
+                  height: 800
+                  bg_color: 0x000000
+                  bg_opa: 100%
+                  border_width: 0
+                  radius: 0
+                  pad_all: 0
+                  scrollable: false
+                  gesture_bubble: true
+                  clickable: false
               - image:
                   id: immich_photo_widget
                   x: 0
@@ -26,21 +46,36 @@ lvgl:
                   height: 800
                   src: immich_photo_image
                   antialias: false
+                  ken_burns:
+                    id: immich_ken_burns
+                    direct: true
+                    # Complete one pan in the first half of the slide interval.
+                    # The remaining half is deliberately static so the next
+                    # full-resolution photo can be fetched and decoded without
+                    # competing with a full-screen PPA transfer.
+                    phase_duration: 15s
+                    # Live measurements show a complete 800x800 PPA frame is
+                    # currently budgeted at about 33 ms. Match that cadence so
+                    # an over-budget frame cannot spin immediately and starve
+                    # audio, LVGL or the next DSI scanout transaction.
+                    frame_interval: 34ms
+                    # Keep a fixed cover crop and animate only the pan. A
+                    # changing crop size adds a full-frame resample without
+                    # improving the slideshow on the round display.
+                    # Use the largest square cover crop available in the
+                    # decoded photo. The controller performs one pan per image
+                    # and alternates direction instead of looping forever.
+                    zoom_start: 1.0
+                    zoom_end: 1.0
+                    # Traverse half of the controller's original 75% travel.
+                    # PPA now submits a frame only when the integer source crop
+                    # actually changes, so this remains calm without spending
+                    # bandwidth on dozens of identical full-screen copies.
+                    pan_limit: 37.5%
                   hidden: true
-              - obj:
-                  id: immich_photo_scrim
-                  x: 0
-                  y: 0
-                  width: 800
-                  height: 800
-                  bg_color: 0x000000
-                  bg_opa: 24%
-                  border_width: 0
-                  pad_all: 0
-                  scrollable: false
-                  clickable: false
               - button:
                   id: immich_prev_button
+                  hidden: true
                   x: 52
                   y: 336
                   width: 94
@@ -52,6 +87,7 @@ lvgl:
                   shadow_width: 0
                   pad_all: 0
                   scrollable: false
+                  gesture_bubble: true
                   widgets:
                     - label:
                         text: "\uE045"
@@ -63,6 +99,7 @@ lvgl:
                       - script.execute: immich_previous_photo
               - button:
                   id: immich_next_button
+                  hidden: true
                   x: 654
                   y: 336
                   width: 94
@@ -74,6 +111,7 @@ lvgl:
                   shadow_width: 0
                   pad_all: 0
                   scrollable: false
+                  gesture_bubble: true
                   widgets:
                     - label:
                         text: "\uE044"
@@ -82,9 +120,10 @@ lvgl:
                         text_font: material_symbols_36
                   on_click:
                     then:
-                      - script.execute: immich_fetch_next_photo
+                      - script.execute: immich_next_photo_now
               - button:
                   id: immich_play_pause_button
+                  hidden: true
                   align: BOTTOM_MID
                   y: -92
                   width: 128
@@ -96,6 +135,7 @@ lvgl:
                   shadow_width: 0
                   pad_all: 0
                   scrollable: false
+                  gesture_bubble: true
                   widgets:
                     - label:
                         id: immich_play_pause_icon
@@ -111,6 +151,7 @@ lvgl:
                                             id(immich_slideshow_enabled).state ? "\U0000e034" : "\U0000e037");
               - obj:
                   id: immich_metadata_panel
+                  hidden: true
                   align: BOTTOM_MID
                   y: -184
                   width: 520
@@ -157,11 +198,26 @@ lvgl:
                   clickable: false
                   widgets:
                     - label:
+                        id: immich_empty_icon
                         text: "\uE3F4"
                         align: TOP_MID
                         y: 36
                         text_color: 0xD3E3FD
                         text_font: material_symbols_58
+                    - spinner:
+                        id: immich_loading_spinner
+                        hidden: true
+                        align: TOP_MID
+                        y: 30
+                        width: 70
+                        height: 70
+                        spin_time: 900ms
+                        arc_length: 80deg
+                        arc_width: 7
+                        arc_color: 0x34283E
+                        indicator:
+                          arc_width: 7
+                          arc_color: 0xE8DEF8
                     - label:
                         text: "Immich Photos"
                         align: TOP_MID
@@ -180,3 +236,69 @@ lvgl:
                         long_mode: WRAP
                         text_color: 0xC4C7C5
                         text_font: roboto_16
+                    - label:
+                        text: "Swipe or tap the screen edges"
+                        align: BOTTOM_MID
+                        y: -18
+                        width: 420
+                        text_align: CENTER
+                        text_color: 0x8E918F
+                        text_font: roboto_14
+              # A center tap temporarily returns ownership to LVGL and reveals
+              # the explicit navigation HUD. The PPA compositor resumes after
+              # four seconds; it does not carry this overlay on every frame.
+              - button:
+                  id: immich_controls_touch_zone
+                  x: 180
+                  y: 150
+                  width: 440
+                  height: 500
+                  bg_opa: 0%
+                  border_width: 0
+                  shadow_width: 0
+                  pad_all: 0
+                  gesture_bubble: false
+                  on_click:
+                    - script.execute: immich_show_controls
+                  on_swipe_left:
+                    - script.execute: immich_next_photo_now
+                  on_swipe_right:
+                    - script.execute: immich_previous_photo
+              # Direct PPA rendering owns the pixels while a photo is moving,
+              # but LVGL still owns input. These transparent edge targets keep
+              # previous/next navigation available without compositing a HUD
+              # into every fullscreen frame.
+              - button:
+                  id: immich_prev_touch_zone
+                  x: 0
+                  y: 150
+                  width: 180
+                  height: 500
+                  bg_opa: 0%
+                  border_width: 0
+                  shadow_width: 0
+                  pad_all: 0
+                  gesture_bubble: false
+                  on_click:
+                    - script.execute: immich_previous_photo
+                  on_swipe_left:
+                    - script.execute: immich_next_photo_now
+                  on_swipe_right:
+                    - script.execute: immich_previous_photo
+              - button:
+                  id: immich_next_touch_zone
+                  x: 620
+                  y: 150
+                  width: 180
+                  height: 500
+                  bg_opa: 0%
+                  border_width: 0
+                  shadow_width: 0
+                  pad_all: 0
+                  gesture_bubble: false
+                  on_click:
+                    - script.execute: immich_next_photo_now
+                  on_swipe_left:
+                    - script.execute: immich_next_photo_now
+                  on_swipe_right:
+                    - script.execute: immich_previous_photo

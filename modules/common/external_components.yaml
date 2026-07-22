@@ -6,9 +6,7 @@ external_components:
       type: local
       path: C:/Users/kyvai/kyvaith-esphome/esphome/components
     components: [const, mipi, mipi_dsi, lvgl, image, audio_file, ledc, es7210, esp32_jpeg, artwork_image, sendspin, speaker_source, va_client, resampler]
-    refresh: always
   - source:
       type: local
       path: C:/Users/kyvai/esphome-intercom/esphome/components
     components: [audio_processor, esp_audio_stack, esp_afe]
-    refresh: always

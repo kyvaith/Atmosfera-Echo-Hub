@@ -5,10 +5,50 @@
 #include <cstring>
 
 #include <esp_heap_caps.h>
+#include <esp_private/freertos_debug.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
+#include <riscv/rvruntime-frames.h>
 
 namespace atmosfera_diag {
+
+inline void delayed_all_task_backtrace(void *arg) {
+  const uint32_t delay_ms = static_cast<uint32_t>(reinterpret_cast<uintptr_t>(arg));
+  vTaskDelay(pdMS_TO_TICKS(delay_ms));
+  TaskHandle_t loop = xTaskGetHandle("loopTask");
+  TaskSnapshot_t snapshot{};
+  if (loop != nullptr && vTaskGetSnapshot(loop, &snapshot) == pdTRUE && snapshot.pxTopOfStack != nullptr) {
+    RvExcFrame frame{};
+    memcpy(&frame, snapshot.pxTopOfStack, sizeof(frame));
+    ESP_LOGW("task.bt", "loopTask after %ums state=%d top=%p end=%p mepc=0x%08lx ra=0x%08lx sp=0x%08lx s0=0x%08lx",
+             static_cast<unsigned>(delay_ms), static_cast<int>(eTaskGetState(loop)), snapshot.pxTopOfStack,
+             snapshot.pxEndOfStack, static_cast<unsigned long>(frame.mepc), static_cast<unsigned long>(frame.ra),
+             static_cast<unsigned long>(frame.sp), static_cast<unsigned long>(frame.s0));
+    const uintptr_t stack_begin = reinterpret_cast<uintptr_t>(snapshot.pxTopOfStack);
+    const uintptr_t stack_end = reinterpret_cast<uintptr_t>(snapshot.pxEndOfStack);
+    uintptr_t scan_begin = static_cast<uintptr_t>(frame.sp);
+    if (scan_begin < stack_begin || scan_begin >= stack_end) scan_begin = stack_begin;
+    scan_begin = (scan_begin + 3U) & ~static_cast<uintptr_t>(3U);
+    const auto *words = reinterpret_cast<const uint32_t *>(scan_begin);
+    const size_t word_count = std::min<size_t>((stack_end - scan_begin) / sizeof(uint32_t), 80U);
+    for (size_t i = 0; i < word_count; i++) {
+      const uint32_t value = words[i];
+      if ((value >= 0x40000000U && value < 0x41000000U) ||
+          (value >= 0x4FF00000U && value < 0x50000000U)) {
+        ESP_LOGW("task.bt", "stack+0x%03x = 0x%08lx", static_cast<unsigned>(i * sizeof(uint32_t)),
+                 static_cast<unsigned long>(value));
+      }
+    }
+  } else {
+    ESP_LOGW("task.bt", "unable to snapshot loopTask after %ums", static_cast<unsigned>(delay_ms));
+  }
+  vTaskDelete(nullptr);
+}
+
+inline void schedule_all_task_backtrace(uint32_t delay_ms) {
+  xTaskCreate(delayed_all_task_backtrace, "task_bt", 4096,
+              reinterpret_cast<void *>(static_cast<uintptr_t>(delay_ms)), 3, nullptr);
+}
 
 static const char *const TASK_PROF_TAG = "task.prof";
 
@@ -50,8 +90,8 @@ inline bool task_is_idle(const char *name) {
 }
 
 inline int32_t task_core_id(const TaskStatus_t &task) {
-#if (configUSE_CORE_AFFINITY == 1) && (configNUMBER_OF_CORES > 1)
-  return static_cast<int32_t>(task.uxCoreAffinityMask);
+#if (configNUMBER_OF_CORES > 1)
+  return static_cast<int32_t>(xTaskGetCoreID(task.xHandle));
 #else
   return 0;
 #endif
@@ -74,9 +114,24 @@ inline void log_task_runtime_profile() {
 #if configGENERATE_RUN_TIME_STATS
   static constexpr UBaseType_t MAX_TASKS = 64;
   static constexpr size_t TOP_TASKS = 10;
-  static TaskStatus_t tasks[MAX_TASKS];
-  static TaskRuntimePrev previous[MAX_TASKS];
+  static TaskStatus_t *tasks = nullptr;
+  static TaskRuntimePrev *previous = nullptr;
   static bool initialized = false;
+
+  if (tasks == nullptr) {
+    tasks = static_cast<TaskStatus_t *>(
+        heap_caps_calloc(MAX_TASKS, sizeof(TaskStatus_t), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+    previous = static_cast<TaskRuntimePrev *>(
+        heap_caps_calloc(MAX_TASKS, sizeof(TaskRuntimePrev), MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+    if (tasks == nullptr || previous == nullptr) {
+      if (tasks != nullptr) heap_caps_free(tasks);
+      if (previous != nullptr) heap_caps_free(previous);
+      tasks = nullptr;
+      previous = nullptr;
+      ESP_LOGW(TASK_PROF_TAG, "task profiler allocation failed");
+      return;
+    }
+  }
 
   configRUN_TIME_COUNTER_TYPE total_runtime = 0;
   const UBaseType_t count = uxTaskGetSystemState(tasks, MAX_TASKS, &total_runtime);
@@ -95,7 +150,8 @@ inline void log_task_runtime_profile() {
     uint64_t last_runtime = runtime;
     bool found = false;
 
-    for (auto &prev : previous) {
+    for (UBaseType_t j = 0; j < MAX_TASKS; j++) {
+      auto &prev = previous[j];
       if (prev.valid && prev.number == number) {
         last_runtime = prev.runtime;
         prev.runtime = runtime;
@@ -105,7 +161,8 @@ inline void log_task_runtime_profile() {
     }
 
     if (!found) {
-      for (auto &prev : previous) {
+      for (UBaseType_t j = 0; j < MAX_TASKS; j++) {
+        auto &prev = previous[j];
         if (!prev.valid) {
           prev.number = number;
           prev.runtime = runtime;

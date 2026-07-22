@@ -485,7 +485,9 @@ voice_assistant:
         id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
     - if:
         condition:
-          switch.is_off: voice_assistant_mute_switch
+          and:
+            - switch.is_off: voice_assistant_mute_switch
+            - lambda: 'return id(boot_sequence_done);'
         then:
           - switch.turn_off: voice_audio_processing_switch
           - micro_wake_word.start:
@@ -748,6 +750,27 @@ voice_assistant:
     - script.execute: voice_assistant_update_overlay
 
 script:
+  # Establishing the realtime socket can start microphone/audio work. Keep it
+  # outside the boot animation and initial snapshot build so those paths do not
+  # compete for CPU, PSRAM bandwidth and I2S resources.
+  - id: voice_assistant_connect_realtime_after_boot
+    mode: restart
+    parameters:
+      url: string
+    then:
+      - wait_until:
+          condition:
+            lambda: 'return id(boot_sequence_done);'
+          timeout: 30s
+      - if:
+          condition:
+            lambda: 'return id(boot_sequence_done) && !url.empty();'
+          then:
+            - delay: 300ms
+            - lambda: |-
+                ESP_LOGD("api.diag", "Using detected realtime backend URL after boot: %s", url.c_str());
+                id(va)->set_url(url);
+
   - id: voice_assistant_apply_idle_wake_word
     mode: restart
     then:

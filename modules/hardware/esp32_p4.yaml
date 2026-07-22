@@ -18,6 +18,10 @@ esp32:
       CONFIG_ESP_MAIN_TASK_STACK_SIZE: "4096"
       CONFIG_ESP_TIMER_TASK_STACK_SIZE: "2048"
       CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH: "2048"
+      # Runtime task counters let the optional performance diagnostics report
+      # the real per-core cost of audio, image and UI workers.
+      CONFIG_FREERTOS_USE_TRACE_FACILITY: "y"
+      CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS: "y"
       CONFIG_SPIRAM_SPEED_200M: "y"
       CONFIG_SPIRAM_SPEED: "200"
       CONFIG_SPIRAM_USE_MALLOC: "y"
@@ -26,8 +30,24 @@ esp32:
       # before ESPHome starts; forcing 2 KiB allocations internal can bootloop.
       CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL: "1024"
       CONFIG_SPIRAM_MALLOC_RESERVE_INTERNAL: "65536"
+      # Keep TCP/IP control and packet buffers off the shared PSRAM bus. Large
+      # HTTP responses otherwise compete with continuous DSI framebuffer reads
+      # before JPEG decoding even starts.
+      CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP: "n"
       CONFIG_FREERTOS_TASK_CREATE_ALLOW_EXT_MEM: "y"
       CONFIG_ESP_HOSTED_MEMPOOL_PREFER_SPIRAM: "y"
+      # The ESP32-C6 coprocessor firmware negotiates streaming SDIO. Keep the
+      # host in the same protocol mode; physical RX transactions are bounded
+      # separately so a large stream cannot monopolize PSRAM/AXI from DSI.
+      CONFIG_ESP_HOSTED_SDIO_OPTIMIZATION_RX_STREAMING_MODE: "y"
+      CONFIG_ESP_HOSTED_SDIO_OPTIMIZATION_RX_MAX_SIZE: "n"
+      # Large PSRAM writebacks must release the cache critical section between
+      # chunks so display transforms cannot starve audio on the other P4 core.
+      CONFIG_ESP_MM_CACHE_MSYNC_C2M_CHUNKED_OPS: "y"
+      # Use ESP-IDF's native ESP32-P4 chunk size. The previous 8 KiB override
+      # turned one fullscreen RGB888 writeback into roughly 235 critical
+      # sections and measurably slowed every LVGL/direct-compositor frame.
+      CONFIG_ESP_MM_CACHE_MSYNC_C2M_CHUNKED_OPS_MAX_LEN: "131072"
       CONFIG_LV_DEF_REFR_PERIOD: "10"
       CONFIG_LV_USE_LOG: "0"
       # ESP32-P4 exposes Espressif's xespv extension, not standard RISC-V V.
@@ -62,7 +82,11 @@ esp32_hosted:
   d2_pin: GPIO16
   d3_pin: GPIO17
   bus_width: 4
-  sdio_frequency: 20MHz
+  # Bounded 2 KB CMD53 transactions are reserved inside DSI vblank by the
+  # ESP-Hosted patch. At 20 MHz one RX transaction consumed almost the entire
+  # blanking interval and throttled FLAC streams to roughly 120 KB/s; 40 MHz
+  # keeps the safe transaction bound while restoring enough media bandwidth.
+  sdio_frequency: 40MHz
 
 psram:
   mode: hex
@@ -72,12 +96,16 @@ esp32_jpeg:
   # Keep the ESP32-P4 hardware JPEG decoder on the live artwork path. Full
   # 800x800 covers can exceed ESP-IDF's short default timeout when DMA2D is
   # throttled to leave headroom for DSI scanout.
-  decoder_timeout: 450ms
+  decoder_timeout: 2000ms
+  # These values are also the QoS profile restored after JPEG/PPA operations.
+  # Keep PSRAM reads at the stable ESP32-P4 level used by DSI scanout.
+  dma2d_write_priority: 0
+  dma2d_read_priority: 0
   jpeg_dma2d_axi_burstiness: 1
   # Keep the remaining JPEG DMA2D master conservative without throttling the
   # regular LVGL/PPA draw path.
-  jpeg_dma2d_peak_level: 1
-  jpeg_dma2d_transaction_level: 10
+  jpeg_dma2d_peak_level: 2
+  jpeg_dma2d_transaction_level: 4
 
 esp_ldo:
   - channel: 3

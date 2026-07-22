@@ -10,5 +10,6 @@
 /_benchmarks/
 /profiles/
 /.codex-remote-attachments/
+/.codex/
 __pycache__/
 *.pyc

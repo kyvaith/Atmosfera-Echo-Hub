@@ -566,6 +566,46 @@ lvgl:
                       - select.next:
                           id: mww_sensitivity_select
                           cycle: true
+              - button:
+                  id: settings_immich_fade_button
+                  x: 112
+                  y: 1182
+                  width: 576
+                  height: 78
+                  radius: 39
+                  bg_color: 0x332E3C
+                  bg_opa: 100%
+                  border_width: 0
+                  shadow_width: 0
+                  shadow_opa: 0%
+                  outline_width: 0
+                  outline_opa: 0%
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        text: "\uE3F4"
+                        x: 28
+                        y: 24
+                        text_color: 0xD3E3FD
+                        text_font: material_symbols_24
+                    - label:
+                        text: "Photo Fade Transition"
+                        x: 84
+                        width: 360
+                        y: 24
+                        text_color: 0xF2F2F2
+                        text_font: roboto_20
+                    - label:
+                        id: settings_immich_fade_value
+                        text: "OFF"
+                        align: RIGHT_MID
+                        x: -26
+                        text_color: 0xC4C7C5
+                        text_font: roboto_24
+                  on_click:
+                    then:
+                      - switch.toggle: immich_fade_through_black
               - label:
                   text: ""
                   align: BOTTOM_MID
@@ -578,7 +618,7 @@ lvgl:
               - obj:
                   id: settings_scroll_spacer
                   x: 0
-                  y: 1250
+                  y: 1338
                   width: 1
                   height: 1
                   bg_opa: 0%

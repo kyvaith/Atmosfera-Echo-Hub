@@ -26,6 +26,30 @@ globals:
     type: int
     restore_value: no
     initial_value: '0'
+  - id: immich_swipe_tracking
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: immich_swipe_dragging
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: immich_swipe_start_x
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: immich_swipe_start_y
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: immich_swipe_last_x
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: immich_swipe_last_y
+    type: int
+    restore_value: no
+    initial_value: '0'
 
 touchscreen:
   - platform: gt911
@@ -72,7 +96,12 @@ touchscreen:
             id(tile_swipe_last_y) = touch.y;
             id(tile_swipe_last_render_ms) = 0;
             if (id(tile_swipe_tracking)) {
-              id(ui_prepare_home_tiles_for_touch).execute();
+              // A rapid follow-up swipe must supersede delayed LVGL cleanup
+              // from the previous gesture. Otherwise the 450/520 ms scripts
+              // rearrange or restyle the live tree underneath the second
+              // direct-compositor animation.
+              id(ui_restore_home_tiles_after_drag).stop();
+              id(ui_settle_tile_positions_after_swipe).stop();
             }
 
             // Reserve only the bottom 50 px for the system close gesture. The
@@ -87,6 +116,17 @@ touchscreen:
             id(app_close_start_y) = touch.y;
             id(app_close_last_x) = touch.x;
             id(app_close_last_y) = touch.y;
+
+            // Direct PPA presentation bypasses LVGL's draw loop while a photo
+            // moves. Track photo navigation at the touchscreen boundary so it
+            // remains available independently of LVGL gesture dispatch.
+            id(immich_swipe_tracking) = id(ui_active_app) == 4 && !id(ui_snapshot_io_busy) &&
+                                        !id(app_close_tracking);
+            id(immich_swipe_dragging) = false;
+            id(immich_swipe_start_x) = touch.x;
+            id(immich_swipe_start_y) = touch.y;
+            id(immich_swipe_last_x) = touch.x;
+            id(immich_swipe_last_y) = touch.y;
 
             id(settings_scroll_tracking) = id(ui_active_app) == 2 && !id(ui_snapshot_io_busy) && !id(app_close_tracking);
             id(settings_scroll_dragging) = false;
@@ -172,6 +212,19 @@ touchscreen:
                 id(app_close_requested) = true;
                 return;
               }
+            }
+            if (id(immich_swipe_tracking)) {
+              id(immich_swipe_last_x) = touch.x;
+              id(immich_swipe_last_y) = touch.y;
+              const int dx = id(immich_swipe_last_x) - id(immich_swipe_start_x);
+              const int dy = id(immich_swipe_last_y) - id(immich_swipe_start_y);
+              if (!id(immich_swipe_dragging) && abs(dx) >= 10 && abs(dx) > abs(dy) + 6) {
+                id(immich_swipe_dragging) = true;
+                id(ui_touch_block_for_drag).execute();
+              }
+              if (id(immich_swipe_dragging))
+                id(ui_touch_click_block_until_ms) = millis() + 700;
+              return;
             }
             if (id(settings_scroll_tracking)) {
               id(settings_scroll_last_x) = touch.x;
@@ -341,6 +394,30 @@ touchscreen:
               if (moved) id(ui_release_touch_blocker).execute();
               lvgl_esphome_snapshot_app_clear_prepared_close();
             }
+            if (id(immich_swipe_tracking)) {
+              const int dx = id(immich_swipe_last_x) - id(immich_swipe_start_x);
+              const int dy = id(immich_swipe_last_y) - id(immich_swipe_start_y);
+              const bool was_dragging = id(immich_swipe_dragging);
+              const bool was_tap = !was_dragging && abs(dx) <= 10 && abs(dy) <= 10;
+              id(immich_swipe_tracking) = false;
+              id(immich_swipe_dragging) = false;
+              if (was_dragging) {
+                id(ui_touch_click_block_until_ms) = millis() + 700;
+                id(ui_release_touch_blocker).execute();
+                if (abs(dx) >= 70 && abs(dx) > abs(dy) + 12) {
+                  if (dx < 0)
+                    id(immich_next_photo_now).execute();
+                  else
+                    id(immich_previous_photo).execute();
+                }
+                return;
+              }
+              if (was_tap) {
+                id(ui_touch_click_block_until_ms) = millis() + 300;
+                id(immich_show_controls).execute();
+                return;
+              }
+            }
             if (id(settings_scroll_tracking)) {
               const int dx = id(settings_scroll_last_x) - id(settings_scroll_start_x);
               const int dy = id(settings_scroll_last_y) - id(settings_scroll_start_y);
@@ -473,16 +550,11 @@ touchscreen:
 
             if (commit) {
               id(ui_page) = next_page;
-              if (next_page == 1) {
-                id(ui_set_tile_visibility_1).execute();
-              } else if (next_page == 2) {
-                id(ui_set_tile_visibility_2).execute();
-              } else if (next_page == 3) {
-                id(ui_set_tile_visibility_3).execute();
-              } else if (next_page == 4) {
-                id(ui_set_tile_visibility_4).execute();
-              }
-              id(ui_refresh_tile_snapshots).execute();
+              // The direct compositor owns the visible frame until settling
+              // completes. Update its indicator immediately, but defer the
+              // four live LVGL dot mutations to ui_apply_tile_positions.
+              lvgl_esphome_snapshot_swipe_set_page_indicator(next_page, 4);
+              id(ui_settle_tile_positions_after_swipe).execute();
               if (id(settings_swipe_logs_switch).state) {
                 ESP_LOGI("touch.swipe", "page=%d next=%d latched=%d dx=%d",
                          page, next_page, id(tile_swipe_commit_latched), dx);

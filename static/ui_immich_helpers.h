@@ -112,7 +112,11 @@ inline std::string immich_parse_date(const std::string &raw) {
 inline std::string immich_parse_asset_object(JsonObject asset, const std::string &base_url, ImmichPhoto *out) {
   if (out == nullptr || asset.isNull() || !asset["id"].is<const char *>()) return "";
   out->asset_id = asset["id"].as<std::string>();
-  out->image_url = base_url + "/api/assets/" + out->asset_id + "/thumbnail?size=thumbnail";
+  // Immich's preview is a display-native JPEG (800 px on the long edge in the
+  // default server configuration). It preserves all pixels the panel can show
+  // while avoiding a multi-megabyte intermediate for the original image.
+  // Cover-cropping remains on the ESP32-P4 PPA path.
+  out->image_url = base_url + "/api/assets/" + out->asset_id + "/thumbnail?size=preview";
   out->date = asset["localDateTime"].is<const char *>() ? immich_parse_date(asset["localDateTime"].as<std::string>()) : "";
 
   JsonObject exif = asset["exifInfo"].as<JsonObject>();

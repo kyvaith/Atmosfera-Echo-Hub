@@ -18,16 +18,31 @@
 extern "C" uint32_t lvgl_esphome_get_perf_logging_enabled(void);
 extern "C" bool lvgl_esphome_direct_blit_rgb888(const uint8_t *src, int src_stride, int x, int y, int width,
                                                  int height);
+extern "C" uint8_t lvgl_esphome_direct_blit_rgb888_async(const uint8_t *src, int src_stride, int x, int y,
+                                                            int width, int height, void (*ready_callback)(void *),
+                                                            void *ready_arg);
+extern "C" uint8_t lvgl_esphome_direct_blend_argb8888_async(
+    const uint8_t *background, int background_stride, const uint8_t *foreground, int foreground_stride,
+    int foreground_width, int foreground_height, int foreground_x, int foreground_y, int x, int y, int width,
+    int height, void (*ready_callback)(void *), void *ready_arg);
+extern "C" void lvgl_esphome_direct_blit_rgb888_release(int x, int y, int width, int height);
+extern "C" bool lvgl_esphome_direct_regions_pause(bool paused, uint32_t timeout_ms);
 #endif
 
 namespace atmosfera_ui {
 namespace {
 
-constexpr uint32_t WAVE_RENDER_STACK_WORDS = 8192;
+// ESP-IDF's task stack size is expressed in bytes. Keep the backing array in
+// StackType_t units while giving the raster worker enough headroom for LVGL,
+// PPA and cache-sync calls.
+constexpr uint32_t WAVE_RENDER_STACK_BYTES = 8192;
 
-constexpr int WAVE_SIZE = 243;
+// A 244-pixel RGB888 row is 4-byte aligned, allowing the DSI DMA2D path to
+// consume the worker buffer directly instead of allocating/copying staging.
+constexpr int WAVE_SIZE = 244;
 constexpr int WAVE_PIXELS = WAVE_SIZE * WAVE_SIZE;
-constexpr int WAVE_BYTES = WAVE_PIXELS * static_cast<int>(sizeof(lv_color_t));
+constexpr int WAVE_BYTES = WAVE_PIXELS * static_cast<int>(sizeof(lv_color32_t));
+constexpr int WAVE_BACKDROP_BYTES = WAVE_PIXELS * static_cast<int>(sizeof(lv_color_t));
 constexpr int WAVE_CACHE_ALIGN = 128;
 constexpr int WAVE_CENTER = (WAVE_SIZE - 1) / 2;
 constexpr int WAVE_ACTIVE_RADIUS = 121;
@@ -62,22 +77,32 @@ struct WavyArcState {
   bool last_rendered_pending{false};
   bool last_rendered_playing{false};
   std::atomic<bool> direct_present_enabled{false};
-  lv_color_t *pixels{nullptr};
-  lv_color_t *worker_pixels{nullptr};
+  lv_color32_t *pixels{nullptr};
+  lv_color32_t *worker_pixels{nullptr};
+  lv_color32_t *spare_pixels{nullptr};
+  lv_color32_t *icon_buffer_pixels[3]{};
+  bool icon_buffer_valid[3]{};
+  bool icon_buffer_playing[3]{};
   lv_color_t *backdrop_pixels{nullptr};
   WavePolarPixel *dynamic_pixels{nullptr};
   WavePixelSpan *dynamic_spans{nullptr};
   uint32_t dynamic_pixel_count{0};
   uint32_t dynamic_span_count{0};
   int16_t sin_q8[360];
+  int16_t blob_boundary_by_angle[360];
+  int16_t ring_boundary_by_angle[360];
+  uint8_t cap_mask_by_angle[360];
   lv_image_dsc_t image{};
 #ifdef ESP_PLATFORM
   SemaphoreHandle_t render_mutex{nullptr};
   StaticSemaphore_t render_mutex_storage{};
   TaskHandle_t render_task{nullptr};
   StaticTask_t render_task_storage{};
-  StackType_t render_task_stack[WAVE_RENDER_STACK_WORDS]{};
+  StackType_t *render_task_stack{nullptr};
   std::atomic<int> queued_phase_delta{0};
+  std::atomic<int> queued_value_basis_points{-1};
+  std::atomic<int> queued_playing{-1};
+  std::atomic<int> queued_pending{-1};
   uint32_t render_generation{0};
   uint32_t ready_generation{0};
   bool frame_ready{false};
@@ -89,7 +114,18 @@ struct WavyArcState {
   uint32_t perf_render_count{0};
   uint64_t perf_render_total_us{0};
   uint32_t perf_render_max_us{0};
+  uint32_t perf_present_count{0};
+  uint64_t perf_present_total_us{0};
+  uint32_t perf_present_max_us{0};
+  uint32_t perf_dma_count{0};
+  uint64_t perf_dma_total_us{0};
+  uint32_t perf_dma_max_us{0};
   int64_t perf_window_start_us{0};
+  std::atomic<bool> present_in_flight{false};
+  std::atomic<bool> present_complete{false};
+  lv_color32_t *present_pixels{nullptr};
+  uint32_t present_generation{0};
+  int64_t present_started_us{0};
 #endif
 };
 
@@ -107,6 +143,19 @@ static uint8_t edge_coverage(int32_t distance_q4) {
     return 0;
   }
   return static_cast<uint8_t>(((distance_q4 + 16) * 255) / 32);
+}
+
+static uint8_t circle_coverage_squared(int32_t distance_squared_q8, int32_t radius_q4) {
+  const int32_t inner_radius_q4 = radius_q4 - 16;
+  const int32_t outer_radius_q4 = radius_q4 + 16;
+  const int32_t inner_squared_q8 = inner_radius_q4 * inner_radius_q4;
+  const int32_t outer_squared_q8 = outer_radius_q4 * outer_radius_q4;
+  if (distance_squared_q8 <= inner_squared_q8) return 255;
+  if (distance_squared_q8 >= outer_squared_q8) return 0;
+  return static_cast<uint8_t>(
+      ((outer_squared_q8 - distance_squared_q8) * 255 +
+       (outer_squared_q8 - inner_squared_q8) / 2) /
+      (outer_squared_q8 - inner_squared_q8));
 }
 
 static int angle_delta_cw(int start_deg, int angle_deg) {
@@ -171,8 +220,8 @@ static lv_color_t make_color(uint8_t red, uint8_t green, uint8_t blue) {
   return color;
 }
 
-static lv_color_t blend_color(const lv_color_t &background, uint8_t red, uint8_t green, uint8_t blue,
-                              uint8_t alpha) {
+static lv_color_t blend_rgb(const lv_color_t &background, uint8_t red, uint8_t green, uint8_t blue,
+                            uint8_t alpha) {
   if (alpha == 0) return background;
   if (alpha == 255) return make_color(red, green, blue);
   const uint16_t inverse = 255U - alpha;
@@ -182,13 +231,43 @@ static lv_color_t blend_color(const lv_color_t &background, uint8_t red, uint8_t
       static_cast<uint8_t>((blue * alpha + background.blue * inverse + 127U) / 255U));
 }
 
+static lv_color32_t make_overlay(uint8_t red, uint8_t green, uint8_t blue, uint8_t alpha) {
+  lv_color32_t color{};
+  color.red = red;
+  color.green = green;
+  color.blue = blue;
+  color.alpha = alpha;
+  return color;
+}
+
+static lv_color32_t blend_overlay(const lv_color32_t &background, uint8_t red, uint8_t green, uint8_t blue,
+                                  uint8_t alpha) {
+  if (alpha == 0) return background;
+  if (alpha == 255 || background.alpha == 0) return make_overlay(red, green, blue, alpha);
+  const uint16_t inverse = 255U - alpha;
+  const uint16_t out_alpha = alpha + (static_cast<uint16_t>(background.alpha) * inverse + 127U) / 255U;
+  if (out_alpha == 0) return make_overlay(0, 0, 0, 0);
+  const uint32_t background_weight = static_cast<uint32_t>(background.alpha) * inverse;
+  return make_overlay(
+      static_cast<uint8_t>((static_cast<uint32_t>(red) * alpha * 255U +
+                            static_cast<uint32_t>(background.red) * background_weight + out_alpha * 127U) /
+                           (out_alpha * 255U)),
+      static_cast<uint8_t>((static_cast<uint32_t>(green) * alpha * 255U +
+                            static_cast<uint32_t>(background.green) * background_weight + out_alpha * 127U) /
+                           (out_alpha * 255U)),
+      static_cast<uint8_t>((static_cast<uint32_t>(blue) * alpha * 255U +
+                            static_cast<uint32_t>(background.blue) * background_weight + out_alpha * 127U) /
+                           (out_alpha * 255U)),
+      static_cast<uint8_t>(out_alpha));
+}
+
 static void init_image_descriptor(WavyArcState *state) {
   memset(&state->image, 0, sizeof(state->image));
   state->image.header.magic = LV_IMAGE_HEADER_MAGIC;
-  state->image.header.cf = LV_COLOR_FORMAT_RGB888;
+  state->image.header.cf = LV_COLOR_FORMAT_ARGB8888;
   state->image.header.w = WAVE_SIZE;
   state->image.header.h = WAVE_SIZE;
-  state->image.header.stride = WAVE_SIZE * sizeof(lv_color_t);
+  state->image.header.stride = WAVE_SIZE * sizeof(lv_color32_t);
   state->image.data_size = WAVE_BYTES;
   state->image.data = reinterpret_cast<const uint8_t *>(state->pixels);
 }
@@ -203,30 +282,38 @@ static bool ensure_buffers(WavyArcState *state) {
 
 #ifdef ESP_PLATFORM
   const int aligned_bytes = align_up(WAVE_BYTES, WAVE_CACHE_ALIGN);
-  state->pixels = static_cast<lv_color_t *>(
+  state->pixels = static_cast<lv_color32_t *>(
       heap_caps_aligned_alloc(WAVE_CACHE_ALIGN, aligned_bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
-  state->worker_pixels = static_cast<lv_color_t *>(
+  state->worker_pixels = static_cast<lv_color32_t *>(
+      heap_caps_aligned_alloc(WAVE_CACHE_ALIGN, aligned_bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+  state->spare_pixels = static_cast<lv_color32_t *>(
       heap_caps_aligned_alloc(WAVE_CACHE_ALIGN, aligned_bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
   state->backdrop_pixels = static_cast<lv_color_t *>(
-      heap_caps_aligned_alloc(WAVE_CACHE_ALIGN, aligned_bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+      heap_caps_aligned_alloc(WAVE_CACHE_ALIGN, align_up(WAVE_BACKDROP_BYTES, WAVE_CACHE_ALIGN),
+                              MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
 #else
-  state->pixels = static_cast<lv_color_t *>(malloc(WAVE_BYTES));
-  state->worker_pixels = static_cast<lv_color_t *>(malloc(WAVE_BYTES));
-  state->backdrop_pixels = static_cast<lv_color_t *>(malloc(WAVE_BYTES));
+  state->pixels = static_cast<lv_color32_t *>(malloc(WAVE_BYTES));
+  state->worker_pixels = static_cast<lv_color32_t *>(malloc(WAVE_BYTES));
+  state->spare_pixels = static_cast<lv_color32_t *>(malloc(WAVE_BYTES));
+  state->backdrop_pixels = static_cast<lv_color_t *>(malloc(WAVE_BACKDROP_BYTES));
 #endif
 
-  if (state->pixels == nullptr || state->worker_pixels == nullptr || state->backdrop_pixels == nullptr) {
+  if (state->pixels == nullptr || state->worker_pixels == nullptr || state->spare_pixels == nullptr ||
+      state->backdrop_pixels == nullptr) {
     return false;
   }
 
   memset(state->pixels, 0, WAVE_BYTES);
   memset(state->worker_pixels, 0, WAVE_BYTES);
-  memset(state->backdrop_pixels, 0, WAVE_BYTES);
+  memset(state->spare_pixels, 0, WAVE_BYTES);
+  memset(state->backdrop_pixels, 0, WAVE_BACKDROP_BYTES);
+  state->icon_buffer_pixels[0] = state->pixels;
+  state->icon_buffer_pixels[1] = state->worker_pixels;
+  state->icon_buffer_pixels[2] = state->spare_pixels;
 
   for (int i = 0; i < 360; i++) {
     state->sin_q8[i] = static_cast<int16_t>(sinf(static_cast<float>(i) * DEG_TO_RAD) * 256.0f);
   }
-
   constexpr int static_blob_radius = 78;
   constexpr int blob_candidate_radius = 90;
   constexpr int ring_candidate_min_radius = 93;
@@ -247,7 +334,7 @@ static bool ensure_buffers(WavyArcState *state) {
       const int dx = pixel_x - WAVE_CENTER;
       const int radius_sq = dx * dx + dy * dy;
       if (radius_sq <= static_blob_radius_sq) {
-        state->pixels[pixel_y * WAVE_SIZE + pixel_x] = make_color(0xE4, 0xC2, 0xFF);
+        state->pixels[pixel_y * WAVE_SIZE + pixel_x] = make_overlay(0xE4, 0xC2, 0xFF, 255);
         in_span = false;
       } else if (radius_sq <= blob_candidate_radius_sq ||
                  (radius_sq >= ring_candidate_min_radius_sq && radius_sq <= ring_candidate_max_radius_sq)) {
@@ -338,9 +425,7 @@ static uint8_t cap_coverage(int radius_q4, int angle_q4, int cap_angle_q4, int c
   if (distance_angle_q4 > 5 * 16) return 0;
   const int radial_q4 = radius_q4 - cap_radius_q4;
   const int arc_q4 = (cap_radius_q4 * distance_angle_q4 * 314) / 288000;
-  const int distance_q4 =
-      static_cast<int>(sqrtf(static_cast<float>(radial_q4 * radial_q4 + arc_q4 * arc_q4)));
-  return edge_coverage(half_width_q4 - distance_q4);
+  return circle_coverage_squared(radial_q4 * radial_q4 + arc_q4 * arc_q4, half_width_q4);
 }
 
 static lv_color_t read_source_pixel(const lv_image_dsc_t *source, int x, int y) {
@@ -413,15 +498,15 @@ static bool rebuild_backdrop(WavyArcState *state, const lv_image_dsc_t *source, 
         color = read_source_pixel(source, source_x, source_y);
       }
       if (apply_scrim) {
-        color = blend_color(color, scrim_red, scrim_green, scrim_blue, scrim_alpha);
+        color = blend_rgb(color, scrim_red, scrim_green, scrim_blue, scrim_alpha);
       }
       const int index = y * WAVE_SIZE + x;
       state->backdrop_pixels[index] = color;
       const int dx = x - WAVE_CENTER;
       if (dx * dx + dy * dy <= static_blob_radius_sq) {
-        state->pixels[index] = make_color(0xE4, 0xC2, 0xFF);
+        state->pixels[index] = make_overlay(0xE4, 0xC2, 0xFF, 255);
       } else {
-        state->pixels[index] = color;
+        state->pixels[index] = make_overlay(0, 0, 0, 0);
       }
     }
   }
@@ -429,39 +514,25 @@ static bool rebuild_backdrop(WavyArcState *state, const lv_image_dsc_t *source, 
   state->last_rendered_value = -1;
   state->last_rendered_phase = -1;
   state->dirty = true;
+  memset(state->icon_buffer_valid, 0, sizeof(state->icon_buffer_valid));
   memcpy(state->worker_pixels, state->pixels, WAVE_BYTES);
+  if (state->spare_pixels != nullptr) memcpy(state->spare_pixels, state->pixels, WAVE_BYTES);
   return true;
 }
 
-static void reset_center_blob(WavyArcState *state) {
-  constexpr int blob_radius_q4 = 84 * 16;
-  constexpr int blob_amplitude_q4 = 4 * 16;
-  constexpr int waves = 10;
-  constexpr int static_blob_radius = 90;
-  constexpr int x1 = WAVE_CENTER - static_blob_radius;
-  constexpr int x2 = WAVE_CENTER + static_blob_radius;
-  constexpr int y1 = WAVE_CENTER - static_blob_radius;
-  constexpr int y2 = WAVE_CENTER + static_blob_radius;
-
+static void reset_control_icon_area(WavyArcState *state) {
+  // The rotating blob edge is already rebuilt from dynamic_pixels. Only the
+  // previous play/pause glyph needs clearing, and this rectangle is safely
+  // inside the blob's minimum radius for every phase.
+  constexpr int x1 = WAVE_CENTER - 33;
+  constexpr int x2 = WAVE_CENTER + 33;
+  constexpr int y1 = WAVE_CENTER - 32;
+  constexpr int y2 = WAVE_CENTER + 32;
+  const lv_color32_t fill = make_overlay(0xE4, 0xC2, 0xFF, 255);
   for (int y = y1; y <= y2; y++) {
-    const int dy = y - WAVE_CENTER;
+    lv_color32_t *row = state->pixels + y * WAVE_SIZE;
     for (int x = x1; x <= x2; x++) {
-      const int dx = x - WAVE_CENTER;
-      const int radius_sq = dx * dx + dy * dy;
-      if (radius_sq > static_blob_radius * static_blob_radius) continue;
-
-      const float radius = sqrtf(static_cast<float>(radius_sq));
-      float angle = atan2f(static_cast<float>(dy), static_cast<float>(dx)) / DEG_TO_RAD;
-      if (angle < 0.0f) angle += 360.0f;
-      const int angle_deg = static_cast<int>(angle + 0.5f) % 360;
-      const int wave_index = (angle_deg * waves + state->phase_deg) % 360;
-      const int wave_q8 = state->sin_q8[wave_index < 0 ? wave_index + 360 : wave_index];
-      const int boundary_q4 = blob_radius_q4 + (blob_amplitude_q4 * wave_q8) / 256;
-      const uint8_t fill_alpha = edge_coverage(boundary_q4 - static_cast<int>(radius * 16.0f + 0.5f));
-      const int index = y * WAVE_SIZE + x;
-      state->pixels[index] = fill_alpha > 0
-                                  ? blend_color(state->backdrop_pixels[index], 0xE4, 0xC2, 0xFF, fill_alpha)
-                                  : state->backdrop_pixels[index];
+      row[x] = fill;
     }
   }
 }
@@ -479,12 +550,11 @@ static void draw_capsule(WavyArcState *state, int center_x, int center_y, int ha
     const int dy_q4 = (y - nearest_y) * 16;
     for (int x = x1; x <= x2; x++) {
       const int dx_q4 = (x - center_x) * 16;
-      const int distance_q4 =
-          static_cast<int>(sqrtf(static_cast<float>(dx_q4 * dx_q4 + dy_q4 * dy_q4)));
-      const uint8_t coverage = edge_coverage(radius * 16 - distance_q4);
+      const uint8_t coverage =
+          circle_coverage_squared(dx_q4 * dx_q4 + dy_q4 * dy_q4, radius * 16);
       if (coverage == 0) continue;
       const int index = y * WAVE_SIZE + x;
-      state->pixels[index] = blend_color(state->pixels[index], red, green, blue, coverage);
+      state->pixels[index] = blend_overlay(state->pixels[index], red, green, blue, coverage);
     }
   }
 }
@@ -518,7 +588,7 @@ static void draw_play_icon(WavyArcState *state) {
       }
       if (inside == 0) continue;
       const int index = y * WAVE_SIZE + x;
-      state->pixels[index] = blend_color(state->pixels[index], 0x40, 0x00, 0x60, inside * 255U / 4U);
+      state->pixels[index] = blend_overlay(state->pixels[index], 0x40, 0x00, 0x60, inside * 255U / 4U);
     }
   }
 }
@@ -529,6 +599,18 @@ static void draw_control_icon(WavyArcState *state) {
     draw_capsule(state, WAVE_CENTER + 14, WAVE_CENTER, 20, 8, 0x40, 0x00, 0x60);
   } else {
     draw_play_icon(state);
+  }
+}
+
+static void update_control_icon_if_needed(WavyArcState *state) {
+  for (size_t i = 0; i < 3; i++) {
+    if (state->icon_buffer_pixels[i] != state->pixels) continue;
+    if (state->icon_buffer_valid[i] && state->icon_buffer_playing[i] == state->playing) return;
+    reset_control_icon_area(state);
+    draw_control_icon(state);
+    state->icon_buffer_playing[i] = state->playing;
+    state->icon_buffer_valid[i] = true;
+    return;
   }
 }
 
@@ -588,13 +670,24 @@ static void render_bitmap(WavyArcState *state) {
   // Wave radii depend only on the integer angle. Segment ownership uses the
   // stored 1/16-degree pixel angle below so the progress endpoint can advance
   // smoothly without allocating a second high-resolution lookup table.
-  int blob_boundary_by_angle[360];
-  int ring_boundary_by_angle[360];
   for (int angle = 0; angle < 360; angle++) {
     const int wave_index = (angle * waves + phase) % 360;
     const int wave_q8 = state->sin_q8[wave_index < 0 ? wave_index + 360 : wave_index];
-    blob_boundary_by_angle[angle] = blob_radius_q4 + (blob_amplitude_q4 * wave_q8) / 256;
-    ring_boundary_by_angle[angle] = ring_radius_q4 + (ring_amplitude_q4 * wave_q8) / 256;
+    state->blob_boundary_by_angle[angle] = blob_radius_q4 + (blob_amplitude_q4 * wave_q8) / 256;
+    state->ring_boundary_by_angle[angle] = ring_radius_q4 + (ring_amplitude_q4 * wave_q8) / 256;
+
+    uint8_t cap_mask = 0;
+    if (finite_track) {
+      const int angle_q4 = angle * 16;
+      // Rounded progress endpoints occupy only a few angular bins. Building
+      // this tiny map once avoids four circular-distance calculations for
+      // every one of the ~19k ring pixels in each animation frame.
+      if (angle_distance_q4(angle_q4, played_start_q4) <= 6 * 16) cap_mask |= 0x01;
+      if (angle_distance_q4(angle_q4, played_end_q4) <= 6 * 16) cap_mask |= 0x02;
+      if (angle_distance_q4(angle_q4, remaining_start_q4) <= 6 * 16) cap_mask |= 0x04;
+      if (angle_distance_q4(angle_q4, remaining_end_q4) <= 6 * 16) cap_mask |= 0x08;
+    }
+    state->cap_mask_by_angle[angle] = cap_mask;
   }
 
   // Pixels outside these two radial bands are transparent for every phase and
@@ -614,83 +707,78 @@ static void render_bitmap(WavyArcState *state) {
       const int angle = ((angle_q4 + 8) / 16) % 360;
 
       if (radius <= blob_possible_max_q4) {
-        const uint8_t fill_alpha = edge_coverage(blob_boundary_by_angle[angle] - radius);
-        state->pixels[pixel_index] = fill_alpha > 0
-                                         ? blend_color(state->backdrop_pixels[pixel_index], 0xE4, 0xC2, 0xFF,
-                                                       fill_alpha)
-                                         : state->backdrop_pixels[pixel_index];
+        const uint8_t fill_alpha = edge_coverage(state->blob_boundary_by_angle[angle] - radius);
+        state->pixels[pixel_index] = make_overlay(0xE4, 0xC2, 0xFF, fill_alpha);
         continue;
       }
 
       if (radius <= ring_possible_min_q4 || radius >= ring_possible_max_q4) {
-        state->pixels[pixel_index] = state->backdrop_pixels[pixel_index];
+        state->pixels[pixel_index] = make_overlay(0, 0, 0, 0);
         continue;
       }
 
       const uint8_t ring_alpha =
-          edge_coverage(ring_half_width_q4 - iabs_int(radius - ring_boundary_by_angle[angle]));
-      const bool in_played = full_progress ||
-                             (!no_progress && angle_in_segment_q4(played_start_q4, played_sweep_q4, angle_q4));
-      const bool in_remaining = !full_progress &&
-                                angle_in_segment_q4(remaining_start_q4, remaining_sweep_q4, angle_q4);
+          edge_coverage(ring_half_width_q4 - iabs_int(radius - state->ring_boundary_by_angle[angle]));
+      bool in_played = full_progress;
+      bool in_remaining = no_progress;
+      if (finite_track) {
+        int track_delta_q4 = angle_q4 - track_start_q4;
+        if (track_delta_q4 < 0) track_delta_q4 += full_circle_q4;
+        in_played = track_delta_q4 <= played_sweep_q4;
+        in_remaining = track_delta_q4 >= played_sweep_q4 + split_gap_q4 &&
+                       track_delta_q4 <= full_circle_q4 - split_gap_q4;
+      }
       const bool in_loading = pending &&
-                              angle_in_segment_q4(loading_start_q4, loading_sweep_q4, angle_q4) &&
-                              (full_progress || no_progress || !in_played);
+                               angle_in_segment_q4(loading_start_q4, loading_sweep_q4, angle_q4) &&
+                               (full_progress || no_progress || !in_played);
       const uint8_t kind = in_loading ? 3 : (in_played ? 1 : (in_remaining ? 2 : 0));
       uint8_t played_coverage = kind == 1 ? ring_alpha : 0;
       uint8_t remaining_coverage = kind == 2 ? ring_alpha : 0;
-      uint8_t cap_mask = 0;
-      if (finite_track) {
-        if (angle_distance_q4(angle_q4, played_start_q4) <= 5 * 16) cap_mask |= 0x01;
-        if (angle_distance_q4(angle_q4, played_end_q4) <= 5 * 16) cap_mask |= 0x02;
-        if (angle_distance_q4(angle_q4, remaining_start_q4) <= 5 * 16) cap_mask |= 0x04;
-        if (angle_distance_q4(angle_q4, remaining_end_q4) <= 5 * 16) cap_mask |= 0x08;
-      }
+      const uint8_t cap_mask = state->cap_mask_by_angle[angle];
       if (cap_mask != 0) {
         constexpr int cap_half_width_q4 = ring_half_width_q4;
         if ((cap_mask & 0x01) != 0) {
           const uint8_t coverage = cap_coverage(
               radius, angle_q4, played_start_q4,
-              ring_boundary_by_angle[((played_start_q4 + 8) / 16) % 360], cap_half_width_q4);
+              state->ring_boundary_by_angle[((played_start_q4 + 8) / 16) % 360], cap_half_width_q4);
           if (coverage > played_coverage) played_coverage = coverage;
         }
         if ((cap_mask & 0x02) != 0) {
           const uint8_t coverage = cap_coverage(
               radius, angle_q4, played_end_q4,
-              ring_boundary_by_angle[((played_end_q4 + 8) / 16) % 360], cap_half_width_q4);
+              state->ring_boundary_by_angle[((played_end_q4 + 8) / 16) % 360], cap_half_width_q4);
           if (coverage > played_coverage) played_coverage = coverage;
         }
         if ((cap_mask & 0x04) != 0) {
           const uint8_t coverage = cap_coverage(
               radius, angle_q4, remaining_start_q4,
-              ring_boundary_by_angle[((remaining_start_q4 + 8) / 16) % 360], cap_half_width_q4);
+              state->ring_boundary_by_angle[((remaining_start_q4 + 8) / 16) % 360], cap_half_width_q4);
           if (coverage > remaining_coverage) remaining_coverage = coverage;
         }
         if ((cap_mask & 0x08) != 0) {
           const uint8_t coverage = cap_coverage(
               radius, angle_q4, remaining_end_q4,
-              ring_boundary_by_angle[((remaining_end_q4 + 8) / 16) % 360], cap_half_width_q4);
+              state->ring_boundary_by_angle[((remaining_end_q4 + 8) / 16) % 360], cap_half_width_q4);
           if (coverage > remaining_coverage) remaining_coverage = coverage;
         }
       }
 
       if (kind == 3 && ring_alpha > 0) {
-        state->pixels[pixel_index] = blend_color(state->backdrop_pixels[pixel_index], 0xF8, 0xEC, 0xFF,
-                                                 scaled_alpha(ring_alpha, 232));
+        state->pixels[pixel_index] = make_overlay(0xF8, 0xEC, 0xFF, scaled_alpha(ring_alpha, 232));
       } else if (played_coverage >= remaining_coverage && played_coverage > 0) {
-        state->pixels[pixel_index] = blend_color(state->backdrop_pixels[pixel_index], 0xF1, 0xDC, 0xFF,
-                                                 scaled_alpha(played_coverage, 224));
+        state->pixels[pixel_index] = make_overlay(0xF1, 0xDC, 0xFF, scaled_alpha(played_coverage, 224));
       } else if (remaining_coverage > 0) {
-        state->pixels[pixel_index] = blend_color(state->backdrop_pixels[pixel_index], 0xF1, 0xDC, 0xFF,
-                                                 scaled_alpha(remaining_coverage, 152));
+        state->pixels[pixel_index] = make_overlay(0xF1, 0xDC, 0xFF, scaled_alpha(remaining_coverage, 152));
       } else {
-        state->pixels[pixel_index] = state->backdrop_pixels[pixel_index];
+        state->pixels[pixel_index] = make_overlay(0, 0, 0, 0);
       }
     }
   }
 
-  reset_center_blob(state);
-  draw_control_icon(state);
+  // The glyph is static while the wavy surface rotates. Track it per physical
+  // triple buffer so steady animation frames do not clear and rasterize the
+  // same 67x65 area again.
+  update_control_icon_if_needed(state);
 
   state->last_rendered_phase = phase;
   state->last_rendered_value = progress;
@@ -710,11 +798,26 @@ static void render_bitmap(WavyArcState *state) {
       const uint32_t avg_us = state->perf_render_count == 0
                                   ? 0
                                   : static_cast<uint32_t>(state->perf_render_total_us / state->perf_render_count);
-      ESP_LOGI("media.wave", "perf2s: renders=%u avg=%uus max=%uus pixels=%d",
-               state->perf_render_count, avg_us, state->perf_render_max_us, WAVE_PIXELS);
+      const uint32_t present_avg_us = state->perf_present_count == 0
+                                          ? 0
+                                          : static_cast<uint32_t>(
+                                                state->perf_present_total_us / state->perf_present_count);
+      const uint32_t dma_avg_us = state->perf_dma_count == 0
+                                      ? 0
+                                      : static_cast<uint32_t>(state->perf_dma_total_us / state->perf_dma_count);
+      ESP_LOGI("media.wave",
+               "perf2s: renders=%u render=%uus max=%uus submit=%uus max=%uus dma=%uus max=%uus pixels=%d",
+               state->perf_render_count, avg_us, state->perf_render_max_us,
+               present_avg_us, state->perf_present_max_us, dma_avg_us, state->perf_dma_max_us, WAVE_PIXELS);
       state->perf_render_count = 0;
       state->perf_render_total_us = 0;
       state->perf_render_max_us = 0;
+      state->perf_present_count = 0;
+      state->perf_present_total_us = 0;
+      state->perf_present_max_us = 0;
+      state->perf_dma_count = 0;
+      state->perf_dma_total_us = 0;
+      state->perf_dma_max_us = 0;
       state->perf_window_start_us = now_us;
     }
   }
@@ -724,18 +827,6 @@ static void render_bitmap(WavyArcState *state) {
 static void invalidate_bitmap(WavyArcState *state) {
   if (state == nullptr || state->arc == nullptr) return;
   render_bitmap(state);
-#ifdef ESP_PLATFORM
-  if (state->direct_present_enabled && lv_obj_is_visible(state->arc)) {
-    lv_area_t area;
-    lv_obj_get_coords(state->arc, &area);
-    if (area.x2 - area.x1 + 1 == WAVE_SIZE && area.y2 - area.y1 + 1 == WAVE_SIZE &&
-        lvgl_esphome_direct_blit_rgb888(reinterpret_cast<const uint8_t *>(state->pixels),
-                                        WAVE_SIZE * static_cast<int>(sizeof(lv_color_t)), area.x1, area.y1,
-                                        WAVE_SIZE, WAVE_SIZE)) {
-      return;
-    }
-  }
-#endif
   lv_obj_invalidate(state->arc);
 }
 
@@ -746,24 +837,48 @@ static void notify_render_worker(WavyArcState *state) {
   }
 }
 
+static void direct_present_ready(void *arg) {
+  auto *state = static_cast<WavyArcState *>(arg);
+  if (state != nullptr) state->present_complete.store(true, std::memory_order_release);
+}
+
 static void render_worker_task(void *arg) {
   auto *state = static_cast<WavyArcState *>(arg);
   while (true) {
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
-    // Coalesce progress, play-state and phase updates emitted by one ESPHome
-    // loop iteration into a single rendered frame.
-    vTaskDelay(pdMS_TO_TICKS(2));
+    // A completed frame already provides natural back-pressure. Draining any
+    // notifications queued while the worker was busy coalesces state changes
+    // without yielding a full FreeRTOS tick before every frame.
     ulTaskNotifyTake(pdTRUE, 0);
 
     if (xSemaphoreTake(state->render_mutex, portMAX_DELAY) != pdTRUE) continue;
+    bool control_changed = false;
+    const int queued_value = state->queued_value_basis_points.exchange(-1, std::memory_order_acquire);
+    if (queued_value >= 0 && state->value_basis_points != queued_value) {
+      state->value_basis_points = queued_value;
+      control_changed = true;
+    }
+    const int queued_playing = state->queued_playing.exchange(-1, std::memory_order_acquire);
+    if (queued_playing >= 0 && state->playing != (queued_playing != 0)) {
+      state->playing = queued_playing != 0;
+      control_changed = true;
+    }
+    const int queued_pending = state->queued_pending.exchange(-1, std::memory_order_acquire);
+    if (queued_pending >= 0 && state->pending != (queued_pending != 0)) {
+      state->pending = queued_pending != 0;
+      control_changed = true;
+    }
+    if (control_changed) {
+      state->dirty = true;
+      state->render_generation++;
+    }
     // Keep the completed buffer immutable until the LVGL task presents it.
-    // This also naturally coalesces updates when the display path is busy.
+    // This naturally coalesces updates while the display path is busy.
     if (state->frame_ready) {
       xSemaphoreGive(state->render_mutex);
       continue;
     }
-
-    if (state->background_pending) {
+    if (state->background_pending && !state->present_in_flight.load(std::memory_order_acquire)) {
       const lv_image_dsc_t *source = state->pending_background_source;
       const bool apply_scrim = state->pending_background_scrim;
       state->background_pending = false;
@@ -785,13 +900,20 @@ static void render_worker_task(void *arg) {
     }
 
     const uint32_t generation = state->render_generation;
-    lv_color_t *front = state->pixels;
-    lv_color_t *rendered = state->worker_pixels;
+    lv_color32_t *front = state->pixels;
+    lv_color32_t *rendered = state->worker_pixels;
     state->pixels = rendered;
     render_bitmap(state);
     state->pixels = front;
-    state->ready_generation = generation;
-    state->frame_ready = true;
+    xSemaphoreGive(state->render_mutex);
+
+    if (xSemaphoreTake(state->render_mutex, portMAX_DELAY) != pdTRUE) continue;
+    if (generation == state->render_generation) {
+      state->ready_generation = generation;
+      state->frame_ready = true;
+    } else {
+      state->dirty = true;
+    }
     xSemaphoreGive(state->render_mutex);
   }
 }
@@ -802,21 +924,58 @@ static bool ensure_render_worker(WavyArcState *state) {
     if (state->render_mutex == nullptr) return false;
   }
   if (state->render_task != nullptr) return true;
+  if (state->render_task_stack == nullptr) {
+    state->render_task_stack = static_cast<StackType_t *>(
+        heap_caps_aligned_alloc(16, WAVE_RENDER_STACK_BYTES, MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
+    if (state->render_task_stack == nullptr) {
+      state->render_task_stack = static_cast<StackType_t *>(
+          heap_caps_aligned_alloc(16, WAVE_RENDER_STACK_BYTES, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT));
+    }
+    if (state->render_task_stack == nullptr) return false;
+  }
 #if CONFIG_FREERTOS_UNICORE
   constexpr BaseType_t render_core = tskNO_AFFINITY;
 #else
-  constexpr BaseType_t render_core = 1;
+  // The regional PPA compositor is deliberately created on the other core.
+  // Keep CPU rasterization on the caller/loop core so the 15 ms raster and
+  // the PPA submission can overlap instead of serializing on one CPU.
+  const BaseType_t render_core = xPortGetCoreID();
 #endif
+  // Audio and AFE tasks use much higher priorities, so they can still pre-empt
+  // this best-effort worker without the UI renderer stalling audio delivery.
   TaskHandle_t task = xTaskCreateStaticPinnedToCore(
-      render_worker_task, "media_wave", WAVE_RENDER_STACK_WORDS, state, 2,
+      render_worker_task, "media_wave", WAVE_RENDER_STACK_BYTES, state, 1,
       state->render_task_stack, &state->render_task_storage, render_core);
-  if (task == nullptr) return false;
+  if (task == nullptr) {
+    heap_caps_free(state->render_task_stack);
+    state->render_task_stack = nullptr;
+    return false;
+  }
   state->render_task = task;
+  ESP_LOGI("media.wave", "Render worker uses %s stack", esp_ptr_external_ram(state->render_task_stack) ? "PSRAM" : "internal");
   return true;
 }
 
 static bool lock_render_state(WavyArcState *state) {
-  return state->render_mutex == nullptr || xSemaphoreTake(state->render_mutex, portMAX_DELAY) == pdTRUE;
+  static int64_t busy_since_us = 0;
+  static int64_t last_warning_us = 0;
+  if (state->render_mutex == nullptr || xSemaphoreTake(state->render_mutex, pdMS_TO_TICKS(2)) == pdTRUE) {
+    busy_since_us = 0;
+    return true;
+  }
+
+  // This function is called from ESPHome's loop task. A visual frame is
+  // disposable, whereas blocking the loop behind the raster worker trips the
+  // task watchdog and restarts the whole device. Report a sustained stall and
+  // let the next 16 ms service tick coalesce/retry the update.
+  const int64_t now_us = esp_timer_get_time();
+  if (busy_since_us == 0) busy_since_us = now_us;
+  if (now_us - busy_since_us >= 250000LL && now_us - last_warning_us >= 1000000LL) {
+    last_warning_us = now_us;
+    ESP_LOGW("media.wave", "render-state lock busy; dropping/coalescing UI frame (worker_state=%d)",
+             state->render_task == nullptr ? -1 : static_cast<int>(eTaskGetState(state->render_task)));
+  }
+  return false;
 }
 
 static void unlock_render_state(WavyArcState *state) {
@@ -847,13 +1006,20 @@ inline void media_wavy_arc_init(lv_obj_t *image_obj) {
   lv_image_set_src(image_obj, &state.image);
   lv_obj_set_size(image_obj, WAVE_SIZE, WAVE_SIZE);
   render_bitmap(&state);
+  // The YAML placeholder is hidden so it can never flash as a square while
+  // the app snapshot is being opened. Reveal only the initialized ARGB image.
+  lv_obj_clear_flag(image_obj, LV_OBJ_FLAG_HIDDEN);
   lv_obj_invalidate(image_obj);
 }
 
 inline void media_wavy_arc_set_background(const lv_image_dsc_t *source, bool apply_scrim) {
   auto &state = media_wavy_arc;
 #ifdef ESP_PLATFORM
-  if (state.render_task != nullptr && state.direct_present_enabled.load(std::memory_order_relaxed)) {
+  // Once the raster worker exists, backdrop preparation belongs to it even
+  // while direct presentation is temporarily covered by a page transition.
+  // Rebuilding 244x244 pixels synchronously here can otherwise stall LVGL and
+  // real-time audio for tens of milliseconds during an artwork update.
+  if (state.render_task != nullptr) {
     if (!lock_render_state(&state)) return;
     state.pending_background_source = source;
     state.pending_background_scrim = apply_scrim;
@@ -878,6 +1044,21 @@ inline void media_wavy_arc_set_background(const lv_image_dsc_t *source, bool app
 #endif
 }
 
+inline void media_wavy_arc_log_state(const char *reason) {
+#ifdef ESP_PLATFORM
+  auto &state = media_wavy_arc;
+  ESP_LOGW("media.wave", "%s registered=%s buffers=%s worker=%p direct=%s dirty=%s ready=%s bg_pending=%s "
+                         "generation=%u/%u phase=%d value=%d playing=%s pending=%s",
+           reason == nullptr ? "state" : reason, YESNO(state.registered), YESNO(state.buffers_ready),
+           state.render_task, YESNO(state.direct_present_enabled.load(std::memory_order_relaxed)),
+           YESNO(state.dirty), YESNO(state.frame_ready), YESNO(state.background_pending),
+           static_cast<unsigned>(state.ready_generation), static_cast<unsigned>(state.render_generation),
+           state.phase_deg, state.value_basis_points, YESNO(state.playing), YESNO(state.pending));
+#else
+  (void) reason;
+#endif
+}
+
 inline void media_wavy_arc_set_value_basis_points(int progress) {
   auto &state = media_wavy_arc;
   if (progress < 0) {
@@ -886,6 +1067,11 @@ inline void media_wavy_arc_set_value_basis_points(int progress) {
     progress = 10000;
   }
 #ifdef ESP_PLATFORM
+  if (state.render_task != nullptr) {
+    state.queued_value_basis_points.store(progress, std::memory_order_release);
+    if (state.direct_present_enabled.load(std::memory_order_relaxed)) notify_render_worker(&state);
+    return;
+  }
   if (!lock_render_state(&state)) return;
 #endif
   if (state.value_basis_points == progress) {
@@ -921,6 +1107,11 @@ inline void media_wavy_arc_set_value(int progress) {
 inline void media_wavy_arc_set_playing(bool playing) {
   auto &state = media_wavy_arc;
 #ifdef ESP_PLATFORM
+  if (state.render_task != nullptr) {
+    state.queued_playing.store(playing ? 1 : 0, std::memory_order_release);
+    if (state.direct_present_enabled.load(std::memory_order_relaxed)) notify_render_worker(&state);
+    return;
+  }
   if (!lock_render_state(&state)) return;
 #endif
   if (state.playing == playing) {
@@ -955,7 +1146,19 @@ inline void media_wavy_arc_set_direct_present(bool enabled) {
   if (enabled) ensure_render_worker(&state);
   lv_area_t area{};
   if (enabled && state.arc != nullptr) lv_obj_get_coords(state.arc, &area);
-  if (!lock_render_state(&state)) return;
+  bool locked = false;
+  if (!enabled && state.render_mutex != nullptr) {
+    // Disabling is a synchronization boundary used before an artwork buffer
+    // is overwritten. Unlike a disposable animation update, it must not be
+    // dropped merely because the raster worker owns the mutex for a frame.
+    locked = xSemaphoreTake(state.render_mutex, pdMS_TO_TICKS(150)) == pdTRUE;
+  } else {
+    locked = lock_render_state(&state);
+  }
+  if (!locked) {
+    if (!enabled) ESP_LOGW("media.wave", "timed out while quiescing renderer");
+    return;
+  }
 #endif
   if (state.direct_present_enabled.load(std::memory_order_relaxed) == enabled) {
 #ifdef ESP_PLATFORM
@@ -969,6 +1172,10 @@ inline void media_wavy_arc_set_direct_present(bool enabled) {
   if (!enabled) {
     state.frame_ready = false;
     state.queued_phase_delta.store(0, std::memory_order_relaxed);
+    // A queued backdrop references the active artwork source. Do not let the
+    // worker consume it after the JPEG engine starts overwriting that source.
+    state.background_pending = false;
+    state.pending_background_source = nullptr;
   }
   if (enabled) {
     state.direct_x = area.x1;
@@ -976,7 +1183,10 @@ inline void media_wavy_arc_set_direct_present(bool enabled) {
   }
   state.render_generation++;
   const bool use_worker = state.render_task != nullptr;
+  const int released_x = state.direct_x;
+  const int released_y = state.direct_y;
   unlock_render_state(&state);
+  if (!enabled) lvgl_esphome_direct_blit_rgb888_release(released_x, released_y, WAVE_SIZE, WAVE_SIZE);
   if (enabled && use_worker) notify_render_worker(&state);
   else if (enabled && state.arc != nullptr) invalidate_bitmap(&state);
 #else
@@ -991,34 +1201,122 @@ inline bool media_wavy_arc_present_ready() {
     return false;
   }
 
-  const uint8_t *source = nullptr;
+  lv_color32_t *rendered = nullptr;
+  uint32_t ready_generation = 0;
   bool request_another = false;
+
+  if (state.present_in_flight.load(std::memory_order_acquire)) {
+    if (!state.present_complete.load(std::memory_order_acquire)) return true;
+
+    if (state.present_started_us != 0 && lvgl_esphome_get_perf_logging_enabled() != 0) {
+      const uint32_t dma_us = static_cast<uint32_t>(esp_timer_get_time() - state.present_started_us);
+      state.perf_dma_count++;
+      state.perf_dma_total_us += dma_us;
+      if (dma_us > state.perf_dma_max_us) state.perf_dma_max_us = dma_us;
+    }
+
+    if (!lock_render_state(&state)) return true;
+    rendered = state.present_pixels;
+    ready_generation = state.present_generation;
+    if (rendered != nullptr && ready_generation == state.render_generation && state.direct_present_enabled) {
+      lv_color32_t *old_front = state.pixels;
+      state.pixels = rendered;
+      state.image.data = reinterpret_cast<const uint8_t *>(state.pixels);
+      state.spare_pixels = old_front;
+    } else if (rendered != nullptr) {
+      state.spare_pixels = rendered;
+      state.dirty = true;
+    }
+    state.present_pixels = nullptr;
+    state.present_generation = 0;
+    state.present_started_us = 0;
+    state.present_complete.store(false, std::memory_order_release);
+    state.present_in_flight.store(false, std::memory_order_release);
+    request_another = state.dirty || state.background_pending ||
+                      state.queued_phase_delta.load(std::memory_order_relaxed) != 0 ||
+                      state.queued_value_basis_points.load(std::memory_order_relaxed) >= 0 ||
+                      state.queued_playing.load(std::memory_order_relaxed) >= 0 ||
+                      state.queued_pending.load(std::memory_order_relaxed) >= 0;
+    unlock_render_state(&state);
+    if (request_another) notify_render_worker(&state);
+    // The third buffer may already contain the next rasterized wave frame.
+    // Submit it during this same service tick; returning here inserted an
+    // extra 16 ms gap after every DSI acknowledgement when marquee and wave
+    // updates shared the regional compositor.
+  }
+
   if (state.render_mutex != nullptr && xSemaphoreTake(state.render_mutex, 0) != pdTRUE) return false;
   if (state.frame_ready) {
-    if (state.ready_generation == state.render_generation && state.direct_present_enabled) {
-      lv_color_t *old_front = state.pixels;
+    rendered = state.worker_pixels;
+    ready_generation = state.ready_generation;
+  }
+  unlock_render_state(&state);
+
+  if (rendered == nullptr) return false;
+
+  state.present_pixels = rendered;
+  state.present_generation = ready_generation;
+  state.present_complete.store(false, std::memory_order_release);
+  state.present_in_flight.store(true, std::memory_order_release);
+  const bool perf_enabled = lvgl_esphome_get_perf_logging_enabled() != 0;
+  const int64_t present_start_us = perf_enabled ? esp_timer_get_time() : 0;
+  const uint8_t async_result = lvgl_esphome_direct_blend_argb8888_async(
+      reinterpret_cast<const uint8_t *>(state.backdrop_pixels),
+      WAVE_SIZE * static_cast<int>(sizeof(lv_color_t)), reinterpret_cast<const uint8_t *>(rendered),
+      WAVE_SIZE * static_cast<int>(sizeof(lv_color32_t)), WAVE_SIZE, WAVE_SIZE, 0, 0, state.direct_x,
+      state.direct_y, WAVE_SIZE, WAVE_SIZE, direct_present_ready, &state);
+  if (perf_enabled) {
+    const uint32_t present_us = static_cast<uint32_t>(esp_timer_get_time() - present_start_us);
+    state.perf_present_count++;
+    state.perf_present_total_us += present_us;
+    if (present_us > state.perf_present_max_us) state.perf_present_max_us = present_us;
+  }
+
+  if (async_result == 2) {
+    if (lock_render_state(&state)) {
+      if (state.frame_ready && state.worker_pixels == rendered && state.ready_generation == ready_generation &&
+          state.spare_pixels != nullptr) {
+        state.worker_pixels = state.spare_pixels;
+        state.spare_pixels = nullptr;
+        state.frame_ready = false;
+      }
+      unlock_render_state(&state);
+    }
+    state.present_started_us = esp_timer_get_time();
+    notify_render_worker(&state);
+    return true;
+  }
+
+  state.present_pixels = nullptr;
+  state.present_generation = 0;
+  state.present_complete.store(false, std::memory_order_release);
+  state.present_in_flight.store(false, std::memory_order_release);
+  if (async_result == 1) return true;
+
+  const bool presented = false;
+
+  bool invalidate = false;
+  if (!lock_render_state(&state)) return presented;
+  if (state.frame_ready && state.worker_pixels == rendered && state.ready_generation == ready_generation) {
+    if (ready_generation == state.render_generation && state.direct_present_enabled) {
+      lv_color32_t *old_front = state.pixels;
       state.pixels = state.worker_pixels;
       state.worker_pixels = old_front;
       state.image.data = reinterpret_cast<const uint8_t *>(state.pixels);
-      source = reinterpret_cast<const uint8_t *>(state.pixels);
+      invalidate = !presented;
     } else {
       state.dirty = true;
     }
     state.frame_ready = false;
   }
-  request_another = state.dirty || state.queued_phase_delta.load(std::memory_order_relaxed) != 0;
+  request_another = state.dirty || state.background_pending ||
+                    state.queued_phase_delta.load(std::memory_order_relaxed) != 0 ||
+                    state.queued_value_basis_points.load(std::memory_order_relaxed) >= 0 ||
+                    state.queued_playing.load(std::memory_order_relaxed) >= 0 ||
+                    state.queued_pending.load(std::memory_order_relaxed) >= 0;
   unlock_render_state(&state);
 
-  bool presented = false;
-  if (source != nullptr) {
-    // Rasterization stays on core 1, while the single LVGL task serializes all
-    // PPA presentation. The native image invalidation path costs ~50% CPU for
-    // this region, so use the measured fast regional compositor here.
-    presented = lvgl_esphome_direct_blit_rgb888(
-        source, WAVE_SIZE * static_cast<int>(sizeof(lv_color_t)),
-        state.direct_x, state.direct_y, WAVE_SIZE, WAVE_SIZE);
-    if (!presented && state.arc != nullptr) lv_obj_invalidate(state.arc);
-  }
+  if (invalidate && state.arc != nullptr) lv_obj_invalidate(state.arc);
   if (request_another) notify_render_worker(&state);
   return presented;
 #else
@@ -1029,6 +1327,11 @@ inline bool media_wavy_arc_present_ready() {
 inline void media_wavy_arc_set_pending(bool pending) {
   auto &state = media_wavy_arc;
 #ifdef ESP_PLATFORM
+  if (state.render_task != nullptr) {
+    state.queued_pending.store(pending ? 1 : 0, std::memory_order_release);
+    if (state.direct_present_enabled.load(std::memory_order_relaxed)) notify_render_worker(&state);
+    return;
+  }
   if (!lock_render_state(&state)) return;
 #endif
   if (state.pending == pending) {
