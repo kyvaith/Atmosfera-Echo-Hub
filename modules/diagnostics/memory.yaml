@@ -7,6 +7,49 @@ esphome:
     - <sdkconfig.h>
     - static/task_runtime_profiler.h
 
+script:
+  - id: diagnostics_log_runtime_memory
+    mode: queued
+    parameters:
+      phase: string
+    then:
+      - lambda: |-
+          const size_t psram_total = heap_caps_get_total_size(MALLOC_CAP_SPIRAM);
+          const size_t psram_free = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+          const size_t internal_total = heap_caps_get_total_size(MALLOC_CAP_INTERNAL);
+          const size_t internal_free = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+          const size_t dsi_frame_bytes = id(my_display).get_frame_buffer_size() * 3U;
+          const size_t snapshot_bytes = lvgl_esphome_snapshot_memory_bytes();
+          const size_t player_art_bytes = id(album_art_background).memory_usage_bytes();
+          const size_t gallery_a_bytes = id(immich_photo_image).memory_usage_bytes();
+          const size_t gallery_motion_bytes = id(immich_ken_burns).memory_usage_bytes();
+          size_t lottie_bytes = 0;
+          if (id(boot_esphome_animation) != nullptr) {
+            auto *ctx = static_cast<esphome::lvgl::LottieContext *>(
+                lv_obj_get_user_data(id(boot_esphome_animation)));
+            lottie_bytes = esphome::lvgl::lottie_memory_usage_bytes(ctx);
+            esphome::lvgl::lottie_log_memory_usage(ctx, phase.c_str());
+          }
+          const size_t known = dsi_frame_bytes + snapshot_bytes + player_art_bytes + gallery_a_bytes +
+                               gallery_motion_bytes + lottie_bytes;
+          ESP_LOGW("memory.phase",
+                   "%s psram=%uK/%uK used=%uK largest=%uK internal=%uK/%uK used=%uK known=%uK residual=%dK "
+                   "dsi=%uK snapshot=%uK player_art=%uK gallery=%uK motion=%uK lottie=%uK",
+                   phase.c_str(), (unsigned) (psram_free / 1024), (unsigned) (psram_total / 1024),
+                   (unsigned) ((psram_total - psram_free) / 1024),
+                   (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024),
+                   (unsigned) (internal_free / 1024), (unsigned) (internal_total / 1024),
+                   (unsigned) ((internal_total - internal_free) / 1024), (unsigned) (known / 1024),
+                   (int) ((static_cast<int64_t>(psram_total - psram_free) - static_cast<int64_t>(known)) / 1024),
+                   (unsigned) (dsi_frame_bytes / 1024), (unsigned) (snapshot_bytes / 1024),
+                   (unsigned) (player_art_bytes / 1024), (unsigned) (gallery_a_bytes / 1024),
+                   (unsigned) (gallery_motion_bytes / 1024),
+                   (unsigned) (lottie_bytes / 1024));
+          lvgl_esphome_snapshot_log_memory(phase.c_str());
+          id(album_art_background).log_memory_usage((phase + ".player").c_str());
+          id(immich_photo_image).log_memory_usage((phase + ".photo_a").c_str());
+          id(immich_ken_burns).log_memory_usage((phase + ".gallery_motion").c_str());
+
 text_sensor:
   - platform: template
     id: diagnostics_psram_config

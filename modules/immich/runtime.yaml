@@ -87,11 +87,12 @@ artwork_image:
     format: JPEG
     type: RGB565
     hardware_jpeg: true
+    reuse_active_buffer_capacity: true
     placeholder: album_art_placeholder
     # Covers the largest full-resolution image in the configured album. The
     # encoded buffer is allocated while the display is dark and reused, so an
     # HTTP header callback never has to allocate/copy PSRAM during scanout.
-    buffer_size: 524288
+    buffer_size: 786432
     allow_insecure_local_urls: true
     request_headers:
       x-api-key: !lambda 'return id(immich_api_key_text).state;'
@@ -107,9 +108,9 @@ artwork_image:
     on_decode_finished:
       - lambda: |-
           esphome::esp32_jpeg::set_decoder_dma2d_burst_length(64);
-          if (id(ui_active_app) == 4 && id(immich_active_image_slot) >= 0) {
-            id(immich_ken_burns).resume_direct();
-          }
+          // Keep the last complete DSI frame frozen. The next JPEG reuses the
+          // active RGB565 allocation in place, so resuming the pan here would
+          // expose partially replaced source pixels before the crossfade.
     on_download_finished:
       - lambda: 'id(immich_pending_image_slot) = 0;'
       - script.execute: immich_apply_photo
@@ -131,50 +132,6 @@ artwork_image:
             lv_obj_clear_flag(id(immich_empty_icon), LV_OBJ_FLAG_HIDDEN);
             lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
           }
-  - url: "https://placehold.co/800x800/101010/3a3a3a.jpg"
-    id: immich_photo_image_b
-    format: JPEG
-    type: RGB565
-    hardware_jpeg: true
-    placeholder: album_art_placeholder
-    buffer_size: 524288
-    allow_insecure_local_urls: true
-    request_headers:
-      x-api-key: !lambda 'return id(immich_api_key_text).state;'
-    on_decode_start:
-      - lambda: |-
-          if (id(ui_active_app) == 4) {
-            id(immich_ken_burns).freeze_direct();
-            esphome::esp32_jpeg::set_decoder_dma2d_burst_length(8);
-          }
-    on_decode_finished:
-      - lambda: |-
-          esphome::esp32_jpeg::set_decoder_dma2d_burst_length(64);
-          if (id(ui_active_app) == 4 && id(immich_active_image_slot) >= 0) {
-            id(immich_ken_burns).resume_direct();
-          }
-    on_download_finished:
-      - lambda: 'id(immich_pending_image_slot) = 1;'
-      - script.execute: immich_apply_photo
-    on_error:
-      - lambda: |-
-          esphome::esp32_jpeg::set_decoder_dma2d_burst_length(64);
-          id(immich_fetch_in_flight) = false;
-          if (id(ui_active_app) == 4)
-            id(immich_ken_burns).resume_direct();
-          id(immich_consecutive_failures)++;
-          id(immich_retry_after_ms) = millis() +
-              std::min<uint32_t>(30000, 2000U << std::min(id(immich_consecutive_failures), 4));
-          ESP_LOGW("immich", "Image download failed url=%s failures=%d",
-                   id(immich_current_url).c_str(), id(immich_consecutive_failures));
-          if (id(immich_active_image_slot) < 0) {
-            id(immich_image_loaded) = false;
-            lv_label_set_text(id(immich_status_label), "Image download failed");
-            lv_obj_add_flag(id(immich_loading_spinner), LV_OBJ_FLAG_HIDDEN);
-            lv_obj_clear_flag(id(immich_empty_icon), LV_OBJ_FLAG_HIDDEN);
-            lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
-          }
-
 script:
   - id: immich_hide_controls
     mode: restart
@@ -217,8 +174,7 @@ script:
       - lambda: |-
           id(immich_show_controls_after_load) = false;
           const int slot = id(immich_pending_image_slot);
-          auto *src = slot == 0 ? id(immich_photo_image).get_lv_image_dsc()
-                                : id(immich_photo_image_b).get_lv_image_dsc();
+          auto *src = id(immich_photo_image).get_lv_image_dsc();
           const int w = src == nullptr ? 0 : src->header.w;
           const int h = src == nullptr ? 0 : src->header.h;
           ESP_LOGI("immich", "Photo slot %d decoded: %dx%d src=%p active=%d", slot, w, h, src,
@@ -226,10 +182,7 @@ script:
           if (id(ui_active_app) != 4) {
             // A download can finish after the close animation. Do not let that
             // stale callback re-enter LVGL/direct-PPA or retain a decoded photo.
-            if (slot == 0)
-              id(immich_photo_image).release(true);
-            else
-              id(immich_photo_image_b).release(true);
+            id(immich_photo_image).release(true);
             id(immich_fetch_in_flight) = false;
             id(immich_transition_pending) = false;
             id(immich_transition_starting) = false;
@@ -273,7 +226,6 @@ script:
 
           // First image (or a photo decoded while the app is closed): promote
           // it directly. Subsequent visible changes use the PPA transition.
-          const int old_slot = id(immich_active_image_slot);
           id(immich_ken_burns).pause();
           id(immich_ken_burns).reset_transform();
           lv_lock();
@@ -309,12 +261,9 @@ script:
           // remains available on a center tap, but must not stop the PPA worker
           // automatically just as the image becomes visible.
           id(immich_show_controls_after_load) = false;
-          if (old_slot >= 0 && old_slot != slot) {
-            if (old_slot == 0)
-              id(immich_photo_image).release(true);
-            else
-              id(immich_photo_image_b).release(true);
-          }
+          // Keep one RGB565 allocation until gallery close. Subsequent
+          // hardware JPEG decodes reuse its full capacity in place; the old
+          // picture is already pinned in a DSI framebuffer.
           const uint32_t slide_ms =
               static_cast<uint32_t>(id(immich_slide_interval_seconds).state * 1000.0f);
           id(immich_ken_burns).set_phase_duration(
@@ -335,8 +284,7 @@ script:
           // before transition_pending becomes visible.
           id(immich_transition_starting) = true;
           const int slot = id(immich_pending_image_slot);
-          auto *src = slot == 0 ? id(immich_photo_image).get_lv_image_dsc()
-                                : id(immich_photo_image_b).get_lv_image_dsc();
+          auto *src = id(immich_photo_image).get_lv_image_dsc();
           if (src == nullptr || src->data == nullptr) {
             id(immich_prefetch_ready) = false;
             id(immich_force_transition) = false;
@@ -377,30 +325,14 @@ script:
     mode: restart
     then:
       - lambda: |-
-          // Stop full-screen PPA traffic before the HTTP header callback, not
-          // only when JPEG decode starts. The body download itself is cheap,
-          // while overlapping the header allocation with a pan has produced
-          // measurable DSI FIFO starvation on ESP32-P4.
-          if (id(ui_active_app) == 4 && id(immich_active_image_slot) >= 0)
-            id(immich_ken_burns).freeze_direct();
-      # Let DSI scan one settled frame before the HTTP/JPEG path starts using
-      # the same PSRAM bus. This is outside the visible motion phase.
-      - delay: 50ms
-      - if:
-          condition:
-            lambda: 'return id(immich_active_image_slot) == 0;'
-          then:
-            - lambda: 'id(immich_pending_image_slot) = 1;'
-            - artwork_image.set_url:
-                id: immich_photo_image_b
-                update: true
-                url: !lambda 'return id(immich_current_url);'
-          else:
-            - lambda: 'id(immich_pending_image_slot) = 0;'
-            - artwork_image.set_url:
-                id: immich_photo_image
-                update: true
-                url: !lambda 'return id(immich_current_url);'
+          // The current PPA pan can continue during the network transfer.
+          // on_decode_start freezes its final complete DSI frame immediately
+          // before JPEG DMA2D overwrites the reusable RGB565 source.
+          id(immich_pending_image_slot) = 0;
+      - artwork_image.set_url:
+          id: immich_photo_image
+          update: true
+          url: !lambda 'return id(immich_current_url);'
 
   - id: immich_reset_slideshow
     mode: restart
@@ -483,8 +415,7 @@ script:
             return;
           }
           id(immich_photo_image).release(true);
-          id(immich_photo_image_b).release(true);
-          ESP_LOGD("immich", "Released decoded photo buffers after deferred DSI handoff");
+          ESP_LOGD("immich", "Released decoded photo buffer after deferred DSI handoff");
 
   - id: immich_closed
     mode: restart
@@ -501,7 +432,6 @@ script:
       - lambda: |-
           if (id(immich_close_handoff_ready)) {
             id(immich_photo_image).release(true);
-            id(immich_photo_image_b).release(true);
           } else {
             ESP_LOGD("immich", "Close handoff busy; deferring decoded photo release");
             id(immich_release_closed_buffers).execute();
@@ -750,18 +680,10 @@ interval:
                 if (id(immich_ken_burns).transition_failed()) {
                   ESP_LOGW("immich", "Hardware transition failed; retaining slot %d",
                            id(immich_active_image_slot));
-                  const int failed_slot = id(immich_pending_image_slot);
-                  if (failed_slot != id(immich_active_image_slot)) {
-                    if (failed_slot == 0)
-                      id(immich_photo_image).release(true);
-                    else
-                      id(immich_photo_image_b).release(true);
-                  }
                   if (id(ui_active_app) == 4)
                     id(immich_ken_burns).resume_direct();
                   return;
                 }
-                const int old_slot = id(immich_active_image_slot);
                 id(immich_active_image_slot) = id(immich_pending_image_slot);
                 id(immich_image_loaded) = true;
                 id(immich_consecutive_failures) = 0;
@@ -769,12 +691,6 @@ interval:
                 id(immich_last_photo_ms) = millis();
                 lv_label_set_text(id(immich_title_label), id(immich_current_title).c_str());
                 lv_label_set_text(id(immich_meta_label), id(immich_current_subtitle).c_str());
-                if (old_slot >= 0 && old_slot != id(immich_active_image_slot)) {
-                  if (old_slot == 0)
-                    id(immich_photo_image).release(true);
-                  else
-                    id(immich_photo_image_b).release(true);
-                }
                 ESP_LOGD("immich", "Hardware transition promoted slot %d",
                          id(immich_active_image_slot));
       - if:

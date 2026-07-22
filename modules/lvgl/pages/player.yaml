@@ -352,6 +352,12 @@ lvgl:
                         align: CENTER
                         text_color: 0x3F006B
                         text_font: material_symbols_36
+                  on_press:
+                    then:
+                      - script.execute: media_transport_press_guard
+                  on_release:
+                    then:
+                      - script.execute: media_transport_press_guard
                   on_click:
                     then:
                       - if:
@@ -387,6 +393,12 @@ lvgl:
                         align: CENTER
                         text_color: 0x3F006B
                         text_font: material_symbols_36
+                  on_press:
+                    then:
+                      - script.execute: media_transport_press_guard
+                  on_release:
+                    then:
+                      - script.execute: media_transport_press_guard
                   on_click:
                     then:
                       - if:

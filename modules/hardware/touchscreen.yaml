@@ -128,7 +128,8 @@ touchscreen:
             id(immich_swipe_last_x) = touch.x;
             id(immich_swipe_last_y) = touch.y;
 
-            id(settings_scroll_tracking) = id(ui_active_app) == 2 && !id(ui_snapshot_io_busy) && !id(app_close_tracking);
+            id(settings_scroll_tracking) = id(ui_active_app) == 2 && !id(ui_snapshot_io_busy) &&
+                                           !id(app_close_tracking) && !lvgl_esphome_snapshot_is_active();
             id(settings_scroll_dragging) = false;
             id(settings_scroll_start_x) = touch.x;
             id(settings_scroll_start_y) = touch.y;
@@ -136,6 +137,9 @@ touchscreen:
             id(settings_scroll_last_y) = touch.y;
             id(settings_scroll_start_scroll_y) = lv_obj_get_scroll_y(id(settings_root));
             id(settings_scroll_last_render_ms) = 0;
+            id(settings_scroll_last_sample_y) = touch.y;
+            id(settings_scroll_last_sample_ms) = millis();
+            id(settings_scroll_velocity_px_s) = 0;
     on_update:
       then:
         - lambda: |-
@@ -158,7 +162,7 @@ touchscreen:
               // queue of stale touch frames behind the finger.
               static uint32_t last_volume_visual_ms = 0;
               const uint32_t now = millis();
-              if (now - last_volume_visual_ms >= 33U || pct == 0 || pct == 100) {
+              if (now - last_volume_visual_ms >= 16U || pct == 0 || pct == 100) {
                 last_volume_visual_ms = now;
                 atmosfera_ui::volume_overlay_update_drag_point(
                     id(global_volume_arc), id(global_volume_knob), id(global_volume_pct_label),
@@ -233,6 +237,16 @@ touchscreen:
               const int dy = id(settings_scroll_last_y) - id(settings_scroll_start_y);
               constexpr int start_y = 2;
               constexpr uint32_t render_interval_ms = 4;
+              const uint32_t sample_now = millis();
+              const uint32_t sample_dt = sample_now - id(settings_scroll_last_sample_ms);
+              if (sample_dt > 0 && sample_dt <= 100) {
+                const int instantaneous =
+                    -((touch.y - id(settings_scroll_last_sample_y)) * 1000) / static_cast<int>(sample_dt);
+                id(settings_scroll_velocity_px_s) =
+                    (id(settings_scroll_velocity_px_s) * 2 + instantaneous) / 3;
+              }
+              id(settings_scroll_last_sample_y) = touch.y;
+              id(settings_scroll_last_sample_ms) = sample_now;
               if (abs(dx) > 4 || abs(dy) > 4) {
                 id(ui_touch_click_block_until_ms) = millis() + 700;
               }
@@ -424,7 +438,8 @@ touchscreen:
               const bool was_dragging = id(settings_scroll_dragging);
               const bool was_tap = !was_dragging && abs(dx) <= 10 && abs(dy) <= 10;
               if (was_dragging) {
-                lvgl_esphome_snapshot_scroll_finish_retain(id(settings_scroll_start_scroll_y) - dy);
+                lvgl_esphome_snapshot_scroll_finish_inertial(
+                    id(settings_scroll_start_scroll_y) - dy, id(settings_scroll_velocity_px_s));
                 id(ui_touch_click_block_until_ms) = millis() + 1000;
                 id(ui_release_touch_blocker).execute();
                 id(ui_restore_settings_rows_after_drag).execute();
@@ -480,6 +495,8 @@ touchscreen:
               id(settings_scroll_tracking) = false;
               id(settings_scroll_dragging) = false;
               id(settings_scroll_last_render_ms) = 0;
+              id(settings_scroll_last_sample_ms) = 0;
+              id(settings_scroll_velocity_px_s) = 0;
               if (was_dragging || was_tap) return;
             }
             if (!id(tile_swipe_tracking)) {
@@ -518,6 +535,28 @@ touchscreen:
                 (id(tile_swipe_commit_latched) || (abs_dx >= commit_x && abs_dx > abs_dy)) &&
                 next_page >= 1 && next_page <= 4;
 
+            if (commit) {
+              // Update the live dots while the compositor still owns the
+              // visible frame. Otherwise handoff briefly reveals the previous
+              // LVGL indicator before the delayed page settle corrects it.
+              id(ui_page) = next_page;
+              lvgl_esphome_snapshot_swipe_set_page_indicator(next_page, 4);
+              lv_obj_t *dots[] = {
+                id(page_indicator_1), id(page_indicator_2),
+                id(page_indicator_3), id(page_indicator_4),
+              };
+              int dot_x = 352;
+              for (int i = 0; i < 4; i++) {
+                const bool active = (i + 1) == next_page;
+                const int dot_w = active ? 30 : 10;
+                lv_obj_set_x(dots[i], dot_x);
+                lv_obj_set_width(dots[i], dot_w);
+                lv_obj_set_style_bg_color(
+                    dots[i], lv_color_hex(active ? 0xF2F2F2 : 0x5C5F5E), LV_PART_MAIN);
+                dot_x += dot_w + 12;
+              }
+            }
+
             if (id(tile_swipe_dragging) && id(tile_swipe_next_x) != 0) {
               const int initial_next_x = id(tile_swipe_next_x);
               const bool edge_bounce = id(tile_swipe_next_page) == 0;
@@ -549,11 +588,6 @@ touchscreen:
             }
 
             if (commit) {
-              id(ui_page) = next_page;
-              // The direct compositor owns the visible frame until settling
-              // completes. Update its indicator immediately, but defer the
-              // four live LVGL dot mutations to ui_apply_tile_positions.
-              lvgl_esphome_snapshot_swipe_set_page_indicator(next_page, 4);
               id(ui_settle_tile_positions_after_swipe).execute();
               if (id(settings_swipe_logs_switch).state) {
                 ESP_LOGI("touch.swipe", "page=%d next=%d latched=%d dx=%d",

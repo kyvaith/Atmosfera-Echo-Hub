@@ -42,6 +42,10 @@ script:
                   lv_obj_get_user_data(id(boot_esphome_animation)));
               return esphome::lvgl::lottie_is_complete(ctx);
           timeout: 4500ms
+      - script.execute:
+          id: diagnostics_log_runtime_memory
+          phase: boot-lottie
+      - script.wait: diagnostics_log_runtime_memory
       - lambda: |-
           ESP_LOGW("boot.diag", "wordmark fade begin uptime=%lums", (unsigned long) millis());
           // Cached playback presents directly to DSI, so the canvas may still

@@ -351,25 +351,21 @@ inline bool title_marquee_direct_begin(lv_obj_t *label, int screen_x, int screen
   state.source_y_offset = std::max(0, (static_cast<int>(state.text->header.h) - label_height) / 2);
 
   // Capture only the visible title strip from the already presented DSI frame.
-  // The page has one full-screen artwork object underneath this transparent
-  // viewport, so keeping a second 800x800 image here would decode and redraw
-  // the same source twice whenever artwork changes.
-  // Hiding the native label normally invalidates its old area. That queued
-  // redraw can run after the first direct-compositor frame and briefly erase
-  // it, which looks like a flash followed by a one-pixel jump. The compositor
-  // owns this strip until title_marquee_direct_end(), so suppress only this
-  // invalidation while changing visibility.
+  // First synchronously remove the native title. Capturing before that redraw
+  // baked the static label into the background, so the moving title was drawn
+  // over a second, stationary copy.
   lv_display_t *display = lv_obj_get_display(label);
-  const bool invalidation_enabled = display != nullptr && lv_display_is_invalidation_enabled(display);
-  if (invalidation_enabled) lv_display_enable_invalidation(display, false);
+  lvgl_esphome_direct_regions_pause(true, 120);
   lv_obj_add_flag(label, LV_OBJ_FLAG_HIDDEN);
-  if (invalidation_enabled) lv_display_enable_invalidation(display, true);
+  if (display != nullptr) lv_refr_now(display);
   if (!lvgl_esphome_direct_capture_rgb888(reinterpret_cast<uint8_t *>(state.background),
                                            width * static_cast<int>(sizeof(lv_color_t)), screen_x, screen_y,
                                            width, height)) {
+    lvgl_esphome_direct_regions_pause(false, 0);
     title_marquee_direct_end(true);
     return false;
   }
+  lvgl_esphome_direct_regions_pause(false, 0);
 
   state.active.store(true, std::memory_order_release);
   state.last_x = INT_MIN;

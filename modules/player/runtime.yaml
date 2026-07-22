@@ -544,7 +544,12 @@ script:
           const int voice_phase = id(voice_assistant_phase);
           const bool voice_visible = voice_phase != ${voice_assist_idle_phase_id} &&
                                      voice_phase != ${voice_assist_not_ready_phase_id};
-          if (id(ui_active_app) != 1 || voice_visible ||
+          if (id(ui_active_app) != 1 || voice_visible || id(ui_snapshot_io_busy) ||
+              id(media_speaker_panel_open) || id(global_volume_dragging) ||
+              !lv_obj_has_flag(id(queue_panel), LV_OBJ_FLAG_HIDDEN) ||
+              !lv_obj_has_flag(id(speaker_group_panel), LV_OBJ_FLAG_HIDDEN) ||
+              !lv_obj_has_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN) ||
+              !lv_obj_has_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN) ||
               !id(display_backlight).current_values.is_on()) {
             return;
           }
@@ -557,8 +562,12 @@ script:
           if (duration > 9000U) duration = 9000U;
           id(title_marquee_scroll_ms) = duration;
           id(title_marquee_start_ms) = millis();
-          atmosfera_ui::title_marquee_direct_begin(id(title_label), 140, 82, 520, 66);
-          id(title_marquee_active) = true;
+          id(title_marquee_active) =
+              atmosfera_ui::title_marquee_direct_begin(id(title_label), 140, 82, 520, 66);
+          if (!id(title_marquee_active)) {
+            id(title_marquee_start_ms) = 0;
+            id(title_marquee_scroll_ms) = 0;
+          }
 
   - id: media_title_marquee_pause_direct
     mode: restart
@@ -575,6 +584,21 @@ script:
     then:
       - script.execute: media_title_marquee_reset
       - script.execute: media_title_marquee_start_delayed
+
+  - id: media_transport_press_guard
+    mode: restart
+    then:
+      - lambda: |-
+          atmosfera_ui::media_wavy_arc_set_direct_present(false);
+          lvgl_esphome_direct_regions_pause(true, 80);
+      - delay: 1ms
+      - lambda: |-
+          lv_obj_invalidate(id(prev_button));
+          lv_obj_invalidate(id(next_button));
+          lv_refr_now(nullptr);
+          lvgl_esphome_synchronize_direct_framebuffer_area(55, 320, 128, 160);
+          lvgl_esphome_synchronize_direct_framebuffer_area(617, 320, 128, 160);
+          lvgl_esphome_direct_regions_pause(false, 0);
 
   - id: media_show_action_spinner
     mode: restart
@@ -738,11 +762,13 @@ script:
           atmosfera_ui::media_wavy_arc_set_direct_present(false);
           atmosfera_ui::title_marquee_direct_end(true);
           if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
+          lvgl_esphome_direct_regions_pause(true, 100);
       - lvgl.widget.show: queue_panel
       - lambda: |-
           lv_obj_move_foreground(id(queue_panel));
           lv_obj_invalidate(id(queue_panel));
           lv_refr_now(nullptr);
+          lvgl_esphome_direct_regions_pause(false, 0);
       - script.execute: subscribe_media_queue_sensor
       - delay: 150ms
       - script.execute: update_media_queue_panel
@@ -1266,7 +1292,11 @@ interval:
       - lambda: |-
           static uint32_t marquee_last_submit_ms = 0;
           atmosfera_ui::title_marquee_direct_service();
-          const bool player_visible = id(ui_active_app) == 1 && id(display_backlight).remote_values.is_on();
+          const int voice_phase = id(voice_assistant_phase);
+          const bool voice_visible = voice_phase != ${voice_assist_idle_phase_id} &&
+                                     voice_phase != ${voice_assist_not_ready_phase_id};
+          const bool player_visible = id(ui_active_app) == 1 && !voice_visible &&
+                                      id(display_backlight).remote_values.is_on();
           uint16_t blocker_mask = 0;
           if (!player_visible) blocker_mask |= 1U << 0;
           if (id(ui_snapshot_io_busy)) blocker_mask |= 1U << 1;

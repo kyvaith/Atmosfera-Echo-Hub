@@ -116,7 +116,12 @@ inline std::string immich_parse_asset_object(JsonObject asset, const std::string
   // default server configuration). It preserves all pixels the panel can show
   // while avoiding a multi-megabyte intermediate for the original image.
   // Cover-cropping remains on the ESP32-P4 PPA path.
-  out->image_url = base_url + "/api/assets/" + out->asset_id + "/thumbnail?size=preview";
+  // Immich previews are commonly only 800 px on their longest edge. On the
+  // round 800x800 panel a landscape preview must then be enlarged from about
+  // 800x450, which visibly softens it. Request the original-resolution JPEG;
+  // the hardware decoder still crops/scales directly into the display-sized
+  // RGB565 surface.
+  out->image_url = base_url + "/api/assets/" + out->asset_id + "/original";
   out->date = asset["localDateTime"].is<const char *>() ? immich_parse_date(asset["localDateTime"].as<std::string>()) : "";
 
   JsonObject exif = asset["exifInfo"].as<JsonObject>();

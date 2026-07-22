@@ -170,11 +170,9 @@ esphome:
     - lambda: |-
         const bool player_reserved = id(album_art_background).reserve_download_buffer();
         const bool immich_a_reserved = id(immich_photo_image).reserve_download_buffer();
-        const bool immich_b_reserved = id(immich_photo_image_b).reserve_download_buffer();
         const bool immich_a_http = id(immich_photo_image).reserve_local_http_client(id(immich_url).state);
-        const bool immich_b_http = id(immich_photo_image_b).reserve_local_http_client(id(immich_url).state);
-        ESP_LOGW("boot.diag", "JPEG input buffers reserved player=%d immich=%d/%d http=%d/%d psram=%uK/%uK",
-                 player_reserved, immich_a_reserved, immich_b_reserved, immich_a_http, immich_b_http,
+        ESP_LOGW("boot.diag", "JPEG input buffers reserved player=%d immich=%d http=%d psram=%uK/%uK",
+                 player_reserved, immich_a_reserved, immich_a_http,
                  (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                  (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
     # Wi-Fi scan/association briefly consumes enough memory bandwidth to make
@@ -349,6 +347,13 @@ api:
       then:
         - lambda: |-
             atmosfera_diag::log_task_runtime_profile();
+    - action: debug_log_memory
+      variables:
+        phase: string
+      then:
+        - script.execute:
+            id: diagnostics_log_runtime_memory
+            phase: !lambda 'return phase;'
     - action: debug_open_player
       then:
         - script.execute: ui_open_player_app
@@ -391,8 +396,11 @@ api:
                   lvgl_esphome_snapshot_scroll_update(y);
               - delay: 16ms
         - lambda: |-
-            lvgl_esphome_snapshot_scroll_finish_retain(420);
-            ESP_LOGI("settings.bench", "Synthetic scroll finished");
+            lvgl_esphome_snapshot_scroll_finish_inertial(420, 1200);
+            ESP_LOGI("settings.bench", "Synthetic inertial scroll released");
+        - delay: 600ms
+        - lambda: |-
+            ESP_LOGI("settings.bench", "Synthetic inertial scroll finished");
             lvgl_esphome_set_perf_logging_enabled(id(settings_perf_logs_switch).state);
             lvgl_esphome_set_swipe_logging_enabled(id(settings_swipe_logs_switch).state);
     - action: debug_open_voice
