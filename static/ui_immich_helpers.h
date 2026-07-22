@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "esp_random.h"
@@ -94,10 +95,9 @@ inline bool immich_source_ready(const std::string &source, const std::string &al
 }
 
 inline bool immich_orientation_matches(const ImmichPhoto &photo, const std::string &filter) {
-  // The ESP32-P4 hardware JPEG path currently fails on Immich portrait thumbnails
-  // such as 450x801. In the default mixed mode prefer hardware-decodable
-  // landscape assets instead of falling back to software decode on-device.
-  if (filter == "Any" || filter.empty()) return !photo.orientation_known || !photo.is_portrait;
+  // The hardware decoder now pads non-aligned JPEG dimensions before decode,
+  // so mixed albums no longer need to silently discard portrait assets.
+  if (filter == "Any" || filter.empty()) return true;
   if (!photo.orientation_known) return false;
   if (filter == "Portrait Only") return photo.is_portrait;
   if (filter == "Landscape Only") return !photo.is_portrait;
@@ -151,57 +151,78 @@ inline std::string immich_parse_asset_object(JsonObject asset, const std::string
 
 inline bool immich_parse_asset_response(const std::string &body, const std::string &base_url,
                                         const std::string &orientation_filter, ImmichPhoto *out,
-                                        const std::string &avoid_asset_id = "") {
+                                        const std::string &avoid_asset_ids = "") {
   if (out == nullptr) return false;
   auto doc = esphome::json::parse_json(body);
   if (doc.isNull()) return false;
 
-  ImmichPhoto fallback;
-  bool has_fallback = false;
-  auto try_asset = [&](JsonObject obj) -> bool {
+  std::vector<ImmichPhoto> candidates;
+  auto collect_asset = [&](JsonObject obj) {
     ImmichPhoto candidate;
-    if (immich_parse_asset_object(obj, base_url, &candidate).empty()) return false;
-    if (!immich_orientation_matches(candidate, orientation_filter)) return false;
-    if (!has_fallback) {
-      fallback = candidate;
-      has_fallback = true;
+    if (immich_parse_asset_object(obj, base_url, &candidate).empty()) return;
+    if (!immich_orientation_matches(candidate, orientation_filter)) return;
+    candidates.push_back(std::move(candidate));
+  };
+  auto is_avoided = [&](const std::string &asset_id) {
+    size_t start = 0;
+    while (start <= avoid_asset_ids.size()) {
+      const size_t end = avoid_asset_ids.find('|', start);
+      const size_t length = end == std::string::npos ? avoid_asset_ids.size() - start : end - start;
+      if (length == asset_id.size() && avoid_asset_ids.compare(start, length, asset_id) == 0)
+        return true;
+      if (end == std::string::npos) break;
+      start = end + 1;
     }
-    if (!avoid_asset_id.empty() && candidate.asset_id == avoid_asset_id) return false;
-    *out = candidate;
-    return true;
+    return false;
   };
 
   if (doc.is<JsonArray>()) {
     JsonArray arr = doc.as<JsonArray>();
-    for (size_t i = 0; i < arr.size(); i++) {
-      if (try_asset(arr[i].as<JsonObject>())) return true;
-    }
-    if (has_fallback) {
-      *out = fallback;
-      return true;
-    }
-    return false;
-  }
-
-  if (doc.is<JsonObject>()) {
+    for (size_t i = 0; i < arr.size(); i++) collect_asset(arr[i].as<JsonObject>());
+  } else if (doc.is<JsonObject>()) {
     JsonObject root = doc.as<JsonObject>();
     JsonObject assets = root["assets"].as<JsonObject>();
     JsonArray items;
     if (!assets.isNull()) items = assets["items"].as<JsonArray>();
     if (!items.isNull()) {
-      for (size_t i = 0; i < items.size(); i++) {
-        if (try_asset(items[i].as<JsonObject>())) return true;
-      }
-      if (has_fallback) {
-        *out = fallback;
-        return true;
-      }
-      return false;
+      for (size_t i = 0; i < items.size(); i++) collect_asset(items[i].as<JsonObject>());
+    } else {
+      collect_asset(root);
     }
-    return try_asset(root);
   }
 
-  return false;
+  if (candidates.empty()) return false;
+  std::vector<size_t> eligible;
+  eligible.reserve(candidates.size());
+  for (size_t i = 0; i < candidates.size(); i++) {
+    if (!is_avoided(candidates[i].asset_id)) eligible.push_back(i);
+  }
+  const size_t selected = eligible.empty() ? esp_random() % candidates.size()
+                                           : eligible[esp_random() % eligible.size()];
+  *out = std::move(candidates[selected]);
+  return true;
+}
+
+inline std::string immich_push_recent_asset(const std::string &recent, const std::string &asset_id,
+                                            size_t max_entries = 3) {
+  std::vector<std::string> entries;
+  size_t start = 0;
+  while (start <= recent.size()) {
+    const size_t end = recent.find('|', start);
+    const std::string entry = recent.substr(start, end == std::string::npos ? std::string::npos : end - start);
+    if (!entry.empty() && entry != asset_id) entries.push_back(entry);
+    if (end == std::string::npos) break;
+    start = end + 1;
+  }
+  entries.push_back(asset_id);
+  if (entries.size() > max_entries)
+    entries.erase(entries.begin(), entries.begin() + (entries.size() - max_entries));
+  std::string result;
+  for (const auto &entry : entries) {
+    if (!result.empty()) result += '|';
+    result += entry;
+  }
+  return result;
 }
 
 inline bool immich_parse_memory_response(const std::string &body, const std::string &base_url, ImmichPhoto *out) {

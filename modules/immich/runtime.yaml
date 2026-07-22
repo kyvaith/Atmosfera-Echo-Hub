@@ -8,11 +8,23 @@ globals:
     type: std::string
     restore_value: no
     initial_value: '""'
+  - id: immich_pending_asset_id
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: immich_recent_asset_ids
+    type: std::string
+    restore_value: no
+    initial_value: '""'
   - id: immich_current_url
     type: std::string
     restore_value: no
     initial_value: '""'
   - id: immich_previous_url
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: immich_displayed_url
     type: std::string
     restore_value: no
     initial_value: '""'
@@ -40,10 +52,18 @@ globals:
     type: int
     restore_value: no
     initial_value: '0'
+  - id: immich_current_asset_retry_count
+    type: int
+    restore_value: no
+    initial_value: '0'
   - id: immich_retry_after_ms
     type: uint32_t
     restore_value: no
     initial_value: '0'
+  - id: immich_retry_same_asset
+    type: bool
+    restore_value: no
+    initial_value: 'false'
   - id: immich_active_image_slot
     type: int
     restore_value: no
@@ -85,7 +105,10 @@ artwork_image:
   - url: "https://placehold.co/800x800/101010/3a3a3a.jpg"
     id: immich_photo_image
     format: JPEG
-    type: RGB565
+    # Decode straight to the RGB888 layout consumed by the DSI framebuffers.
+    # The steady pan can then crop with DMA2D M2M instead of converting the
+    # complete image from RGB565 through PPA on every animation frame.
+    type: RGB
     hardware_jpeg: true
     reuse_active_buffer_capacity: true
     placeholder: album_art_placeholder
@@ -98,7 +121,7 @@ artwork_image:
       x-api-key: !lambda 'return id(immich_api_key_text).state;'
     on_decode_start:
       - lambda: |-
-          // Full-resolution photos write almost 3 MB through JPEG DMA2D. Stop
+          // Full-resolution photos write around 4.5 MB through JPEG DMA2D. Stop
           // the full-screen PPA pan first and shorten only this decoder's DMA
           // bursts so DSI gets regular PSRAM arbitration opportunities.
           if (id(ui_active_app) == 4) {
@@ -109,7 +132,7 @@ artwork_image:
       - lambda: |-
           esphome::esp32_jpeg::set_decoder_dma2d_burst_length(64);
           // Keep the last complete DSI frame frozen. The next JPEG reuses the
-          // active RGB565 allocation in place, so resuming the pan here would
+          // active RGB888 allocation in place, so resuming the pan here would
           // expose partially replaced source pixels before the crossfade.
     on_download_finished:
       - lambda: 'id(immich_pending_image_slot) = 0;'
@@ -121,8 +144,21 @@ artwork_image:
           if (id(ui_active_app) == 4)
             id(immich_ken_burns).resume_direct();
           id(immich_consecutive_failures)++;
-          id(immich_retry_after_ms) = millis() +
-              std::min<uint32_t>(30000, 2000U << std::min(id(immich_consecutive_failures), 4));
+          id(immich_current_asset_retry_count)++;
+          if (id(immich_current_asset_retry_count) <= 2 && !id(immich_current_url).empty()) {
+            // Retry a transient local TCP failure without selecting and
+            // blacklisting another photograph.
+            id(immich_retry_same_asset) = true;
+            id(immich_retry_after_ms) = millis() +
+                static_cast<uint32_t>(250 * id(immich_current_asset_retry_count));
+          } else {
+            id(immich_retry_same_asset) = false;
+            id(immich_pending_asset_id) = "";
+            id(immich_current_asset_retry_count) = 0;
+            const int backoff_step = std::max(0, id(immich_consecutive_failures) - 3);
+            id(immich_retry_after_ms) = millis() +
+                std::min<uint32_t>(30000, 2000U << std::min(backoff_step, 4));
+          }
           ESP_LOGW("immich", "Image download failed url=%s failures=%d",
                    id(immich_current_url).c_str(), id(immich_consecutive_failures));
           if (id(immich_active_image_slot) < 0) {
@@ -201,25 +237,27 @@ script:
 
           if (id(immich_active_image_slot) >= 0) {
             // Decoding and presentation are deliberately separate. Keep the
-            // inactive RGB565 slot ready while the current photo completes
+            // inactive RGB888 slot ready while the current photo completes
             // its one pan, then start the transition at the exact deadline.
             id(immich_fetch_in_flight) = false;
             id(immich_prefetch_ready) = true;
+            id(immich_retry_same_asset) = false;
+            id(immich_consecutive_failures) = 0;
+            id(immich_current_asset_retry_count) = 0;
+            id(immich_retry_after_ms) = 0;
             lv_obj_add_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
             const uint32_t interval_ms =
                 static_cast<uint32_t>(id(immich_slide_interval_seconds).state * 1000.0f);
-            const bool due = id(immich_last_photo_ms) == 0 ||
-                             millis() - id(immich_last_photo_ms) >= interval_ms;
-            const bool pan_complete = id(immich_ken_burns).is_phase_complete();
-            ESP_LOGD("immich", "Photo slot %d prefetched (active=%d force=%s due=%s pan_complete=%s)", slot,
-                     id(immich_active_image_slot), YESNO(id(immich_force_transition)), YESNO(due),
-                     YESNO(pan_complete));
-            // A full-resolution JPEG briefly pauses the direct pan while it
-            // uses DMA2D. Wall time continues during that pause, so a timer-
-            // only decision can cut the old photo short and visibly jump into
-            // the transition. Manual navigation remains immediate; slideshow
-            // transitions wait for the single pan to reach its final frame.
-            if (id(immich_force_transition) || (due && pan_complete))
+            constexpr uint32_t transition_lead_ms = 1800;
+            const bool transition_window = id(immich_last_photo_ms) == 0 ||
+                millis() - id(immich_last_photo_ms) + transition_lead_ms >= interval_ms;
+            ESP_LOGD("immich", "Photo slot %d prefetched (active=%d force=%s window=%s)", slot,
+                     id(immich_active_image_slot), YESNO(id(immich_force_transition)),
+                     YESNO(transition_window));
+            // Begin the incoming image before the outgoing pan reaches its
+            // deadline. The old complete DSI frame remains pinned while the
+            // already-decoded photo fades in, so there is no stop/load gap.
+            if (id(immich_force_transition) || transition_window)
               id(immich_start_ready_transition).execute();
             return;
           }
@@ -245,6 +283,14 @@ script:
           lv_obj_update_layout(id(immich_root));
           lv_unlock();
           id(immich_active_image_slot) = slot;
+          id(immich_previous_url) = id(immich_displayed_url);
+          id(immich_displayed_url) = id(immich_current_url);
+          if (!id(immich_pending_asset_id).empty()) {
+            id(immich_current_asset_id) = id(immich_pending_asset_id);
+            id(immich_recent_asset_ids) = atmosfera_ui::immich_push_recent_asset(
+                id(immich_recent_asset_ids), id(immich_pending_asset_id));
+            id(immich_pending_asset_id) = "";
+          }
           id(immich_prefetch_ready) = false;
           id(immich_force_transition) = false;
           id(immich_transition_pending) = false;
@@ -252,7 +298,9 @@ script:
           id(immich_fetch_in_flight) = false;
           id(immich_image_loaded) = true;
           id(immich_consecutive_failures) = 0;
+          id(immich_current_asset_retry_count) = 0;
           id(immich_retry_after_ms) = 0;
+          id(immich_retry_same_asset) = false;
           id(immich_last_photo_ms) = millis();
           lv_label_set_text(id(immich_title_label), id(immich_current_title).c_str());
           lv_label_set_text(id(immich_meta_label), id(immich_current_subtitle).c_str());
@@ -261,13 +309,15 @@ script:
           // remains available on a center tap, but must not stop the PPA worker
           // automatically just as the image becomes visible.
           id(immich_show_controls_after_load) = false;
-          // Keep one RGB565 allocation until gallery close. Subsequent
+          // Keep one RGB888 allocation until gallery close. Subsequent
           // hardware JPEG decodes reuse its full capacity in place; the old
           // picture is already pinned in a DSI framebuffer.
           const uint32_t slide_ms =
               static_cast<uint32_t>(id(immich_slide_interval_seconds).state * 1000.0f);
-          id(immich_ken_burns).set_phase_duration(
-              std::max<uint32_t>(5000, slide_ms / 2));
+          // Keep the outgoing pan alive until the transition actually starts.
+          // The earlier prefetch is only a network/decode lead; it must not
+          // shorten the visible motion phase and leave a stationary frame.
+          id(immich_ken_burns).set_phase_duration(std::max<uint32_t>(5000, slide_ms));
           if (id(ui_active_app) == 4)
             id(immich_ken_burns).restart();
 
@@ -294,8 +344,7 @@ script:
           id(immich_ken_burns).set_fade_through_black(id(immich_fade_through_black).state);
           const uint32_t slide_ms =
               static_cast<uint32_t>(id(immich_slide_interval_seconds).state * 1000.0f);
-          id(immich_ken_burns).set_phase_duration(
-              std::max<uint32_t>(5000, slide_ms / 2));
+          id(immich_ken_burns).set_phase_duration(std::max<uint32_t>(5000, slide_ms));
           if (!id(immich_ken_burns).transition_to(src, 800)) {
             ESP_LOGD("immich", "Transition deferred while direct compositor is busy");
             id(immich_transition_starting) = false;
@@ -327,7 +376,7 @@ script:
       - lambda: |-
           // The current PPA pan can continue during the network transfer.
           // on_decode_start freezes its final complete DSI frame immediately
-          // before JPEG DMA2D overwrites the reusable RGB565 source.
+          // before JPEG DMA2D overwrites the reusable RGB888 source.
           id(immich_pending_image_slot) = 0;
       - artwork_image.set_url:
           id: immich_photo_image
@@ -349,10 +398,16 @@ script:
           id(immich_controls_visible) = false;
           id(immich_show_controls_after_load) = false;
           id(immich_consecutive_failures) = 0;
+          id(immich_current_asset_retry_count) = 0;
           id(immich_retry_after_ms) = 0;
           id(immich_current_asset_id) = "";
+          id(immich_pending_asset_id) = "";
+          id(immich_recent_asset_ids) = "";
           id(immich_current_url) = "";
           id(immich_previous_url) = "";
+          id(immich_displayed_url) = "";
+          id(immich_retry_same_asset) = false;
+          id(immich_current_asset_retry_count) = 0;
           lv_label_set_text(id(immich_title_label), "Immich");
           lv_label_set_text(id(immich_meta_label), "Waiting for photos");
           lv_label_set_text(id(immich_status_label), "Configure Immich URL and API key");
@@ -389,7 +444,7 @@ script:
             - script.execute: immich_fetch_next_photo
 
   # The app-close JPEG is independent of the decoded photo buffers. Release
-  # those large RGB565 surfaces only after the close animation has finished.
+  # those large RGB888 surfaces only after the close animation has finished.
   - id: immich_release_closed_buffers
     mode: restart
     then:
@@ -447,8 +502,12 @@ script:
           id(immich_controls_visible) = false;
           id(immich_show_controls_after_load) = false;
           id(immich_current_asset_id) = "";
+          id(immich_pending_asset_id) = "";
+          id(immich_recent_asset_ids) = "";
           id(immich_current_url) = "";
           id(immich_previous_url) = "";
+          id(immich_displayed_url) = "";
+          id(immich_retry_same_asset) = false;
 
   - id: immich_fetch_next_photo
     mode: restart
@@ -515,7 +574,10 @@ script:
             x-api-key: !lambda 'return id(immich_api_key_text).state.c_str();'
           body: !lambda |-
             const std::string orientation = id(immich_orientation_filter).current_option();
-            const int size = orientation == "Any" ? 4 : 10;
+            // Ask for a useful candidate pool. The local recent-ID window then
+            // prevents immediate repeats without keeping a full album index in
+            // device memory.
+            const int size = 16;
             return atmosfera_ui::immich_search_body(
               size,
               id(immich_photo_source).current_option(),
@@ -545,7 +607,7 @@ script:
                   atmosfera_ui::ImmichPhoto photo;
                   if (!atmosfera_ui::immich_parse_asset_response(body, atmosfera_ui::immich_trim_url(id(immich_url).state),
                                                                  id(immich_orientation_filter).current_option(), &photo,
-                                                                 id(immich_current_asset_id))) {
+                                                                 id(immich_recent_asset_ids))) {
                     id(immich_fetch_in_flight) = false;
                     if (id(ui_active_app) == 4)
                       id(immich_ken_burns).resume_direct();
@@ -556,14 +618,16 @@ script:
                     lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
                     return;
                   }
-                  id(immich_current_asset_id) = photo.asset_id;
-                  id(immich_previous_url) = id(immich_current_url);
+                  // Commit the asset to the recent/displayed history only after
+                  // its JPEG has decoded and reached the screen.
+                  id(immich_pending_asset_id) = photo.asset_id;
+                  id(immich_current_asset_retry_count) = 0;
                   id(immich_current_url) = photo.image_url;
                   id(immich_current_title) = photo.date.empty() ? "Immich Photo" : photo.date;
                   id(immich_current_subtitle) = !photo.location.empty() ? photo.location :
                                                (!photo.person.empty() ? photo.person : id(immich_photo_source).current_option());
                   ESP_LOGD("immich", "Selected asset=%s url=%s title=%s",
-                           id(immich_current_asset_id).c_str(),
+                           id(immich_pending_asset_id).c_str(),
                            id(immich_current_url).c_str(),
                            id(immich_current_title).c_str());
               - if:
@@ -628,8 +692,8 @@ script:
                     lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
                     return;
                   }
-                  id(immich_current_asset_id) = photo.asset_id;
-                  id(immich_previous_url) = id(immich_current_url);
+                  id(immich_pending_asset_id) = photo.asset_id;
+                  id(immich_current_asset_retry_count) = 0;
                   id(immich_current_url) = photo.image_url;
                   id(immich_current_title) = photo.date.empty() ? "Memory" : photo.date;
                   id(immich_current_subtitle) = "On this day";
@@ -670,6 +734,18 @@ interval:
       - if:
           condition:
             lambda: |-
+              return id(ui_active_app) == 4 && id(immich_retry_same_asset) &&
+                     !id(immich_fetch_in_flight) && !id(immich_current_url).empty() &&
+                     (int32_t) (millis() - id(immich_retry_after_ms)) >= 0;
+          then:
+            - lambda: |-
+                id(immich_retry_same_asset) = false;
+                id(immich_fetch_in_flight) = true;
+                ESP_LOGI("immich", "Retrying the same image after transient download failure");
+            - script.execute: immich_load_current_url
+      - if:
+          condition:
+            lambda: |-
               return id(immich_transition_pending) &&
                      !id(immich_ken_burns).is_transition_pending_or_active();
           then:
@@ -685,9 +761,19 @@ interval:
                   return;
                 }
                 id(immich_active_image_slot) = id(immich_pending_image_slot);
+                id(immich_previous_url) = id(immich_displayed_url);
+                id(immich_displayed_url) = id(immich_current_url);
+                if (!id(immich_pending_asset_id).empty()) {
+                  id(immich_current_asset_id) = id(immich_pending_asset_id);
+                  id(immich_recent_asset_ids) = atmosfera_ui::immich_push_recent_asset(
+                      id(immich_recent_asset_ids), id(immich_pending_asset_id));
+                  id(immich_pending_asset_id) = "";
+                }
                 id(immich_image_loaded) = true;
                 id(immich_consecutive_failures) = 0;
+                id(immich_current_asset_retry_count) = 0;
                 id(immich_retry_after_ms) = 0;
+                id(immich_retry_same_asset) = false;
                 id(immich_last_photo_ms) = millis();
                 lv_label_set_text(id(immich_title_label), id(immich_current_title).c_str());
                 lv_label_set_text(id(immich_meta_label), id(immich_current_subtitle).c_str());
@@ -701,9 +787,9 @@ interval:
               const uint32_t interval_ms =
                   static_cast<uint32_t>(id(immich_slide_interval_seconds).state * 1000.0f);
               if (id(immich_force_transition)) return true;
-              const bool due = id(immich_last_photo_ms) == 0 ||
-                               millis() - id(immich_last_photo_ms) >= interval_ms;
-              return due && id(immich_ken_burns).is_phase_complete();
+              constexpr uint32_t transition_lead_ms = 1800;
+              return id(immich_last_photo_ms) == 0 ||
+                     millis() - id(immich_last_photo_ms) + transition_lead_ms >= interval_ms;
           then:
             - script.execute: immich_start_ready_transition
   - interval: 1s
@@ -718,9 +804,11 @@ interval:
               const uint32_t interval_ms = (uint32_t) (id(immich_slide_interval_seconds).state * 1000.0f);
               if (interval_ms < 5000) return false;
               if (id(immich_last_photo_ms) == 0) return false;
-              const uint32_t lead_ms = std::min<uint32_t>(10000, interval_ms / 2);
-              return millis() - id(immich_last_photo_ms) + lead_ms >= interval_ms &&
-                     id(immich_ken_burns).is_phase_complete();
+              // The guarded local HTTP path needs about 5-6 seconds for a
+              // full-resolution JPEG. Begin early enough to have the decoded
+              // photo ready before the current pan reaches its final frame.
+              constexpr uint32_t prefetch_lead_ms = 8000;
+              return millis() - id(immich_last_photo_ms) + prefetch_lead_ms >= interval_ms;
           then:
             - lambda: 'id(immich_force_transition) = false;'
             - script.execute: immich_fetch_next_photo

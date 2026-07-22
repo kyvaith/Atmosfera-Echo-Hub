@@ -282,6 +282,9 @@ lvgl:
                         indicator:
                           bg_color: 0xD3E3FD
                           radius: 8
+                        on_value:
+                          then:
+                            - script.execute: ui_refresh_current_tile_snapshot
               - button:
                   id: tile_climate_button
                   x: 112

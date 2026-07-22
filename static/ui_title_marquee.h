@@ -369,10 +369,17 @@ inline bool title_marquee_direct_begin(lv_obj_t *label, int screen_x, int screen
 
   state.active.store(true, std::memory_order_release);
   state.last_x = INT_MIN;
+  // Present frame zero synchronously before handing subsequent positions to
+  // the worker. Previously the native label was already gone while the first
+  // worker notification was still queued, producing a visible flash.
+  if (!title_marquee_direct_render(0)) {
+    title_marquee_direct_end(true);
+    return false;
+  }
+  lvgl_esphome_wait_for_direct_frame_presented(40);
 #ifdef ESP_PLATFORM
   title_marquee_direct_ensure_worker();
 #endif
-  if (!title_marquee_direct_update(0)) return false;
   return true;
 }
 

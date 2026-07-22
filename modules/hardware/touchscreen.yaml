@@ -101,7 +101,6 @@ touchscreen:
               // rearrange or restyle the live tree underneath the second
               // direct-compositor animation.
               id(ui_restore_home_tiles_after_drag).stop();
-              id(ui_settle_tile_positions_after_swipe).stop();
             }
 
             // Reserve only the bottom 50 px for the system close gesture. The
@@ -140,6 +139,47 @@ touchscreen:
             id(settings_scroll_last_sample_y) = touch.y;
             id(settings_scroll_last_sample_ms) = millis();
             id(settings_scroll_velocity_px_s) = 0;
+
+            id(ui_touch_active) = true;
+            id(ui_manual_pressed_obj) = nullptr;
+            auto press_if_hit = [&](lv_obj_t *obj) -> bool {
+              if (obj == nullptr || !lv_obj_is_visible(obj)) return false;
+              lv_area_t area;
+              lv_obj_get_coords(obj, &area);
+              if (touch.x < area.x1 || touch.x > area.x2 ||
+                  touch.y < area.y1 || touch.y > area.y2) return false;
+              id(ui_manual_pressed_obj) = obj;
+              lv_obj_add_state(obj, LV_STATE_PRESSED);
+              lv_obj_invalidate(obj);
+              return true;
+            };
+            if (id(settings_scroll_tracking)) {
+              lv_obj_t *rows[] = {
+                id(settings_true_colour_button), id(settings_screen_tone_button),
+                id(settings_perf_overlay_button), id(settings_system_logs_button),
+                id(settings_perf_logs_button), id(settings_swipe_logs_button),
+                id(settings_beta_firmware_button), id(settings_display_brightness_button),
+                id(settings_display_timeout_button), id(settings_voice_mute_button),
+                id(settings_wake_sound_button), id(settings_wake_sensitivity_button),
+              };
+              for (auto *row : rows) {
+                if (press_if_hit(row)) break;
+              }
+            } else if (id(tile_swipe_tracking)) {
+              lv_obj_t *buttons[] = {
+                id(tile_light_button), id(tile_switch_button), id(tile_scene_button),
+                id(tile_trigger_button), id(tile_climate_button), id(tile_cover_button),
+                id(tile_garage_button), id(tile_lock_button), id(tile_alarm_button),
+                id(tile_door_window_button), id(tile_presence_button), id(tile_sensor_button),
+                id(tile_weather_button), id(tile_clock_button), id(tile_world_clock_button),
+                id(tile_media_button), id(tile_subpage_button), id(tile_fan_button),
+                id(tile_fan_speed_button), id(tile_webhook_button), id(tile_internal_button),
+                id(tile_settings_button), id(tile_voice_button),
+              };
+              for (auto *button : buttons) {
+                if (press_if_hit(button)) break;
+              }
+            }
     on_update:
       then:
         - lambda: |-
@@ -254,6 +294,12 @@ touchscreen:
               if (!id(settings_scroll_dragging)) {
                 if (abs(dy) < start_y || abs(dy) + 6 < abs(dx)) return;
 
+                if (id(ui_manual_pressed_obj) != nullptr) {
+                  lv_obj_clear_state(id(ui_manual_pressed_obj), LV_STATE_PRESSED);
+                  lv_obj_invalidate(id(ui_manual_pressed_obj));
+                  id(ui_manual_pressed_obj) = nullptr;
+                }
+
                 if (!lvgl_esphome_snapshot_scroll_begin(id(settings_root), 800, 800)) {
                   id(settings_scroll_tracking) = false;
                   return;
@@ -307,6 +353,12 @@ touchscreen:
 
             if (!id(tile_swipe_dragging)) {
               if (abs(dx) < start_x || abs(dx) <= abs(dy) + 8) return;
+
+              if (id(ui_manual_pressed_obj) != nullptr) {
+                lv_obj_clear_state(id(ui_manual_pressed_obj), LV_STATE_PRESSED);
+                lv_obj_invalidate(id(ui_manual_pressed_obj));
+                id(ui_manual_pressed_obj) = nullptr;
+              }
 
               const int dir = dx < 0 ? 1 : -1;
               const int next_page = page + dir;
@@ -369,6 +421,13 @@ touchscreen:
     on_release:
       then:
         - lambda: |-
+            id(ui_touch_active) = false;
+            if (id(ui_manual_pressed_obj) != nullptr) {
+              lv_obj_clear_state(id(ui_manual_pressed_obj),
+                  static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
+              lv_obj_invalidate(id(ui_manual_pressed_obj));
+              id(ui_manual_pressed_obj) = nullptr;
+            }
             if (id(display_touch_wake_pending)) {
               const uint32_t held_ms = millis() - id(display_touch_wake_start_ms);
               const int dx = id(display_touch_wake_last_x) - id(display_touch_wake_start_x);
@@ -454,20 +513,7 @@ touchscreen:
                 };
                 auto send_click = [&](lv_obj_t *row) -> bool {
                   if (!point_in(row)) return false;
-                  lv_obj_add_state(row, LV_STATE_PRESSED);
-                  lv_obj_invalidate(row);
                   lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
-                  lv_timer_t *timer = lv_timer_create([](lv_timer_t *timer) {
-                    auto *pressed_row = static_cast<lv_obj_t *>(lv_timer_get_user_data(timer));
-                    if (pressed_row != nullptr) {
-                      lv_obj_clear_state(pressed_row, static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
-                      lv_obj_invalidate(pressed_row);
-                    }
-                    lv_timer_delete(timer);
-                  }, 90, row);
-                  if (timer != nullptr) {
-                    lv_timer_set_repeat_count(timer, 1);
-                  }
                   return true;
                 };
                 lv_obj_t *rows[] = {
@@ -588,7 +634,6 @@ touchscreen:
             }
 
             if (commit) {
-              id(ui_settle_tile_positions_after_swipe).execute();
               if (id(settings_swipe_logs_switch).state) {
                 ESP_LOGI("touch.swipe", "page=%d next=%d latched=%d dx=%d",
                          page, next_page, id(tile_swipe_commit_latched), dx);
@@ -603,19 +648,7 @@ touchscreen:
                 lv_area_t area;
                 lv_obj_get_coords(button, &area);
                 if (x < area.x1 || x > area.x2 || y < area.y1 || y > area.y2) return false;
-                lv_obj_add_state(button, LV_STATE_PRESSED);
-                lv_obj_invalidate(button);
                 lv_obj_send_event(button, LV_EVENT_CLICKED, nullptr);
-                lv_timer_t *timer = lv_timer_create([](lv_timer_t *timer) {
-                  auto *pressed_button = static_cast<lv_obj_t *>(lv_timer_get_user_data(timer));
-                  if (pressed_button != nullptr) {
-                    lv_obj_clear_state(pressed_button,
-                        static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
-                    lv_obj_invalidate(pressed_button);
-                  }
-                  lv_timer_delete(timer);
-                }, 90, button);
-                if (timer != nullptr) lv_timer_set_repeat_count(timer, 1);
                 return true;
               };
               lv_obj_t *buttons[] = {

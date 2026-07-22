@@ -596,8 +596,7 @@ script:
           lv_obj_invalidate(id(prev_button));
           lv_obj_invalidate(id(next_button));
           lv_refr_now(nullptr);
-          lvgl_esphome_synchronize_direct_framebuffer_area(55, 320, 128, 160);
-          lvgl_esphome_synchronize_direct_framebuffer_area(617, 320, 128, 160);
+          lvgl_esphome_wait_for_direct_frame_presented(40);
           lvgl_esphome_direct_regions_pause(false, 0);
 
   - id: media_show_action_spinner

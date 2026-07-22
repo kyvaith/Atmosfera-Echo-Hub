@@ -398,7 +398,7 @@ api:
         - lambda: |-
             lvgl_esphome_snapshot_scroll_finish_inertial(420, 1200);
             ESP_LOGI("settings.bench", "Synthetic inertial scroll released");
-        - delay: 600ms
+        - delay: 1300ms
         - lambda: |-
             ESP_LOGI("settings.bench", "Synthetic inertial scroll finished");
             lvgl_esphome_set_perf_logging_enabled(id(settings_perf_logs_switch).state);

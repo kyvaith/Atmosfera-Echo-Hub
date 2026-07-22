@@ -39,6 +39,14 @@ globals:
     type: uint32_t
     restore_value: no
     initial_value: '0'
+  - id: ui_touch_active
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: ui_manual_pressed_obj
+    type: lv_obj_t*
+    restore_value: no
+    initial_value: 'nullptr'
   - id: app_close_tracking
     type: bool
     restore_value: no
@@ -333,7 +341,10 @@ script:
           };
           for (auto *button : buttons) {
             if (button != nullptr) {
-              lv_obj_add_style(button, &pressed_style, LV_PART_MAIN | LV_STATE_PRESSED);
+              lv_obj_add_style(
+                  button, &pressed_style,
+                  static_cast<lv_style_selector_t>(LV_PART_MAIN) |
+                      static_cast<lv_style_selector_t>(LV_STATE_PRESSED));
             }
           }
 
@@ -427,27 +438,13 @@ script:
           };
           for (int i = 0; i < 4; i++) {
             if (roots[i] == nullptr) continue;
-            lv_obj_clear_flag(roots[i], LV_OBJ_FLAG_HIDDEN);
             lv_obj_align(roots[i], LV_ALIGN_CENTER, (i + 1 - page) * 800, 0);
+            if (i + 1 == page)
+              lv_obj_clear_flag(roots[i], LV_OBJ_FLAG_HIDDEN);
+            else
+              lv_obj_add_flag(roots[i], LV_OBJ_FLAG_HIDDEN);
           }
       - script.execute: ui_update_page_indicator
-
-  # The direct compositor already lands the committed pair at its exact final
-  # coordinates. Repositioning all four LVGL roots before that handoff finishes
-  # competes with the next gesture and causes the visible 2 -> 3 pause. Settle
-  # the dormant roots only after a short idle window; another swipe restarts
-  # this script, so it can never rearrange pages underneath an active frame.
-  - id: ui_settle_tile_positions_after_swipe
-    mode: restart
-    then:
-      - delay: 520ms
-      - if:
-          condition:
-            lambda: |-
-              return !id(tile_swipe_tracking) && !id(tile_swipe_dragging) &&
-                     !lvgl_esphome_snapshot_is_active();
-          then:
-            - script.execute: ui_apply_tile_positions
 
   - id: ui_hide_home_content_for_boot
     then:
@@ -685,6 +682,52 @@ script:
           }
           id(ui_snapshot_io_busy) = false;
 
+  # A control changed on the live Home page. Replace only that page inside the
+  # persistent 3200x800 panorama; the other three pages and their addresses do
+  # not move, so a following swipe never sees a stale value or rebuild pause.
+  - id: ui_refresh_current_tile_snapshot
+    mode: restart
+    then:
+      - delay: 180ms
+      - lambda: |-
+          if (id(ui_active_app) != 0 || id(ui_snapshot_io_busy) ||
+              id(ui_touch_active) || id(ui_manual_pressed_obj) != nullptr ||
+              id(tile_swipe_tracking) || id(tile_swipe_dragging) ||
+              lvgl_esphome_snapshot_is_active()) {
+            id(ui_refresh_current_tile_snapshot).execute();
+            return;
+          }
+          lv_obj_t *page = id(controls_root_1);
+          if (id(ui_page) == 2) page = id(controls_root_2);
+          else if (id(ui_page) == 3) page = id(controls_root_3);
+          else if (id(ui_page) == 4) page = id(controls_root_4);
+          id(ui_snapshot_io_busy) = true;
+          const bool refreshed = lvgl_esphome_snapshot_refresh_tile_page(page, 800);
+          id(ui_snapshot_io_busy) = false;
+          if (!refreshed && id(settings_swipe_logs_switch).state) {
+            ESP_LOGW("snapshot.refresh", "Home page %d refresh deferred", id(ui_page));
+          }
+
+  # Settings keeps one decoded list surface for its entire lifetime. Refresh
+  # that allocation in place after a value changes, so the next drag cannot
+  # reveal stale controls or require another multi-megabyte PSRAM allocation.
+  - id: ui_refresh_settings_snapshot
+    mode: restart
+    then:
+      - delay: 180ms
+      - lambda: |-
+          if (id(ui_active_app) != 2) return;
+          if (id(ui_snapshot_io_busy) || id(ui_touch_active) ||
+              id(ui_manual_pressed_obj) != nullptr || id(settings_scroll_tracking) ||
+              id(settings_scroll_dragging) || lvgl_esphome_snapshot_is_active()) {
+            id(ui_refresh_settings_snapshot).execute();
+            return;
+          }
+          id(ui_snapshot_io_busy) = true;
+          const bool refreshed = lvgl_esphome_snapshot_scroll_refresh(id(settings_root), 800, 800);
+          id(ui_snapshot_io_busy) = false;
+          if (!refreshed) id(ui_refresh_settings_snapshot).execute();
+
   - id: ui_finish_boot_tile_snapshot_cache
     mode: single
     then:
@@ -739,8 +782,11 @@ script:
           };
           for (int i = 0; i < 4; i++) {
             if (roots[i] == nullptr) continue;
-            lv_obj_clear_flag(roots[i], LV_OBJ_FLAG_HIDDEN);
             lv_obj_align(roots[i], LV_ALIGN_CENTER, (i + 1 - page) * 800, 0);
+            if (i + 1 == page)
+              lv_obj_clear_flag(roots[i], LV_OBJ_FLAG_HIDDEN);
+            else
+              lv_obj_add_flag(roots[i], LV_OBJ_FLAG_HIDDEN);
           }
           lv_obj_update_layout(lv_obj_get_parent(id(controls_root_1)));
       - script.execute: ui_update_page_indicator
@@ -1269,6 +1315,7 @@ script:
       - lvgl.label.update:
           id: settings_true_colour_note
           text: "LVGL ARGB8888 / DSI 24-bit"
+      - script.execute: ui_refresh_settings_snapshot
 
   - id: ui_update_screen_tone_state
     then:
@@ -1277,6 +1324,7 @@ script:
           id: settings_screen_tone_value
           text: "OFF"
           text_color: 0xC4C7C5
+      - script.execute: ui_refresh_settings_snapshot
 
   - id: ui_update_perf_overlay_state
     then:
@@ -1299,6 +1347,7 @@ script:
                 text: "OFF"
                 text_color: 0xC4C7C5
             - lvgl.widget.hide: perf_overlay_label
+      - script.execute: ui_refresh_settings_snapshot
 
   - id: ui_update_system_logs_state
     then:
@@ -1315,6 +1364,7 @@ script:
                 id: settings_system_logs_value
                 text: "OFF"
                 text_color: 0xC4C7C5
+      - script.execute: ui_refresh_settings_snapshot
 
   - id: ui_update_perf_logs_state
     then:
@@ -1332,6 +1382,7 @@ script:
                 id: settings_perf_logs_value
                 text: "OFF"
                 text_color: 0xC4C7C5
+      - script.execute: ui_refresh_settings_snapshot
 
   - id: ui_update_swipe_logs_state
     then:
@@ -1349,6 +1400,7 @@ script:
                 id: settings_swipe_logs_value
                 text: "OFF"
                 text_color: 0xC4C7C5
+      - script.execute: ui_refresh_settings_snapshot
 
   - id: ui_update_beta_firmware_state
     then:
@@ -1365,6 +1417,7 @@ script:
                 id: settings_beta_firmware_value
                 text: "OFF"
                 text_color: 0xC4C7C5
+      - script.execute: ui_refresh_settings_snapshot
 
   - id: ui_update_voice_mute_state
     then:
@@ -1381,6 +1434,7 @@ script:
                 id: settings_voice_mute_value
                 text: "OFF"
                 text_color: 0xC4C7C5
+      - script.execute: ui_refresh_settings_snapshot
 
   - id: ui_update_wake_sound_state
     then:
@@ -1397,6 +1451,7 @@ script:
                 id: settings_wake_sound_value
                 text: "OFF"
                 text_color: 0xC4C7C5
+      - script.execute: ui_refresh_settings_snapshot
 
   - id: ui_update_display_brightness_state
     then:
@@ -1405,6 +1460,7 @@ script:
           text:
             format: "%.0f%%"
             args: [id(settings_display_brightness).state]
+      - script.execute: ui_refresh_settings_snapshot
 
   - id: ui_update_display_timeout_state
     then:
@@ -1421,6 +1477,7 @@ script:
                 text:
                   format: "%.0fs"
                   args: [id(settings_display_timeout).state]
+      - script.execute: ui_refresh_settings_snapshot
 
   - id: ui_update_wake_sensitivity_state
     then:
@@ -1451,6 +1508,7 @@ script:
             - lvgl.label.update:
                 id: settings_wake_sensitivity_value
                 text: "Very"
+      - script.execute: ui_refresh_settings_snapshot
 
   - id: ui_update_immich_fade_state
     then:
@@ -1467,6 +1525,7 @@ script:
                 id: settings_immich_fade_value
                 text: "OFF"
                 text_color: 0xC4C7C5
+      - script.execute: ui_refresh_settings_snapshot
 
   - id: ui_apply_settings_state
     then:
