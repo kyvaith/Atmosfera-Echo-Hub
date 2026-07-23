@@ -208,6 +208,18 @@ script:
           lv_indev_reset(nullptr, nullptr);
       - lvgl.widget.hide: ui_touch_blocker
 
+  - id: ui_release_manual_pressed_feedback
+    mode: restart
+    then:
+      - delay: 90ms
+      - lambda: |-
+          if (id(ui_manual_pressed_obj) == nullptr) return;
+          lv_obj_clear_state(
+              id(ui_manual_pressed_obj),
+              static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
+          lv_obj_invalidate(id(ui_manual_pressed_obj));
+          id(ui_manual_pressed_obj) = nullptr;
+
   - id: ui_disable_settings_rows_for_drag
     mode: restart
     then:
@@ -535,9 +547,8 @@ script:
       - globals.set:
           id: ui_tile_snapshot_cached_last
           value: '0'
-      # Encode every page while the display is still dark, then keep all four
-      # raw home pages. One extra 1.92 MB frame is cheaper than panoramas and
-      # removes JPEG decode from uninterrupted multi-page swipe sequences.
+      # Arrange the live roots while the display is still covered. The final
+      # post-Lottie stage encodes every page and fills three reusable raw slots.
       - script.execute: ui_set_tile_visibility_2
       - delay: 80ms
       - lambda: |-
@@ -589,10 +600,8 @@ script:
           // files from an unstable, memory-starved first render and caused the
           // first app opening after every reboot to show noise.
           const bool apps_prepared = false;
-          // Home pages stay decoded for consecutive 60 FPS swipes. Encoding a
-          // second JPEG copy here could not retain any page with the Lottie
-          // cache resident (pages=0), but still consumed four full-screen
-          // captures and four encoder passes during boot.
+          // Lottie still owns its frame cache here, so page compression is
+          // deliberately deferred until that memory has been released.
           const bool compressed_pages_prepared = false;
           // Application previews stay compressed until one app is selected.
           // A single shared full-resolution RGB888 surface is allocated after
@@ -600,8 +609,8 @@ script:
           apply_page(1);
           // The 11 MB Lottie frame cache is still resident here. Decoding raw
           // Home pages now only fragments PSRAM and fails part-way through.
-          // ui_finish_boot_tile_snapshot_cache builds all four after Lottie is
-          // released, while the opaque boot overlay still covers the display.
+          // ui_finish_boot_tile_snapshot_cache builds the JPEG backing store
+          // and the three-slot working set under the opaque boot overlay.
           id(ui_tile_snapshots_ready) = false;
           id(ui_tile_snapshot_prepared_page) = 0;
           id(ui_tile_snapshot_cached_first) = 0;
@@ -627,13 +636,18 @@ script:
   - id: ui_refresh_tile_snapshots
     mode: restart
     then:
-      # The four home pages normally remain decoded. The delayed repair path is
-      # retained only for an allocation failure or explicit cache invalidation.
-      - delay: 450ms
+      # Keep only previous/current/next decoded. Retry just after a compositor
+      # frame instead of allocating a fourth raw page during a fast gesture.
+      - delay: 24ms
       - lambda: |-
           if (id(ui_active_app) != 0 || id(ui_page) < 1 || id(ui_page) > 4) return;
-          const int required_first = 1;
-          const int required_last = 4;
+          constexpr int page_count = 4;
+          constexpr int window_count = 3;
+          int required_first = id(ui_page) - 1;
+          if (required_first < 1) required_first = 1;
+          if (required_first > page_count - window_count + 1)
+            required_first = page_count - window_count + 1;
+          const int required_last = required_first + window_count - 1;
           if (id(ui_tile_snapshots_ready) &&
               id(ui_tile_snapshot_cached_first) <= required_first &&
               id(ui_tile_snapshot_cached_last) >= required_last) {
@@ -644,10 +658,6 @@ script:
             return;
           }
           if (lvgl_esphome_snapshot_is_active()) {
-            id(ui_tile_snapshots_ready) = false;
-            id(ui_tile_snapshot_prepared_page) = 0;
-            id(ui_tile_snapshot_cached_first) = 0;
-            id(ui_tile_snapshot_cached_last) = 0;
             id(ui_refresh_tile_snapshots).execute();
             return;
           }
@@ -664,8 +674,12 @@ script:
                      (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                      (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
           }
-          const bool prepared = lvgl_esphome_snapshot_cache_tile_window(
-              id(controls_root_1), id(controls_root_2), id(controls_root_3), id(controls_root_4), id(ui_page), 800);
+          lv_obj_t *pages[] = {
+            id(controls_root_1), id(controls_root_2),
+            id(controls_root_3), id(controls_root_4),
+          };
+          const bool prepared =
+              lvgl_esphome_snapshot_cache_tile_window(pages, 4, id(ui_page), 800);
           id(ui_tile_snapshots_ready) = prepared;
           id(ui_tile_snapshot_prepared_page) = prepared ? id(ui_page) : 0;
           id(ui_tile_snapshot_cached_first) = prepared ? required_first : 0;
@@ -682,9 +696,8 @@ script:
           }
           id(ui_snapshot_io_busy) = false;
 
-  # A control changed on the live Home page. Replace only that page inside the
-  # persistent 3200x800 panorama; the other three pages and their addresses do
-  # not move, so a following swipe never sees a stale value or rebuild pause.
+  # A control changed on the live Home page. Refresh its current raw slot in
+  # place. The compressed copy is updated only when that slot is recycled.
   - id: ui_refresh_current_tile_snapshot
     mode: restart
     then:
@@ -751,14 +764,16 @@ script:
           apps_prepared = lvgl_esphome_snapshot_cache_compressed_page(id(settings_root)) && apps_prepared;
           apps_prepared = lvgl_esphome_snapshot_cache_compressed_page(id(voice_assistant_overlay)) && apps_prepared;
           apps_prepared = lvgl_esphome_snapshot_cache_compressed_page(id(immich_root)) && apps_prepared;
-          esphome::esp32_jpeg::release_preallocated_encoder();
-          const bool prepared = lvgl_esphome_snapshot_cache_tile_window(
-              id(controls_root_1), id(controls_root_2), id(controls_root_3), id(controls_root_4), 1, 800);
+          lv_obj_t *pages[] = {
+            id(controls_root_1), id(controls_root_2),
+            id(controls_root_3), id(controls_root_4),
+          };
+          const bool prepared = lvgl_esphome_snapshot_cache_tile_window(pages, 4, 1, 800);
           const bool app_work_buffer = lvgl_esphome_snapshot_app_reserve_work_buffer(id(wear_root));
           id(ui_tile_snapshots_ready) = prepared;
           id(ui_tile_snapshot_prepared_page) = prepared ? 1 : 0;
           id(ui_tile_snapshot_cached_first) = prepared ? 1 : 0;
-          id(ui_tile_snapshot_cached_last) = prepared ? 4 : 0;
+          id(ui_tile_snapshot_cached_last) = prepared ? 3 : 0;
           id(ui_snapshot_io_busy) = false;
           ESP_LOGW("boot.diag",
                    "post-Lottie caches apps=%u app_work=%u home=%u range=%d-%d psram=%uK/%uK",

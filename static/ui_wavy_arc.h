@@ -852,6 +852,7 @@ static void render_worker_task(void *arg) {
     ulTaskNotifyTake(pdTRUE, 0);
 
     if (xSemaphoreTake(state->render_mutex, portMAX_DELAY) != pdTRUE) continue;
+    bool background_rebuilt = false;
     bool control_changed = false;
     const int queued_value = state->queued_value_basis_points.exchange(-1, std::memory_order_acquire);
     if (queued_value >= 0 && state->value_basis_points != queued_value) {
@@ -883,12 +884,17 @@ static void render_worker_task(void *arg) {
       const bool apply_scrim = state->pending_background_scrim;
       state->background_pending = false;
       state->pending_background_source = nullptr;
-      rebuild_backdrop(state, source, apply_scrim);
+      background_rebuilt = rebuild_backdrop(state, source, apply_scrim);
     }
 
     const int phase_delta = state->queued_phase_delta.exchange(0, std::memory_order_relaxed);
     const bool phase_requested = phase_delta != 0 && (state->playing || state->pending);
-    if (!state->direct_present_enabled || (!state->dirty && !phase_requested)) {
+    // Artwork handoff deliberately keeps direct presentation disabled until a
+    // frame using the new backdrop is ready. Rasterize that one frame now;
+    // otherwise enabling presentation first can briefly submit the old cover.
+    const bool prepare_hidden_frame = background_rebuilt && state->dirty;
+    if ((!state->direct_present_enabled && !prepare_hidden_frame) ||
+        (!state->dirty && !phase_requested)) {
       xSemaphoreGive(state->render_mutex);
       continue;
     }
@@ -1181,7 +1187,10 @@ inline void media_wavy_arc_set_direct_present(bool enabled) {
     state.direct_x = area.x1;
     state.direct_y = area.y1;
   }
-  state.render_generation++;
+  // Disabling invalidates any frame already owned by the compositor. Enabling
+  // must preserve a frame prepared while hidden; incrementing its generation
+  // here made that new frame look stale and exposed the previous artwork first.
+  if (!enabled) state.render_generation++;
   const bool use_worker = state.render_task != nullptr;
   const int released_x = state.direct_x;
   const int released_y = state.direct_y;
@@ -1191,6 +1200,20 @@ inline void media_wavy_arc_set_direct_present(bool enabled) {
   else if (enabled && state.arc != nullptr) invalidate_bitmap(&state);
 #else
   if (enabled && state.arc != nullptr) invalidate_bitmap(&state);
+#endif
+}
+
+inline bool media_wavy_arc_background_ready() {
+#ifdef ESP_PLATFORM
+  auto &state = media_wavy_arc;
+  if (state.render_task == nullptr) return !state.background_pending;
+  if (state.render_mutex == nullptr || xSemaphoreTake(state.render_mutex, 0) != pdTRUE) return false;
+  const bool ready = !state.background_pending && state.frame_ready &&
+                     state.ready_generation == state.render_generation;
+  unlock_render_state(&state);
+  return ready;
+#else
+  return true;
 #endif
 }
 

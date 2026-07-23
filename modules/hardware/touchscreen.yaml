@@ -50,6 +50,34 @@ globals:
     type: int
     restore_value: no
     initial_value: '0'
+  - id: media_transport_touch_tracking
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: media_transport_touch_cancelled
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: media_transport_touch_button
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: media_transport_touch_start_x
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: media_transport_touch_start_y
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: media_transport_touch_last_x
+    type: int
+    restore_value: no
+    initial_value: '0'
+  - id: media_transport_touch_last_y
+    type: int
+    restore_value: no
+    initial_value: '0'
 
 touchscreen:
   - platform: gt911
@@ -83,8 +111,51 @@ touchscreen:
               return;
             }
 
+            id(media_transport_touch_tracking) = false;
+            id(media_transport_touch_cancelled) = false;
+            id(media_transport_touch_button) = 0;
+            const int voice_phase = id(voice_assistant_phase);
+            const bool player_controls_uncovered =
+                id(ui_active_app) == 1 && !id(ui_snapshot_io_busy) &&
+                id(display_backlight).current_values.is_on() &&
+                (int32_t)(millis() - id(ui_touch_click_block_until_ms)) >= 0 &&
+                (voice_phase == ${voice_assist_idle_phase_id} ||
+                 voice_phase == ${voice_assist_not_ready_phase_id}) &&
+                lv_obj_has_flag(id(queue_panel), LV_OBJ_FLAG_HIDDEN) &&
+                lv_obj_has_flag(id(speaker_group_panel), LV_OBJ_FLAG_HIDDEN) &&
+                lv_obj_has_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN) &&
+                lv_obj_has_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN);
+            if (player_controls_uncovered) {
+              auto hit_button = [&](lv_obj_t *button) -> bool {
+                if (button == nullptr || !lv_obj_is_visible(button)) return false;
+                lv_area_t area;
+                lv_obj_get_coords(button, &area);
+                return touch.x >= area.x1 && touch.x <= area.x2 &&
+                       touch.y >= area.y1 && touch.y <= area.y2;
+              };
+              lv_obj_t *transport_button = nullptr;
+              if (hit_button(id(prev_button))) {
+                id(media_transport_touch_button) = -1;
+                transport_button = id(prev_button);
+              } else if (hit_button(id(next_button))) {
+                id(media_transport_touch_button) = 1;
+                transport_button = id(next_button);
+              }
+              if (transport_button != nullptr) {
+                id(media_transport_touch_tracking) = true;
+                id(media_transport_touch_start_x) = touch.x;
+                id(media_transport_touch_start_y) = touch.y;
+                id(media_transport_touch_last_x) = touch.x;
+                id(media_transport_touch_last_y) = touch.y;
+                id(ui_touch_active) = true;
+                atmosfera_ui::media_transport_feedback_begin(transport_button);
+                return;
+              }
+            }
+
             const int page = id(ui_page);
-            id(tile_swipe_tracking) = id(ui_active_app) == 0 && !id(ui_snapshot_io_busy) && page >= 1 && page <= 4;
+            id(tile_swipe_tracking) = id(ui_active_app) == 0 && !id(ui_snapshot_io_busy) &&
+                                      id(ui_tile_snapshots_ready) && page >= 1 && page <= 4;
             id(tile_swipe_dragging) = false;
             id(tile_swipe_page) = page;
             id(tile_swipe_next_page) = 0;
@@ -153,19 +224,7 @@ touchscreen:
               lv_obj_invalidate(obj);
               return true;
             };
-            if (id(settings_scroll_tracking)) {
-              lv_obj_t *rows[] = {
-                id(settings_true_colour_button), id(settings_screen_tone_button),
-                id(settings_perf_overlay_button), id(settings_system_logs_button),
-                id(settings_perf_logs_button), id(settings_swipe_logs_button),
-                id(settings_beta_firmware_button), id(settings_display_brightness_button),
-                id(settings_display_timeout_button), id(settings_voice_mute_button),
-                id(settings_wake_sound_button), id(settings_wake_sensitivity_button),
-              };
-              for (auto *row : rows) {
-                if (press_if_hit(row)) break;
-              }
-            } else if (id(tile_swipe_tracking)) {
+            if (id(tile_swipe_tracking)) {
               lv_obj_t *buttons[] = {
                 id(tile_light_button), id(tile_switch_button), id(tile_scene_button),
                 id(tile_trigger_button), id(tile_climate_button), id(tile_cover_button),
@@ -230,6 +289,20 @@ touchscreen:
               }
               if (millis() - id(global_volume_time_press_start_ms) >= 450) {
                 id(global_volume_begin_drag).execute();
+              }
+              return;
+            }
+            if (id(media_transport_touch_tracking)) {
+              id(media_transport_touch_last_x) = touch.x;
+              id(media_transport_touch_last_y) = touch.y;
+              const int dx = touch.x - id(media_transport_touch_start_x);
+              const int dy = touch.y - id(media_transport_touch_start_y);
+              if (!id(media_transport_touch_cancelled) && (abs(dx) > 10 || abs(dy) > 10)) {
+                id(media_transport_touch_cancelled) = true;
+                id(ui_touch_click_block_until_ms) = millis() + 300;
+                if (!atmosfera_ui::media_transport_feedback_end()) {
+                  id(media_transport_feedback_release).execute();
+                }
               }
               return;
             }
@@ -300,12 +373,16 @@ touchscreen:
                   id(ui_manual_pressed_obj) = nullptr;
                 }
 
+                // LVGL may have already pressed a clickable child before the
+                // gesture crossed the scroll threshold. Clear that state
+                // synchronously before capturing the scroll bitmap so the
+                // release animation cannot reveal a stale hover frame.
+                id(ui_disable_settings_rows_for_drag).execute();
                 if (!lvgl_esphome_snapshot_scroll_begin(id(settings_root), 800, 800)) {
                   id(settings_scroll_tracking) = false;
                   return;
                 }
                 id(settings_scroll_dragging) = true;
-                id(ui_disable_settings_rows_for_drag).execute();
                 id(ui_touch_block_for_drag).execute();
               }
 
@@ -455,6 +532,23 @@ touchscreen:
               id(ui_touch_click_block_until_ms) = millis() + 500;
               return;
             }
+            if (id(media_transport_touch_tracking)) {
+              const int dx = id(media_transport_touch_last_x) - id(media_transport_touch_start_x);
+              const int dy = id(media_transport_touch_last_y) - id(media_transport_touch_start_y);
+              const bool activate = !id(media_transport_touch_cancelled) && abs(dx) <= 10 && abs(dy) <= 10;
+              const int button = id(media_transport_touch_button);
+              id(media_transport_touch_tracking) = false;
+              id(media_transport_touch_cancelled) = false;
+              id(media_transport_touch_button) = 0;
+              if (!atmosfera_ui::media_transport_feedback_end()) {
+                id(media_transport_feedback_release).execute();
+              }
+              if (activate) {
+                if (button < 0) id(media_transport_previous).execute();
+                else if (button > 0) id(media_transport_next).execute();
+              }
+              return;
+            }
             if (id(app_close_tracking)) {
               const int dx = id(app_close_last_x) - id(app_close_start_x);
               const int dy = id(app_close_last_y) - id(app_close_start_y);
@@ -513,7 +607,11 @@ touchscreen:
                 };
                 auto send_click = [&](lv_obj_t *row) -> bool {
                   if (!point_in(row)) return false;
+                  id(ui_manual_pressed_obj) = row;
+                  lv_obj_add_state(row, LV_STATE_PRESSED);
+                  lv_obj_invalidate(row);
                   lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
+                  id(ui_release_manual_pressed_feedback).execute();
                   return true;
                 };
                 lv_obj_t *rows[] = {
@@ -601,6 +699,14 @@ touchscreen:
                     dots[i], lv_color_hex(active ? 0xF2F2F2 : 0x5C5F5E), LV_PART_MAIN);
                 dot_x += dot_w + 12;
               }
+              int required_first = next_page - 1;
+              if (required_first < 1) required_first = 1;
+              if (required_first > 2) required_first = 2;
+              const int required_last = required_first + 2;
+              if (id(ui_tile_snapshot_cached_first) != required_first ||
+                  id(ui_tile_snapshot_cached_last) != required_last) {
+                id(ui_tile_snapshots_ready) = false;
+              }
             }
 
             if (id(tile_swipe_dragging) && id(tile_swipe_next_x) != 0) {
@@ -634,6 +740,10 @@ touchscreen:
             }
 
             if (commit) {
+              // Shift the fixed previous/current/next raw window as soon as
+              // the compositor releases its final frame. The script retries
+              // while the finish animation still owns the display.
+              id(ui_refresh_tile_snapshots).execute();
               if (id(settings_swipe_logs_switch).state) {
                 ESP_LOGI("touch.swipe", "page=%d next=%d latched=%d dx=%d",
                          page, next_page, id(tile_swipe_commit_latched), dx);

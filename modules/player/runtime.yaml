@@ -4,6 +4,7 @@ esphome:
   includes:
     - static/ui_wavy_arc.h
     - static/ui_title_marquee.h
+    - static/ui_transport_feedback.h
 
 globals:
   - id: subscription_gen
@@ -107,6 +108,10 @@ globals:
     restore_value: no
     initial_value: '0'
   - id: artwork_decode_ui_guard
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: artwork_wave_handoff_busy
     type: bool
     restore_value: no
     initial_value: 'false'
@@ -585,19 +590,25 @@ script:
       - script.execute: media_title_marquee_reset
       - script.execute: media_title_marquee_start_delayed
 
-  - id: media_transport_press_guard
+  - id: media_transport_feedback_release
     mode: restart
     then:
-      - lambda: |-
-          atmosfera_ui::media_wavy_arc_set_direct_present(false);
-          lvgl_esphome_direct_regions_pause(true, 80);
-      - delay: 1ms
-      - lambda: |-
-          lv_obj_invalidate(id(prev_button));
-          lv_obj_invalidate(id(next_button));
-          lv_refr_now(nullptr);
-          lvgl_esphome_wait_for_direct_frame_presented(40);
-          lvgl_esphome_direct_regions_pause(false, 0);
+      - wait_until:
+          condition:
+            lambda: 'return atmosfera_ui::media_transport_feedback_end();'
+          timeout: 120ms
+
+  - id: media_transport_previous
+    mode: restart
+    then:
+      - script.execute: media_show_action_spinner
+      - media_player.previous: sendspin_group
+
+  - id: media_transport_next
+    mode: restart
+    then:
+      - script.execute: media_show_action_spinner
+      - media_player.next: sendspin_group
 
   - id: media_show_action_spinner
     mode: restart
@@ -834,6 +845,7 @@ script:
   - id: media_apply_artwork
     mode: restart
     then:
+      - script.stop: media_complete_artwork_handoff
       - if:
           condition:
             lambda: |-
@@ -850,6 +862,7 @@ script:
                   lvgl_esphome_direct_regions_pause(false, 0);
                   id(artwork_decode_ui_guard) = false;
                 }
+                id(artwork_wave_handoff_busy) = false;
           else:
             # Hide the idle visual before publishing the artwork so both
             # visibility changes are rendered in the same full frame.
@@ -863,6 +876,7 @@ script:
                     lvgl_esphome_direct_regions_pause(false, 0);
                     id(artwork_decode_ui_guard) = false;
                   }
+                  id(artwork_wave_handoff_busy) = false;
                   return;
                 }
                 id(artwork_download_deferred) = false;
@@ -881,9 +895,17 @@ script:
                 // repaints the full artwork frame. Merely disabling the two
                 // producers still left an already queued PPA transaction able
                 // to overwrite the newly rendered framebuffer.
-                if (source_changed && !decode_guard_active && !lvgl_esphome_direct_regions_pause(true, 150)) {
-                  ESP_LOGW("artwork.ui", "regional compositor drain timed out before artwork refresh");
+                if (!decode_guard_active) {
+                  const bool drained = lvgl_esphome_direct_regions_pause(true, 150);
+                  // pause(true) rejects new requests before waiting for the
+                  // barrier, so the matching resume is required even if the
+                  // drain itself timed out.
+                  id(artwork_decode_ui_guard) = true;
+                  if (!drained) {
+                    ESP_LOGW("artwork.ui", "regional compositor drain timed out before artwork refresh");
+                  }
                 }
+                id(artwork_wave_handoff_busy) = true;
                 atmosfera_ui::media_wavy_arc_set_direct_present(false);
                 atmosfera_ui::title_marquee_direct_end(true);
                 if (invalidation_enabled) {
@@ -930,14 +952,29 @@ script:
                 // to replace the boot-time placeholder under the wave.
                 auto *src = id(album_art_background).get_lv_image_dsc();
                 atmosfera_ui::media_wavy_arc_set_background(src, false);
-                if (id(artwork_decode_ui_guard)) {
-                  lvgl_esphome_direct_regions_pause(false, 0);
-                  id(artwork_decode_ui_guard) = false;
-                }
                 ESP_LOGD("artwork.ui", "artwork trace #%u ui source applied uptime=%lums",
                          id(album_art_background).get_trace_id(), millis());
+            - script.execute: media_complete_artwork_handoff
+            - script.wait: media_complete_artwork_handoff
             - script.execute: media_title_marquee_reset_and_start
             - script.execute: start_hide_track_info_timer
+
+  - id: media_complete_artwork_handoff
+    mode: restart
+    then:
+      - wait_until:
+          condition:
+            lambda: 'return atmosfera_ui::media_wavy_arc_background_ready();'
+          timeout: 500ms
+      - lambda: |-
+          if (!atmosfera_ui::media_wavy_arc_background_ready()) {
+            ESP_LOGW("artwork.ui", "wave backdrop was not ready before handoff timeout");
+          }
+          if (id(artwork_decode_ui_guard)) {
+            lvgl_esphome_direct_regions_pause(false, 0);
+            id(artwork_decode_ui_guard) = false;
+          }
+          id(artwork_wave_handoff_busy) = false;
 
   - id: media_handle_artwork_error
     mode: restart
@@ -950,6 +987,7 @@ script:
             lvgl_esphome_direct_regions_pause(false, 0);
             id(artwork_decode_ui_guard) = false;
           }
+          id(artwork_wave_handoff_busy) = false;
           atmosfera_ui::title_marquee_direct_end(true);
           lv_obj_add_flag(id(title_marquee_scrim), LV_OBJ_FLAG_HIDDEN);
           atmosfera_ui::media_wavy_arc_set_background(
@@ -1305,6 +1343,7 @@ interval:
           if (id(global_volume_dragging)) blocker_mask |= 1U << 5;
           if (!lv_obj_has_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN)) blocker_mask |= 1U << 6;
           if (!lv_obj_has_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN)) blocker_mask |= 1U << 7;
+          if (id(artwork_wave_handoff_busy)) blocker_mask |= 1U << 8;
           const bool player_uncovered = blocker_mask == 0;
           static uint16_t previous_blocker_mask = 0xFFFF;
           if (id(settings_perf_logs_switch).state && player_visible && blocker_mask != previous_blocker_mask) {

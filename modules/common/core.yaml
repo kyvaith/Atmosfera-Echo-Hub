@@ -343,6 +343,7 @@ api:
             id(ui_home_page) = 3;
             lvgl_esphome_set_swipe_logging_enabled(id(settings_swipe_logs_switch).state);
         - script.execute: ui_apply_tile_positions
+        - script.execute: ui_refresh_tile_snapshots
     - action: debug_task_profile
       then:
         - lambda: |-
