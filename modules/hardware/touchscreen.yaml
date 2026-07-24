@@ -107,8 +107,7 @@ touchscreen:
               id(global_volume_time_press_start_y) = touch.y;
               id(ui_touch_click_block_until_ms) = millis() + 1500;
               id(global_volume_long_press_guard).execute();
-              atmosfera_ui::volume_overlay_direct_prepare(
-                  id(global_volume_arc), id(global_volume_knob), id(global_volume_pct_label));
+              id(global_volume_renderer).prepare();
               return;
             }
 
@@ -178,8 +177,8 @@ touchscreen:
               return;
             }
             if (id(global_volume_dragging)) {
-              const int knob_pct = atmosfera_ui::volume_arc_pct_from_point(touch.x, touch.y);
-              const int pct = atmosfera_ui::volume_drag_value_from_visual_pct(
+              const int knob_pct = id(global_volume_renderer).arc_pct_from_point(touch.x, touch.y);
+              const int pct = id(global_volume_renderer).drag_value_from_visual_pct(
                   knob_pct, id(global_volume_drag_start_pct));
               const int previous_pct = id(global_volume_pct);
               id(global_volume_pct) = pct;
@@ -191,9 +190,7 @@ touchscreen:
               const uint32_t now = millis();
               if (now - last_volume_visual_ms >= 16U || pct == 0 || pct == 100) {
                 last_volume_visual_ms = now;
-                atmosfera_ui::volume_overlay_update_drag_point(
-                    id(global_volume_arc), id(global_volume_knob), id(global_volume_pct_label),
-                    pct, knob_pct, touch.x, touch.y);
+                id(global_volume_renderer).update_drag_point(pct, knob_pct, touch.x, touch.y);
               }
               if (pct != previous_pct) {
                 // Keep the hardware output under the finger. Home Assistant is
@@ -212,7 +209,7 @@ touchscreen:
               if (abs(dx) > 90 || abs(dy) > 90) {
                 id(global_volume_time_press_tracking) = false;
                 id(global_volume_long_press_guard).stop();
-                atmosfera_ui::volume_overlay_direct_cancel_prepare();
+                id(global_volume_renderer).cancel_prepare();
                 return;
               }
               if (millis() - id(global_volume_time_press_start_ms) >= 450) {
@@ -280,7 +277,7 @@ touchscreen:
             if (id(global_volume_time_press_tracking)) {
               id(global_volume_time_press_tracking) = false;
               id(global_volume_long_press_guard).stop();
-              atmosfera_ui::volume_overlay_direct_cancel_prepare();
+              id(global_volume_renderer).cancel_prepare();
               id(ui_touch_click_block_until_ms) = millis() + 500;
               return;
             }

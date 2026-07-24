@@ -671,10 +671,9 @@ script:
           lv_obj_add_flag(id(global_time_button), LV_OBJ_FLAG_HIDDEN);
           lv_obj_clear_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN);
           lv_obj_move_foreground(id(global_volume_overlay));
-          const int pct = atmosfera_ui::clamp_volume_pct(id(global_volume_pct));
+          const int pct = id(global_volume_renderer).clamp_pct(id(global_volume_pct));
           id(global_volume_knob_pct) = pct;
-          atmosfera_ui::volume_overlay_update(
-              id(global_volume_arc), id(global_volume_knob), id(global_volume_pct_label), pct, pct);
+          id(global_volume_renderer).update(pct, pct);
           lv_obj_fade_in(id(global_volume_overlay), 120, 0);
           lv_obj_invalidate(id(global_volume_overlay));
           lv_refr_now(nullptr);
@@ -690,22 +689,15 @@ script:
           if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
           id(global_volume_time_press_tracking) = false;
           id(global_volume_dragging) = true;
-          id(global_volume_drag_start_x) = id(global_volume_time_press_start_x);
-          if (id(global_volume_drag_start_x) < 20) id(global_volume_drag_start_x) = 20;
-          if (id(global_volume_drag_start_x) > 780) id(global_volume_drag_start_x) = 780;
-          id(global_volume_drag_start_pct) = atmosfera_ui::clamp_volume_pct(id(global_volume_pct));
+          id(global_volume_drag_start_pct) = id(global_volume_renderer).clamp_pct(id(global_volume_pct));
           id(global_volume_knob_pct) = 50;
           lv_obj_add_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN);
-          atmosfera_ui::volume_overlay_update(
-              id(global_volume_arc), id(global_volume_knob), id(global_volume_pct_label),
-              id(global_volume_drag_start_pct), 50);
+          id(global_volume_renderer).update(id(global_volume_drag_start_pct), 50);
           lv_obj_add_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(global_time_button), LV_OBJ_FLAG_HIDDEN);
           lv_refr_now(nullptr);
-          const bool direct_ready = atmosfera_ui::volume_overlay_direct_begin(
-              id(global_volume_arc), id(global_volume_knob), id(global_volume_pct_label));
-          atmosfera_ui::volume_overlay_update_drag_point(
-              id(global_volume_arc), id(global_volume_knob), id(global_volume_pct_label),
+          const bool direct_ready = id(global_volume_renderer).begin();
+          id(global_volume_renderer).update_drag_point(
               id(global_volume_drag_start_pct), 50,
               id(global_volume_time_press_start_x), id(global_volume_time_press_start_y));
           if (!direct_ready) {
@@ -735,8 +727,8 @@ script:
           if (id(global_volume_pct) != id(global_volume_last_sent_pct)) {
             id(global_volume_send_pending) = true;
           }
-          const bool direct_presented = atmosfera_ui::volume_overlay_direct_is_active();
-          atmosfera_ui::volume_overlay_direct_end();
+          const bool direct_presented = id(global_volume_renderer).is_active();
+          id(global_volume_renderer).end();
           lv_obj_add_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN);
           lv_obj_clear_flag(id(global_time_button), LV_OBJ_FLAG_HIDDEN);
           if (direct_presented) {
@@ -754,13 +746,13 @@ script:
           then:
             - lambda: |-
                 id(global_volume_send_pending) = false;
-                id(global_volume_last_sent_pct) = atmosfera_ui::clamp_volume_pct(id(global_volume_pct));
+                id(global_volume_last_sent_pct) = id(global_volume_renderer).clamp_pct(id(global_volume_pct));
                 id(global_volume_last_send_ms) = millis();
                 id(volume_pending_pct) = id(global_volume_last_sent_pct);
                 id(volume_pending_until) = millis() + 1500;
             - media_player.volume_set:
                 id: sendspin_group
-                volume: !lambda 'return atmosfera_ui::clamp_volume_pct(id(global_volume_pct)) / 100.0f;'
+                volume: !lambda 'return id(global_volume_renderer).clamp_pct(id(global_volume_pct)) / 100.0f;'
 
   - id: open_queue_panel
     mode: restart
@@ -807,13 +799,12 @@ script:
       direction: int
     then:
       - lambda: |-
-          int pct = atmosfera_ui::clamp_volume_pct(id(global_volume_pct) + (direction > 0 ? 1 : -1));
+          int pct = id(global_volume_renderer).clamp_pct(id(global_volume_pct) + (direction > 0 ? 1 : -1));
           id(global_volume_pct) = pct;
           id(global_volume_knob_pct) = pct;
           id(volume_updating_from_ha) = false;
           id(audio_stack).set_output_volume(pct / 100.0f);
-          atmosfera_ui::volume_overlay_update(
-              id(global_volume_arc), id(global_volume_knob), id(global_volume_pct_label), pct, pct);
+          id(global_volume_renderer).update(pct, pct);
           id(global_volume_send_pending) = true;
           id(global_volume_last_send_ms) = 0;
       - script.execute: global_volume_send_to_ha
@@ -1310,9 +1301,7 @@ sensor:
           }
           if (id(global_volume_dragging) ||
               !lv_obj_has_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN)) {
-            atmosfera_ui::volume_overlay_update(
-                id(global_volume_arc), id(global_volume_knob), id(global_volume_pct_label),
-                pct, id(global_volume_knob_pct));
+            id(global_volume_renderer).update(pct, id(global_volume_knob_pct));
           }
           id(volume_updating_from_ha) = false;
           if (id(media_speaker_panel_open) && id(speaker_count) <= 1) {

@@ -8,6 +8,14 @@ lvgl_material:
       label: title_label
       viewport: title_marquee_viewport
 
+  direct_volume_overlays:
+    - id: global_volume_renderer
+      arc: global_volume_arc
+      knob: global_volume_knob
+      label: global_volume_pct_label
+      activation_widget: global_time_button
+      scrim_opacity: 72%
+
   pressed_styles:
     - id: shared_pressed_feedback
       widgets:

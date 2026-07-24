@@ -28,9 +28,9 @@ without relying on PlatformIO to pass compile definitions or flash settings.
 
 | Metric | Result |
 | --- | --- |
-| Firmware image | 6,274,058 bytes |
+| Firmware image | 6,273,258 bytes |
 | Smallest app partition free | 10,240,576 bytes (62%) |
-| Internal DIRAM | 215,650 / 576,464 bytes (37.41%) |
+| Internal DIRAM | 215,746 / 576,464 bytes (37.43%) |
 | Display buffers | Three display-owned full-screen buffers |
 
 The validated checkpoint also replaces direct calls to LEDC implementation
@@ -68,6 +68,16 @@ renderer no longer hardcodes an 800-pixel display or title coordinates. The
 existing PPA/direct-blit path, worker-core scheduling, timings, and lifecycle
 conditions are unchanged. The migration removes another 1,488 bytes from the
 firmware image and 16 bytes from DIRAM.
+
+The global volume renderer now uses
+`lvgl_material.direct_volume_overlays`. Its geometry is derived from the
+configured LVGL arc, knob, label, activation widget, and display dimensions;
+the product no longer injects `static/ui_volume_overlay.h` or carries an
+800-pixel drag clamp. The migration deliberately preserves the validated
+RGB888 PPA capture, direct presentation, and three-buffer lifetime. It removes
+800 bytes from the firmware image at a cost of 96 bytes of DIRAM. RGB565
+support and reducing the runtime PSRAM footprint remain separate changes that
+must be benchmarked independently.
 
 The obsolete PlatformIO-only FreeRTOS and ESP-Hosted patch scripts have been
 removed. Native ESP-IDF builds never executed them, so keeping their absolute
@@ -114,7 +124,7 @@ integration tree:
 | `esp32_jpeg` | Keep as a generic hardware JPEG codec and upstream it |
 | `image` | Reconcile with the current upstream image platform |
 | `immich_gallery` | Grow from the validated API/parser boundary into the generic Immich application controller |
-| `lvgl_material` | Keep independent reusable widgets and direct state layers |
+| `lvgl_material` | Keep independent reusable widgets, direct state layers, marquees, and volume overlays |
 | `lvgl` | Rebase accelerators; extract navigation and snapshots |
 | `micro_wake_word` | Keep only the configurable buffering changes missing upstream |
 | `mipi_dsi` | Rebase local DSI changes and upstream them in scoped PRs |
@@ -164,7 +174,7 @@ than application-specific code:
 
 - wavy progress/play button;
 - marquee label;
-- volume arc overlay;
+- direct volume arc overlay;
 - Material state-layer feedback;
 - page indicator.
 

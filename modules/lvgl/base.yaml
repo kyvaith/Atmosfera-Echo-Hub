@@ -93,7 +93,7 @@ lvgl:
               id(media_speaker_panel_open) = false;
               id(global_volume_time_press_tracking) = false;
               id(global_volume_dragging) = false;
-              atmosfera_ui::volume_overlay_direct_end();
+              id(global_volume_renderer).end();
               lv_anim_del(id(global_volume_overlay), nullptr);
               lv_anim_del(id(volume_overlay), nullptr);
               lv_obj_set_style_opa(id(global_volume_overlay), LV_OPA_COVER, 0);
@@ -131,7 +131,7 @@ lvgl:
               id(media_speaker_panel_open) = false;
               id(global_volume_time_press_tracking) = false;
               id(global_volume_dragging) = false;
-              atmosfera_ui::volume_overlay_direct_end();
+              id(global_volume_renderer).end();
               lv_anim_del(id(global_volume_overlay), nullptr);
               lv_anim_del(id(volume_overlay), nullptr);
               lv_obj_set_style_opa(id(global_volume_overlay), LV_OPA_COVER, 0);

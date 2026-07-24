@@ -1,9 +1,6 @@
 # Global Wear OS status overlay.
 # It sits on top_layer after app overlays, so the clock and volume control stay
 # consistent on home, player, settings and voice assistant screens.
-esphome:
-  includes:
-    - static/ui_volume_overlay.h
 
 globals:
   - id: global_volume_time_press_tracking
@@ -26,10 +23,6 @@ globals:
     type: int
     restore_value: no
     initial_value: '36'
-  - id: global_volume_drag_start_x
-    type: int
-    restore_value: no
-    initial_value: '400'
   - id: global_volume_drag_start_pct
     type: int
     restore_value: no
