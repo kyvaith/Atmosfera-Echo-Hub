@@ -40,7 +40,7 @@ artwork_image:
           id(artwork_decode_ui_guard) = true;
           lvgl_esphome_direct_regions_pause(true, 150);
           atmosfera_ui::media_wavy_arc_set_direct_present(false);
-          atmosfera_ui::title_marquee_direct_end(true);
+          id(media_title_marquee).end(true);
           auto *display = lv_obj_get_display(id(wear_root));
           if (display != nullptr) {
             lv_display_enable_invalidation(display, false);

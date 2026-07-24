@@ -1103,11 +1103,11 @@ script:
           // The marquee uses a direct framebuffer strip, so it must be stopped
           // before the assistant overlay becomes visible or it can paint above
           // the overlay after its delayed two-second start.
-          if (visible && (id(title_marquee_active) || atmosfera_ui::title_marquee_direct_is_active())) {
+          if (visible && (id(title_marquee_active) || id(media_title_marquee).is_active())) {
             id(title_marquee_active) = false;
             id(title_marquee_start_ms) = 0;
             id(title_marquee_scroll_ms) = 0;
-            atmosfera_ui::title_marquee_direct_end(true);
+            id(media_title_marquee).end(true);
             if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
           }
 

@@ -3,7 +3,6 @@
 esphome:
   includes:
     - static/ui_wavy_arc.h
-    - static/ui_title_marquee.h
 
 globals:
   - id: subscription_gen
@@ -509,7 +508,7 @@ script:
     then:
       - script.stop: media_title_marquee_start_delayed
       - lambda: |-
-          atmosfera_ui::title_marquee_direct_end(true);
+          id(media_title_marquee).end(true);
           id(title_marquee_active) = false;
           id(title_marquee_start_ms) = 0;
           id(title_marquee_scroll_ms) = 0;
@@ -566,8 +565,7 @@ script:
           if (duration > 9000U) duration = 9000U;
           id(title_marquee_scroll_ms) = duration;
           id(title_marquee_start_ms) = millis();
-          id(title_marquee_active) =
-              atmosfera_ui::title_marquee_direct_begin(id(title_label), 140, 82, 520, 66);
+          id(title_marquee_active) = id(media_title_marquee).begin();
           if (!id(title_marquee_active)) {
             id(title_marquee_start_ms) = 0;
             id(title_marquee_scroll_ms) = 0;
@@ -577,7 +575,7 @@ script:
     mode: restart
     then:
       - lambda: |-
-          atmosfera_ui::title_marquee_direct_end(true);
+          id(media_title_marquee).end(true);
           id(title_marquee_active) = false;
           id(title_marquee_start_ms) = 0;
           id(title_marquee_scroll_ms) = 0;
@@ -667,7 +665,7 @@ script:
       - lambda: |-
           id(global_volume_time_press_tracking) = false;
           atmosfera_ui::media_wavy_arc_set_direct_present(false);
-          atmosfera_ui::title_marquee_direct_end(true);
+          id(media_title_marquee).end(true);
           if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
           lv_obj_add_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(global_time_button), LV_OBJ_FLAG_HIDDEN);
@@ -688,7 +686,7 @@ script:
       - script.stop: volume_overlay_timeout
       - lambda: |-
           atmosfera_ui::media_wavy_arc_set_direct_present(false);
-          atmosfera_ui::title_marquee_direct_end(true);
+          id(media_title_marquee).end(true);
           if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
           id(global_volume_time_press_tracking) = false;
           id(global_volume_dragging) = true;
@@ -769,7 +767,7 @@ script:
     then:
       - lambda: |-
           atmosfera_ui::media_wavy_arc_set_direct_present(false);
-          atmosfera_ui::title_marquee_direct_end(true);
+          id(media_title_marquee).end(true);
           if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
           lvgl_esphome_direct_regions_pause(true, 100);
       - lvgl.widget.show: queue_panel
@@ -906,7 +904,7 @@ script:
                 }
                 id(artwork_wave_handoff_busy) = true;
                 atmosfera_ui::media_wavy_arc_set_direct_present(false);
-                atmosfera_ui::title_marquee_direct_end(true);
+                id(media_title_marquee).end(true);
                 if (invalidation_enabled) {
                   lv_display_enable_invalidation(display, false);
                 }
@@ -914,7 +912,7 @@ script:
                          artwork_trace_id, millis(), src, img);
                 if (source_changed) {
                   lv_image_set_src(img, src);
-                  atmosfera_ui::title_marquee_direct_end(true);
+                  id(media_title_marquee).end(true);
                   lv_obj_add_flag(id(title_marquee_scrim), LV_OBJ_FLAG_HIDDEN);
                   id(media_applied_artwork_trace_id) = artwork_trace_id;
                 }
@@ -987,7 +985,7 @@ script:
             id(artwork_decode_ui_guard) = false;
           }
           id(artwork_wave_handoff_busy) = false;
-          atmosfera_ui::title_marquee_direct_end(true);
+          id(media_title_marquee).end(true);
           lv_obj_add_flag(id(title_marquee_scrim), LV_OBJ_FLAG_HIDDEN);
           atmosfera_ui::media_wavy_arc_set_background(
               id(album_art_placeholder).get_lv_image_dsc(), false);
@@ -1327,7 +1325,7 @@ interval:
     then:
       - lambda: |-
           static uint32_t marquee_last_submit_ms = 0;
-          atmosfera_ui::title_marquee_direct_service();
+          id(media_title_marquee).service();
           const int voice_phase = id(voice_assistant_phase);
           const bool voice_visible = voice_phase != ${voice_assist_idle_phase_id} &&
                                      voice_phase != ${voice_assist_not_ready_phase_id};
@@ -1365,12 +1363,12 @@ interval:
             if (!player_visible) {
               marquee_last_submit_ms = 0;
               id(title_marquee_active) = false;
-              atmosfera_ui::title_marquee_direct_end(true);
+              id(media_title_marquee).end(true);
               if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
             } else if (!player_uncovered) {
               marquee_last_submit_ms = 0;
-              if (atmosfera_ui::title_marquee_direct_is_active()) {
-                atmosfera_ui::title_marquee_direct_end(true);
+              if (id(media_title_marquee).is_active()) {
+                id(media_title_marquee).end(true);
                 if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
               }
             } else {
@@ -1378,7 +1376,7 @@ interval:
               if (overflow <= 0 || id(title_marquee_scroll_ms) == 0) {
                 marquee_last_submit_ms = 0;
                 id(title_marquee_active) = false;
-                atmosfera_ui::title_marquee_direct_end(true);
+                id(media_title_marquee).end(true);
                 if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
               } else {
                 const uint32_t now = millis();
@@ -1386,21 +1384,21 @@ interval:
                 if (elapsed >= id(title_marquee_scroll_ms) + 700U) {
                   marquee_last_submit_ms = 0;
                   id(title_marquee_active) = false;
-                  if (atmosfera_ui::title_marquee_direct_is_active()) {
-                    atmosfera_ui::title_marquee_direct_update(0);
-                    atmosfera_ui::title_marquee_direct_end(true);
+                  if (id(media_title_marquee).is_active()) {
+                    id(media_title_marquee).update(0);
+                    id(media_title_marquee).end(true);
                   }
                   if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
                 } else if (elapsed < id(title_marquee_scroll_ms)) {
                   const int x = -((int64_t) overflow * (int64_t) elapsed /
                                   (int64_t) id(title_marquee_scroll_ms));
-                  if (atmosfera_ui::title_marquee_direct_is_active()) {
+                  if (id(media_title_marquee).is_active()) {
                     // Position remains time-based, but a text strip does not
                     // need to consume one PPA transaction every 16 ms. At
                     // ~31 Hz it stays visually continuous while leaving every
                     // other regional slot to the 60-Hz play animation.
                     if (marquee_last_submit_ms == 0 || now - marquee_last_submit_ms >= 32U) {
-                      if (atmosfera_ui::title_marquee_direct_update(x)) {
+                      if (id(media_title_marquee).update(x)) {
                         marquee_last_submit_ms = now;
                       }
                     }

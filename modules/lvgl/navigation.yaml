@@ -56,7 +56,7 @@ script:
       - script.stop: media_title_marquee_reset_and_start
       - lambda: |-
           atmosfera_ui::media_wavy_arc_set_direct_present(false);
-          atmosfera_ui::title_marquee_direct_end(true);
+          id(media_title_marquee).end(true);
           if (!lvgl_esphome_direct_regions_pause(true, 150)) {
             ESP_LOGW("ui.layers", "regional compositor drain timed out before app handoff");
           }

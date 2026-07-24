@@ -28,9 +28,9 @@ without relying on PlatformIO to pass compile definitions or flash settings.
 
 | Metric | Result |
 | --- | --- |
-| Firmware image | 6,275,546 bytes |
-| Smallest app partition free | 10,239,088 bytes (62%) |
-| Internal DIRAM | 215,666 / 576,464 bytes (37.41%) |
+| Firmware image | 6,274,058 bytes |
+| Smallest app partition free | 10,240,576 bytes (62%) |
+| Internal DIRAM | 215,650 / 576,464 bytes (37.41%) |
 | Display buffers | Three display-owned full-screen buffers |
 
 The validated checkpoint also replaces direct calls to LEDC implementation
@@ -60,6 +60,14 @@ created. This removes the boot-time C++ style lambda and its ordering scripts
 without adding image buffers or runtime animation. The complete firmware build
 is 2,096 bytes smaller and uses 712 fewer bytes of DIRAM than the preceding
 declarative-navigation checkpoint.
+
+The title marquee direct renderer now lives in
+`lvgl_material.direct_marquees` instead of a product-local injected header.
+Its visible region is derived from the configured LVGL viewport, so the
+renderer no longer hardcodes an 800-pixel display or title coordinates. The
+existing PPA/direct-blit path, worker-core scheduling, timings, and lifecycle
+conditions are unchanged. The migration removes another 1,488 bytes from the
+firmware image and 16 bytes from DIRAM.
 
 The obsolete PlatformIO-only FreeRTOS and ESP-Hosted patch scripts have been
 removed. Native ESP-IDF builds never executed them, so keeping their absolute
