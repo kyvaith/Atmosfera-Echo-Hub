@@ -413,43 +413,44 @@ script:
   - id: ui_finish_boot_tile_snapshot_cache
     mode: single
     then:
-      - lambda: |-
-          if (id(ui_snapshot_io_busy)) return;
-          id(ui_snapshot_io_busy) = true;
-          ESP_LOGW("boot.diag",
-                   "post-Lottie app snapshots: begin internal=%uK/%uK psram=%uK/%uK",
-                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
-                   (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
-                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
-                   (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
-          id(album_art_background).set_sendspin_paused(true);
-          id(media_wavy_progress).set_background(
-              id(album_art_placeholder).get_lv_image_dsc(), false);
-          id(media_wavy_progress).initialize();
-          id(media_wavy_progress).set_value(id(last_media_progress_percent));
-          lv_obj_update_layout(lv_screen_active());
-          bool apps_prepared = true;
-          apps_prepared = lvgl_esphome_snapshot_cache_compressed_page(id(wear_root)) && apps_prepared;
-          apps_prepared = lvgl_esphome_snapshot_cache_compressed_page(id(settings_root)) && apps_prepared;
-          apps_prepared = lvgl_esphome_snapshot_cache_compressed_page(id(voice_assistant_overlay)) && apps_prepared;
-          apps_prepared = lvgl_esphome_snapshot_cache_compressed_page(id(immich_root)) && apps_prepared;
-          lv_obj_t *pages[] = {
-            id(controls_root_1), id(controls_root_2),
-            id(controls_root_3), id(controls_root_4),
-          };
-          const bool prepared = lvgl_esphome_snapshot_cache_tile_window(pages, 4, 1, 800);
-          const bool app_work_buffer = lvgl_esphome_snapshot_app_reserve_work_buffer(id(wear_root));
-          id(ui_tile_snapshots_ready) = prepared;
-          id(ui_tile_snapshot_prepared_page) = prepared ? 1 : 0;
-          id(ui_tile_snapshot_cached_first) = prepared ? 1 : 0;
-          id(ui_tile_snapshot_cached_last) = prepared ? 3 : 0;
-          id(ui_snapshot_io_busy) = false;
-          ESP_LOGW("boot.diag",
-                   "post-Lottie caches apps=%u app_work=%u home=%u range=%d-%d psram=%uK/%uK",
-                   (unsigned) apps_prepared, (unsigned) app_work_buffer, (unsigned) prepared,
-                   id(ui_tile_snapshot_cached_first), id(ui_tile_snapshot_cached_last),
-                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
-                   (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
+      - if:
+          condition:
+            lambda: return !id(ui_snapshot_io_busy);
+          then:
+            - globals.set:
+                id: ui_snapshot_io_busy
+                value: 'true'
+            - lambda: |-
+                ESP_LOGW("boot.diag",
+                         "post-Lottie app snapshots: begin internal=%uK/%uK psram=%uK/%uK",
+                         (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+                         (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
+                         (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+                         (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
+                id(album_art_background).set_sendspin_paused(true);
+                id(media_wavy_progress).set_background(
+                    id(album_art_placeholder).get_lv_image_dsc(), false);
+                id(media_wavy_progress).initialize();
+                id(media_wavy_progress).set_value(id(last_media_progress_percent));
+                lv_obj_update_layout(lv_screen_active());
+            - lvgl.navigation.prepare_applications: ui_navigation
+            - lvgl.navigation.refresh: ui_navigation
+            - lambda: |-
+                const bool prepared = id(ui_navigation).is_home_snapshot_prepared();
+                const bool app_work_buffer = lvgl_esphome_snapshot_app_reserve_work_buffer(id(wear_root));
+                id(ui_tile_snapshots_ready) = prepared;
+                id(ui_tile_snapshot_prepared_page) = prepared ? 1 : 0;
+                id(ui_tile_snapshot_cached_first) = prepared ? 1 : 0;
+                id(ui_tile_snapshot_cached_last) = prepared ? 3 : 0;
+                ESP_LOGW("boot.diag",
+                         "post-Lottie caches app_work=%u home=%u range=%d-%d psram=%uK/%uK",
+                         (unsigned) app_work_buffer, (unsigned) prepared,
+                         id(ui_tile_snapshot_cached_first), id(ui_tile_snapshot_cached_last),
+                         (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+                         (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
+            - globals.set:
+                id: ui_snapshot_io_busy
+                value: 'false'
 
   - id: ui_show_tiles_4
     then:

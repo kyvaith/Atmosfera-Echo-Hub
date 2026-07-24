@@ -28,9 +28,9 @@ without relying on PlatformIO to pass compile definitions or flash settings.
 
 | Metric | Result |
 | --- | --- |
-| Firmware image | 6,273,106 bytes |
+| Firmware image | 6,274,506 bytes |
 | Smallest app partition free | 10,241,520 bytes (62%) |
-| Internal DIRAM | 215,754 / 576,464 bytes (37.43%) |
+| Internal DIRAM | 215,890 / 576,464 bytes (37.45%) |
 | Display buffers | Three display-owned full-screen buffers |
 
 The validated checkpoint also replaces direct calls to LEDC implementation
@@ -88,6 +88,14 @@ coordinates rather than an 800x800 screen assumption. The validated product
 widget remains 244x244; making the renderer scale its internal shape geometry
 is intentionally a separate hardware-tested change. This migration removes
 the product-local 1,400-line renderer without increasing DIRAM.
+
+Application preview preparation now uses the registered
+`lvgl.navigation.applications` collection through the declarative
+`lvgl.navigation.prepare_applications` action. Home snapshot preparation uses
+`lvgl.navigation.refresh` and the selected compositor backend. The boot script
+therefore no longer names all four application roots or calls the legacy
+snapshot cache directly. Buffer reservation and boot ordering remain unchanged
+until this checkpoint passes the hardware regression suite.
 
 The obsolete PlatformIO-only FreeRTOS and ESP-Hosted patch scripts have been
 removed. Native ESP-IDF builds never executed them, so keeping their absolute
