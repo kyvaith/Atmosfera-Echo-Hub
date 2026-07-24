@@ -28,8 +28,8 @@ without relying on PlatformIO to pass compile definitions or flash settings.
 
 | Metric | Result |
 | --- | --- |
-| Firmware image | 6,274,746 bytes |
-| Smallest app partition free | 10,241,520 bytes (62%) |
+| Firmware application binary | 6,274,368 bytes |
+| Smallest app partition free | 10,240,704 bytes (62%) |
 | Internal DIRAM | 215,890 / 576,464 bytes (37.45%) |
 | Display buffers | Three display-owned full-screen buffers |
 
@@ -99,6 +99,12 @@ until this checkpoint passes the hardware regression suite.
 The remaining legacy Home positioning and refresh lambdas now derive page
 count from their configured object arrays and width from the active LVGL
 display. They no longer embed the product's 800-pixel panel width.
+
+The extended LVGL runtime no longer carries unreferenced panorama builders or
+an unreachable delayed-compression scheduler left over from earlier
+experiments. The active compression worker, JPEG-backed cache, three-slot Home
+window, and direct PPA presentation paths are unchanged. The ESP32-P4 direct
+component build now has no warnings originating from the LVGL component.
 
 The obsolete PlatformIO-only FreeRTOS and ESP-Hosted patch scripts have been
 removed. Native ESP-IDF builds never executed them, so keeping their absolute
