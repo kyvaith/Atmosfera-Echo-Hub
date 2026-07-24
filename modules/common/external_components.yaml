@@ -5,7 +5,7 @@
 external_components:
   - source:
       type: local
-      path: C:/Users/kyvai/kyvaith-esphome-productization/esphome/components
+      path: C:/Users/kyvai/kyvaith-esphome-productization-lvgl/esphome/components
     components:
       - audio_processor
       - display
@@ -17,18 +17,12 @@ external_components:
       - lvgl_image_presenter
       - lvgl_material
       - lvgl_region_presenter
+      - lvgl
       - micro_wake_word
       - mipi_dsi
       - online_image
       - runtime_image
       - sendspin
-  # Keep the proven LVGL compositor during the compatibility phase. Each
-  # private hook is replaced independently before this source is removed.
-  - source:
-      type: local
-      path: C:/Users/kyvai/kyvaith-esphome-lvgl-legacy-compat/esphome/components
-    components:
-      - lvgl
   - source:
       type: local
       path: C:/Users/kyvai/kyvaith-esphome-artwork-bridge/esphome/components
