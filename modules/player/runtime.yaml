@@ -1,8 +1,5 @@
 # Dynamic media player runtime.
 # This handles the selected Home Assistant media_player, dynamic subscriptions and playback state UI.
-esphome:
-  includes:
-    - static/ui_wavy_arc.h
 
 globals:
   - id: subscription_gen
@@ -204,7 +201,7 @@ script:
           lv_obj_add_flag(id(artwork_primary_overlay), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(artwork_scrim), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(title_marquee_scrim), LV_OBJ_FLAG_HIDDEN);
-          atmosfera_ui::media_wavy_arc_set_background(
+          id(media_wavy_progress).set_background(
               id(album_art_placeholder).get_lv_image_dsc(), false);
           id(last_media_progress_percent) = 0;
           id(last_media_progress_permille) = 0;
@@ -425,8 +422,8 @@ script:
           }
           if (value < 0) value = 0;
           if (value > progress_range) value = progress_range;
-          atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
-          atmosfera_ui::media_wavy_arc_set_value_basis_points(value);
+          id(media_wavy_progress).initialize();
+          id(media_wavy_progress).set_value_basis_points(value);
           const int permille = (value + 5) / 10;
           const int percent = (value + 50) / 100;
           if (value != id(last_media_progress_basis_points)) {
@@ -498,10 +495,10 @@ script:
           } else if (progress < 0) {
             progress = 0;
           }
-          atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
-          atmosfera_ui::media_wavy_arc_set_value_basis_points(progress);
-          atmosfera_ui::media_wavy_arc_set_playing(playing);
-          atmosfera_ui::media_wavy_arc_set_pending(id(media_action_pending));
+          id(media_wavy_progress).initialize();
+          id(media_wavy_progress).set_value_basis_points(progress);
+          id(media_wavy_progress).set_playing(playing);
+          id(media_wavy_progress).set_pending(id(media_action_pending));
 
   - id: media_title_marquee_reset
     mode: restart
@@ -620,8 +617,8 @@ script:
           id(media_progress_hold_basis_points) = hold;
           id(media_progress_hold_until) = millis() + 1500U;
           lv_obj_add_flag(id(media_action_spinner_arc), LV_OBJ_FLAG_HIDDEN);
-          atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
-          atmosfera_ui::media_wavy_arc_set_pending(false);
+          id(media_wavy_progress).initialize();
+          id(media_wavy_progress).set_pending(false);
       - script.execute: media_show_action_progress_delayed
       - script.execute: media_action_spinner_timeout
 
@@ -632,8 +629,8 @@ script:
       - lambda: |-
           id(media_action_pending) = false;
           lv_obj_add_flag(id(media_action_spinner_arc), LV_OBJ_FLAG_HIDDEN);
-          atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
-          atmosfera_ui::media_wavy_arc_set_pending(false);
+          id(media_wavy_progress).initialize();
+          id(media_wavy_progress).set_pending(false);
           id(media_update_main_control).execute();
 
   - id: media_show_action_progress_delayed
@@ -644,8 +641,8 @@ script:
           if (!id(media_action_pending)) {
             return;
           }
-          atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
-          atmosfera_ui::media_wavy_arc_set_pending(true);
+          id(media_wavy_progress).initialize();
+          id(media_wavy_progress).set_pending(true);
 
   - id: media_hide_action_spinner_delayed
     mode: restart
@@ -664,7 +661,7 @@ script:
     then:
       - lambda: |-
           id(global_volume_time_press_tracking) = false;
-          atmosfera_ui::media_wavy_arc_set_direct_present(false);
+          id(media_wavy_progress).set_direct_present(false);
           id(media_title_marquee).end(true);
           if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
           lv_obj_add_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN);
@@ -684,7 +681,7 @@ script:
     then:
       - script.stop: volume_overlay_timeout
       - lambda: |-
-          atmosfera_ui::media_wavy_arc_set_direct_present(false);
+          id(media_wavy_progress).set_direct_present(false);
           id(media_title_marquee).end(true);
           if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
           id(global_volume_time_press_tracking) = false;
@@ -758,7 +755,7 @@ script:
     mode: restart
     then:
       - lambda: |-
-          atmosfera_ui::media_wavy_arc_set_direct_present(false);
+          id(media_wavy_progress).set_direct_present(false);
           id(media_title_marquee).end(true);
           if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
           lvgl_esphome_direct_regions_pause(true, 100);
@@ -894,7 +891,7 @@ script:
                   }
                 }
                 id(artwork_wave_handoff_busy) = true;
-                atmosfera_ui::media_wavy_arc_set_direct_present(false);
+                id(media_wavy_progress).set_direct_present(false);
                 id(media_title_marquee).end(true);
                 if (invalidation_enabled) {
                   lv_display_enable_invalidation(display, false);
@@ -939,7 +936,7 @@ script:
                 // image does not arm artwork_decode_ui_guard, but still needs
                 // to replace the boot-time placeholder under the wave.
                 auto *src = id(album_art_background).get_lv_image_dsc();
-                atmosfera_ui::media_wavy_arc_set_background(src, false);
+                id(media_wavy_progress).set_background(src, false);
                 ESP_LOGD("artwork.ui", "artwork trace #%u ui source applied uptime=%lums",
                          id(album_art_background).get_trace_id(), millis());
             - script.execute: media_complete_artwork_handoff
@@ -952,10 +949,10 @@ script:
     then:
       - wait_until:
           condition:
-            lambda: 'return atmosfera_ui::media_wavy_arc_background_ready();'
+            lambda: 'return id(media_wavy_progress).is_background_ready();'
           timeout: 500ms
       - lambda: |-
-          if (!atmosfera_ui::media_wavy_arc_background_ready()) {
+          if (!id(media_wavy_progress).is_background_ready()) {
             ESP_LOGW("artwork.ui", "wave backdrop was not ready before handoff timeout");
           }
           if (id(artwork_decode_ui_guard)) {
@@ -978,7 +975,7 @@ script:
           id(artwork_wave_handoff_busy) = false;
           id(media_title_marquee).end(true);
           lv_obj_add_flag(id(title_marquee_scrim), LV_OBJ_FLAG_HIDDEN);
-          atmosfera_ui::media_wavy_arc_set_background(
+          id(media_wavy_progress).set_background(
               id(album_art_placeholder).get_lv_image_dsc(), false);
       - if:
           condition:
@@ -1189,8 +1186,8 @@ text_sensor:
                 id(media_progress_hold_basis_points) = 0;
                 id(media_progress_hold_until) = 0;
             - lambda: |-
-                atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
-                atmosfera_ui::media_wavy_arc_set_value(0);
+                id(media_wavy_progress).initialize();
+                id(media_wavy_progress).set_value(0);
       - script.execute: refresh_progress_bar_from_state
 
   - platform: template
@@ -1343,7 +1340,7 @@ interval:
                      YESNO(!lv_obj_has_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN)));
           }
           previous_blocker_mask = player_visible ? blocker_mask : 0xFFFF;
-          atmosfera_ui::media_wavy_arc_set_direct_present(player_uncovered);
+          id(media_wavy_progress).set_direct_present(player_uncovered);
 
           // Compose the title strip before submitting the ready waveform. The
           // regional compositor can then collect both requests in one DSI
@@ -1404,13 +1401,13 @@ interval:
           // The worker on the core opposite ESPHome rasterizes the next
           // regional frame. The UI loop only submits the completed buffer, so
           // audio can pre-empt drawing without blocking component processing.
-          atmosfera_ui::media_wavy_arc_present_ready();
+          id(media_wavy_progress).service_present();
           if (player_uncovered &&
               (id(media_action_pending) ||
                (id(media_player_state_sensor).has_state() &&
                 (id(media_player_state_sensor).state == "PLAYING" ||
                  id(media_player_state_sensor).state == "playing")))) {
-            atmosfera_ui::media_wavy_arc_tick(3.0f);
+            id(media_wavy_progress).tick(3.0f);
           }
 
   - interval: 100ms

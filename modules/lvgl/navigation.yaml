@@ -55,7 +55,7 @@ script:
       - script.stop: media_title_marquee_start_delayed
       - script.stop: media_title_marquee_reset_and_start
       - lambda: |-
-          atmosfera_ui::media_wavy_arc_set_direct_present(false);
+          id(media_wavy_progress).set_direct_present(false);
           id(media_title_marquee).end(true);
           if (!lvgl_esphome_direct_regions_pause(true, 150)) {
             ESP_LOGW("ui.layers", "regional compositor drain timed out before app handoff");
@@ -423,10 +423,10 @@ script:
                    (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                    (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
           id(album_art_background).set_sendspin_paused(true);
-          atmosfera_ui::media_wavy_arc_set_background(
+          id(media_wavy_progress).set_background(
               id(album_art_placeholder).get_lv_image_dsc(), false);
-          atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
-          atmosfera_ui::media_wavy_arc_set_value(id(last_media_progress_percent));
+          id(media_wavy_progress).initialize();
+          id(media_wavy_progress).set_value(id(last_media_progress_percent));
           lv_obj_update_layout(lv_screen_active());
           bool apps_prepared = true;
           apps_prepared = lvgl_esphome_snapshot_cache_compressed_page(id(wear_root)) && apps_prepared;
@@ -471,8 +471,8 @@ script:
           y: 0
       - lambda: |-
           id(album_art_background).set_sendspin_paused(false);
-          atmosfera_ui::media_wavy_arc_init(id(media_main_progress_arc));
-          atmosfera_ui::media_wavy_arc_set_value(id(last_media_progress_percent));
+          id(media_wavy_progress).initialize();
+          id(media_wavy_progress).set_value(id(last_media_progress_percent));
       - script.execute: media_title_marquee_reset_and_start
       - if:
           condition:

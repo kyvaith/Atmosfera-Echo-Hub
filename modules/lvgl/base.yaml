@@ -103,7 +103,7 @@ lvgl:
               lv_obj_add_flag(id(queue_panel), LV_OBJ_FLAG_HIDDEN);
               lv_obj_add_flag(id(speaker_group_panel), LV_OBJ_FLAG_HIDDEN);
               // The opening snapshot owns the display until on_before_reveal.
-              atmosfera_ui::media_wavy_arc_set_direct_present(false);
+              id(media_wavy_progress).set_direct_present(false);
         on_before_reveal:
           # Prepare the live Player while the compositor still presents the
           # final snapshot frame, preventing a one-frame placeholder flash.
@@ -221,7 +221,7 @@ lvgl:
               value: 'true'
           - lambda: |-
               id(ui_touch_click_block_until_ms) = millis() + 800;
-              atmosfera_ui::media_wavy_arc_set_direct_present(false);
+              id(media_wavy_progress).set_direct_present(false);
               id(media_title_marquee).end(true);
               if (!lvgl_esphome_direct_regions_pause(true, 150)) {
                 ESP_LOGW("ui.layers", "regional compositor drain timed out before Voice handoff");

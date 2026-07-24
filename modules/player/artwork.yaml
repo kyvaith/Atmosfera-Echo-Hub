@@ -39,7 +39,7 @@ artwork_image:
           }
           id(artwork_decode_ui_guard) = true;
           lvgl_esphome_direct_regions_pause(true, 150);
-          atmosfera_ui::media_wavy_arc_set_direct_present(false);
+          id(media_wavy_progress).set_direct_present(false);
           id(media_title_marquee).end(true);
           auto *display = lv_obj_get_display(id(wear_root));
           if (display != nullptr) {

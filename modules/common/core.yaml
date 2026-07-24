@@ -442,7 +442,7 @@ api:
                      YESNO(id(global_volume_dragging)),
                      YESNO(!lv_obj_has_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN)),
                      YESNO(!lv_obj_has_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN)));
-            atmosfera_ui::media_wavy_arc_log_state("api diagnostic");
+            id(media_wavy_progress).log_state("api diagnostic");
   on_client_connected:
   - lambda: |-
       ESP_LOGD("api.diag", "CONNECTED client=%s address=%s uptime=%lums internal_free=%uKiB psram_free=%uKiB",

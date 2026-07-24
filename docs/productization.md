@@ -28,8 +28,8 @@ without relying on PlatformIO to pass compile definitions or flash settings.
 
 | Metric | Result |
 | --- | --- |
-| Firmware image | 6,273,266 bytes |
-| Smallest app partition free | 10,240,576 bytes (62%) |
+| Firmware image | 6,273,106 bytes |
+| Smallest app partition free | 10,241,520 bytes (62%) |
 | Internal DIRAM | 215,754 / 576,464 bytes (37.43%) |
 | Display buffers | Three display-owned full-screen buffers |
 
@@ -78,6 +78,16 @@ RGB888 PPA capture, direct presentation, and three-buffer lifetime. It removes
 800 bytes from the firmware image at a cost of 96 bytes of DIRAM. RGB565
 support and reducing the runtime PSRAM footprint remain separate changes that
 must be benchmarked independently.
+
+The Player's wavy progress/play renderer now uses
+`lvgl_material.wavy_progress` instead of the injected
+`static/ui_wavy_arc.h`. The component preserves the existing worker-core,
+PPA/direct-present, cache synchronization, and buffer-reuse paths. Its
+background crop is derived from the active display and configured widget
+coordinates rather than an 800x800 screen assumption. The validated product
+widget remains 244x244; making the renderer scale its internal shape geometry
+is intentionally a separate hardware-tested change. This migration removes
+the product-local 1,400-line renderer without increasing DIRAM.
 
 The obsolete PlatformIO-only FreeRTOS and ESP-Hosted patch scripts have been
 removed. Native ESP-IDF builds never executed them, so keeping their absolute
@@ -132,7 +142,7 @@ integration tree:
 | `esp32_jpeg` | Keep as a generic hardware JPEG codec and upstream it |
 | `image` | Reconcile with the current upstream image platform |
 | `immich_gallery` | Grow from the validated API/parser boundary into the generic Immich application controller |
-| `lvgl_material` | Keep independent reusable widgets, direct state layers, marquees, and volume overlays |
+| `lvgl_material` | Keep independent reusable widgets, direct state layers, marquees, volume overlays, and wavy progress controls |
 | `lvgl` | Rebase accelerators; extract navigation and snapshots |
 | `micro_wake_word` | Keep only the configurable buffering changes missing upstream |
 | `mipi_dsi` | Rebase local DSI changes and upstream them in scoped PRs |

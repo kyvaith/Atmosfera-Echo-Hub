@@ -3,6 +3,10 @@
 # in its own module.
 
 lvgl_material:
+  wavy_progress:
+    - id: media_wavy_progress
+      widget: media_main_progress_arc
+
   direct_marquees:
     - id: media_title_marquee
       label: title_label
