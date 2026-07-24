@@ -157,7 +157,7 @@ touchscreen:
             // Reserve only the bottom 50 px for the system close gesture. The
             // previous 180 px software zone swallowed the queue and speaker
             // grouping buttons before LVGL could dispatch their click event.
-            id(app_close_tracking) = id(ui_active_app) != 0 && touch.y >= 750;
+            id(app_close_tracking) = id(ui_active_app) != 0 && id(ui_active_app) != 2 && touch.y >= 750;
             if (id(ui_active_app) == 3 && touch.x >= 320 && touch.x <= 480 && touch.y >= 708) {
               id(app_close_tracking) = false;
             }
@@ -177,19 +177,6 @@ touchscreen:
             id(immich_swipe_start_y) = touch.y;
             id(immich_swipe_last_x) = touch.x;
             id(immich_swipe_last_y) = touch.y;
-
-            id(settings_scroll_tracking) = id(ui_active_app) == 2 && !id(ui_snapshot_io_busy) &&
-                                           !id(app_close_tracking) && !lvgl_esphome_snapshot_is_active();
-            id(settings_scroll_dragging) = false;
-            id(settings_scroll_start_x) = touch.x;
-            id(settings_scroll_start_y) = touch.y;
-            id(settings_scroll_last_x) = touch.x;
-            id(settings_scroll_last_y) = touch.y;
-            id(settings_scroll_start_scroll_y) = lv_obj_get_scroll_y(id(settings_root));
-            id(settings_scroll_last_render_ms) = 0;
-            id(settings_scroll_last_sample_y) = touch.y;
-            id(settings_scroll_last_sample_ms) = millis();
-            id(settings_scroll_velocity_px_s) = 0;
 
             id(ui_touch_active) = true;
             id(ui_manual_pressed_obj) = nullptr;
@@ -297,58 +284,6 @@ touchscreen:
                 id(ui_touch_click_block_until_ms) = millis() + 700;
               return;
             }
-            if (id(settings_scroll_tracking)) {
-              id(settings_scroll_last_x) = touch.x;
-              id(settings_scroll_last_y) = touch.y;
-              const int dx = id(settings_scroll_last_x) - id(settings_scroll_start_x);
-              const int dy = id(settings_scroll_last_y) - id(settings_scroll_start_y);
-              constexpr int start_y = 2;
-              constexpr uint32_t render_interval_ms = 4;
-              const uint32_t sample_now = millis();
-              const uint32_t sample_dt = sample_now - id(settings_scroll_last_sample_ms);
-              if (sample_dt > 0 && sample_dt <= 100) {
-                const int instantaneous =
-                    -((touch.y - id(settings_scroll_last_sample_y)) * 1000) / static_cast<int>(sample_dt);
-                id(settings_scroll_velocity_px_s) =
-                    (id(settings_scroll_velocity_px_s) * 2 + instantaneous) / 3;
-              }
-              id(settings_scroll_last_sample_y) = touch.y;
-              id(settings_scroll_last_sample_ms) = sample_now;
-              if (abs(dx) > 4 || abs(dy) > 4) {
-                id(ui_touch_click_block_until_ms) = millis() + 700;
-              }
-
-              if (!id(settings_scroll_dragging)) {
-                if (abs(dy) < start_y || abs(dy) + 6 < abs(dx)) return;
-
-                if (id(ui_manual_pressed_obj) != nullptr) {
-                  lv_obj_clear_state(id(ui_manual_pressed_obj), LV_STATE_PRESSED);
-                  lv_obj_invalidate(id(ui_manual_pressed_obj));
-                  id(ui_manual_pressed_obj) = nullptr;
-                }
-
-                // LVGL may have already pressed a clickable child before the
-                // gesture crossed the scroll threshold. Clear that state
-                // synchronously before capturing the scroll bitmap so the
-                // release animation cannot reveal a stale hover frame.
-                id(ui_disable_settings_rows_for_drag).execute();
-                if (!lvgl_esphome_snapshot_scroll_begin(id(settings_root), 800, 800)) {
-                  id(settings_scroll_tracking) = false;
-                  return;
-                }
-                id(settings_scroll_dragging) = true;
-                id(ui_touch_block_for_drag).execute();
-              }
-
-              const uint32_t now = millis();
-              if (id(settings_scroll_last_render_ms) != 0 &&
-                  now - id(settings_scroll_last_render_ms) < render_interval_ms) {
-                return;
-              }
-              id(settings_scroll_last_render_ms) = now;
-              lvgl_esphome_snapshot_scroll_update(id(settings_scroll_start_scroll_y) - dy);
-              return;
-            }
     on_release:
       then:
         - lambda: |-
@@ -438,62 +373,4 @@ touchscreen:
                 id(immich_show_controls).execute();
                 return;
               }
-            }
-            if (id(settings_scroll_tracking)) {
-              const int dx = id(settings_scroll_last_x) - id(settings_scroll_start_x);
-              const int dy = id(settings_scroll_last_y) - id(settings_scroll_start_y);
-              const bool was_dragging = id(settings_scroll_dragging);
-              const bool was_tap = !was_dragging && abs(dx) <= 10 && abs(dy) <= 10;
-              if (was_dragging) {
-                lvgl_esphome_snapshot_scroll_finish_inertial(
-                    id(settings_scroll_start_scroll_y) - dy, id(settings_scroll_velocity_px_s));
-                id(ui_touch_click_block_until_ms) = millis() + 1000;
-                id(ui_release_touch_blocker).execute();
-                id(ui_restore_settings_rows_after_drag).execute();
-              } else if (was_tap) {
-                const int x = id(settings_scroll_last_x);
-                const int y = id(settings_scroll_last_y);
-                auto point_in = [&](lv_obj_t *row) -> bool {
-                  if (row == nullptr || lv_obj_has_flag(row, LV_OBJ_FLAG_HIDDEN)) return false;
-                  lv_area_t area;
-                  lv_obj_get_coords(row, &area);
-                  return x >= area.x1 && x <= area.x2 && y >= area.y1 && y <= area.y2;
-                };
-                auto send_click = [&](lv_obj_t *row) -> bool {
-                  if (!point_in(row)) return false;
-                  id(ui_manual_pressed_obj) = row;
-                  lv_obj_add_state(row, LV_STATE_PRESSED);
-                  lv_obj_invalidate(row);
-                  lv_obj_send_event(row, LV_EVENT_CLICKED, nullptr);
-                  id(ui_release_manual_pressed_feedback).execute();
-                  return true;
-                };
-                lv_obj_t *rows[] = {
-                  id(settings_true_colour_button),
-                  id(settings_screen_tone_button),
-                  id(settings_perf_overlay_button),
-                  id(settings_system_logs_button),
-                  id(settings_perf_logs_button),
-                  id(settings_swipe_logs_button),
-                  id(settings_beta_firmware_button),
-                  id(settings_display_brightness_button),
-                  id(settings_display_timeout_button),
-                  id(settings_voice_mute_button),
-                  id(settings_wake_sound_button),
-                  id(settings_wake_sensitivity_button),
-                };
-                for (auto *row : rows) {
-                  if (send_click(row)) break;
-                }
-              } else if (abs(dx) > 10 || abs(dy) > 10) {
-                id(ui_touch_click_block_until_ms) = millis() + 1000;
-                id(ui_release_touch_blocker).execute();
-                id(ui_restore_settings_rows_after_drag).execute();
-              }
-              id(settings_scroll_tracking) = false;
-              id(settings_scroll_dragging) = false;
-              id(settings_scroll_last_render_ms) = 0;
-              id(settings_scroll_last_sample_ms) = 0;
-              id(settings_scroll_velocity_px_s) = 0;
-              if (was_dragging || was_tap) return;
             }

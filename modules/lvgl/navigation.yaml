@@ -75,50 +75,6 @@ globals:
     type: int
     restore_value: no
     initial_value: '0'
-  - id: settings_scroll_tracking
-    type: bool
-    restore_value: no
-    initial_value: 'false'
-  - id: settings_scroll_dragging
-    type: bool
-    restore_value: no
-    initial_value: 'false'
-  - id: settings_scroll_start_x
-    type: int
-    restore_value: no
-    initial_value: '0'
-  - id: settings_scroll_start_y
-    type: int
-    restore_value: no
-    initial_value: '0'
-  - id: settings_scroll_last_x
-    type: int
-    restore_value: no
-    initial_value: '0'
-  - id: settings_scroll_last_y
-    type: int
-    restore_value: no
-    initial_value: '0'
-  - id: settings_scroll_start_scroll_y
-    type: int
-    restore_value: no
-    initial_value: '0'
-  - id: settings_scroll_last_render_ms
-    type: uint32_t
-    restore_value: no
-    initial_value: '0'
-  - id: settings_scroll_last_sample_y
-    type: int
-    restore_value: no
-    initial_value: '0'
-  - id: settings_scroll_last_sample_ms
-    type: uint32_t
-    restore_value: no
-    initial_value: '0'
-  - id: settings_scroll_velocity_px_s
-    type: int
-    restore_value: no
-    initial_value: '0'
 interval:
   - interval: 25ms
     then:
@@ -175,84 +131,6 @@ script:
               static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
           lv_obj_invalidate(id(ui_manual_pressed_obj));
           id(ui_manual_pressed_obj) = nullptr;
-
-  - id: ui_disable_settings_rows_for_drag
-    mode: restart
-    then:
-      - lambda: |-
-          auto clear_state_tree = [](lv_obj_t *obj) {
-            if (obj == nullptr) return;
-            lv_obj_clear_state(obj, static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
-            const uint32_t child_count = lv_obj_get_child_count(obj);
-            for (uint32_t i = 0; i < child_count; i++) {
-              lv_obj_t *child = lv_obj_get_child(obj, i);
-              if (child != nullptr) {
-                lv_obj_clear_state(child, static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
-              }
-            }
-          };
-          lv_obj_t *rows[] = {
-            id(settings_true_colour_button),
-            id(settings_screen_tone_button),
-            id(settings_perf_overlay_button),
-            id(settings_system_logs_button),
-            id(settings_perf_logs_button),
-            id(settings_swipe_logs_button),
-            id(settings_beta_firmware_button),
-            id(settings_display_brightness_button),
-            id(settings_display_timeout_button),
-            id(settings_voice_mute_button),
-            id(settings_wake_sound_button),
-            id(settings_wake_sensitivity_button),
-          };
-          for (auto *row : rows) {
-            if (row == nullptr) continue;
-            lv_obj_remove_flag(row, LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_remove_flag(row, LV_OBJ_FLAG_CLICK_FOCUSABLE);
-            clear_state_tree(row);
-          }
-
-  - id: ui_restore_settings_rows_after_drag
-    mode: restart
-    then:
-      - delay: 20ms
-      - lambda: |-
-          auto clear_state_tree = [](lv_obj_t *obj) {
-            if (obj == nullptr) return;
-            lv_obj_clear_state(obj, static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
-            const uint32_t child_count = lv_obj_get_child_count(obj);
-            for (uint32_t i = 0; i < child_count; i++) {
-              lv_obj_t *child = lv_obj_get_child(obj, i);
-              if (child != nullptr) {
-                lv_obj_clear_state(child, static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
-              }
-            }
-          };
-          lv_obj_t *rows[] = {
-            id(settings_true_colour_button),
-            id(settings_screen_tone_button),
-            id(settings_perf_overlay_button),
-            id(settings_system_logs_button),
-            id(settings_perf_logs_button),
-            id(settings_swipe_logs_button),
-            id(settings_beta_firmware_button),
-            id(settings_display_brightness_button),
-            id(settings_display_timeout_button),
-            id(settings_voice_mute_button),
-            id(settings_wake_sound_button),
-            id(settings_wake_sensitivity_button),
-          };
-          for (auto *row : rows) {
-            if (row == nullptr) continue;
-            lv_obj_remove_flag(row, LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_remove_flag(row, LV_OBJ_FLAG_CLICK_FOCUSABLE);
-            clear_state_tree(row);
-          }
-          lv_indev_reset(nullptr, nullptr);
-          for (auto *row : rows) {
-            if (row == nullptr) continue;
-            clear_state_tree(row);
-          }
 
   - id: ui_prepare_settings_rows_for_touch
     mode: restart
@@ -626,18 +504,26 @@ script:
     mode: restart
     then:
       - delay: 180ms
-      - lambda: |-
-          if (id(ui_active_app) != 2) return;
-          if (id(ui_snapshot_io_busy) || id(ui_touch_active) ||
-              id(ui_manual_pressed_obj) != nullptr || id(settings_scroll_tracking) ||
-              id(settings_scroll_dragging) || lvgl_esphome_snapshot_is_active()) {
-            id(ui_refresh_settings_snapshot).execute();
-            return;
-          }
-          id(ui_snapshot_io_busy) = true;
-          const bool refreshed = lvgl_esphome_snapshot_scroll_refresh(id(settings_root), 800, 800);
-          id(ui_snapshot_io_busy) = false;
-          if (!refreshed) id(ui_refresh_settings_snapshot).execute();
+      - if:
+          condition:
+            lambda: 'return id(ui_active_app) == 2;'
+          then:
+            - if:
+                condition:
+                  lambda: |-
+                    return id(ui_snapshot_io_busy) || id(ui_touch_active) ||
+                           id(ui_manual_pressed_obj) != nullptr ||
+                           lvgl_esphome_snapshot_is_active();
+                then:
+                  - script.execute: ui_refresh_settings_snapshot
+                else:
+                  - globals.set:
+                      id: ui_snapshot_io_busy
+                      value: 'true'
+                  - lvgl.snapshot_scroll.refresh: settings_scroll_snapshot
+                  - globals.set:
+                      id: ui_snapshot_io_busy
+                      value: 'false'
 
   - id: ui_finish_boot_tile_snapshot_cache
     mode: single
@@ -780,60 +666,6 @@ script:
                 value: 'false'
             - script.execute: media_update_main_control
             - script.execute: media_resume_artwork_after_player_open
-
-  - id: ui_open_settings_app
-    mode: single
-    then:
-      - if:
-          condition:
-            lambda: |-
-              return id(ui_active_app) == 0 &&
-                     !id(ui_snapshot_io_busy) &&
-                     (int32_t) (millis() - id(ui_touch_click_block_until_ms)) >= 0;
-          then:
-            - script.stop: ui_refresh_tile_snapshots
-            - script.execute: ui_quiesce_player_direct_regions
-            - script.wait: ui_quiesce_player_direct_regions
-            - globals.set:
-                id: ui_snapshot_io_busy
-                value: 'true'
-            - lambda: |-
-                if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
-                id(ui_touch_click_block_until_ms) = millis() + 800;
-            - lambda: |-
-                lv_obj_t *home = id(controls_root_1);
-                if (id(ui_home_page) == 2) home = id(controls_root_2);
-                else if (id(ui_home_page) == 3) home = id(controls_root_3);
-                else if (id(ui_home_page) == 4) home = id(controls_root_4);
-                lvgl_esphome_snapshot_app_open(id(settings_root), home, 800, 500);
-            - wait_until:
-                condition:
-                  lambda: 'return !lvgl_esphome_snapshot_is_active();'
-                timeout: 750ms
-            - script.execute: ui_prepare_settings_page
-            - lvgl.page.show:
-                id: settings_page
-                animation: NONE
-                time: 50ms
-            - lambda: |-
-                id(ui_active_app) = 2;
-                lv_obj_clear_flag(id(app_close_gesture_zone), LV_OBJ_FLAG_HIDDEN);
-                lv_obj_move_foreground(id(app_close_gesture_zone));
-                // The opening frame is now owned by the live Settings page.
-                // Reclaim its 800x800 work surface before allocating the taller
-                // scroll snapshot so both allocations never coexist in PSRAM.
-                lvgl_esphome_snapshot_app_release_open_hold();
-                lvgl_esphome_snapshot_app_release_work_buffer();
-            - lambda: |-
-                const bool prepared = lvgl_esphome_snapshot_scroll_prepare(id(settings_root), 800, 800);
-                ESP_LOGW("settings.snapshot", "initial bitmap prepare=%s psram_free=%uK largest=%uK",
-                         prepared ? "ok" : "failed",
-                         (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
-                         (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
-            - globals.set:
-                id: ui_snapshot_io_busy
-                value: 'false'
-            - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
 
   - id: ui_open_voice_app
     mode: single
@@ -1205,13 +1037,6 @@ script:
             id(immich_apply_photo).execute();
           }
 
-  - id: ui_show_settings
-    then:
-      - script.execute: ui_prepare_settings_page
-      - lvgl.page.show:
-          id: settings_page
-          animation: MOVE_BOTTOM
-          time: 220ms
   - id: ui_apply_diagnostics_logging_state
     then:
       - lambda: |-

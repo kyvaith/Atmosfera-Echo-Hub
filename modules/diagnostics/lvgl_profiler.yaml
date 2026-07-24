@@ -23,7 +23,7 @@ script:
                    "true", "true", "1.5Gbps", "48MHz");
           ESP_LOGI("lvgl.prof", "Manual profiler active for a short controlled settings scroll.");
           lvgl_esphome_set_perf_logging_enabled(true);
-      - script.execute: ui_show_settings
+      - lvgl.navigation.open: settings_application
       - delay: 1200ms
       - lambda: |-
           lvgl_esphome_set_profiler_enabled(true);

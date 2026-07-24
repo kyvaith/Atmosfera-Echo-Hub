@@ -376,7 +376,7 @@ api:
             ESP_LOGW("player.diag", "toggle: command returned");
     - action: debug_open_settings
       then:
-        - script.execute: ui_open_settings_app
+        - lvgl.navigation.open: settings_application
     - action: debug_benchmark_settings_scroll
       then:
         - lambda: |-
@@ -417,7 +417,13 @@ api:
         - script.execute: open_speaker_group_panel
     - action: debug_close_app
       then:
-        - script.execute: ui_close_app
+        - if:
+            condition:
+              lvgl.navigation.is_open: settings_application
+            then:
+              - lvgl.navigation.close: ui_navigation
+            else:
+              - script.execute: ui_close_app
     - action: debug_open_immich
       then:
         - script.execute: ui_open_immich_app

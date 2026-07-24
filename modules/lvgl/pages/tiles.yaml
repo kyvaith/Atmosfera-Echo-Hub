@@ -1207,7 +1207,7 @@ lvgl:
                         text_font: roboto_14
                   on_click:
                     then:
-                      - script.execute: ui_open_settings_app
+                      - lvgl.navigation.open: settings_application
               - button:
                   id: tile_voice_button
                   x: 112

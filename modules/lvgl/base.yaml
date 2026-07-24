@@ -61,6 +61,8 @@ lvgl:
       - voice_assistant_overlay
       - global_volume_overlay
       - ui_touch_blocker
+    close_edge_size: 50
+    close_commit_threshold: 10
     swipe_start_distance: 10
     axis_bias: 8
     home_commit_threshold: 25%
@@ -71,6 +73,47 @@ lvgl:
       - globals.set:
           id: ui_home_page
           value: !lambda 'return page;'
+    applications:
+      - id: settings_application
+        page: settings_page
+        close_gesture: true
+        close_on_threshold: true
+        on_prepare_open:
+          - script.stop: ui_refresh_tile_snapshots
+          - script.execute: ui_quiesce_player_direct_regions
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'true'
+          - lambda: |-
+              if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
+              id(ui_touch_click_block_until_ms) = millis() + 800;
+        on_opened:
+          - script.execute: ui_prepare_settings_page
+          - globals.set:
+              id: ui_active_app
+              value: '2'
+          - lvgl.widget.show: app_close_gesture_zone
+          - lambda: 'lv_obj_move_foreground(id(app_close_gesture_zone));'
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'false'
+          - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
+        on_prepare_close:
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'true'
+          - script.execute: ui_quiesce_player_direct_regions
+        on_closed:
+          - globals.set:
+              id: ui_active_app
+              value: '0'
+          - script.execute: voice_assistant_update_overlay
+          - lvgl.widget.hide: app_close_gesture_zone
+          - lvgl.widget.hide: ui_touch_blocker
+          - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'false'
   snapshot_compositor:
     id: ui_snapshot_store
     backend: direct
@@ -79,6 +122,25 @@ lvgl:
     max_entries: 1
     decoded_slots: 1
     settle_duration: 380ms
+    application_transitions:
+      open_duration: 500ms
+      close_duration: 500ms
+      start_size: 1%
+      close_target_x: 50%
+      close_target_y: 75%
+    scroll_regions:
+      - id: settings_scroll_snapshot
+        application: settings_application
+        widget: settings_root
+        backend: direct
+        preload: true
+        max_content_size: 8MB
+        overscroll: 15%
+        momentum_duration: 560ms
+        bounce_duration: 320ms
+        max_inertia_duration: 900ms
+        swipe_start_distance: 2
+        axis_bias: 6
   default_font: roboto_14
   text_font: roboto_24
   top_layer:
