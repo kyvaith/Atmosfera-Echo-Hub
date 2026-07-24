@@ -39,6 +39,46 @@ lvgl:
   use_ppa_blend: true
   use_ppa_img: true
   profiler: false
+  # Route Home gestures through the LVGL input driver. The direct compositor
+  # keeps the current JPEG-backed previous/current/next window, while LVGL
+  # owns tap cancellation and pressed-state dispatch.
+  navigation:
+    id: ui_navigation
+    home:
+      page: controls_page
+      widgets:
+        - controls_root_1
+        - controls_root_2
+        - controls_root_3
+        - controls_root_4
+      indicators:
+        - page_indicator_1
+        - page_indicator_2
+        - page_indicator_3
+        - page_indicator_4
+    blockers:
+      - boot_overlay
+      - voice_assistant_overlay
+      - global_volume_overlay
+      - ui_touch_blocker
+    swipe_start_distance: 10
+    axis_bias: 8
+    home_commit_threshold: 25%
+    on_home_changed:
+      - globals.set:
+          id: ui_page
+          value: !lambda 'return page;'
+      - globals.set:
+          id: ui_home_page
+          value: !lambda 'return page;'
+  snapshot_compositor:
+    id: ui_snapshot_store
+    backend: direct
+    preload: false
+    compression: none
+    max_entries: 1
+    decoded_slots: 1
+    settle_duration: 380ms
   default_font: roboto_14
   text_font: roboto_24
   top_layer:

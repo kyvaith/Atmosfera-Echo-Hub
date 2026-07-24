@@ -157,13 +157,11 @@ esphome:
     # label/style updates during the splash-to-home hand-off can starve DSI.
     - script.execute: ui_apply_settings_state
     - script.wait: ui_apply_settings_state
-    # Install pressed-state styles and disable native tile click handling while
-    # the panel is dark. These one-time tree walks used to run during the
-    # visible splash-to-home hand-off and could block the DSI feed for >1 s.
+    # Install pressed-state styles while the panel is dark. Native Home tap
+    # dispatch now stays in LVGL; its navigation router cancels taps when a
+    # horizontal gesture captures the input.
     - script.execute: ui_prepare_immediate_pressed_feedback
     - script.wait: ui_prepare_immediate_pressed_feedback
-    - script.execute: ui_prepare_home_tiles_for_touch
-    - script.wait: ui_prepare_home_tiles_for_touch
     - script.execute: ui_build_tile_snapshots_now
     - script.wait: ui_build_tile_snapshots_now
     # Preserve large contiguous blocks for the raw home-page cache first. The

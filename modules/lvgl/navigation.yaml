@@ -75,50 +75,6 @@ globals:
     type: int
     restore_value: no
     initial_value: '0'
-  - id: tile_swipe_tracking
-    type: bool
-    restore_value: no
-    initial_value: 'false'
-  - id: tile_swipe_dragging
-    type: bool
-    restore_value: no
-    initial_value: 'false'
-  - id: tile_swipe_page
-    type: int
-    restore_value: no
-    initial_value: '0'
-  - id: tile_swipe_next_page
-    type: int
-    restore_value: no
-    initial_value: '0'
-  - id: tile_swipe_next_x
-    type: int
-    restore_value: no
-    initial_value: '0'
-  - id: tile_swipe_commit_latched
-    type: bool
-    restore_value: no
-    initial_value: 'false'
-  - id: tile_swipe_start_x
-    type: int
-    restore_value: no
-    initial_value: '0'
-  - id: tile_swipe_start_y
-    type: int
-    restore_value: no
-    initial_value: '0'
-  - id: tile_swipe_last_x
-    type: int
-    restore_value: no
-    initial_value: '0'
-  - id: tile_swipe_last_y
-    type: int
-    restore_value: no
-    initial_value: '0'
-  - id: tile_swipe_last_render_ms
-    type: uint32_t
-    restore_value: no
-    initial_value: '0'
   - id: settings_scroll_tracking
     type: bool
     restore_value: no
@@ -360,61 +316,6 @@ script:
             }
           }
 
-  - id: ui_disable_home_tiles_for_drag
-    mode: restart
-    then:
-      - lambda: |-
-          // Tile buttons are made permanently non-clickable once at boot and
-          // taps are dispatched manually on release. Only the native slider
-          // needs changing in the latency-sensitive drag path.
-          lv_obj_remove_flag(id(light_brightness_slider), LV_OBJ_FLAG_CLICKABLE);
-          lv_obj_clear_state(id(light_brightness_slider),
-                             static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
-
-  # Home tile taps are dispatched manually on touch release, just like the
-  # settings rows. Keep LVGL from entering PRESSED while a horizontal gesture
-  # is still undecided; the brightness slider remains native and interactive.
-  - id: ui_prepare_home_tiles_for_touch
-    mode: restart
-    then:
-      - lambda: |-
-          auto clear_state_tree = [](lv_obj_t *obj) {
-            if (obj == nullptr) return;
-            lv_obj_clear_state(obj, static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
-            const uint32_t child_count = lv_obj_get_child_count(obj);
-            for (uint32_t i = 0; i < child_count; i++) {
-              lv_obj_t *child = lv_obj_get_child(obj, i);
-              if (child != nullptr) {
-                lv_obj_clear_state(child, static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
-              }
-            }
-          };
-          lv_obj_t *buttons[] = {
-            id(tile_light_button), id(tile_switch_button), id(tile_scene_button),
-            id(tile_trigger_button), id(tile_climate_button), id(tile_cover_button),
-            id(tile_garage_button), id(tile_lock_button), id(tile_alarm_button),
-            id(tile_door_window_button), id(tile_presence_button), id(tile_sensor_button),
-            id(tile_weather_button), id(tile_clock_button), id(tile_world_clock_button),
-            id(tile_media_button), id(tile_subpage_button), id(tile_fan_button),
-            id(tile_fan_speed_button), id(tile_webhook_button), id(tile_internal_button),
-            id(tile_settings_button), id(tile_voice_button),
-          };
-          for (auto *button : buttons) {
-            if (button == nullptr) continue;
-            lv_obj_remove_flag(button, LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_remove_flag(button, LV_OBJ_FLAG_CLICK_FOCUSABLE);
-            clear_state_tree(button);
-          }
-
-  - id: ui_restore_home_tiles_after_drag
-    mode: restart
-    then:
-      - delay: 450ms
-      - lambda: |-
-          lv_obj_clear_state(id(light_brightness_slider),
-                             static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
-          lv_obj_add_flag(id(light_brightness_slider), LV_OBJ_FLAG_CLICKABLE);
-
   - id: ui_update_page_indicator
     then:
       - lambda: |-
@@ -426,15 +327,14 @@ script:
           };
           int page = id(ui_page);
           if (page < 1 || page > 4) page = 1;
-          int x = 352;
           for (int i = 0; i < 4; i++) {
             const bool active = (i + 1) == page;
-            const int w = active ? 30 : 10;
-            lv_obj_set_x(dots[i], x);
-            lv_obj_set_width(dots[i], w);
-            lv_obj_set_style_bg_color(dots[i], lv_color_hex(active ? 0xF2F2F2 : 0x5C5F5E), 0);
-            x += w + 12;
+            if (active)
+              lv_obj_add_state(dots[i], LV_STATE_CHECKED);
+            else
+              lv_obj_remove_state(dots[i], LV_STATE_CHECKED);
           }
+          lv_obj_update_layout(id(page_indicator_row));
           lvgl_esphome_snapshot_swipe_set_page_indicator(page, 4);
 
   - id: ui_apply_tile_positions
@@ -582,16 +482,15 @@ script:
               lv_obj_clear_flag(roots[i], LV_OBJ_FLAG_HIDDEN);
               lv_obj_align(roots[i], LV_ALIGN_CENTER, (i + 1 - page) * 800, 0);
             }
-            int x = 352;
             for (int i = 0; i < 4; i++) {
               if (dots[i] == nullptr) continue;
               const bool active = (i + 1) == page;
-              const int w = active ? 30 : 10;
-              lv_obj_set_x(dots[i], x);
-              lv_obj_set_width(dots[i], w);
-              lv_obj_set_style_bg_color(dots[i], lv_color_hex(active ? 0xF2F2F2 : 0x5C5F5E), 0);
-              x += w + 12;
+              if (active)
+                lv_obj_add_state(dots[i], LV_STATE_CHECKED);
+              else
+                lv_obj_remove_state(dots[i], LV_STATE_CHECKED);
             }
+            lv_obj_update_layout(id(page_indicator_row));
             lvgl_esphome_snapshot_swipe_set_page_indicator(page, 4);
             lv_obj_update_layout(lv_obj_get_parent(id(controls_root_1)));
           };
@@ -705,7 +604,6 @@ script:
       - lambda: |-
           if (id(ui_active_app) != 0 || id(ui_snapshot_io_busy) ||
               id(ui_touch_active) || id(ui_manual_pressed_obj) != nullptr ||
-              id(tile_swipe_tracking) || id(tile_swipe_dragging) ||
               lvgl_esphome_snapshot_is_active()) {
             id(ui_refresh_current_tile_snapshot).execute();
             return;
