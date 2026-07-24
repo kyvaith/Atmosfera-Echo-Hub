@@ -78,7 +78,7 @@ tracks which components must be reconciled or replaced before release.
 
 ## External component inventory
 
-The product currently imports 19 components from one consolidated ESPHome
+The product currently imports 14 components from one consolidated ESPHome
 integration tree:
 
 | Component | Target |
@@ -89,26 +89,22 @@ integration tree:
 | `esp_afe` | Keep as the Espressif implementation of `audio_processor` |
 | `esp_audio_stack` | Rename and refactor into a generic duplex audio transport |
 | `esp32_jpeg` | Keep as a generic hardware JPEG codec and upstream it |
-| `generic_image` | Consolidate with `image`, `runtime_image`, and presenter APIs |
 | `image` | Reconcile with the current upstream image platform |
 | `immich_gallery` | Grow from the validated API/parser boundary into the generic Immich application controller |
-| `lvgl_image_presenter` | Merge into one generic LVGL image presentation boundary |
 | `lvgl_material` | Keep independent reusable widgets and direct state layers |
-| `lvgl_region_presenter` | Merge into the generic LVGL presentation boundary |
 | `lvgl` | Rebase accelerators; extract navigation and snapshots |
 | `micro_wake_word` | Keep only the configurable buffering changes missing upstream |
 | `mipi_dsi` | Rebase local DSI changes and upstream them in scoped PRs |
-| `online_image` | Reconcile hardware decode hooks with upstream |
-| `runtime_image` | Consolidate runtime image ownership with generic image APIs |
 | `sendspin` | Keep only fixes missing from current upstream |
 | `va_client` | Keep as a transport using standard microphone and speaker APIs |
 
-The immediate consolidation candidates are the six image/presenter components:
-`artwork_image`, `generic_image`, `image`, `lvgl_image_presenter`,
-`lvgl_region_presenter`, and `runtime_image`. They currently divide ownership,
-decode, and presentation responsibilities too finely and make memory lifetime
-harder to reason about. Consolidation must preserve the proven direct hardware
-JPEG path and artwork replacement behavior before any source is removed.
+The unused `generic_image`, `online_image`, `runtime_image`,
+`lvgl_image_presenter`, and `lvgl_region_presenter` implementations remain in
+the integration tree for their own feature branches, but the product no longer
+imports them. The active image path is now explicit: `artwork_image` owns
+network image lifetime, `esp32_jpeg` owns hardware decoding, and `image`
+provides stable pixel-buffer leases. Further consolidation must preserve the
+proven direct hardware JPEG path and artwork replacement behavior.
 
 The project does not use `intercom_api`. The former repository name was
 historical; only its generic audio processing and full-duplex transport layers
