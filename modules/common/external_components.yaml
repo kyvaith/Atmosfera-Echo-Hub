@@ -15,6 +15,7 @@ external_components:
       - esp32_jpeg
       - generic_image
       - image
+      - immich_gallery
       - lvgl_image_presenter
       - lvgl_material
       - lvgl_region_presenter

@@ -1,7 +1,6 @@
 # Immich photo browser runtime.
-esphome:
-  includes:
-    - static/ui_immich_helpers.h
+immich_gallery:
+  id: immich_gallery_client
 
 globals:
   - id: immich_current_asset_id
@@ -287,7 +286,7 @@ script:
           id(immich_displayed_url) = id(immich_current_url);
           if (!id(immich_pending_asset_id).empty()) {
             id(immich_current_asset_id) = id(immich_pending_asset_id);
-            id(immich_recent_asset_ids) = atmosfera_ui::immich_push_recent_asset(
+            id(immich_recent_asset_ids) = id(immich_gallery_client).push_recent_asset(
                 id(immich_recent_asset_ids), id(immich_pending_asset_id));
             id(immich_pending_asset_id) = "";
           }
@@ -438,7 +437,7 @@ script:
           condition:
             lambda: |-
               return id(immich_current_url).empty() &&
-                     atmosfera_ui::immich_valid_base_url(id(immich_url).state) &&
+                     id(immich_gallery_client).valid_base_url(id(immich_url).state) &&
                      !id(immich_api_key_text).state.empty();
           then:
             - script.execute: immich_fetch_next_photo
@@ -520,17 +519,18 @@ script:
                   (int32_t) (millis() - id(immich_retry_after_ms)) < 0) return false;
               if (esphome::wifi::global_wifi_component == nullptr ||
                   !esphome::wifi::global_wifi_component->is_connected()) return false;
-              if (!atmosfera_ui::immich_valid_base_url(id(immich_url).state) || id(immich_api_key_text).state.empty()) {
+              if (!id(immich_gallery_client).valid_base_url(id(immich_url).state) ||
+                  id(immich_api_key_text).state.empty()) {
                 lv_label_set_text(id(immich_status_label), "Configure Immich URL and API key");
                 lv_obj_add_flag(id(immich_loading_spinner), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_clear_flag(id(immich_empty_icon), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
                 return false;
               }
-              if (!atmosfera_ui::immich_source_ready(id(immich_photo_source).current_option(),
-                                                     id(immich_album_ids).state,
-                                                     id(immich_person_ids).state,
-                                                     id(immich_tag_ids).state)) {
+              if (!id(immich_gallery_client).source_ready(id(immich_photo_source).current_option(),
+                                                          id(immich_album_ids).state,
+                                                          id(immich_person_ids).state,
+                                                          id(immich_tag_ids).state)) {
                 lv_label_set_text(id(immich_status_label), "Select IDs for this photo source");
                 lv_obj_add_flag(id(immich_loading_spinner), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_clear_flag(id(immich_empty_icon), LV_OBJ_FLAG_HIDDEN);
@@ -565,7 +565,7 @@ script:
     then:
       - http_request.post:
           id: http_req
-          url: !lambda 'return atmosfera_ui::immich_trim_url(id(immich_url).state) + "/api/search/random";'
+          url: !lambda 'return id(immich_gallery_client).trim_url(id(immich_url).state) + "/api/search/random";'
           capture_response: true
           max_response_buffer_size: 32kB
           request_headers:
@@ -578,7 +578,7 @@ script:
             // prevents immediate repeats without keeping a full album index in
             // device memory.
             const int size = 16;
-            return atmosfera_ui::immich_search_body(
+            return id(immich_gallery_client).search_body(
               size,
               id(immich_photo_source).current_option(),
               id(immich_album_ids).state,
@@ -604,10 +604,11 @@ script:
                     ESP_LOGW("immich", "%s", msg.c_str());
                     return;
                   }
-                  atmosfera_ui::ImmichPhoto photo;
-                  if (!atmosfera_ui::immich_parse_asset_response(body, atmosfera_ui::immich_trim_url(id(immich_url).state),
-                                                                 id(immich_orientation_filter).current_option(), &photo,
-                                                                 id(immich_recent_asset_ids))) {
+                  esphome::immich_gallery::ImmichPhoto photo;
+                  if (!id(immich_gallery_client).parse_asset_response(
+                          body, id(immich_gallery_client).trim_url(id(immich_url).state),
+                          id(immich_orientation_filter).current_option(), &photo,
+                          id(immich_recent_asset_ids))) {
                     id(immich_fetch_in_flight) = false;
                     if (id(ui_active_app) == 4)
                       id(immich_ken_burns).resume_direct();
@@ -660,7 +661,8 @@ script:
             } else {
               snprintf(day, sizeof(day), "2026-01-01T00:00:00.000Z");
             }
-            return atmosfera_ui::immich_trim_url(id(immich_url).state) + "/api/memories?type=on_this_day&for=" + day;
+            return id(immich_gallery_client).trim_url(id(immich_url).state) +
+                   "/api/memories?type=on_this_day&for=" + day;
           capture_response: true
           max_response_buffer_size: 96kB
           request_headers:
@@ -681,8 +683,9 @@ script:
                     lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
                     return;
                   }
-                  atmosfera_ui::ImmichPhoto photo;
-                  if (!atmosfera_ui::immich_parse_memory_response(body, atmosfera_ui::immich_trim_url(id(immich_url).state), &photo)) {
+                  esphome::immich_gallery::ImmichPhoto photo;
+                  if (!id(immich_gallery_client).parse_memory_response(
+                          body, id(immich_gallery_client).trim_url(id(immich_url).state), &photo)) {
                     id(immich_fetch_in_flight) = false;
                     if (id(ui_active_app) == 4)
                       id(immich_ken_burns).resume_direct();
@@ -765,7 +768,7 @@ interval:
                 id(immich_displayed_url) = id(immich_current_url);
                 if (!id(immich_pending_asset_id).empty()) {
                   id(immich_current_asset_id) = id(immich_pending_asset_id);
-                  id(immich_recent_asset_ids) = atmosfera_ui::immich_push_recent_asset(
+                  id(immich_recent_asset_ids) = id(immich_gallery_client).push_recent_asset(
                       id(immich_recent_asset_ids), id(immich_pending_asset_id));
                   id(immich_pending_asset_id) = "";
                 }

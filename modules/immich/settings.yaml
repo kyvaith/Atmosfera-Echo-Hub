@@ -14,8 +14,8 @@ text:
     icon: "mdi:web"
     set_action:
       - lambda: |-
-          std::string url = atmosfera_ui::immich_trim_url(x);
-          if (!url.empty() && !atmosfera_ui::immich_valid_base_url(url)) {
+          std::string url = id(immich_gallery_client).trim_url(x);
+          if (!url.empty() && !id(immich_gallery_client).valid_base_url(url)) {
             ESP_LOGW("immich", "Immich URL must start with http:// or https://");
             return;
           }

@@ -28,13 +28,22 @@ without relying on PlatformIO to pass compile definitions or flash settings.
 
 | Metric | Result |
 | --- | --- |
-| Firmware image | 6,256,408 bytes |
-| Smallest app partition free | 10,258,224 bytes (62%) |
-| Internal DIRAM | 216,210 / 576,464 bytes (37.5%) |
+| Firmware image | 6,269,986 bytes |
+| Smallest app partition free | 10,244,656 bytes (62%) |
+| Internal DIRAM | 216,258 / 576,464 bytes (37.5%) |
 | Display buffers | Three display-owned full-screen buffers |
 
 The validated checkpoint also replaces direct calls to LEDC implementation
 internals with the declarative `output.ledc.set_next_fade_duration` action.
+It adds an optional `lvgl_material.direct_state_layers` component for
+allocation-free direct touch feedback and compile-time guards that keep the
+extended LVGL runtime buildable when image, snapshot, PPA, or MIPI DSI support
+is disabled. The Atmosfera previous/next transport feedback now uses that
+component instead of a project-local C++ include.
+Immich URL handling, query generation, response parsing, orientation filtering,
+and recent-asset selection now live in a reusable, platform-neutral
+`immich_gallery` component with an isolated ESP-IDF build test. The product no
+longer injects `static/ui_immich_helpers.h` into generated application code.
 The known-good device branch remains untouched.
 
 Two PlatformIO-only framework patch scripts are still present as explicitly
@@ -44,6 +53,14 @@ project is considered portable:
 
 - FreeRTOS static-allocation framework patch;
 - ESP-Hosted SDIO streaming framework patch.
+
+The current ESP-IDF 5.5.5 framework cache and managed ESP-Hosted source do not
+contain either patch when the native toolchain is used. Consequently, deleting
+the scripts is not a cleanup-only change: their runtime effects first need to
+be implemented in a versioned component or proven unnecessary on hardware.
+The absolute paths in `platformio_options.extra_scripts` are also non-portable
+and must disappear with this migration, rather than being normalized and kept
+as a permanent build path.
 
 ## Non-negotiable rules
 
@@ -70,25 +87,37 @@ tracks which components must be reconciled or replaced before release.
 
 ## External component inventory
 
-| Component | Current source | Target |
-| --- | --- | --- |
-| `const` | Consolidated ESPHome integration | Remove from the explicit external list |
-| `mipi` | Consolidated ESPHome integration | Use upstream |
-| `mipi_dsi` | Consolidated ESPHome integration | Rebase local DSI changes and upstream them in scoped PRs |
-| `lvgl` | Consolidated ESPHome integration | Rebase accelerators; extract navigation and snapshots |
-| `image` | Consolidated ESPHome integration | Reconcile with the current upstream image platform |
-| `audio_file` | Consolidated ESPHome integration | Use upstream |
-| `ledc` | Consolidated ESPHome integration | Upstream the hardware-fade action |
-| `es7210` | Consolidated ESPHome integration | Use upstream |
-| `esp32_jpeg` | Consolidated ESPHome integration | Keep as a generic hardware codec and upstream it |
-| `artwork_image` | Consolidated ESPHome integration | Replace with generic online/runtime image hardware decode support |
-| `sendspin` | Consolidated ESPHome integration | Keep only fixes missing from current upstream |
-| `speaker_source` | Consolidated ESPHome integration | Keep only fixes missing from current upstream |
-| `va_client` | Consolidated ESPHome integration | Keep as a transport using standard microphone and speaker APIs |
-| `resampler` | Consolidated ESPHome integration | Keep only missing microphone/full-duplex support |
-| `audio_processor` | Consolidated ESPHome integration | Keep as a generic processor interface |
-| `esp_afe` | Consolidated ESPHome integration | Keep as an ESP audio processor implementation |
-| `esp_audio_stack` | Consolidated ESPHome integration | Rename and refactor into a generic duplex audio transport |
+The product currently imports 19 components from one consolidated ESPHome
+integration tree:
+
+| Component | Target |
+| --- | --- |
+| `audio_processor` | Keep as a generic processor interface |
+| `artwork_image` | Fold transport-specific policy into the media integration and reuse generic image decode/presentation APIs |
+| `display` | Rebase the required display API additions onto upstream |
+| `esp_afe` | Keep as the Espressif implementation of `audio_processor` |
+| `esp_audio_stack` | Rename and refactor into a generic duplex audio transport |
+| `esp32_jpeg` | Keep as a generic hardware JPEG codec and upstream it |
+| `generic_image` | Consolidate with `image`, `runtime_image`, and presenter APIs |
+| `image` | Reconcile with the current upstream image platform |
+| `immich_gallery` | Grow from the validated API/parser boundary into the generic Immich application controller |
+| `lvgl_image_presenter` | Merge into one generic LVGL image presentation boundary |
+| `lvgl_material` | Keep independent reusable widgets and direct state layers |
+| `lvgl_region_presenter` | Merge into the generic LVGL presentation boundary |
+| `lvgl` | Rebase accelerators; extract navigation and snapshots |
+| `micro_wake_word` | Keep only the configurable buffering changes missing upstream |
+| `mipi_dsi` | Rebase local DSI changes and upstream them in scoped PRs |
+| `online_image` | Reconcile hardware decode hooks with upstream |
+| `runtime_image` | Consolidate runtime image ownership with generic image APIs |
+| `sendspin` | Keep only fixes missing from current upstream |
+| `va_client` | Keep as a transport using standard microphone and speaker APIs |
+
+The immediate consolidation candidates are the six image/presenter components:
+`artwork_image`, `generic_image`, `image`, `lvgl_image_presenter`,
+`lvgl_region_presenter`, and `runtime_image`. They currently divide ownership,
+decode, and presentation responsibilities too finely and make memory lifetime
+harder to reason about. Consolidation must preserve the proven direct hardware
+JPEG path and artwork replacement behavior before any source is removed.
 
 The project does not use `intercom_api`. The former repository name was
 historical; only its generic audio processing and full-duplex transport layers
