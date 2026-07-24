@@ -1,7 +1,8 @@
 # Album artwork download and decoding.
 # artwork_image keeps artwork handling off the main YAML and applies the LVGL byte order consistently.
 image:
-  - file: "assets/images/figma/media_artwork_figma_composed_800.jpg"
+  - platform: file
+    file: "assets/images/figma/media_artwork_figma_composed_800.jpg"
     id: album_art_placeholder
     type: RGB565
 http_request:

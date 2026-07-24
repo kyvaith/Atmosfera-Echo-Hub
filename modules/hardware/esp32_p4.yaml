@@ -3,6 +3,7 @@
 esp32:
   board: esp32-p4-evboard
   flash_size: 32MB
+  flash_mode: qio
   cpu_frequency: 360MHz
   engineering_sample: true
   framework:
@@ -47,9 +48,9 @@ esp32:
       # Use ESP-IDF's native ESP32-P4 chunk size. The previous 8 KiB override
       # turned one fullscreen RGB888 writeback into roughly 235 critical
       # sections and measurably slowed every LVGL/direct-compositor frame.
-      CONFIG_ESP_MM_CACHE_MSYNC_C2M_CHUNKED_OPS_MAX_LEN: "131072"
+      CONFIG_ESP_MM_CACHE_MSYNC_C2M_CHUNKED_OPS_MAX_LEN: "0x20000"
       CONFIG_LV_DEF_REFR_PERIOD: "10"
-      CONFIG_LV_USE_LOG: "0"
+      CONFIG_LV_USE_LOG: n
       # ESP32-P4 exposes Espressif's xespv extension, not standard RISC-V V.
       # LVGL's RISCV_V path falls back to software emulation here, so keep it off.
       CONFIG_LV_USE_DRAW_SW_ASM: "0"
@@ -67,7 +68,6 @@ esp32:
       # downgrade PPA/DMA2D code paths for older silicon assumptions.
       CONFIG_ESP_REV_MIN_FULL: "0"
       CONFIG_ESP32P4_REV_MIN_FULL: "0"
-      CONFIG_ESPTOOLPY_FLASHMODE_QIO: "y"
       CONFIG_PARTITION_TABLE_OFFSET: "0x9000"
 
 esp32_hosted:

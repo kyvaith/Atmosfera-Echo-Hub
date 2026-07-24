@@ -8,7 +8,7 @@ substitutions:
   friendly_name: "Atmosfera Echo Hub"
   project_namespace: kyvaith
   firmware_version: dev
-  esphome_min_version: 2026.6.0-dev
+  esphome_min_version: 2026.8.0-dev
 
   # Firmware update and dashboard import endpoints
   firmware_manifest_url: "https://kyvaith.github.io/Atmosfera-Echo-Hub/manifest.json"
@@ -44,7 +44,6 @@ packages:
   memory_diagnostics: !include modules/diagnostics/memory.yaml
   network_diagnostics: !include modules/diagnostics/network.yaml
   performance_diagnostics: !include modules/diagnostics/performance.yaml
-  lvgl_profiler_diagnostics: !include modules/diagnostics/lvgl_profiler.yaml
 
   esp32_p4_hardware: !include modules/hardware/esp32_p4.yaml
   display_hardware: !include modules/hardware/display.yaml

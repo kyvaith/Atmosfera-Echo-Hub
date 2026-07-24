@@ -1,12 +1,40 @@
 # External components used by Atmosfera Echo Hub.
-# Patched ESPHome components live in the project ESPHome fork.
-# artwork_image comes from the media player project.
+# Productized components come from one coherent ESPHome integration worktree.
+# The legacy artwork component remains isolated until its lifecycle is replaced
+# with the generic runtime/online image pipeline.
 external_components:
   - source:
       type: local
-      path: C:/Users/kyvai/kyvaith-esphome/esphome/components
-    components: [const, mipi, mipi_dsi, lvgl, image, audio_file, ledc, es7210, esp32_jpeg, artwork_image, sendspin, speaker_source, va_client, resampler]
+      path: C:/Users/kyvai/kyvaith-esphome-productization/esphome/components
+    components:
+      - audio_processor
+      - display
+      - esp_afe
+      - esp_audio_stack
+      - esp32_jpeg
+      - generic_image
+      - image
+      - lvgl_image_presenter
+      - lvgl_material
+      - lvgl_region_presenter
+      - micro_wake_word
+      - mipi_dsi
+      - online_image
+      - runtime_image
+      - sendspin
+  # Keep the proven LVGL compositor during the compatibility phase. Each
+  # private hook is replaced independently before this source is removed.
   - source:
       type: local
-      path: C:/Users/kyvai/esphome-intercom/esphome/components
-    components: [audio_processor, esp_audio_stack, esp_afe]
+      path: C:/Users/kyvai/kyvaith-esphome-lvgl-legacy-compat/esphome/components
+    components:
+      - lvgl
+  - source:
+      type: local
+      path: C:/Users/kyvai/kyvaith-esphome-artwork-bridge/esphome/components
+    components:
+      - artwork_image
+  - source:
+      type: local
+      path: C:/Users/kyvai/kyvaith-esphome/esphome/components
+    components: [va_client]

@@ -8,12 +8,11 @@ esphome:
   project:
     name: "${project_namespace}.${friendly_name}"
     version: ${firmware_version}
-  platformio_options:
-    board_build.flash_mode: qio
-    # These are project-local compile-time toggles consumed by patched
-    # ESPHome/ESP-IDF code. They are not Kconfig symbols, so sdkconfig_options
-    # would silently drop them.
-    build_flags:
+  # These are project-local compile-time toggles consumed by patched
+  # ESPHome/ESP-IDF code. They are not Kconfig symbols, so sdkconfig_options
+  # would silently drop them. The native build_flags key works with both the
+  # ESP-IDF/CMake and PlatformIO build paths.
+  build_flags:
       # JPEG is a one-shot producer competing with the continuously scanned
       # DSI framebuffer. A 64-byte burst leaves arbitration points for DSI
       # without reducing image quality or the 128-byte LVGL/PPA animation path.
@@ -124,6 +123,9 @@ esphome:
       - -DCONFIG_ESPHOME_LVGL_PPA_SRM_TRANSACTION_LEVEL=4
       - -DCONFIG_ESPHOME_LVGL_PPA_SRM_WRITE_PRIORITY=0
       - -DCONFIG_ESPHOME_LVGL_PPA_SRM_READ_PRIORITY=0
+  # Transitional only: these two framework patches still need proper component
+  # implementations. Native ESP-IDF builds intentionally ignore this block.
+  platformio_options:
     extra_scripts:
       - "pre:C:/Users/kyvai/atmosfera-echo-hub/tools/patch_espidf_freertos_static_alloc.py"
       - "post:C:/Users/kyvai/atmosfera-echo-hub/tools/patch_esp_hosted_sdio_streaming.py"
@@ -198,7 +200,9 @@ esphome:
                  (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                  (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
         lvgl_esphome_snapshot_dsi_quiet_ms(450);
-    - lambda: 'id(backlight_output).set_next_fade_duration(2400);'
+    - output.ledc.set_next_fade_duration:
+        id: backlight_output
+        duration: 2400ms
     - light.turn_on:
         id: display_backlight
         brightness: !lambda |-

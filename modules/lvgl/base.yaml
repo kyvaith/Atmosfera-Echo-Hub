@@ -1,11 +1,13 @@
 # Static portions of the ESPHome boot mark stay outside Lottie. Only the
 # animated white trace is rasterized for every frame.
 image:
-  - file: "assets/images/esphome_house.svg"
+  - platform: file
+    file: "assets/images/esphome_house.svg"
     id: boot_esphome_house_asset
     type: RGB
     transparency: alpha_channel
-  - file: "assets/images/esphome_wordmark.svg"
+  - platform: file
+    file: "assets/images/esphome_wordmark.svg"
     id: boot_esphome_wordmark_asset
     type: RGB
     transparency: alpha_channel
@@ -159,7 +161,9 @@ lvgl:
             - lambda: |-
                 ESP_LOGW("backlight.diag", "idle off uptime=%lums",
                          (unsigned long) millis());
-            - lambda: 'id(backlight_output).set_next_fade_duration(3600);'
+            - output.ledc.set_next_fade_duration:
+                id: backlight_output
+                duration: 3600ms
             - light.turn_off:
                 id: display_backlight
                 transition_length: 0ms

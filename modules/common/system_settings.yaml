@@ -27,7 +27,9 @@ script:
             lambda: 'return id(ui_active_app) == 1;'
           then:
             - script.execute: media_title_marquee_reset_and_start
-      - lambda: 'id(backlight_output).set_next_fade_duration(3600);'
+      - output.ledc.set_next_fade_duration:
+          id: backlight_output
+          duration: 3600ms
       - light.turn_on:
           id: display_backlight
           brightness: !lambda |-

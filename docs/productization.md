@@ -20,6 +20,31 @@ The ESPHome productization branch is built in a separate worktree from the
 current upstream `dev`. The working firmware checkout must not be switched to
 that branch until the complete device build and hardware regression suite pass.
 
+## Current checkpoint
+
+The first native ESP-IDF checkpoint compiles successfully against ESPHome
+`2026.8.0-dev` and ESP-IDF `5.5.5`. It produces factory, OTA, and ELF artifacts
+without relying on PlatformIO to pass compile definitions or flash settings.
+
+| Metric | Result |
+| --- | --- |
+| Firmware image | 6,246,616 bytes |
+| Smallest app partition free | 10,267,824 bytes (62%) |
+| Internal DIRAM | 216,194 / 576,464 bytes (37.5%) |
+| Display buffers | Three display-owned full-screen buffers |
+
+The validated checkpoint also replaces direct calls to LEDC implementation
+internals with the declarative `output.ledc.set_next_fade_duration` action.
+The known-good device branch remains untouched.
+
+Two PlatformIO-only framework patch scripts are still present as explicitly
+marked transitional compatibility code. Native builds ignore them. They must
+be replaced with source-level or component-owned implementations before the
+project is considered portable:
+
+- FreeRTOS static-allocation framework patch;
+- ESP-Hosted SDIO streaming framework patch.
+
 ## Non-negotiable rules
 
 - Do not combine behavioral changes with code movement.

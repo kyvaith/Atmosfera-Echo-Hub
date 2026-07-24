@@ -35,6 +35,9 @@ display:
   model: WAVESHARE-ESP32-P4-WIFI6-TOUCH-LCD-3.4C
   color_depth: 24
   pixel_mode: 24
+  # Direct animations use three display-owned framebuffers: one scanned out,
+  # one queued for the next VSYNC, and one available to the renderer.
+  frame_buffer_count: 3
   draw_rounding: 4
   # Keep the panel at the timing recommended by Waveshare's ESP-IDF examples.
   pclk_frequency: 48MHz
