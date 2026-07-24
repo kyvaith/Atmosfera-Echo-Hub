@@ -4,7 +4,14 @@ esphome:
   includes:
     - static/ui_wavy_arc.h
     - static/ui_title_marquee.h
-    - static/ui_transport_feedback.h
+
+lvgl_material:
+  direct_state_layers:
+    - id: media_transport_feedback
+      widgets:
+        - prev_button
+        - next_button
+      pressed_opacity: 12%
 
 globals:
   - id: subscription_gen
@@ -595,7 +602,7 @@ script:
     then:
       - wait_until:
           condition:
-            lambda: 'return atmosfera_ui::media_transport_feedback_end();'
+            lambda: 'return id(media_transport_feedback).release();'
           timeout: 120ms
 
   - id: media_transport_previous

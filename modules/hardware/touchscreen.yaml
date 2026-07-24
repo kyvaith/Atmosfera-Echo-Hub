@@ -148,7 +148,7 @@ touchscreen:
                 id(media_transport_touch_last_x) = touch.x;
                 id(media_transport_touch_last_y) = touch.y;
                 id(ui_touch_active) = true;
-                atmosfera_ui::media_transport_feedback_begin(transport_button);
+                id(media_transport_feedback).press(transport_button);
                 return;
               }
             }
@@ -300,7 +300,7 @@ touchscreen:
               if (!id(media_transport_touch_cancelled) && (abs(dx) > 10 || abs(dy) > 10)) {
                 id(media_transport_touch_cancelled) = true;
                 id(ui_touch_click_block_until_ms) = millis() + 300;
-                if (!atmosfera_ui::media_transport_feedback_end()) {
+                if (!id(media_transport_feedback).release()) {
                   id(media_transport_feedback_release).execute();
                 }
               }
@@ -540,7 +540,7 @@ touchscreen:
               id(media_transport_touch_tracking) = false;
               id(media_transport_touch_cancelled) = false;
               id(media_transport_touch_button) = 0;
-              if (!atmosfera_ui::media_transport_feedback_end()) {
+              if (!id(media_transport_feedback).release()) {
                 id(media_transport_feedback_release).execute();
               }
               if (activate) {
