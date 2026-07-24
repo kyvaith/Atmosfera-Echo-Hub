@@ -154,21 +154,11 @@ touchscreen:
               }
             }
 
-            // Reserve only the bottom 50 px for the system close gesture. The
-            // previous 180 px software zone swallowed the queue and speaker
-            // grouping buttons before LVGL could dispatch their click event.
-            id(app_close_tracking) = id(ui_active_app) == 4 && touch.y >= 750;
-            id(app_close_dragging) = false;
-            id(app_close_start_x) = touch.x;
-            id(app_close_start_y) = touch.y;
-            id(app_close_last_x) = touch.x;
-            id(app_close_last_y) = touch.y;
-
             // Direct PPA presentation bypasses LVGL's draw loop while a photo
             // moves. Track photo navigation at the touchscreen boundary so it
             // remains available independently of LVGL gesture dispatch.
             id(immich_swipe_tracking) = id(ui_active_app) == 4 && !id(ui_snapshot_io_busy) &&
-                                        !id(app_close_tracking);
+                                        touch.y < 750;
             id(immich_swipe_dragging) = false;
             id(immich_swipe_start_x) = touch.x;
             id(immich_swipe_start_y) = touch.y;
@@ -244,26 +234,6 @@ touchscreen:
               }
               return;
             }
-            if (id(app_close_tracking)) {
-              id(app_close_last_x) = touch.x;
-              id(app_close_last_y) = touch.y;
-              const int dx = id(app_close_last_x) - id(app_close_start_x);
-              const int dy_up = id(app_close_start_y) - id(app_close_last_y);
-              constexpr int close_start_y = 10;
-              if (abs(dx) > 6 || dy_up > 6) {
-                id(ui_touch_click_block_until_ms) = millis() + 700;
-              }
-              if (!id(app_close_dragging) && dy_up >= close_start_y && dy_up > abs(dx) + 4) {
-                id(app_close_dragging) = true;
-                id(app_close_tracking) = false;
-                id(ui_touch_block_for_drag).execute();
-                // Latch the gesture immediately. Capturing the closing frame
-                // belongs to ui_close_app in the main loop, never to this
-                // latency-sensitive touchscreen callback.
-                id(app_close_requested) = true;
-                return;
-              }
-            }
             if (id(immich_swipe_tracking)) {
               id(immich_swipe_last_x) = touch.x;
               id(immich_swipe_last_y) = touch.y;
@@ -330,18 +300,6 @@ touchscreen:
                 else if (button > 0) id(media_transport_next).execute();
               }
               return;
-            }
-            if (id(app_close_tracking)) {
-              const int dx = id(app_close_last_x) - id(app_close_start_x);
-              const int dy = id(app_close_last_y) - id(app_close_start_y);
-              const bool moved = abs(dx) > 10 || abs(dy) > 10;
-              if (moved) {
-                id(ui_touch_click_block_until_ms) = millis() + 300;
-              }
-              id(app_close_tracking) = false;
-              id(app_close_dragging) = false;
-              if (moved) id(ui_release_touch_blocker).execute();
-              lvgl_esphome_snapshot_app_clear_prepared_close();
             }
             if (id(immich_swipe_tracking)) {
               const int dx = id(immich_swipe_last_x) - id(immich_swipe_start_x);

@@ -411,19 +411,10 @@ api:
         - script.execute: open_speaker_group_panel
     - action: debug_close_app
       then:
-        - if:
-            condition:
-              or:
-                - lvgl.navigation.is_open: player_application
-                - lvgl.navigation.is_open: settings_application
-                - lvgl.navigation.is_open: voice_application
-            then:
-              - lvgl.navigation.close: ui_navigation
-            else:
-              - script.execute: ui_close_app
+        - lvgl.navigation.close: ui_navigation
     - action: debug_open_immich
       then:
-        - script.execute: ui_open_immich_app
+        - lvgl.navigation.open: immich_application
     - action: debug_next_immich_photo
       then:
         - script.execute: immich_next_photo_now

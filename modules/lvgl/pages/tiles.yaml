@@ -1166,7 +1166,7 @@ lvgl:
                         text_font: roboto_14
                   on_click:
                     then:
-                      - script.execute: ui_open_immich_app
+                      - lvgl.navigation.open: immich_application
               - button:
                   id: tile_settings_button
                   x: 112
