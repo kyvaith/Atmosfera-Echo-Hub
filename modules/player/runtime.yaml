@@ -1176,7 +1176,7 @@ text_sensor:
                 condition:
                   lambda: 'return id(boot_sequence_done) && id(ui_active_app) == 0;'
                 then:
-                  - script.execute: ui_open_player_app
+                  - lvgl.navigation.open: player_application
             - if:
                 condition:
                   lambda: 'return id(auto_show_track_info).state;'

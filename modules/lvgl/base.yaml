@@ -74,6 +74,99 @@ lvgl:
           id: ui_home_page
           value: !lambda 'return page;'
     applications:
+      - id: player_application
+        page: music_page
+        widget: wear_root
+        close_gesture: true
+        close_on_threshold: true
+        on_prepare_open:
+          - script.stop: ui_refresh_tile_snapshots
+          - script.stop: volume_overlay_timeout
+          - script.stop: open_speaker_group_panel
+          - script.stop: update_speaker_group_panel
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'true'
+          - lambda: |-
+              if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
+              id(ui_touch_click_block_until_ms) = millis() + 800;
+              id(media_speaker_panel_open) = false;
+              id(global_volume_time_press_tracking) = false;
+              id(global_volume_dragging) = false;
+              atmosfera_ui::volume_overlay_direct_end();
+              lv_anim_del(id(global_volume_overlay), nullptr);
+              lv_anim_del(id(volume_overlay), nullptr);
+              lv_obj_set_style_opa(id(global_volume_overlay), LV_OPA_COVER, 0);
+              lv_obj_set_style_opa(id(volume_overlay), LV_OPA_COVER, 0);
+              lv_obj_add_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(queue_panel), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(speaker_group_panel), LV_OBJ_FLAG_HIDDEN);
+              // The opening snapshot owns the display until on_before_reveal.
+              atmosfera_ui::media_wavy_arc_set_direct_present(false);
+        on_before_reveal:
+          # Prepare the live Player while the compositor still presents the
+          # final snapshot frame, preventing a one-frame placeholder flash.
+          - script.execute: ui_prepare_player_page
+        on_opened:
+          - globals.set:
+              id: ui_active_app
+              value: '1'
+          - lvgl.widget.show: app_close_gesture_zone
+          - lambda: 'lv_obj_move_foreground(id(app_close_gesture_zone));'
+          - delay: 40ms
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'false'
+          - script.execute: media_update_main_control
+          - script.execute: media_resume_artwork_after_player_open
+        on_prepare_close:
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'true'
+          - script.stop: volume_overlay_timeout
+          - script.stop: open_speaker_group_panel
+          - script.stop: update_speaker_group_panel
+          - lambda: |-
+              id(media_speaker_panel_open) = false;
+              id(global_volume_time_press_tracking) = false;
+              id(global_volume_dragging) = false;
+              atmosfera_ui::volume_overlay_direct_end();
+              lv_anim_del(id(global_volume_overlay), nullptr);
+              lv_anim_del(id(volume_overlay), nullptr);
+              lv_obj_set_style_opa(id(global_volume_overlay), LV_OPA_COVER, 0);
+              lv_obj_set_style_opa(id(volume_overlay), LV_OPA_COVER, 0);
+              lv_obj_add_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(queue_panel), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(speaker_group_panel), LV_OBJ_FLAG_HIDDEN);
+          - script.execute: ui_quiesce_player_direct_regions
+        on_close:
+          - lambda: 'id(album_art_background).set_sendspin_paused(true);'
+          - lvgl.widget.hide:
+              - global_volume_overlay
+              - volume_overlay
+              - queue_panel
+              - speaker_group_panel
+        on_close_cancelled:
+          - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'false'
+          - script.execute: media_update_main_control
+          - script.execute: media_title_marquee_reset_and_start
+        on_closed:
+          - globals.set:
+              id: ui_active_app
+              value: '0'
+          - script.execute: voice_assistant_update_overlay
+          - lvgl.widget.hide: app_close_gesture_zone
+          - lvgl.widget.hide: ui_touch_blocker
+          - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
+          - delay: 100ms
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'false'
       - id: settings_application
         page: settings_page
         close_gesture: true
@@ -179,7 +272,7 @@ lvgl:
     compression: none
     # Entry records are lightweight metadata. Full-screen pixel storage is
     # still allocated on demand and bounded by decoded_slots.
-    max_entries: 2
+    max_entries: 3
     decoded_slots: 1
     settle_duration: 380ms
     application_transitions:

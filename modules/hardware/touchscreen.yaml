@@ -157,11 +157,7 @@ touchscreen:
             // Reserve only the bottom 50 px for the system close gesture. The
             // previous 180 px software zone swallowed the queue and speaker
             // grouping buttons before LVGL could dispatch their click event.
-            id(app_close_tracking) = id(ui_active_app) != 0 && id(ui_active_app) != 2 &&
-                                     id(ui_active_app) != 3 && touch.y >= 750;
-            if (id(ui_active_app) == 3 && touch.x >= 320 && touch.x <= 480 && touch.y >= 708) {
-              id(app_close_tracking) = false;
-            }
+            id(app_close_tracking) = id(ui_active_app) == 4 && touch.y >= 750;
             id(app_close_dragging) = false;
             id(app_close_start_x) = touch.x;
             id(app_close_start_y) = touch.y;
@@ -261,10 +257,6 @@ touchscreen:
                 id(app_close_dragging) = true;
                 id(app_close_tracking) = false;
                 id(ui_touch_block_for_drag).execute();
-                if (id(ui_active_app) == 1) {
-                  atmosfera_ui::media_wavy_arc_set_direct_present(false);
-                  atmosfera_ui::title_marquee_direct_end(true);
-                }
                 // Latch the gesture immediately. Capturing the closing frame
                 // belongs to ui_close_app in the main loop, never to this
                 // latency-sensitive touchscreen callback.

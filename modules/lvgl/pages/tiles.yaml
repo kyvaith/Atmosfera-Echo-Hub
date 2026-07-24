@@ -889,7 +889,7 @@ lvgl:
                         text_font: roboto_14
                   on_click:
                     then:
-                      - script.execute: ui_open_player_app
+                      - lvgl.navigation.open: player_application
               - button:
                   id: tile_subpage_button
                   x: 112

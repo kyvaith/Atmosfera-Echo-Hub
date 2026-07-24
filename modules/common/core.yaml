@@ -353,7 +353,7 @@ api:
             phase: !lambda 'return phase;'
     - action: debug_open_player
       then:
-        - script.execute: ui_open_player_app
+        - lvgl.navigation.open: player_application
     - action: debug_wake
       then:
         - script.execute: display_wake
@@ -414,6 +414,7 @@ api:
         - if:
             condition:
               or:
+                - lvgl.navigation.is_open: player_application
                 - lvgl.navigation.is_open: settings_application
                 - lvgl.navigation.is_open: voice_application
             then:

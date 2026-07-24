@@ -594,79 +594,6 @@ script:
           animation: NONE
           time: 50ms
 
-  - id: ui_open_player_app
-    # Opening is a transaction: interrupting it after ui_snapshot_io_busy is
-    # set strands the UI in a permanently busy state. Repeated media-state
-    # callbacks and double taps must be ignored until the handoff completes.
-    mode: single
-    then:
-      - if:
-          condition:
-            lambda: |-
-              return id(ui_active_app) == 0 &&
-                     !id(ui_snapshot_io_busy) &&
-                     (int32_t) (millis() - id(ui_touch_click_block_until_ms)) >= 0;
-          then:
-            - script.stop: ui_refresh_tile_snapshots
-            - script.stop: volume_overlay_timeout
-            - script.stop: open_speaker_group_panel
-            - script.stop: update_speaker_group_panel
-            - globals.set:
-                id: ui_snapshot_io_busy
-                value: 'true'
-            - lambda: |-
-                if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
-                id(ui_touch_click_block_until_ms) = millis() + 800;
-                id(media_speaker_panel_open) = false;
-                id(global_volume_time_press_tracking) = false;
-                id(global_volume_dragging) = false;
-                atmosfera_ui::volume_overlay_direct_end();
-                lv_anim_del(id(global_volume_overlay), nullptr);
-                lv_anim_del(id(volume_overlay), nullptr);
-                lv_obj_set_style_opa(id(global_volume_overlay), LV_OPA_COVER, 0);
-                lv_obj_set_style_opa(id(volume_overlay), LV_OPA_COVER, 0);
-                lv_obj_add_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN);
-                lv_obj_add_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN);
-                lv_obj_add_flag(id(queue_panel), LV_OBJ_FLAG_HIDDEN);
-                lv_obj_add_flag(id(speaker_group_panel), LV_OBJ_FLAG_HIDDEN);
-                // The cached Player snapshot already contains the complete
-                // control. Do not touch its live renderer until the opening
-                // compositor has handed the full screen back to LVGL; doing
-                // so exposed the placeholder/ARGB image as a square during
-                // the transition.
-                atmosfera_ui::media_wavy_arc_set_direct_present(false);
-            - lambda: |-
-                lv_obj_t *home = id(controls_root_1);
-                if (id(ui_home_page) == 2) home = id(controls_root_2);
-                else if (id(ui_home_page) == 3) home = id(controls_root_3);
-                else if (id(ui_home_page) == 4) home = id(controls_root_4);
-                lvgl_esphome_snapshot_app_open(id(wear_root), home, 800, 500);
-            - wait_until:
-                condition:
-                  lambda: 'return !lvgl_esphome_snapshot_is_active();'
-                timeout: 1500ms
-            - script.execute: ui_prepare_player_page
-            - lvgl.page.show:
-                id: music_page
-                animation: NONE
-                time: 50ms
-            - lambda: |-
-                lvgl_esphome_snapshot_app_release_open_hold();
-                // The decoded opening frame is no longer visible once the
-                // live Player page owns the display. Reclaim its full-screen
-                // workspace before artwork decoding starts.
-                lvgl_esphome_snapshot_app_release_work_buffer();
-            - lambda: |-
-                id(ui_active_app) = 1;
-                lv_obj_clear_flag(id(app_close_gesture_zone), LV_OBJ_FLAG_HIDDEN);
-                lv_obj_move_foreground(id(app_close_gesture_zone));
-            - delay: 40ms
-            - globals.set:
-                id: ui_snapshot_io_busy
-                value: 'false'
-            - script.execute: media_update_main_control
-            - script.execute: media_resume_artwork_after_player_open
-
   - id: ui_open_immich_app
     mode: single
     then:
@@ -718,98 +645,29 @@ script:
             - script.execute: immich_opened
 
   - id: ui_close_app
-    # The close transaction owns the direct compositor and busy flag until the
-    # final home frame is restored. A second gesture must not restart it.
+    # Immich is the last application using the legacy handoff. Player,
+    # Settings, and Voice are owned by lvgl.navigation.
     mode: single
     then:
       - if:
           condition:
-            lambda: 'return id(ui_active_app) != 0;'
+            lambda: 'return id(ui_active_app) == 4;'
           then:
             - globals.set:
                 id: ui_snapshot_io_busy
                 value: 'true'
-            - if:
-                condition:
-                  lambda: 'return id(ui_active_app) == 1;'
-                then:
-                  - script.stop: volume_overlay_timeout
-                  - script.stop: open_speaker_group_panel
-                  - script.stop: update_speaker_group_panel
-                  - lambda: |-
-                      id(media_speaker_panel_open) = false;
-                      id(global_volume_time_press_tracking) = false;
-                      id(global_volume_dragging) = false;
-                      atmosfera_ui::volume_overlay_direct_end();
-                      lv_anim_del(id(global_volume_overlay), nullptr);
-                      lv_anim_del(id(volume_overlay), nullptr);
-                      lv_obj_set_style_opa(id(global_volume_overlay), LV_OPA_COVER, 0);
-                      lv_obj_set_style_opa(id(volume_overlay), LV_OPA_COVER, 0);
-                      lv_obj_add_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN);
-                      lv_obj_add_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN);
-                      lv_obj_add_flag(id(queue_panel), LV_OBJ_FLAG_HIDDEN);
-                      lv_obj_add_flag(id(speaker_group_panel), LV_OBJ_FLAG_HIDDEN);
             - lambda: |-
-                // Freeze every direct-region producer before capturing the
-                // application. pause(true) rejects new work first and then
-                // drains the already queued PPA requests, so no stale wave or
-                // marquee region can overwrite the closing snapshot.
                 if (!lvgl_esphome_direct_regions_pause(true, 150)) {
                   ESP_LOGW("ui.close", "regional compositor drain timed out before app close");
                 }
-                lv_obj_t *app = nullptr;
-                if (id(ui_active_app) == 1) {
-                  atmosfera_ui::media_wavy_arc_set_direct_present(false);
-                  atmosfera_ui::title_marquee_direct_end(true);
-                  app = id(wear_root);
-                }
-                else if (id(ui_active_app) == 2) {
-                  lvgl_esphome_snapshot_scroll_end();
-                  app = id(settings_root);
-                }
-                else if (id(ui_active_app) == 3) app = id(voice_assistant_overlay);
-                else if (id(ui_active_app) == 4) {
-                  id(immich_ken_burns).pause_for_snapshot();
-                  app = id(immich_root);
-                }
+                id(immich_ken_burns).pause_for_snapshot();
                 lv_obj_t *home = id(controls_root_1);
                 if (id(ui_home_page) == 2) home = id(controls_root_2);
                 else if (id(ui_home_page) == 3) home = id(controls_root_3);
                 else if (id(ui_home_page) == 4) home = id(controls_root_4);
-                if (app != nullptr) {
-                  lvgl_esphome_snapshot_app_prepare_close(app);
-                  if (id(ui_active_app) == 4)
-                    id(immich_ken_burns).complete_snapshot_handoff();
-                  lvgl_esphome_snapshot_app_close(app, home, 800, 400, 600, 500);
-                }
-            - if:
-                condition:
-                  lambda: 'return id(ui_active_app) == 1;'
-                then:
-                  - lambda: |-
-                      id(album_art_background).set_sendspin_paused(true);
-                  - lvgl.widget.hide:
-                      - global_volume_overlay
-                      - volume_overlay
-                      - queue_panel
-                      - speaker_group_panel
-            - if:
-                condition:
-                  lambda: 'return id(ui_active_app) == 3;'
-                then:
-                  - lambda: 'id(va)->end_session();'
-                  - speaker.stop: assistant_speaker
-                  - switch.turn_off: timer_ringing
-                  - switch.turn_off: voice_audio_processing_switch
-                  - lambda: 'id(voice_assistant_phase) = ${voice_assist_idle_phase_id};'
-                  - if:
-                      condition:
-                        and:
-                        - switch.is_off: voice_assistant_mute_switch
-                        - lambda: 'return id(va)->is_connected();'
-                      then:
-                        - micro_wake_word.start:
-                        - script.execute: voice_assistant_apply_idle_wake_word
+                lvgl_esphome_snapshot_app_prepare_close(id(immich_root));
+                id(immich_ken_burns).complete_snapshot_handoff();
+                lvgl_esphome_snapshot_app_close(id(immich_root), home, 800, 400, 600, 500);
             - wait_until:
                 condition:
                   lambda: 'return !lvgl_esphome_snapshot_is_active();'
@@ -824,11 +682,7 @@ script:
                 // replaced the closing app underneath the final frame.
                 lvgl_esphome_snapshot_app_release_open_hold();
                 lvgl_esphome_direct_regions_pause(false, 0);
-            - if:
-                condition:
-                  lambda: 'return id(ui_active_app) == 4;'
-                then:
-                  - script.execute: immich_closed
+            - script.execute: immich_closed
             - globals.set:
                 id: ui_active_app
                 value: '0'
