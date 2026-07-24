@@ -141,9 +141,14 @@ script:
             id(controls_root_3),
             id(controls_root_4),
           };
-          for (int i = 0; i < 4; i++) {
+          const int page_count = sizeof(roots) / sizeof(roots[0]);
+          auto *display = lv_obj_get_display(roots[0]);
+          const int page_width = display != nullptr
+                                     ? lv_display_get_horizontal_resolution(display)
+                                     : lv_obj_get_width(lv_screen_active());
+          for (int i = 0; i < page_count; i++) {
             if (roots[i] == nullptr) continue;
-            lv_obj_align(roots[i], LV_ALIGN_CENTER, (i + 1 - page) * 800, 0);
+            lv_obj_align(roots[i], LV_ALIGN_CENTER, (i + 1 - page) * page_width, 0);
             if (i + 1 == page)
               lv_obj_clear_flag(roots[i], LV_OBJ_FLAG_HIDDEN);
             else
@@ -238,14 +243,19 @@ script:
           for (auto *dot : dots) {
             if (dot != nullptr) lv_obj_add_flag(dot, LV_OBJ_FLAG_HIDDEN);
           }
+          const int page_count = sizeof(roots) / sizeof(roots[0]);
+          auto *display = lv_obj_get_display(roots[0]);
+          const int page_width = display != nullptr
+                                     ? lv_display_get_horizontal_resolution(display)
+                                     : lv_obj_get_width(lv_screen_active());
           auto apply_page = [&](int page) {
             id(ui_page) = page;
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < page_count; i++) {
               if (roots[i] == nullptr) continue;
               lv_obj_clear_flag(roots[i], LV_OBJ_FLAG_HIDDEN);
-              lv_obj_align(roots[i], LV_ALIGN_CENTER, (i + 1 - page) * 800, 0);
+              lv_obj_align(roots[i], LV_ALIGN_CENTER, (i + 1 - page) * page_width, 0);
             }
-            for (int i = 0; i < 4; i++) {
+            for (int i = 0; i < page_count; i++) {
               if (dots[i] == nullptr) continue;
               const bool active = (i + 1) == page;
               if (active)
@@ -303,7 +313,11 @@ script:
       - delay: 24ms
       - lambda: |-
           if (id(ui_active_app) != 0 || id(ui_page) < 1 || id(ui_page) > 4) return;
-          constexpr int page_count = 4;
+          lv_obj_t *pages[] = {
+            id(controls_root_1), id(controls_root_2),
+            id(controls_root_3), id(controls_root_4),
+          };
+          constexpr int page_count = sizeof(pages) / sizeof(pages[0]);
           constexpr int window_count = 3;
           int required_first = id(ui_page) - 1;
           if (required_first < 1) required_first = 1;
@@ -336,12 +350,12 @@ script:
                      (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                      (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
           }
-          lv_obj_t *pages[] = {
-            id(controls_root_1), id(controls_root_2),
-            id(controls_root_3), id(controls_root_4),
-          };
+          auto *display = lv_obj_get_display(pages[0]);
+          const int page_width = display != nullptr
+                                     ? lv_display_get_horizontal_resolution(display)
+                                     : lv_obj_get_width(lv_screen_active());
           const bool prepared =
-              lvgl_esphome_snapshot_cache_tile_window(pages, 4, id(ui_page), 800);
+              lvgl_esphome_snapshot_cache_tile_window(pages, page_count, id(ui_page), page_width);
           id(ui_tile_snapshots_ready) = prepared;
           id(ui_tile_snapshot_prepared_page) = prepared ? id(ui_page) : 0;
           id(ui_tile_snapshot_cached_first) = prepared ? required_first : 0;
@@ -376,7 +390,11 @@ script:
           else if (id(ui_page) == 3) page = id(controls_root_3);
           else if (id(ui_page) == 4) page = id(controls_root_4);
           id(ui_snapshot_io_busy) = true;
-          const bool refreshed = lvgl_esphome_snapshot_refresh_tile_page(page, 800);
+          auto *display = lv_obj_get_display(page);
+          const int page_width = display != nullptr
+                                     ? lv_display_get_horizontal_resolution(display)
+                                     : lv_obj_get_width(lv_screen_active());
+          const bool refreshed = lvgl_esphome_snapshot_refresh_tile_page(page, page_width);
           id(ui_snapshot_io_busy) = false;
           if (!refreshed && id(settings_swipe_logs_switch).state) {
             ESP_LOGW("snapshot.refresh", "Home page %d refresh deferred", id(ui_page));

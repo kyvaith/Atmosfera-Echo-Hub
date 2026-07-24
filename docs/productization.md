@@ -28,7 +28,7 @@ without relying on PlatformIO to pass compile definitions or flash settings.
 
 | Metric | Result |
 | --- | --- |
-| Firmware image | 6,274,506 bytes |
+| Firmware image | 6,274,746 bytes |
 | Smallest app partition free | 10,241,520 bytes (62%) |
 | Internal DIRAM | 215,890 / 576,464 bytes (37.45%) |
 | Display buffers | Three display-owned full-screen buffers |
@@ -96,6 +96,9 @@ Application preview preparation now uses the registered
 therefore no longer names all four application roots or calls the legacy
 snapshot cache directly. Buffer reservation and boot ordering remain unchanged
 until this checkpoint passes the hardware regression suite.
+The remaining legacy Home positioning and refresh lambdas now derive page
+count from their configured object arrays and width from the active LVGL
+display. They no longer embed the product's 800-pixel panel width.
 
 The obsolete PlatformIO-only FreeRTOS and ESP-Hosted patch scripts have been
 removed. Native ESP-IDF builds never executed them, so keeping their absolute
