@@ -28,9 +28,9 @@ without relying on PlatformIO to pass compile definitions or flash settings.
 
 | Metric | Result |
 | --- | --- |
-| Firmware image | 6,273,258 bytes |
+| Firmware image | 6,273,266 bytes |
 | Smallest app partition free | 10,240,576 bytes (62%) |
-| Internal DIRAM | 215,746 / 576,464 bytes (37.43%) |
+| Internal DIRAM | 215,754 / 576,464 bytes (37.43%) |
 | Display buffers | Three display-owned full-screen buffers |
 
 The validated checkpoint also replaces direct calls to LEDC implementation
@@ -86,6 +86,14 @@ project machine-specific. Any future ESP-Hosted transport optimization must be
 implemented in a versioned component, disabled by default, and validated in the
 native ESP-IDF test matrix.
 
+Task runtime diagnostics now use the optional `task_runtime_profiler`
+component and its declarative `task_runtime_profiler.log` action. This removes
+the product-local `static/task_runtime_profiler.h`, private ESP-IDF backtrace
+headers, and board-level FreeRTOS profiling sdkconfig entries. The component
+owns the required sdkconfig setting and allocates its bounded PSRAM state only
+when profiling is requested. The complete migration costs 8 bytes of firmware
+image and 8 bytes of DIRAM.
+
 ## Non-negotiable rules
 
 - Do not combine behavioral changes with code movement.
@@ -111,7 +119,7 @@ tracks which components must be reconciled or replaced before release.
 
 ## External component inventory
 
-The product currently imports 14 components from one consolidated ESPHome
+The product currently imports 15 components from one consolidated ESPHome
 integration tree:
 
 | Component | Target |
@@ -129,6 +137,7 @@ integration tree:
 | `micro_wake_word` | Keep only the configurable buffering changes missing upstream |
 | `mipi_dsi` | Rebase local DSI changes and upstream them in scoped PRs |
 | `sendspin` | Keep only fixes missing from current upstream |
+| `task_runtime_profiler` | Keep as an optional ESP32-P4 diagnostic component; profiling is inactive until explicitly requested |
 | `va_client` | Keep as a transport using standard microphone and speaker APIs |
 
 The unused `generic_image`, `online_image`, `runtime_image`,

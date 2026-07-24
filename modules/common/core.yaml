@@ -337,8 +337,7 @@ api:
         - script.execute: ui_refresh_tile_snapshots
     - action: debug_task_profile
       then:
-        - lambda: |-
-            atmosfera_diag::log_task_runtime_profile();
+        - task_runtime_profiler.log: runtime_profiler
     - action: debug_log_memory
       variables:
         phase: string

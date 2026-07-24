@@ -5,7 +5,9 @@ esphome:
     - <esp_heap_caps.h>
     - <esp_psram.h>
     - <sdkconfig.h>
-    - static/task_runtime_profiler.h
+
+task_runtime_profiler:
+  id: runtime_profiler
 
 script:
   - id: diagnostics_log_runtime_memory

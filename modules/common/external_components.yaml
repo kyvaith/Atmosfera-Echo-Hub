@@ -20,4 +20,5 @@ external_components:
       - micro_wake_word
       - mipi_dsi
       - sendspin
+      - task_runtime_profiler
       - va_client
