@@ -1248,7 +1248,7 @@ lvgl:
                         text_font: roboto_14
                   on_click:
                     then:
-                      - script.execute: ui_open_voice_app
+                      - lvgl.navigation.open: voice_application
               - obj: { hidden: true, x: 360, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
               - obj: { hidden: true, x: 382, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
               - obj: { hidden: true, x: 404, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }

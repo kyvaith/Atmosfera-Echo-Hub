@@ -402,7 +402,7 @@ api:
             lvgl_esphome_set_swipe_logging_enabled(id(settings_swipe_logs_switch).state);
     - action: debug_open_voice
       then:
-        - script.execute: ui_open_voice_app
+        - lvgl.navigation.open: voice_application
     - action: debug_open_queue
       then:
         - script.execute: open_queue_panel
@@ -413,7 +413,9 @@ api:
       then:
         - if:
             condition:
-              lvgl.navigation.is_open: settings_application
+              or:
+                - lvgl.navigation.is_open: settings_application
+                - lvgl.navigation.is_open: voice_application
             then:
               - lvgl.navigation.close: ui_navigation
             else:

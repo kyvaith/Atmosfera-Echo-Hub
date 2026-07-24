@@ -750,6 +750,89 @@ voice_assistant:
     - script.execute: voice_assistant_update_overlay
 
 script:
+  # UI navigation owns the visual transition. This script starts the audio
+  # session only after the live Voice view has replaced its opening snapshot.
+  - id: voice_assistant_start_from_ui
+    mode: single
+    then:
+      - if:
+          condition:
+            switch.is_off: voice_assistant_mute_switch
+          then:
+            - if:
+                condition:
+                  lambda: 'return id(va)->is_connected();'
+                then:
+                  - if:
+                      condition:
+                        media_player.is_playing: local_music_player
+                      then:
+                        - globals.set:
+                            id: voice_assistant_paused_media
+                            value: 'true'
+                        - media_player.pause: local_music_player
+                        - delay: 300ms
+                      else:
+                        - globals.set:
+                            id: voice_assistant_paused_media
+                            value: 'false'
+                  - lambda: |-
+                      id(voice_assistant_phase) = ${voice_assist_waiting_phase_id};
+                      id(voice_assistant_tts_active) = false;
+                      id(voice_assistant_request_text).publish_state("");
+                      id(voice_assistant_response_text).publish_state("");
+                  - script.execute: display_wake
+                  - script.execute: voice_assistant_update_overlay
+                  - micro_wake_word.stop:
+                  - switch.turn_on: voice_audio_processing_switch
+                  - script.execute: ui_play_va_listening_sound
+                  - script.wait: ui_play_va_listening_sound
+                  - if:
+                      condition:
+                        switch.is_on: voice_assistant_wake_sound_switch
+                      then:
+                        - delay: !lambda 'return id(va)->get_wake_open_delay_ms();'
+                      else:
+                        - delay: 250ms
+                  - lambda: 'id(va)->start_session();'
+                else:
+                  - lambda: |-
+                      id(voice_assistant_phase) = ${voice_assist_error_phase_id};
+                      id(voice_assistant_request_text).publish_state("");
+                      id(voice_assistant_response_text).publish_state("Realtime backend unavailable");
+                  - script.execute: display_wake
+                  - script.execute: voice_assistant_update_overlay
+          else:
+            - lambda: |-
+                id(voice_assistant_phase) = ${voice_assist_error_phase_id};
+                id(voice_assistant_request_text).publish_state("");
+                id(voice_assistant_response_text).publish_state("Microphone muted");
+            - script.execute: display_wake
+            - script.execute: voice_assistant_update_overlay
+      - globals.set:
+          id: ui_snapshot_io_busy
+          value: 'false'
+      - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
+
+  # Closing the Voice application must synchronously relinquish its audio
+  # resources before the Home view becomes interactive again.
+  - id: voice_assistant_stop_from_ui
+    mode: single
+    then:
+      - lambda: 'id(va)->end_session();'
+      - speaker.stop: assistant_speaker
+      - switch.turn_off: timer_ringing
+      - switch.turn_off: voice_audio_processing_switch
+      - lambda: 'id(voice_assistant_phase) = ${voice_assist_idle_phase_id};'
+      - if:
+          condition:
+            and:
+              - switch.is_off: voice_assistant_mute_switch
+              - lambda: 'return id(va)->is_connected();'
+          then:
+            - micro_wake_word.start:
+            - script.execute: voice_assistant_apply_idle_wake_word
+
   # Establishing the realtime socket can start microphone/audio work. Keep it
   # outside the boot animation and initial snapshot build so those paths do not
   # compete for CPU, PSRAM bandwidth and I2S resources.

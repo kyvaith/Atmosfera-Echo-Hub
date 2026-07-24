@@ -157,7 +157,8 @@ touchscreen:
             // Reserve only the bottom 50 px for the system close gesture. The
             // previous 180 px software zone swallowed the queue and speaker
             // grouping buttons before LVGL could dispatch their click event.
-            id(app_close_tracking) = id(ui_active_app) != 0 && id(ui_active_app) != 2 && touch.y >= 750;
+            id(app_close_tracking) = id(ui_active_app) != 0 && id(ui_active_app) != 2 &&
+                                     id(ui_active_app) != 3 && touch.y >= 750;
             if (id(ui_active_app) == 3 && touch.x >= 320 && touch.x <= 480 && touch.y >= 708) {
               id(app_close_tracking) = false;
             }

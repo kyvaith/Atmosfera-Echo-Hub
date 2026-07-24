@@ -146,7 +146,13 @@ lvgl:
                           then:
                             - lambda: |-
                                 id(voice_assistant_stop_requested) = true;
-                                id(app_close_requested) = true;
+                            - if:
+                                condition:
+                                  lvgl.navigation.is_open: voice_application
+                                then:
+                                  - lvgl.navigation.close: ui_navigation
+                                else:
+                                  - script.execute: voice_assistant_stop_conversation
                         widgets:
                           - label:
                                 text: "\uE5CD"

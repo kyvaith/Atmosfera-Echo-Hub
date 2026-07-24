@@ -114,12 +114,72 @@ lvgl:
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'false'
+      - id: voice_application
+        page: controls_page
+        widget: voice_assistant_overlay
+        close_gesture: true
+        close_on_threshold: true
+        on_prepare_open:
+          - script.stop: ui_refresh_tile_snapshots
+          - script.stop: media_title_marquee_start_delayed
+          - script.stop: media_title_marquee_reset_and_start
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'true'
+          - lambda: |-
+              id(ui_touch_click_block_until_ms) = millis() + 800;
+              atmosfera_ui::media_wavy_arc_set_direct_present(false);
+              atmosfera_ui::title_marquee_direct_end(true);
+              if (!lvgl_esphome_direct_regions_pause(true, 150)) {
+                ESP_LOGW("ui.layers", "regional compositor drain timed out before Voice handoff");
+              }
+        on_opened:
+          - globals.set:
+              id: ui_active_app
+              value: '3'
+          - lvgl.widget.show: app_close_gesture_zone
+          - lambda: |-
+              lv_obj_move_foreground(id(app_close_gesture_zone));
+              lv_obj_move_foreground(id(voice_assistant_overlay));
+              if (id(perf_overlay_label) != nullptr && id(settings_perf_overlay_switch).state) {
+                lv_obj_move_foreground(id(perf_overlay_label));
+              }
+          - script.execute: voice_assistant_start_from_ui
+        on_prepare_close:
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'true'
+          - lambda: |-
+              if (!lvgl_esphome_direct_regions_pause(true, 150)) {
+                ESP_LOGW("ui.close", "regional compositor drain timed out before Voice close");
+              }
+        on_close:
+          - script.execute: voice_assistant_stop_from_ui
+        on_close_cancelled:
+          - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'false'
+        on_closed:
+          - globals.set:
+              id: ui_active_app
+              value: '0'
+          - script.execute: voice_assistant_update_overlay
+          - lvgl.widget.hide: app_close_gesture_zone
+          - lvgl.widget.hide: ui_touch_blocker
+          - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
+          - delay: 100ms
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'false'
   snapshot_compositor:
     id: ui_snapshot_store
     backend: direct
     preload: false
     compression: none
-    max_entries: 1
+    # Entry records are lightweight metadata. Full-screen pixel storage is
+    # still allocated on demand and bounded by decoded_slots.
+    max_entries: 2
     decoded_slots: 1
     settle_duration: 380ms
     application_transitions:
