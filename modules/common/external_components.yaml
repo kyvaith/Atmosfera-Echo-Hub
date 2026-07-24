@@ -8,6 +8,7 @@ external_components:
       path: C:/Users/kyvai/kyvaith-esphome-productization-lvgl/esphome/components
     components:
       - audio_processor
+      - artwork_image
       - display
       - esp_afe
       - esp_audio_stack
@@ -23,12 +24,4 @@ external_components:
       - online_image
       - runtime_image
       - sendspin
-  - source:
-      type: local
-      path: C:/Users/kyvai/kyvaith-esphome-artwork-bridge/esphome/components
-    components:
-      - artwork_image
-  - source:
-      type: local
-      path: C:/Users/kyvai/kyvaith-esphome/esphome/components
-    components: [va_client]
+      - va_client

@@ -28,9 +28,9 @@ without relying on PlatformIO to pass compile definitions or flash settings.
 
 | Metric | Result |
 | --- | --- |
-| Firmware image | 6,246,616 bytes |
-| Smallest app partition free | 10,267,824 bytes (62%) |
-| Internal DIRAM | 216,194 / 576,464 bytes (37.5%) |
+| Firmware image | 6,256,408 bytes |
+| Smallest app partition free | 10,258,224 bytes (62%) |
+| Internal DIRAM | 216,210 / 576,464 bytes (37.5%) |
 | Display buffers | Three display-owned full-screen buffers |
 
 The validated checkpoint also replaces direct calls to LEDC implementation
@@ -62,31 +62,37 @@ project is considered portable:
 - Every migration step must pass config validation, a focused component build,
   and the relevant device regression scenarios before it replaces the baseline.
 
+All currently required product components now come from one ESPHome integration
+tree. The separate legacy LVGL, artwork bridge, voice client, and intercom
+external sources have been removed from the product configuration. This is an
+integration checkpoint, not the final upstream boundary: the table below still
+tracks which components must be reconciled or replaced before release.
+
 ## External component inventory
 
 | Component | Current source | Target |
 | --- | --- | --- |
-| `const` | ESPHome fork | Remove from the explicit external list |
-| `mipi` | ESPHome fork | Use upstream |
-| `mipi_dsi` | ESPHome fork | Rebase local DSI changes and upstream them in scoped PRs |
-| `lvgl` | ESPHome fork | Rebase accelerators; extract navigation and snapshots |
-| `image` | ESPHome fork | Reconcile with the current upstream image platform |
-| `audio_file` | ESPHome fork | Use upstream |
-| `ledc` | ESPHome fork | Audit the small local delta and upstream or remove it |
-| `es7210` | ESPHome fork | Use upstream |
-| `esp32_jpeg` | ESPHome fork | Keep as a generic hardware codec and upstream it |
-| `artwork_image` | ESPHome fork | Replace with generic online/runtime image hardware decode support |
-| `sendspin` | ESPHome fork | Keep only fixes missing from current upstream |
-| `speaker_source` | ESPHome fork | Keep only fixes missing from current upstream |
-| `va_client` | ESPHome fork | Keep as a transport using standard microphone and speaker APIs |
-| `resampler` | ESPHome fork | Keep only missing microphone/full-duplex support |
-| `audio_processor` | Intercom fork | Move as a generic processor interface |
-| `esp_afe` | Intercom fork | Move as an ESP audio processor implementation |
-| `esp_audio_stack` | Intercom fork | Rename and refactor into a generic duplex audio transport |
+| `const` | Consolidated ESPHome integration | Remove from the explicit external list |
+| `mipi` | Consolidated ESPHome integration | Use upstream |
+| `mipi_dsi` | Consolidated ESPHome integration | Rebase local DSI changes and upstream them in scoped PRs |
+| `lvgl` | Consolidated ESPHome integration | Rebase accelerators; extract navigation and snapshots |
+| `image` | Consolidated ESPHome integration | Reconcile with the current upstream image platform |
+| `audio_file` | Consolidated ESPHome integration | Use upstream |
+| `ledc` | Consolidated ESPHome integration | Upstream the hardware-fade action |
+| `es7210` | Consolidated ESPHome integration | Use upstream |
+| `esp32_jpeg` | Consolidated ESPHome integration | Keep as a generic hardware codec and upstream it |
+| `artwork_image` | Consolidated ESPHome integration | Replace with generic online/runtime image hardware decode support |
+| `sendspin` | Consolidated ESPHome integration | Keep only fixes missing from current upstream |
+| `speaker_source` | Consolidated ESPHome integration | Keep only fixes missing from current upstream |
+| `va_client` | Consolidated ESPHome integration | Keep as a transport using standard microphone and speaker APIs |
+| `resampler` | Consolidated ESPHome integration | Keep only missing microphone/full-duplex support |
+| `audio_processor` | Consolidated ESPHome integration | Keep as a generic processor interface |
+| `esp_afe` | Consolidated ESPHome integration | Keep as an ESP audio processor implementation |
+| `esp_audio_stack` | Consolidated ESPHome integration | Rename and refactor into a generic duplex audio transport |
 
-The project does not use `intercom_api`. The repository name is historical; the
-three imported components currently provide the generic audio processing and
-full-duplex transport layers.
+The project does not use `intercom_api`. The former repository name was
+historical; only its generic audio processing and full-duplex transport layers
+were carried into the consolidated ESPHome integration tree.
 
 ## Target component boundaries
 
