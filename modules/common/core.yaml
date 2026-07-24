@@ -123,12 +123,6 @@ esphome:
       - -DCONFIG_ESPHOME_LVGL_PPA_SRM_TRANSACTION_LEVEL=4
       - -DCONFIG_ESPHOME_LVGL_PPA_SRM_WRITE_PRIORITY=0
       - -DCONFIG_ESPHOME_LVGL_PPA_SRM_READ_PRIORITY=0
-  # Transitional only: these two framework patches still need proper component
-  # implementations. Native ESP-IDF builds intentionally ignore this block.
-  platformio_options:
-    extra_scripts:
-      - "pre:C:/Users/kyvai/atmosfera-echo-hub/tools/patch_espidf_freertos_static_alloc.py"
-      - "post:C:/Users/kyvai/atmosfera-echo-hub/tools/patch_esp_hosted_sdio_streaming.py"
   on_boot:
     priority: 600
     then:

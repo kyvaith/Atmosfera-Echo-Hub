@@ -46,21 +46,12 @@ and recent-asset selection now live in a reusable, platform-neutral
 longer injects `static/ui_immich_helpers.h` into generated application code.
 The known-good device branch remains untouched.
 
-Two PlatformIO-only framework patch scripts are still present as explicitly
-marked transitional compatibility code. Native builds ignore them. They must
-be replaced with source-level or component-owned implementations before the
-project is considered portable:
-
-- FreeRTOS static-allocation framework patch;
-- ESP-Hosted SDIO streaming framework patch.
-
-The current ESP-IDF 5.5.5 framework cache and managed ESP-Hosted source do not
-contain either patch when the native toolchain is used. Consequently, deleting
-the scripts is not a cleanup-only change: their runtime effects first need to
-be implemented in a versioned component or proven unnecessary on hardware.
-The absolute paths in `platformio_options.extra_scripts` are also non-portable
-and must disappear with this migration, rather than being normalized and kept
-as a permanent build path.
+The obsolete PlatformIO-only FreeRTOS and ESP-Hosted patch scripts have been
+removed. Native ESP-IDF builds never executed them, so keeping their absolute
+paths in the product configuration provided no runtime behavior and made the
+project machine-specific. Any future ESP-Hosted transport optimization must be
+implemented in a versioned component, disabled by default, and validated in the
+native ESP-IDF test matrix.
 
 ## Non-negotiable rules
 
