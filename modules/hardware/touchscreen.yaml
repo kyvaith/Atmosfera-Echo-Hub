@@ -100,7 +100,7 @@ touchscreen:
             id(global_volume_time_press_tracking) = false;
             if (id(boot_sequence_done) && id(display_backlight).current_values.is_on() &&
                 !id(ui_snapshot_io_busy) &&
-                touch.x >= 280 && touch.x <= 520 && touch.y >= 0 && touch.y <= 84) {
+                touch.x >= 280 && touch.x <= 520 && touch.y <= 84) {
               id(global_volume_time_press_tracking) = true;
               id(global_volume_time_press_start_ms) = millis();
               id(global_volume_time_press_start_x) = touch.x;

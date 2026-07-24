@@ -12,7 +12,7 @@ interval:
                 id: perf_overlay_label
                 text: !lambda |-
                   const uint32_t fps = lvgl_esphome_get_fps();
-                  char fps_buf[8];
+                  char fps_buf[12];
                   if (fps == 0) {
                     snprintf(fps_buf, sizeof(fps_buf), "--");
                   } else {

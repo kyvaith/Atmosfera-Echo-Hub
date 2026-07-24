@@ -207,13 +207,15 @@ script:
             std::string artist = read_first_string(media, "artist_str", "artist", "artists_str");
             if (artist.empty()) artist = read_first_string(item, "artist_str", "artist", "artists_str");
             if (artist.empty() && media["artists"].is<JsonArray>()) {
-              for (JsonVariant entry : media["artists"].as<JsonArray>()) {
+              JsonArray artists = media["artists"].as<JsonArray>();
+              for (JsonVariant entry : artists) {
                 artist = read_first_string(entry, "name", "sort_name");
                 if (!artist.empty()) break;
               }
             }
             if (artist.empty() && item["artists"].is<JsonArray>()) {
-              for (JsonVariant entry : item["artists"].as<JsonArray>()) {
+              JsonArray artists = item["artists"].as<JsonArray>();
+              for (JsonVariant entry : artists) {
                 artist = read_first_string(entry, "name", "sort_name");
                 if (!artist.empty()) break;
               }
@@ -227,7 +229,7 @@ script:
             if (seconds <= 0.0f) return std::string("");
             int total = (int) (seconds + 0.5f);
             if (total > 24 * 60 * 60) total /= 1000;
-            char buf[12];
+            char buf[24];
             snprintf(buf, sizeof(buf), "%d:%02d", total / 60, total % 60);
             return std::string(buf);
           };
