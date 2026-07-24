@@ -52,6 +52,7 @@ packages:
 
   lvgl_runtime: !include modules/lvgl/base.yaml
   lvgl_fonts: !include modules/lvgl/fonts.yaml
+  lvgl_material: !include modules/lvgl/material.yaml
   lvgl_navigation: !include modules/lvgl/navigation.yaml
   lvgl_boot_page: !include modules/lvgl/pages/boot.yaml
   lvgl_tiles_page: !include modules/lvgl/pages/tiles.yaml

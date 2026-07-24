@@ -1,0 +1,53 @@
+# Shared Material interaction behavior.
+# Keep reusable state styling here; application-specific runtime logic belongs
+# in its own module.
+
+lvgl_material:
+  pressed_styles:
+    - id: shared_pressed_feedback
+      widgets:
+        - settings_true_colour_button
+        - settings_screen_tone_button
+        - settings_perf_overlay_button
+        - settings_system_logs_button
+        - settings_perf_logs_button
+        - settings_swipe_logs_button
+        - settings_beta_firmware_button
+        - settings_display_brightness_button
+        - settings_display_timeout_button
+        - settings_voice_mute_button
+        - settings_wake_sound_button
+        - settings_wake_sensitivity_button
+        - tile_light_button
+        - tile_switch_button
+        - tile_scene_button
+        - tile_trigger_button
+        - tile_climate_button
+        - tile_cover_button
+        - tile_garage_button
+        - tile_lock_button
+        - tile_alarm_button
+        - tile_door_window_button
+        - tile_presence_button
+        - tile_sensor_button
+        - tile_weather_button
+        - tile_clock_button
+        - tile_world_clock_button
+        - tile_media_button
+        - tile_subpage_button
+        - tile_fan_button
+        - tile_fan_speed_button
+        - tile_webhook_button
+        - tile_internal_button
+        - tile_settings_button
+        - tile_voice_button
+      pressed_opacity: 70%
+
+  # Transport controls use a direct state layer to avoid redrawing the
+  # full-screen artwork while a button is held.
+  direct_state_layers:
+    - id: media_transport_feedback
+      widgets:
+        - prev_button
+        - next_button
+      pressed_opacity: 12%

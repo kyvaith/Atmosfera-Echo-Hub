@@ -5,14 +5,6 @@ esphome:
     - static/ui_wavy_arc.h
     - static/ui_title_marquee.h
 
-lvgl_material:
-  direct_state_layers:
-    - id: media_transport_feedback
-      widgets:
-        - prev_button
-        - next_button
-      pressed_opacity: 12%
-
 globals:
   - id: subscription_gen
     type: int

@@ -28,9 +28,9 @@ without relying on PlatformIO to pass compile definitions or flash settings.
 
 | Metric | Result |
 | --- | --- |
-| Firmware image | 6,269,986 bytes |
-| Smallest app partition free | 10,244,656 bytes (62%) |
-| Internal DIRAM | 216,258 / 576,464 bytes (37.5%) |
+| Firmware image | 6,275,546 bytes |
+| Smallest app partition free | 10,239,088 bytes (62%) |
+| Internal DIRAM | 215,666 / 576,464 bytes (37.41%) |
 | Display buffers | Three display-owned full-screen buffers |
 
 The validated checkpoint also replaces direct calls to LEDC implementation
@@ -45,6 +45,21 @@ and recent-asset selection now live in a reusable, platform-neutral
 `immich_gallery` component with an isolated ESP-IDF build test. The product no
 longer injects `static/ui_immich_helpers.h` into generated application code.
 The known-good device branch remains untouched.
+
+Home paging and the Player, Settings, Voice Assistant, and Immich application
+lifecycles now use the declarative `lvgl.navigation` schema. The component owns
+gesture arbitration, tap cancellation, application open/close transitions,
+home indicators, deferred lifecycle callbacks, and the Settings scroll
+snapshot. Product YAML still supplies application policy callbacks, but no
+longer implements the navigation state machine itself.
+
+Shared pressed feedback is now declared once in
+`modules/lvgl/material.yaml`. A reusable `lvgl_material.pressed_styles`
+component owns the single LVGL style and applies it after all widgets have been
+created. This removes the boot-time C++ style lambda and its ordering scripts
+without adding image buffers or runtime animation. The complete firmware build
+is 2,096 bytes smaller and uses 712 fewer bytes of DIRAM than the preceding
+declarative-navigation checkpoint.
 
 The obsolete PlatformIO-only FreeRTOS and ESP-Hosted patch scripts have been
 removed. Native ESP-IDF builds never executed them, so keeping their absolute
