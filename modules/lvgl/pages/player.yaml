@@ -450,11 +450,12 @@ lvgl:
                         pad_all: 0
                         scrollable: false
                         gesture_bubble: true
-                        style_transition_time: 160ms
-                        style_transition_path: ease_out
-                        pressed:
-                          bg_color: 0x000000
-                          bg_opa: 14%
+                        on_press:
+                          then:
+                            - lambda: 'id(media_wavy_progress).set_pressed(true);'
+                        on_release:
+                          then:
+                            - lambda: 'id(media_wavy_progress).set_pressed(false);'
                         widgets:
                           - label:
                               id: media_main_icon_label

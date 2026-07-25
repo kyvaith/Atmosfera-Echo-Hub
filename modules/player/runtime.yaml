@@ -661,8 +661,10 @@ script:
     then:
       - lambda: |-
           id(global_volume_time_press_tracking) = false;
+          lvgl_esphome_direct_regions_pause(true, 150);
           id(media_wavy_progress).set_direct_present(false);
           id(media_title_marquee).end(true);
+          lvgl_esphome_direct_regions_pause(false, 0);
           if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
           lv_obj_add_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(global_time_button), LV_OBJ_FLAG_HIDDEN);
@@ -681,8 +683,10 @@ script:
     then:
       - script.stop: volume_overlay_timeout
       - lambda: |-
+          lvgl_esphome_direct_regions_pause(true, 150);
           id(media_wavy_progress).set_direct_present(false);
           id(media_title_marquee).end(true);
+          lvgl_esphome_direct_regions_pause(false, 0);
           if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
           id(global_volume_time_press_tracking) = false;
           id(global_volume_dragging) = true;
@@ -755,10 +759,10 @@ script:
     mode: restart
     then:
       - lambda: |-
+          lvgl_esphome_direct_regions_pause(true, 150);
           id(media_wavy_progress).set_direct_present(false);
           id(media_title_marquee).end(true);
           if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
-          lvgl_esphome_direct_regions_pause(true, 100);
       - lvgl.widget.show: queue_panel
       - lambda: |-
           lv_obj_move_foreground(id(queue_panel));
@@ -1047,6 +1051,7 @@ text_sensor:
                   lambda: 'return id(auto_show_track_info).state;'
                 then:
                   - script.execute: show_track_info
+            - script.execute: media_title_marquee_pause_direct
             - lvgl.label.update:
                 id: title_label
                 text: !lambda 'return x;'
@@ -1075,6 +1080,7 @@ text_sensor:
                   - script.execute: debounce_artwork_download
             - script.execute: start_hide_track_info_timer
           else:
+            - script.execute: media_title_marquee_pause_direct
             - lvgl.label.update:
                 id: title_label
                 text: "No Track"

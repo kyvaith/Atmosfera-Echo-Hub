@@ -55,11 +55,11 @@ script:
       - script.stop: media_title_marquee_start_delayed
       - script.stop: media_title_marquee_reset_and_start
       - lambda: |-
-          id(media_wavy_progress).set_direct_present(false);
-          id(media_title_marquee).end(true);
           if (!lvgl_esphome_direct_regions_pause(true, 150)) {
             ESP_LOGW("ui.layers", "regional compositor drain timed out before app handoff");
           }
+          id(media_wavy_progress).set_direct_present(false);
+          id(media_title_marquee).end(true);
 
   - id: ui_touch_block_for_drag
     mode: restart
@@ -80,34 +80,6 @@ script:
       - lambda: |-
           lv_indev_reset(nullptr, nullptr);
       - lvgl.widget.hide: ui_touch_blocker
-
-  - id: ui_prepare_settings_rows_for_touch
-    mode: restart
-    then:
-      - lambda: |-
-          lv_obj_t *rows[] = {
-            id(settings_true_colour_button),
-            id(settings_screen_tone_button),
-            id(settings_perf_overlay_button),
-            id(settings_system_logs_button),
-            id(settings_perf_logs_button),
-            id(settings_swipe_logs_button),
-            id(settings_beta_firmware_button),
-            id(settings_display_brightness_button),
-            id(settings_display_timeout_button),
-            id(settings_voice_mute_button),
-            id(settings_wake_sound_button),
-            id(settings_wake_sensitivity_button),
-          };
-          for (auto *row : rows) {
-            if (row == nullptr) continue;
-            lv_obj_remove_flag(row, LV_OBJ_FLAG_CLICKABLE);
-            lv_obj_remove_flag(row, LV_OBJ_FLAG_CLICK_FOCUSABLE);
-            lv_obj_clear_state(
-                row,
-                static_cast<lv_state_t>(
-                    LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
-          }
 
   - id: ui_update_page_indicator
     then:
@@ -508,7 +480,6 @@ script:
       - lvgl.widget.update:
           id: settings_root
           y: 0
-      - script.execute: ui_prepare_settings_rows_for_touch
       - script.execute: media_hide_lottie_visual
       - globals.set:
           id: ui_page

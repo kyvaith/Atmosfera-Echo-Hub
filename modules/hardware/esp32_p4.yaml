@@ -4,6 +4,7 @@ esp32:
   board: esp32-p4-evboard
   flash_size: 32MB
   flash_mode: qio
+  flash_frequency: 80MHz
   cpu_frequency: 360MHz
   engineering_sample: true
   framework:
@@ -60,10 +61,9 @@ esp32:
       CONFIG_LCD_DSI_ISR_CACHE_SAFE: "y"
       CONFIG_LCD_DSI_OBJ_FORCE_INTERNAL: "y"
       CONFIG_ESP_IPC_ENABLE: "y"
-      # Keep ESP32-P4 revision selection explicit so IDF does not silently
-      # downgrade PPA/DMA2D code paths for older silicon assumptions.
-      CONFIG_ESP_REV_MIN_FULL: "0"
-      CONFIG_ESP32P4_REV_MIN_FULL: "0"
+      # The production device reports ESP32-P4 revision v1.0. Declaring that
+      # minimum keeps the pre-rev3 ABI while allowing the supported 80 MHz flash clock.
+      CONFIG_ESP32P4_REV_MIN_100: "y"
       CONFIG_PARTITION_TABLE_OFFSET: "0x9000"
 
 esp32_hosted:

@@ -4,7 +4,8 @@ esphome:
   name: ${name}
   friendly_name: ${friendly_name}
   min_version: ${esphome_min_version}
-  build_path: C:/aeh-build/${name}
+  # Keep this integration worktree isolated from the production checkout.
+  build_path: C:/aeh-build/${name}-productization-idf555-late-hs
   project:
     name: "${project_namespace}.${friendly_name}"
     version: ${firmware_version}

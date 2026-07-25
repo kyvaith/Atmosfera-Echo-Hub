@@ -65,10 +65,10 @@ script:
           id: media_speaker_panel_open
           value: 'true'
       - lambda: |-
+          lvgl_esphome_direct_regions_pause(true, 150);
           id(media_wavy_progress).set_direct_present(false);
           id(media_title_marquee).end(true);
           if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
-          lvgl_esphome_direct_regions_pause(true, 100);
       - lvgl.widget.show: speaker_group_panel
       - lambda: |-
           lv_obj_move_foreground(id(speaker_group_panel));
