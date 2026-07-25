@@ -230,6 +230,28 @@ This repository currently focuses on the ESPHome firmware foundation for Atmosfe
 
 ## Development
 
+### Architecture and contributor guide
+
+Start with [AGENTS.md](AGENTS.md) before changing the firmware. The complete
+runtime and extension documentation is split by subsystem:
+
+- [Runtime architecture overview](docs/architecture/README.md)
+- [Graphics, MIPI DSI, DMA2D, PPA, JPEG, and buffer ownership](docs/architecture/graphics.md)
+- [Navigation, Home snapshots, applications, and Settings scrolling](docs/architecture/navigation-snapshots.md)
+- [Audio, full duplex, AEC, and voice assistant](docs/architecture/audio-voice.md)
+- [Runtime tasks, PSRAM, and memory lifecycles](docs/architecture/runtime-memory.md)
+- [Architecture decision log](docs/architecture/decisions.md)
+- [Adding pages, applications, lists, and direct widgets](docs/development/extending-ui.md)
+- [Build, hardware validation, and regression checklist](docs/development/validation.md)
+- [Productionization and upstream migration roadmap](docs/productization.md)
+
+The architecture guide explicitly distinguishes reusable behavior from
+Atmosfera-specific layout and policy. New views must register with navigation,
+snapshot, and lifecycle components; merely adding an LVGL page does not make
+it snapshot-aware.
+
+### Build and upload
+
 The firmware is built with ESPHome:
 
 ```powershell
