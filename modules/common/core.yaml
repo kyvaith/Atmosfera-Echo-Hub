@@ -277,6 +277,7 @@ ota:
 - platform: esphome
 
 api:
+  custom_services: true
   homeassistant_states: true
   actions:
     - action: debug_restart

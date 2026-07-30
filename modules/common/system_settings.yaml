@@ -374,19 +374,3 @@ text:
   initial_value: "${voice_assistant_default}"
   min_length: 0
   max_length: 64
-
-- platform: template
-  name: "Pipecat Endpoint"
-  id: settings_realtime_backend_url
-  entity_category: config
-  icon: "mdi:web"
-  mode: text
-  optimistic: true
-  restore_value: true
-  initial_value: "${pipecat_ws_url}"
-  min_length: 0
-  max_length: 255
-  on_value:
-    - script.execute:
-        id: voice_assistant_connect_realtime_after_boot
-        url: !lambda 'return x;'

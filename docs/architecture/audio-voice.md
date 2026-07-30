@@ -140,6 +140,12 @@ The playback ring defaults to a 300 ms prebuffer. The backend may tune this at
 runtime. The goal is to absorb network jitter without delaying the first audio
 more than necessary.
 
+The backend endpoint is provisioned automatically. `va_pipecat` registers a
+hidden native API action, and the Pipecat Assist add-on sends the complete
+authenticated WebSocket URL after discovering the device in Home Assistant.
+The token is not stored in an HA text entity or logged by the firmware. A
+periodic re-provision makes device and Home Assistant restarts self-healing.
+
 The microphone callback is gated while no conversation is active. It does not
 retain or replay pre-roll, so wake chimes and their acoustic tail cannot leak
 into the next Pipecat turn. Speech should begin when the listening state is

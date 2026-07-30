@@ -20,7 +20,6 @@ substitutions:
   voice_region_default: auto
   wake_word_default: okay_nabu
   voice_assistant_default: realtime
-  pipecat_ws_url: ""
 
   # Home Assistant entities used as initial values for runtime-configurable tiles
   tile_light_entity: light.living_room
