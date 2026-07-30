@@ -371,17 +371,16 @@ text_sensor:
     on_value:
       - script.execute: voice_assistant_update_overlay
 
-va_client:
+va_pipecat:
   id: va
-  url: "${ha_openai_realtime_url}"
+  url: "${pipecat_ws_url}"
   microphone:
     microphone: voice_microphone
     channels: 0
     gain_factor: 4
   speaker: assistant_speaker
   # Keep the realtime mic stream open through replies. The AEC path suppresses
-  # speaker echo, while OpenAI/server VAD handles natural barge-in without
-  # restarting the local session.
+  # speaker echo while Pipecat VAD handles natural barge-in.
   barge_in: true
   on_phase:
     - lambda: |-
@@ -396,7 +395,7 @@ va_client:
         } else if (phase == "thinking") {
           id(voice_assistant_phase) = ${voice_assist_thinking_phase_id};
           id(voice_assistant_tts_active) = false;
-        } else if (phase == "replying") {
+        } else if (phase == "speaking") {
           id(voice_assistant_phase) = ${voice_assist_replying_phase_id};
           id(voice_assistant_tts_active) = true;
         } else if (phase == "thanks") {
@@ -406,7 +405,7 @@ va_client:
     - script.execute: voice_assistant_update_overlay
     - if:
         condition:
-          lambda: 'return phase == "listening" || phase == "thinking" || phase == "replying";'
+          lambda: 'return phase == "listening" || phase == "thinking" || phase == "speaking";'
         then:
           - script.stop: voice_assistant_handle_realtime_idle
           - switch.turn_on: voice_audio_processing_switch
@@ -422,7 +421,7 @@ va_client:
           - script.stop: voice_assistant_stop_word_watchdog
     - if:
         condition:
-          lambda: 'return phase == "replying";'
+          lambda: 'return phase == "speaking";'
         then:
           - micro_wake_word.stop:
           - script.stop: voice_assistant_stop_word_watchdog
@@ -454,6 +453,14 @@ va_client:
           - switch.turn_off: voice_audio_processing_switch
           - micro_wake_word.start:
           - script.execute: voice_assistant_apply_idle_wake_word
+  on_error:
+    - lambda: |-
+        id(voice_assistant_phase) = ${voice_assist_error_phase_id};
+        id(voice_assistant_tts_active) = false;
+        id(voice_assistant_response_text).publish_state(message);
+        ESP_LOGW("voice.pipecat", "Backend error %s: %s", code.c_str(), message.c_str());
+    - script.execute: ui_play_va_error_sound
+    - script.execute: voice_assistant_update_overlay
   on_followup_opened:
     - lambda: |-
         id(voice_assistant_realtime_idle_pending) = false;
@@ -847,11 +854,12 @@ script:
           timeout: 30s
       - if:
           condition:
-            lambda: 'return id(boot_sequence_done) && !url.empty();'
+            lambda: 'return id(boot_sequence_done);'
           then:
             - delay: 300ms
             - lambda: |-
-                ESP_LOGD("api.diag", "Using detected realtime backend URL after boot: %s", url.c_str());
+                ESP_LOGD("voice.pipecat", "%s Pipecat endpoint after boot",
+                         url.empty() ? "Clearing" : "Applying configured");
                 id(va)->set_url(url);
 
   - id: voice_assistant_apply_idle_wake_word

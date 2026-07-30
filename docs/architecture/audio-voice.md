@@ -34,7 +34,7 @@ flowchart LR
     AFE["ESP AFE fd_low_cost<br/>AEC enabled on demand"]
     MIC16["voice_microphone<br/>16 kHz mono"]
     WAKE["micro_wake_word"]
-    REALTIME["va_client uplink"]
+    REALTIME["va_pipecat uplink"]
     NATIVE["ESPHome voice_assistant fallback"]
 
     SENDSPIN["SendSpin PCM<br/>48 kHz mono"]
@@ -121,12 +121,13 @@ does not require the full AFE feature set.
 
 ## Realtime conversation flow
 
-The primary conversational transport is `va_client`:
+The primary conversational transport is the external `va_pipecat` component:
 
 1. A wake word or manual Assistant tile opens the registered Voice app.
 2. Music is paused or ducked according to product policy.
 3. AFE/AEC is enabled.
-4. The realtime WebSocket session opens.
+4. The persistent, authenticated Pipecat WebSocket is already warm and a new
+   wake turn begins.
 5. `voice_microphone` streams 16 kHz mono PCM through a PSRAM uplink ring.
 6. Server phase and transcript messages update the overlay.
 7. Incoming 24 kHz mono TTS enters a PSRAM playback ring.
@@ -139,10 +140,10 @@ The playback ring defaults to a 300 ms prebuffer. The backend may tune this at
 runtime. The goal is to absorb network jitter without delaying the first audio
 more than necessary.
 
-The microphone keeps a 600 ms rolling pre-roll while the realtime session is
-closed. It is deliberately discarded when a session opens because it contains
-the local wake chime and acoustic tail. Speech should begin when the listening
-state is visible.
+The microphone callback is gated while no conversation is active. It does not
+retain or replay pre-roll, so wake chimes and their acoustic tail cannot leak
+into the next Pipecat turn. Speech should begin when the listening state is
+visible.
 
 ## Barge-in
 
@@ -271,7 +272,7 @@ Reusable implementation:
 - `esphome/components/audio_processor/`
 - `esphome/components/esp_afe/`
 - `esphome/components/esp_audio_stack/`
-- `esphome/components/va_client/`
+- `pipecat-homeassistant/components/va_pipecat/`
 - `esphome/components/sendspin/`
 
 Product configuration and policy:
@@ -279,4 +280,3 @@ Product configuration and policy:
 - `modules/hardware/audio.yaml`
 - `modules/voice_assistant/runtime.yaml`
 - `modules/player/runtime.yaml`
-

@@ -20,8 +20,7 @@ substitutions:
   voice_region_default: auto
   wake_word_default: okay_nabu
   voice_assistant_default: realtime
-  ha_openai_realtime_port: "8321"
-  ha_openai_realtime_url: ""
+  pipecat_ws_url: ""
 
   # Home Assistant entities used as initial values for runtime-configurable tiles
   tile_light_entity: light.living_room

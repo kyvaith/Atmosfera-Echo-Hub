@@ -267,7 +267,7 @@ image decode, or task placement.
 - `esphome/components/esp32_jpeg/`
 - `esphome/components/esp_audio_stack/`
 - `esphome/components/esp_afe/`
-- `esphome/components/va_client/`
+- `pipecat-homeassistant/components/va_pipecat/`
 - `modules/lvgl/base.yaml`
 - `modules/hardware/audio.yaml`
 - `modules/player/artwork.yaml`

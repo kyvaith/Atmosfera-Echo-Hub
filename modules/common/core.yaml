@@ -455,26 +455,6 @@ api:
   - lambda: |-
       if (client_info.find("Home Assistant") != std::string::npos) {
         id(ha_base_url) = client_address;
-        const std::string current_rt = id(settings_realtime_backend_url).state;
-        if (current_rt.empty() || current_rt.find("homeassistant.local") != std::string::npos) {
-          std::string host = client_address;
-          const size_t scheme = host.find("://");
-          if (scheme != std::string::npos) {
-            host = host.substr(scheme + 3);
-          }
-          const size_t slash = host.find('/');
-          if (slash != std::string::npos) {
-            host = host.substr(0, slash);
-          }
-          const size_t first_colon = host.find(':');
-          const size_t last_colon = host.rfind(':');
-          if (first_colon != std::string::npos && first_colon == last_colon) {
-            host = host.substr(0, first_colon);
-          }
-          const std::string realtime_url = "ws://" + host + ":${ha_openai_realtime_port}/";
-          ESP_LOGD("api.diag", "Detected realtime backend URL: %s", realtime_url.c_str());
-          id(voice_assistant_connect_realtime_after_boot).execute(realtime_url);
-        }
       }
   - script.execute: subscribe_media_after_boot
   on_client_disconnected:

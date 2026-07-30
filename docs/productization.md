@@ -165,7 +165,7 @@ integration tree:
 | `mipi_dsi` | Rebase local DSI changes and upstream them in scoped PRs |
 | `sendspin` | Keep only fixes missing from current upstream |
 | `task_runtime_profiler` | Keep as an optional ESP32-P4 diagnostic component; profiling is inactive until explicitly requested |
-| `va_client` | Keep as a transport using standard microphone and speaker APIs |
+| `va_pipecat` | External product transport using standard microphone and speaker APIs |
 
 The unused `generic_image`, `online_image`, `runtime_image`,
 `lvgl_image_presenter`, and `lvgl_region_presenter` implementations remain in
@@ -189,7 +189,9 @@ were carried into the consolidated ESPHome integration tree.
 - `audio_processor`: processor interface and bounded audio buffer utilities.
 - `esp_afe`: Espressif AFE implementation of `audio_processor`.
 - `audio_duplex`: I2S RX/TX coordination and AEC playback-reference transport.
-- `va_client`: realtime voice protocol only.
+- `va_pipecat`: authenticated Pipecat transport and deterministic conversation
+  state contract. It lives with the Pipecat backend so both ends of the
+  versioned wire protocol are released together.
 
 ### LVGL navigation
 

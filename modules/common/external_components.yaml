@@ -21,4 +21,7 @@ external_components:
       - mipi_dsi
       - sendspin
       - task_runtime_profiler
-      - va_client
+  - source: github://kyvaith/pipecat-homeassistant@dev
+    refresh: always
+    components:
+      - va_pipecat
