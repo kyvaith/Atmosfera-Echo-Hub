@@ -423,6 +423,11 @@ script:
                 id(media_wavy_progress).initialize();
                 id(media_wavy_progress).set_value(id(last_media_progress_percent));
                 lv_obj_update_layout(lv_screen_active());
+            # Camera must have a deterministic non-streaming frame before its
+            # boot snapshot is compressed. The page itself is inactive, so
+            # showing its root here does not expose it on the panel.
+            - script.execute: ui_prepare_camera_page
+            - script.wait: ui_prepare_camera_page
             - lvgl.navigation.prepare_applications: ui_navigation
             - lvgl.navigation.refresh: ui_navigation
             - lambda: |-

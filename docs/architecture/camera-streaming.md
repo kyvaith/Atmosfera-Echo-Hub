@@ -50,6 +50,8 @@ It accepts one or more MJPEG URLs and exposes normal ESPHome actions:
 ```yaml
 network_camera:
   id: entrance_camera
+  source_select:
+    name: Camera source
   sources:
     - name: Entrance
       url: https://home.example/api/camera_proxy_stream/camera.entrance
@@ -72,6 +74,49 @@ The component deliberately does not implement RTSP, HLS, or WebRTC clients.
 Adding each protocol to firmware would increase flash, heap use, reconnect
 state, and latency queues. Server-side normalization also lets one YAML source
 work with Home Assistant cameras from different manufacturers.
+
+`source_select` is optional. When configured, ESPHome exposes one HA `select`
+entity whose options are built from `sources[].name`. Changing it in HA or
+using the on-device previous/next gesture selects the same runtime source and
+keeps the entity state synchronized. Adding or removing sources remains a YAML
+configuration operation; the native ESPHome API does not enumerate arbitrary
+Home Assistant camera entities.
+
+The current firmware publishes this selector as:
+
+```text
+select.atmosfera_echo_hub_camera_source
+```
+
+The Camera application also changes source with a horizontal swipe or a tap on
+the left/right edge. The selected source is shown by name while the stream is
+connecting.
+
+## Frigate location
+
+This installation runs Frigate as the `ccab4aaf_frigate-fa-beta` add-on. Its
+active configuration is stored by Supervisor at:
+
+```text
+/usr/share/hassio/app_configs/ccab4aaf_frigate-fa-beta/config.yml
+```
+
+It is therefore not present as `/config/frigate.yml` in Home Assistant's main
+configuration directory. Camera inputs are named under
+`go2rtc.streams`; the matching device URL uses
+`http://<HA-host>:1984/api/stream.mjpeg?src=<stream-name>`. Restart the Frigate
+add-on after changing its stream map.
+
+These relay-only entries are intentionally not duplicated under Frigate's
+top-level `cameras:` section. Consequently they do not appear as monitored
+Frigate cameras in its camera list; they are lightweight go2rtc inputs used to
+normalize source protocols for the panel. To add an available source:
+
+1. Add a named input under `go2rtc.streams` in the Frigate configuration.
+2. Add the matching name and MJPEG URL under `network_camera.sources` in
+   `modules/camera/runtime.yaml`.
+3. Restart Frigate and rebuild the firmware. Subsequent source changes use the
+   Home Assistant selector and require no reboot or rebuild.
 
 ## Buffer ownership
 

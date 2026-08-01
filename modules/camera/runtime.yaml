@@ -3,14 +3,18 @@
 # hardware and drops late frames instead of building a latency queue.
 network_camera:
   id: camera_stream_image
+  source_select:
+    name: Camera source
   sources:
-    - name: Demo HLS
-      url: http://192.168.88.3:1984/api/stream.mjpeg?src=aeh_test_hls
+    - name: Swiss Alps public webcam
+      url: http://192.168.88.3:1984/api/stream.mjpeg?src=public_alps
     - name: Front camera
       url: http://192.168.88.3:1984/api/stream.mjpeg?src=front_aeh
   frame_interval: 34ms
   reconnect_interval: 2s
-  request_timeout: 3s
+  # A cold HLS-to-MJPEG bridge can need several seconds to start its encoder.
+  # This runs in the camera task and does not block LVGL.
+  request_timeout: 10s
   max_frame_size: 768kB
   max_width: 1920
   max_height: 1080
@@ -69,7 +73,9 @@ script:
       - lvgl.widget.show: camera_loading_spinner
       - lvgl.label.update:
           id: camera_source_label
-          text: "Cameras"
+          text: !lambda |-
+            const auto source = id(camera_stream_image).active_source_name();
+            return source.empty() ? std::string("Cameras") : source;
       - lvgl.label.update:
           id: camera_status_label
           text: "Connecting to live view"
