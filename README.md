@@ -239,6 +239,7 @@ runtime and extension documentation is split by subsystem:
 - [Graphics, MIPI DSI, DMA2D, PPA, JPEG, and buffer ownership](docs/architecture/graphics.md)
 - [Navigation, Home snapshots, applications, and Settings scrolling](docs/architecture/navigation-snapshots.md)
 - [Audio, full duplex, AEC, and voice assistant](docs/architecture/audio-voice.md)
+- [Camera streaming through Home Assistant, Frigate, and go2rtc](docs/architecture/camera-streaming.md)
 - [Runtime tasks, PSRAM, and memory lifecycles](docs/architecture/runtime-memory.md)
 - [Architecture decision log](docs/architecture/decisions.md)
 - [Adding pages, applications, lists, and direct widgets](docs/development/extending-ui.md)

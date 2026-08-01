@@ -445,6 +445,28 @@ api:
     - action: debug_next_immich_photo
       then:
         - script.execute: immich_next_photo_now
+    - action: debug_open_camera
+      then:
+        - lvgl.navigation.open: camera_application
+    - action: debug_next_camera
+      then:
+        - network_camera.next: camera_stream_image
+    - action: debug_previous_camera
+      then:
+        - network_camera.previous: camera_stream_image
+    - action: debug_camera_stats
+      then:
+        - lambda: |-
+            ESP_LOGW("camera.diag",
+                     "state=%s source=%u frames=%u dropped=%u fps=%.1f decode=%uus memory=%uKiB has_frame=%s",
+                     id(camera_stream_image).state_name(),
+                     static_cast<unsigned>(id(camera_stream_image).active_source_index()),
+                     static_cast<unsigned>(id(camera_stream_image).decoded_frames()),
+                     static_cast<unsigned>(id(camera_stream_image).dropped_frames()),
+                     static_cast<double>(id(camera_stream_image).measured_fps()),
+                     static_cast<unsigned>(id(camera_stream_image).last_decode_us()),
+                     static_cast<unsigned>(id(camera_stream_image).memory_usage_bytes() / 1024U),
+                     YESNO(id(camera_stream_image).has_frame()));
     - action: debug_next_track
       then:
         - media_player.next: sendspin_group

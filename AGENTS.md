@@ -94,6 +94,18 @@ upstream ESPHome conventions.
 - Large frame caches, gallery images, and application work buffers must have a
   deterministic release point.
 
+### Camera streams
+
+- Normalize RTSP, HLS, and WebRTC through Home Assistant, Frigate, or go2rtc;
+  the device camera component consumes MJPEG frames.
+- Keep one encoded input buffer and one reusable decoded frame. Drop late
+  frames instead of building a latency queue.
+- Publish a new image generation only after hardware JPEG decode completes.
+- Pause and drain direct presentation before releasing the decoded frame or
+  handing display ownership back to navigation.
+- Read `docs/architecture/camera-streaming.md` before changing stream,
+  presentation, or camera application lifecycle behavior.
+
 ## Reusable component rules
 
 - No Atmosfera-specific names, entity IDs, GPIOs, colors, or 800x800

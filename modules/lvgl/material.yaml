@@ -49,7 +49,7 @@ lvgl_material:
         - tile_sensor_button
         - tile_weather_button
         - tile_clock_button
-        - tile_world_clock_button
+        - tile_camera_button
         - tile_media_button
         - tile_subpage_button
         - tile_fan_button

@@ -1,0 +1,87 @@
+# Camera stream runtime. Home Assistant, Frigate or go2rtc should normalize
+# source protocols to MJPEG; the device decodes only complete JPEG frames in
+# hardware and drops late frames instead of building a latency queue.
+network_camera:
+  id: camera_stream_image
+  sources:
+    - name: Demo HLS
+      url: http://192.168.88.3:1984/api/stream.mjpeg?src=aeh_test_hls
+    - name: Front camera
+      url: http://192.168.88.3:1984/api/stream.mjpeg?src=front_aeh
+  frame_interval: 34ms
+  reconnect_interval: 2s
+  request_timeout: 3s
+  max_frame_size: 768kB
+  max_width: 1920
+  max_height: 1080
+  release_buffer_on_stop: true
+  task_core: -1
+  task_priority: 5
+  task_stack_size: 8192
+  on_first_frame:
+    - if:
+        condition:
+          lambda: 'return id(ui_active_app) == 5;'
+        then:
+          - lambda: |-
+              auto *source = id(camera_stream_image).get_lv_image_dsc();
+              if (source == nullptr || source->header.w == 0 || source->header.h == 0)
+                return;
+              lv_image_set_src(id(camera_stream_widget), source);
+              lv_obj_add_flag(id(camera_status_card), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_clear_flag(id(camera_stream_widget), LV_OBJ_FLAG_HIDDEN);
+          - lvgl_image_presenter.restart: camera_stream_presenter
+  on_state:
+    - lambda: |-
+        if (id(ui_active_app) != 5 || id(camera_stream_image).has_frame())
+          return;
+        if (state == "connecting") {
+          lv_label_set_text(id(camera_status_label), "Connecting to live view");
+        } else if (state == "retrying") {
+          lv_label_set_text(id(camera_status_label), "Waiting for camera");
+        } else if (state == "error") {
+          lv_label_set_text(id(camera_status_label), "Camera stream unavailable");
+        }
+  on_source:
+    - lambda: |-
+        if (id(ui_active_app) == 5)
+          lv_label_set_text(id(camera_source_label), source.c_str());
+
+lvgl_image_presenter:
+  id: camera_stream_presenter
+  widget: camera_stream_widget
+  source: camera_stream_image
+  direct: true
+  continuous: true
+  phase_duration: 1s
+  frame_interval: 16ms
+  zoom_start: 1.0
+  zoom_end: 1.0
+  pan_limit: 0%
+
+script:
+  - id: ui_prepare_camera_page
+    mode: restart
+    then:
+      - lvgl.widget.show: camera_root
+      - lvgl.widget.hide: camera_stream_widget
+      - lvgl.widget.show: camera_status_card
+      - lvgl.widget.show: camera_loading_spinner
+      - lvgl.label.update:
+          id: camera_source_label
+          text: "Cameras"
+      - lvgl.label.update:
+          id: camera_status_label
+          text: "Connecting to live view"
+
+  - id: camera_opened
+    mode: restart
+    then:
+      - network_camera.start: camera_stream_image
+
+  - id: camera_closed
+    mode: restart
+    then:
+      - network_camera.stop: camera_stream_image
+      - lvgl_image_presenter.pause: camera_stream_presenter
+      - lvgl.widget.hide: camera_stream_widget

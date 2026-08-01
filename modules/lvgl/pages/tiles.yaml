@@ -812,7 +812,7 @@ lvgl:
                         text_color: 0xC4C7C5
                         text_font: roboto_14
               - button:
-                  id: tile_world_clock_button
+                  id: tile_camera_button
                   x: 112
                   y: 390
                   width: 576
@@ -828,13 +828,13 @@ lvgl:
                   gesture_bubble: true
                   widgets:
                     - label:
-                        text: "\uE8B8"
+                        text: "\uE04B"
                         x: 28
                         y: 23
                         text_color: 0xC3EDCF
                         text_font: material_symbols_24
                     - label:
-                        text: "World"
+                        text: "Cameras"
                         x: 82
                         y: 14
                         width: 330
@@ -842,13 +842,16 @@ lvgl:
                         text_color: 0xF2F2F2
                         text_font: roboto_20
                     - label:
-                        text: "Clock"
+                        text: "Live view"
                         x: 82
                         y: 45
                         width: 330
                         long_mode: DOT
                         text_color: 0xC4C7C5
                         text_font: roboto_14
+                  on_click:
+                    then:
+                      - lvgl.navigation.open: camera_application
               - button:
                   id: tile_media_button
                   x: 112

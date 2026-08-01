@@ -372,6 +372,70 @@ lvgl:
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'false'
+      - id: camera_application
+        page: camera_page
+        widget: camera_root
+        close_gesture: true
+        close_on_threshold: true
+        on_prepare_open:
+          - lvgl.widget.hide: global_time_button
+          - script.stop: ui_refresh_tile_snapshots
+          - script.execute: ui_quiesce_player_direct_regions
+          - script.wait: ui_quiesce_player_direct_regions
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'true'
+          - lambda: |-
+              if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
+              id(ui_touch_click_block_until_ms) = millis() + 800;
+        on_before_reveal:
+          - script.execute: ui_prepare_camera_page
+        on_opened:
+          - lvgl.widget.show: global_time_button
+          - globals.set:
+              id: ui_active_app
+              value: '5'
+          - lvgl.widget.show: app_close_gesture_zone
+          - lambda: 'lv_obj_move_foreground(id(app_close_gesture_zone));'
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'false'
+          - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
+          - script.execute: camera_opened
+        on_prepare_close:
+          - lvgl.widget.hide: global_time_button
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'true'
+          - lambda: |-
+              if (!lvgl_esphome_direct_regions_pause(true, 150)) {
+                ESP_LOGW("ui.close", "regional compositor drain timed out before Camera close");
+              }
+          - lvgl_image_presenter.pause_for_snapshot: camera_stream_presenter
+        on_close:
+          - lvgl_image_presenter.complete_snapshot_handoff: camera_stream_presenter
+          - network_camera.stop: camera_stream_image
+        on_close_cancelled:
+          - lvgl.widget.show: global_time_button
+          - lvgl_image_presenter.resume: camera_stream_presenter
+          - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'false'
+        on_closed:
+          - lvgl.widget.show: global_time_button
+          - script.execute: camera_closed
+          - globals.set:
+              id: ui_active_app
+              value: '0'
+          - script.execute: voice_assistant_update_overlay
+          - lvgl.widget.hide: app_close_gesture_zone
+          - lvgl.widget.hide: ui_touch_blocker
+          - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
+          - delay: 100ms
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'false'
   snapshot_compositor:
     id: ui_snapshot_store
     backend: direct
@@ -379,7 +443,7 @@ lvgl:
     compression: none
     # Entry records are lightweight metadata. Full-screen pixel storage is
     # still allocated on demand and bounded by decoded_slots.
-    max_entries: 4
+    max_entries: 5
     decoded_slots: 1
     settle_duration: 380ms
     application_transitions:

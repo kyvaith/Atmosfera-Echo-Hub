@@ -58,6 +58,7 @@ packages:
   lvgl_player_page: !include modules/lvgl/pages/player.yaml
   lvgl_voice_assistant_overlay: !include modules/lvgl/pages/voice_assistant.yaml
   lvgl_immich_page: !include modules/lvgl/pages/immich.yaml
+  lvgl_camera_page: !include modules/lvgl/pages/camera.yaml
   lvgl_global_overlay: !include modules/lvgl/pages/global_overlay.yaml
 
   player_settings: !include modules/player/settings.yaml
@@ -67,4 +68,5 @@ packages:
   player_speaker_grouping: !include modules/player/speaker_grouping.yaml
   immich_settings: !include modules/immich/settings.yaml
   immich_runtime: !include modules/immich/runtime.yaml
+  camera_runtime: !include modules/camera/runtime.yaml
   voice_assistant_runtime: !include modules/voice_assistant/runtime.yaml

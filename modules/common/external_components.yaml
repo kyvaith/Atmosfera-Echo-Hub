@@ -16,9 +16,11 @@ external_components:
       - image
       - immich_gallery
       - lvgl_material
+      - lvgl_image_presenter
       - lvgl
       - micro_wake_word
       - mipi_dsi
+      - network_camera
       - sendspin
       - task_runtime_profiler
   - source: github://kyvaith/pipecat-homeassistant@dev

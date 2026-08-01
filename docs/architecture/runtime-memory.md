@@ -87,6 +87,8 @@ not add another raw slot; it adds compressed backing and cache work.
 | Shared application RGB888 work buffer | 1,920,000 bytes | Decode/open/close work; reused across apps |
 | Decoded 800x800 artwork or gallery image | 1,920,000 bytes | Current image lease |
 | Gallery encoded JPEG buffer | 786,432 bytes configured | Gallery app/download lifetime |
+| Camera encoded JPEG buffer | 786,432 bytes configured | Component lifetime |
+| Camera decoded RGB888 frame | Source dimensions x 3; 1,920,000 bytes at 800x800 | Camera app lifetime |
 | Settings raw scroll content | Up to 8 MiB configured | Only while Settings is open |
 | Boot Lottie raster frame cache | About 11 MiB for current asset | Boot animation only; released before normal UI |
 | Wavy progress ARGB buffers | About 714 KiB for three 244x244 buffers | Player direct widget lifetime |
@@ -111,6 +113,7 @@ The same large features must not all peak simultaneously.
 | Settings | Home/DSI buffers, Settings raw scroll content; app preview work released after handoff |
 | Voice session | Home/DSI buffers, voice rings, AFE buffers, Assistant UI direct regions |
 | Gallery | Home/DSI buffers, current decoded photo, encoded download/prefetch buffer, transition scratch when needed |
+| Camera | Home/DSI buffers, encoded MJPEG input, one current decoded frame; no frame queue |
 
 The boot sequence releases the Lottie frame cache before normal application
 caches and network artwork can create their own peak. Changing this order can
@@ -225,6 +228,18 @@ The current pan-only configuration uses `zoom_start = zoom_end = 1.0`,
 a roughly 34 ms frame interval, and one 15-second movement per image. PPA SRM
 does the image movement; the CPU computes geometry and schedules frames.
 
+## Camera memory rules
+
+The camera path keeps one bounded encoded JPEG buffer and one reusable decoded
+frame. It never queues decoded video frames. If JPEG hardware or the direct
+presenter still owns the buffer, the incoming frame is dropped and the last
+complete DSI frame stays visible. Closing the camera application releases the
+decoded frame while retaining the smaller encoded input buffer.
+
+The validated 800x800 stream used about 2.625 MiB while active and about 750
+KiB after close. See [Camera streaming](camera-streaming.md) for the complete
+ownership and server-normalization contract.
+
 ## Measuring memory
 
 Every memory report should include:
@@ -272,4 +287,5 @@ image decode, or task placement.
 - `modules/hardware/audio.yaml`
 - `modules/player/artwork.yaml`
 - `modules/immich/`
+- `modules/camera/`
 

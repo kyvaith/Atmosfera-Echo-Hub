@@ -1,0 +1,127 @@
+# Full-screen camera viewer. Live frames are presented through the direct
+# PPA/DSI backend; LVGL remains responsible for loading, errors and input.
+lvgl:
+  pages:
+    - id: camera_page
+      bg_color: 0x000000
+      bg_opa: 100%
+      widgets:
+        - obj:
+            id: camera_root
+            width: 800
+            height: 800
+            align: CENTER
+            bg_color: 0x000000
+            bg_opa: 100%
+            border_width: 0
+            radius: 0
+            pad_all: 0
+            scrollable: false
+            overflow_visible: false
+            hidden: true
+            on_swipe_left:
+              - network_camera.next: camera_stream_image
+            on_swipe_right:
+              - network_camera.previous: camera_stream_image
+            widgets:
+              - image:
+                  id: camera_stream_widget
+                  x: 0
+                  y: 0
+                  width: 800
+                  height: 800
+                  src: camera_stream_image
+                  antialias: false
+                  hidden: true
+
+              - obj:
+                  id: camera_status_card
+                  align: CENTER
+                  width: 500
+                  height: 250
+                  radius: 64
+                  bg_color: 0x101010
+                  bg_opa: 94%
+                  border_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+                  widgets:
+                    - label:
+                        id: camera_status_icon
+                        text: "\uE04B"
+                        align: TOP_MID
+                        y: 30
+                        text_color: 0xD3E3FD
+                        text_font: material_symbols_58
+                    - spinner:
+                        id: camera_loading_spinner
+                        align: TOP_MID
+                        y: 24
+                        width: 72
+                        height: 72
+                        spin_time: 800ms
+                        arc_length: 76deg
+                        arc_width: 7
+                        arc_color: 0x34283E
+                        indicator:
+                          arc_width: 7
+                          arc_color: 0xE8DEF8
+                    - label:
+                        id: camera_source_label
+                        text: "Cameras"
+                        align: TOP_MID
+                        y: 112
+                        width: 400
+                        text_align: CENTER
+                        long_mode: DOT
+                        text_color: 0xF2F2F2
+                        text_font: roboto_30
+                    - label:
+                        id: camera_status_label
+                        text: "Connecting to live view"
+                        align: TOP_MID
+                        y: 164
+                        width: 400
+                        text_align: CENTER
+                        long_mode: WRAP
+                        text_color: 0xC4C7C5
+                        text_font: roboto_16
+
+              # Direct presentation bypasses LVGL drawing but not its input
+              # device. Edge targets keep source navigation responsive without
+              # compositing controls into every video frame.
+              - button:
+                  id: camera_previous_touch_zone
+                  x: 0
+                  y: 100
+                  width: 180
+                  height: 580
+                  bg_opa: 0%
+                  border_width: 0
+                  shadow_width: 0
+                  pad_all: 0
+                  gesture_bubble: true
+                  on_click:
+                    - network_camera.previous: camera_stream_image
+                  on_swipe_right:
+                    - network_camera.previous: camera_stream_image
+                  on_swipe_left:
+                    - network_camera.next: camera_stream_image
+              - button:
+                  id: camera_next_touch_zone
+                  x: 620
+                  y: 100
+                  width: 180
+                  height: 580
+                  bg_opa: 0%
+                  border_width: 0
+                  shadow_width: 0
+                  pad_all: 0
+                  gesture_bubble: true
+                  on_click:
+                    - network_camera.next: camera_stream_image
+                  on_swipe_left:
+                    - network_camera.next: camera_stream_image
+                  on_swipe_right:
+                    - network_camera.previous: camera_stream_image

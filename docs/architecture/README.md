@@ -10,6 +10,7 @@ Read this document first, then continue with:
 - [Graphics and display pipeline](graphics.md)
 - [Navigation and snapshot lifecycle](navigation-snapshots.md)
 - [Audio and voice architecture](audio-voice.md)
+- [Camera streaming](camera-streaming.md)
 - [Runtime tasks and memory](runtime-memory.md)
 - [Architecture decision log](decisions.md)
 - [Extending the UI](../development/extending-ui.md)
@@ -36,6 +37,7 @@ flowchart TB
     HA["Home Assistant<br/>entities, Assist, realtime voice"]
     MA["Music Assistant<br/>SendSpin and artwork"]
     IMMICH["Immich server"]
+    CAMERAS["Home Assistant cameras<br/>Frigate and go2rtc"]
 
     subgraph PRODUCT["Atmosfera product configuration"]
         YAML["Packages and page YAML"]
@@ -47,6 +49,7 @@ flowchart TB
         SNAP["Snapshot store and compositor"]
         MATERIAL["LVGL Material widgets<br/>wave, marquee, volume, state layers"]
         GALLERY["Immich gallery controller"]
+        CAMERA["Network camera<br/>MJPEG and frame dropping"]
         VA["Realtime voice client"]
         AUDIO["Duplex audio stack and AFE"]
         JPEG["ESP32-P4 hardware JPEG"]
@@ -64,7 +67,9 @@ flowchart TB
     NAV --> SNAP
     NAV --> MATERIAL
     IMMICH --> GALLERY
+    CAMERAS --> CAMERA
     GALLERY --> JPEG
+    CAMERA --> JPEG
     MA --> JPEG
     HA <--> VA
     HA <--> AUDIO
@@ -94,6 +99,7 @@ view is not automatically optimized merely because it uses LVGL.
 | Application open/close animation | Reusable controller | Register the application and provide only its policy callbacks |
 | Snapshot-backed list scrolling | Reusable controller | Register the scroll region and its limits |
 | Direct Material renderers | Reusable widgets | Declare the component and pause it when another full-screen owner takes over |
+| Network camera stream | Reusable image source | Normalize sources to MJPEG and register the view as a navigation application |
 | Roboto and Material Symbols | Shared product convention | Use the shared font IDs; it is not imposed by LVGL itself |
 | Voice session flow | Reusable transport plus product policy | Bind the post-AFE microphone, speaker, wake words, and UI phase callbacks |
 
@@ -126,6 +132,7 @@ by responsibility:
 | LVGL base, fonts, navigation, and pages | `modules/lvgl/` |
 | Music and artwork behavior | `modules/player/` |
 | Immich gallery | `modules/immich/` |
+| Camera streams | `modules/camera/` |
 | Voice assistant | `modules/voice_assistant/` |
 
 Reusable implementations are imported from the consolidated ESPHome
