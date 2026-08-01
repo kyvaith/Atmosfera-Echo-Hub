@@ -29,21 +29,32 @@ The gesture router observes one pointer stream and decides whether it is:
 - a bottom-edge application close;
 - a blocked interaction owned by an overlay.
 
-It cancels the original LVGL press once movement commits to a gesture. This is
-what prevents a tile or setting below the finger from receiving a click after
-the user swipes.
+Navigation-owned surfaces withhold the LVGL press until the pointer stream is
+classified. This applies to Home and every registered snapshot scroll region.
+A real tap is replayed as one short press/release pair, while a drag never
+enters `LV_STATE_PRESSED`. This avoids accidental activation, delayed hover
+after inertia, and a pressed-style redraw on the first movement sample. Other
+surfaces keep the normal LVGL input path; for example, the top-layer clock can
+still own its volume long-press.
+
+Gesture classification, axis selection, release velocity, tap replay, and
+in-flight takeover live in the shared navigation core. Motion backends remain
+specialized: Home is a horizontal page window with commit/edge-settle policy,
+while a scroll region is continuous vertical content with momentum and bounce.
+Registering another list under `snapshot_compositor.scroll_regions` reuses the
+same arbitration without copying Settings code.
 
 Current product thresholds are:
 
 | Gesture | Threshold |
 | --- | --- |
-| Home swipe start | 10 px |
-| Home axis bias | 8 px |
+| Home swipe start | First directional pixel |
+| Home axis bias | 0 px |
 | Home page commit | 25% of display width |
 | App close edge | Bottom 50 px |
 | App close commit | 36 px |
-| Settings scroll start | 2 px |
-| Settings axis bias | 6 px |
+| Settings scroll start | First directional pixel |
+| Settings axis bias | 1 px |
 
 Thresholds are policy and may be tuned in YAML. The state machine and click
 cancellation stay in the component.
@@ -106,9 +117,9 @@ sequenceDiagram
     participant Comp as Direct snapshot compositor
     participant LVGL
 
-    Touch->>Nav: pointer down and horizontal motion
-    Nav->>Nav: cross 10 px threshold
-    Nav->>LVGL: cancel pressed target
+    Touch->>Nav: pointer down; defer Home press
+    Nav->>Nav: first directional pixel selects horizontal drag
+    Nav->>LVGL: discard deferred press
     Nav->>Cache: request current and neighbor slots
     Nav->>Comp: begin direct movement
     loop pointer motion
@@ -117,14 +128,27 @@ sequenceDiagram
     end
     Touch->>Nav: release
     Nav->>Comp: settle to committed page or bounce back
+    opt pointer down while settle is active
+        Nav->>Comp: pause worker on displayed frame
+        Touch->>Comp: continue from the captured offset
+        Comp->>Cache: rebase page pair at exact page boundary
+    end
     Comp->>LVGL: apply final logical page
     Nav->>Cache: prepare the new three-page window
     Nav->>Comp: release manual ownership
 ```
 
-The compositor starts lazily after meaningful motion. Settle duration scales
-with remaining distance and has a lower bound, so short moves do not create a
-long pause.
+The compositor starts on the first directional coordinate change. A pointer
+down during settle pauses the worker at the last frame actually presented and
+keeps manual framebuffer ownership. Dragging back reverses from that exact
+offset. Continuing past the next page rebases the existing raw pair to the next
+three-slot window at the page boundary; it does not expose LVGL or restart the
+gesture from zero.
+
+Settle duration scales with remaining distance and release velocity. Edge
+return uses a separate smooth in/out curve and a 240-400 ms distance-dependent
+duration, so the first and last page return more softly than a committed page
+transition.
 
 At the first and last page, the same compositor renders edge resistance and
 bounce using the current snapshot rather than a nonexistent neighbor.
@@ -234,7 +258,10 @@ flowchart TD
     OPEN["Open Settings"] --> BUILD["Render list into bounded raw content buffer"]
     BUILD --> DRAG["Move bitmap directly during drag"]
     DRAG --> RELEASE["Apply momentum and bounce"]
-    RELEASE --> LOGICAL["Apply final logical LVGL scroll position"]
+    RELEASE --> INERTIA["Render inertia on snapshot worker"]
+    INERTIA -->|finishes| LOGICAL["Apply final logical LVGL scroll position"]
+    INERTIA -->|new pointer down| TAKEOVER["Pause at last presented scroll position"]
+    TAKEOVER --> DRAG
     LOGICAL --> REFRESH["Refresh raw bitmap in place"]
     REFRESH --> DRAG
     CHANGE["Setting changed"] --> DELAY["Wait for pressed state to clear"]
@@ -250,6 +277,12 @@ Current policy:
 - 560 ms momentum;
 - 320 ms bounce;
 - 900 ms maximum inertia;
+- first directional pixel captures the drag; pointer-down without movement is
+  replayed as a normal LVGL tap;
+- pressed/hover state is never delivered to list children once the scroll owns
+  the pointer stream;
+- pointer-down during inertia pauses the worker at its last presented Y
+  coordinate and lets the new drag continue from that exact frame;
 - refresh in place after a setting change;
 - release on app close.
 
@@ -259,6 +292,11 @@ surface.
 
 The refreshed snapshot is delayed until pressed/hover state is gone. Capturing
 earlier would bake a temporary state layer into the scroll bitmap.
+
+The live Settings tree is deliberately hidden while its snapshot owns the
+display. Gesture hit-testing therefore uses the registered root geometry even
+when that source tree is hidden; requiring `lv_obj_is_visible()` would make an
+in-flight snapshot impossible to interrupt.
 
 ## Generic store versus production cache
 

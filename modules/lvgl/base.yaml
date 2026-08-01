@@ -63,8 +63,9 @@ lvgl:
       - ui_touch_blocker
     close_edge_size: 50
     close_commit_threshold: 36
-    swipe_start_distance: 10
-    axis_bias: 8
+    # Capture on the first directional pixel. A stationary touch remains a tap.
+    swipe_start_distance: 0
+    axis_bias: 0
     home_commit_threshold: 25%
     on_home_changed:
       - globals.set:
@@ -398,8 +399,9 @@ lvgl:
         momentum_duration: 560ms
         bounce_duration: 320ms
         max_inertia_duration: 900ms
-        swipe_start_distance: 2
-        axis_bias: 6
+        # Capture on the first vertical pixel; a stationary touch is replayed as a tap.
+        swipe_start_distance: 0
+        axis_bias: 1
   default_font: roboto_14
   text_font: roboto_24
   top_layer:

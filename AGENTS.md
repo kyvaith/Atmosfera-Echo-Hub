@@ -30,11 +30,17 @@ upstream ESPHome conventions.
 
 ### Display
 
-- The validated display path is RGB888, LVGL `DIRECT` plus `FULL`, and three
-  display-owned MIPI DSI frame buffers.
+- The validated display path is RGB888, LVGL `DIRECT` with two full-screen
+  LVGL buffers, and three display-owned MIPI DSI frame buffers.
+- `direct_mode: true` selects `LV_DISPLAY_RENDER_MODE_DIRECT` even when the
+  product also sets `full_refresh: true`. Do not assume that combination makes
+  LVGL redraw every pixel after a manual framebuffer handoff.
 - Never write to a frame buffer that is being scanned out, queued, or staged.
 - A manual compositor must acquire an idle frame buffer, complete cache
   synchronization, and present it through the MIPI DSI ownership API.
+- Before native LVGL widgets resume after a manual full-screen frame, both LVGL
+  buffers must contain that coherent base unless the next owner explicitly
+  redraws every display and overlay pixel.
 - Pause and drain direct-region workers before page changes, application
   handoff, snapshots, or any operation that changes the base frame.
 - Do not enable the generic RGB888 PPA fill/blend draw handlers without a
@@ -50,6 +56,19 @@ upstream ESPHome conventions.
   buffer. Do not allocate one raw full-screen buffer per application.
 - Settings owns a raw scroll snapshot only while Settings is open. Refresh it
   in place after a setting changes and release it when the application closes.
+- A new touch during Settings inertia pauses the scroll worker at the last
+  presented Y coordinate and continues from that frame. The hidden source tree
+  remains hit-testable by its registered geometry while the snapshot is shown.
+- Home settle must restore the target through the navigation controller before
+  invalidation. A hidden LVGL object cannot be revealed by redraw alone.
+- `swipe_start_distance: 0` means first directional pixel; a stationary
+  touch-down must remain a tap.
+- Defer LVGL press on Home and registered scroll regions until tap-versus-drag
+  is known. Replaying one short press/release is valid for a tap; a drag must
+  never render a child's pressed style or leave a delayed hover after inertia.
+- A touch during Home settle takes over the last presented compositor frame.
+  Do not finalize to LVGL or restart from a page origin. Rebase the prepared
+  current/next pair only at an exact page boundary.
 - New pages, applications, and scroll regions do not become snapshot-aware
   automatically. Register them declaratively as described in
   `docs/development/extending-ui.md`.

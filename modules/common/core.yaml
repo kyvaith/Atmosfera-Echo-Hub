@@ -337,6 +337,37 @@ api:
             lvgl_esphome_set_swipe_logging_enabled(id(settings_swipe_logs_switch).state);
         - script.execute: ui_apply_tile_positions
         - script.execute: ui_refresh_tile_snapshots
+    - action: debug_navigation_home
+      variables:
+        page: int
+      then:
+        - lambda: |-
+            int index = page - 1;
+            if (index < 0) index = 0;
+            if (index > 3) index = 3;
+            id(ui_navigation).show_home();
+            id(ui_navigation).activate_home_view(index);
+            id(ui_page) = index + 1;
+            id(ui_home_page) = index + 1;
+    - action: debug_navigation_touch
+      variables:
+        phase: int
+        x: int
+        y: int
+      then:
+        - lambda: |-
+            if (phase == 0) {
+              id(ui_navigation).touch_begin(x, y);
+            } else if (phase == 1) {
+              id(ui_navigation).touch_update(x, y);
+            } else {
+              id(ui_navigation).touch_end();
+            }
+    - action: debug_navigation_trace
+      variables:
+        enabled: bool
+      then:
+        - lambda: 'lvgl_esphome_set_swipe_logging_enabled(enabled);'
     - action: debug_task_profile
       then:
         - task_runtime_profiler.log: runtime_profiler

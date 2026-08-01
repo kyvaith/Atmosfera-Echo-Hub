@@ -82,6 +82,11 @@ the Atmosfera product configuration.
 - Swipe back 4 -> 3 -> 2 -> 1.
 - Test edge bounce on pages 1 and 4.
 - Start a swipe on every tappable tile; no tile may open.
+- Tap each tile without movement; it must still show pressed feedback and open
+  exactly once.
+- Touch an in-flight settle and reverse it back to the previous page.
+- Touch an in-flight settle and continue through to the following page without
+  a position reset or native-LVGL flash.
 - Verify page indicator and clock stay fixed and correct.
 - Change Home content, then verify the next snapshot contains the new state.
 - Repeat swipes while music and artwork replacement are active.
@@ -102,7 +107,11 @@ For Player, Settings, Voice, and Immich:
 
 - Open and immediately scroll.
 - Start scroll over every switch/button; no accidental activation.
+- With a zero-pixel start threshold, a stationary touch must still click once,
+  while the first vertical coordinate change must suppress the native press.
 - Verify momentum and top/bottom bounce.
+- During momentum, touch again and drag in the opposite direction; motion must
+  continue from the currently presented frame without a jump or recapture.
 - Change a setting and scroll again; snapshot must show the new value.
 - Verify no delayed hover flash after release.
 - Close Settings and confirm its raw scroll buffers are released.
