@@ -98,6 +98,12 @@ upstream ESPHome conventions.
 
 - Normalize RTSP, HLS, and WebRTC through Home Assistant, Frigate, or go2rtc;
   the device camera component consumes MJPEG frames.
+- Product camera access is an allow-list of existing Home Assistant `camera.*`
+  entities. The HA integration owns entity discovery and signed proxy URLs;
+  firmware must not persist HA tokens or vendor camera credentials.
+- Home Assistant pushes the runtime source catalog through the existing
+  ESPHome API connection. Keep HA selection, the device select entity, and the
+  on-device picker synchronized by source name.
 - Keep one encoded input buffer and one reusable decoded frame. Drop late
   frames instead of building a latency queue.
 - Publish a new image generation only after hardware JPEG decode completes.

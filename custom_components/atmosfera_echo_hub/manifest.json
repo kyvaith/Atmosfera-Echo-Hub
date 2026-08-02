@@ -1,0 +1,11 @@
+{
+  "domain": "atmosfera_echo_hub",
+  "name": "Atmosfera Echo Hub",
+  "codeowners": ["@kyvaith"],
+  "config_flow": true,
+  "dependencies": ["camera", "esphome", "network"],
+  "documentation": "https://github.com/kyvaith/Atmosfera-Echo-Hub",
+  "integration_type": "helper",
+  "iot_class": "local_push",
+  "version": "0.1.0"
+}

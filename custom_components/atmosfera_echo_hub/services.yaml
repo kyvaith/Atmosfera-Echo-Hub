@@ -1,0 +1,12 @@
+report_camera_source:
+  fields:
+    node_name:
+      required: true
+      example: atmosfera-echo-hub
+      selector:
+        text: {}
+    source:
+      required: true
+      example: Front camera
+      selector:
+        text: {}

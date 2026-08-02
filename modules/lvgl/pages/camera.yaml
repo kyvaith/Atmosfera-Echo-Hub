@@ -124,3 +124,99 @@ lvgl:
                     - network_camera.next: camera_stream_image
                   on_swipe_right:
                     - network_camera.previous: camera_stream_image
+
+              - button:
+                  id: camera_source_picker_touch_zone
+                  x: 180
+                  y: 100
+                  width: 440
+                  height: 580
+                  bg_opa: 0%
+                  border_width: 0
+                  shadow_width: 0
+                  pad_all: 0
+                  gesture_bubble: true
+                  on_click:
+                    - script.execute: camera_show_source_picker
+
+              - obj:
+                  id: camera_source_picker_overlay
+                  width: 800
+                  height: 800
+                  align: CENTER
+                  bg_color: 0x000000
+                  bg_opa: 82%
+                  border_width: 0
+                  radius: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: true
+                  hidden: true
+                  widgets:
+                    - label:
+                        text: "Choose camera"
+                        align: TOP_MID
+                        y: 108
+                        width: 500
+                        text_align: CENTER
+                        text_color: 0xF2F2F2
+                        text_font: roboto_30
+                    - roller:
+                        id: camera_source_roller
+                        align: CENTER
+                        y: -10
+                        width: 560
+                        visible_row_count: 3
+                        anim_duration: 180ms
+                        options:
+                          - No cameras configured
+                        text_color: 0xC4C7C5
+                        text_font: roboto_24
+                        bg_color: 0x211A24
+                        bg_opa: 100%
+                        border_width: 0
+                        radius: 44
+                        pad_left: 24
+                        pad_right: 24
+                        selected:
+                          text_color: 0x35105C
+                          bg_color: 0xEADDFF
+                          bg_opa: 100%
+                    - button:
+                        id: camera_picker_cancel_button
+                        x: 208
+                        y: 600
+                        width: 176
+                        height: 88
+                        radius: 44
+                        bg_color: 0x332E3C
+                        bg_opa: 100%
+                        border_width: 0
+                        shadow_width: 0
+                        on_click:
+                          - script.execute: camera_hide_source_picker
+                        widgets:
+                          - label:
+                              text: "Cancel"
+                              align: CENTER
+                              text_color: 0xF2F2F2
+                              text_font: roboto_20
+                    - button:
+                        id: camera_picker_confirm_button
+                        x: 416
+                        y: 600
+                        width: 176
+                        height: 88
+                        radius: 44
+                        bg_color: 0xEADDFF
+                        bg_opa: 100%
+                        border_width: 0
+                        shadow_width: 0
+                        on_click:
+                          - script.execute: camera_confirm_source
+                        widgets:
+                          - label:
+                              text: "Open"
+                              align: CENTER
+                              text_color: 0x35105C
+                              text_font: roboto_20

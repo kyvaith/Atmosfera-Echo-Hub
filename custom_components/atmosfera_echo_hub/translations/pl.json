@@ -1,0 +1,36 @@
+{
+  "title": "Atmosfera Echo Hub",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Dostęp do kamer",
+        "description": "Wybierz Atmosfera Echo Hub oraz kamery Home Assistant, które może wyświetlać.",
+        "data": {
+          "device_id": "Urządzenie ESPHome",
+          "cameras": "Dostępne kamery"
+        }
+      }
+    },
+    "error": {
+      "not_esphome": "Wybierz urządzenie zarządzane przez ESPHome.",
+      "no_cameras": "Wybierz co najmniej jedną kamerę."
+    },
+    "abort": {
+      "already_configured": "Dostęp do kamer jest już skonfigurowany dla tego urządzenia."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Dostępne kamery",
+        "description": "Tylko wybrane kamery Home Assistant zostaną udostępnione temu ekranowi.",
+        "data": {
+          "cameras": "Dostępne kamery"
+        }
+      }
+    },
+    "error": {
+      "no_cameras": "Wybierz co najmniej jedną kamerę."
+    }
+  }
+}

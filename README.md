@@ -173,6 +173,24 @@ Atmosfera Echo Hub is intended to deliver a frictionless onboarding experience:
 
 The long-term goal is a polished first-run flow where the device feels like a real product, not a loose collection of components.
 
+### Home Assistant camera access
+
+The Camera application can display existing Home Assistant `camera.*` entities,
+including cameras that do not use Frigate. Install the bundled lightweight
+`atmosfera_echo_hub` Home Assistant integration through HACS (as a custom
+repository), or copy `custom_components/atmosfera_echo_hub` to Home Assistant
+and restart it. This is a Core integration, not an add-on, proxy container, or
+second video pipeline.
+Then add **Atmosfera Echo Hub** under **Settings > Devices & services**, select
+the ESPHome device, and choose the cameras it may display.
+
+No camera credentials or Home Assistant token are entered in firmware. Home
+Assistant creates short-lived signed proxy URLs and delivers them over the
+existing ESPHome API connection. Cameras can be selected both from the device
+page in Home Assistant and from the picker on the display. See
+[Camera streaming](docs/architecture/camera-streaming.md) for the complete data
+path and lifecycle.
+
 ## What Else This Device Could Support
 
 Atmosfera Echo Hub has enough hardware surface area to grow into a truly ultimate Home Assistant satellite. High-value expansion areas include the following.

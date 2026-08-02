@@ -3,13 +3,10 @@
 # hardware and drops late frames instead of building a latency queue.
 network_camera:
   id: camera_stream_image
-  source_select:
-    name: Camera source
-  sources:
-    - name: Swiss Alps public webcam
-      url: http://192.168.88.3:1984/api/stream.mjpeg?src=public_alps
-    - name: Front camera
-      url: http://192.168.88.3:1984/api/stream.mjpeg?src=front_aeh
+  max_runtime_sources: 16
+  # The Home Assistant integration supplies the selected camera.* entities
+  # after its existing ESPHome API connection is established.
+  sources: []
   frame_interval: 34ms
   reconnect_interval: 2s
   # A cold HLS-to-MJPEG bridge can need several seconds to start its encoder.
@@ -50,6 +47,16 @@ network_camera:
     - lambda: |-
         if (id(ui_active_app) == 5)
           lv_label_set_text(id(camera_source_label), source.c_str());
+    # Keep the dynamic HA select synchronized when the source is changed on
+    # the display. Authentication is provided by the existing ESPHome API.
+    - homeassistant.action:
+        action: atmosfera_echo_hub.report_camera_source
+        variables:
+          node_name: !lambda 'return App.get_name();'
+          selected_source: !lambda 'return source;'
+        data_template:
+          node_name: "{{ node_name }}"
+          source: "{{ selected_source }}"
 
 lvgl_image_presenter:
   id: camera_stream_presenter
@@ -80,6 +87,47 @@ script:
           id: camera_status_label
           text: "Connecting to live view"
 
+  - id: camera_show_source_picker
+    mode: single
+    then:
+      - if:
+          condition:
+            lambda: 'return id(camera_stream_image).source_count() > 0;'
+          then:
+            - lvgl_image_presenter.pause: camera_stream_presenter
+            - lambda: |-
+                id(camera_source_roller)->set_options(
+                    id(camera_stream_image).source_names());
+                id(camera_source_roller)->set_selected_index(
+                    id(camera_stream_image).active_source_index(), LV_ANIM_OFF);
+            - lvgl.widget.show: camera_source_picker_overlay
+            - lambda: |-
+                lv_obj_move_foreground(id(camera_source_picker_overlay));
+                lv_refr_now(nullptr);
+          else:
+            - lvgl.label.update:
+                id: camera_status_label
+                text: "Choose cameras in Home Assistant"
+
+  - id: camera_hide_source_picker
+    mode: restart
+    then:
+      - lvgl.widget.hide: camera_source_picker_overlay
+      - lvgl_image_presenter.resume: camera_stream_presenter
+
+  - id: camera_confirm_source
+    mode: restart
+    then:
+      - lambda: |-
+          id(camera_stream_image).select_source(id(camera_source_roller)->get_selected_index());
+      - lvgl.widget.hide: camera_source_picker_overlay
+      - lvgl.widget.hide: camera_stream_widget
+      - lvgl.widget.show: camera_status_card
+      - lvgl.label.update:
+          id: camera_status_label
+          text: "Connecting to live view"
+      - lambda: 'lv_refr_now(nullptr);'
+
   - id: camera_opened
     mode: restart
     then:
@@ -90,4 +138,5 @@ script:
     then:
       - network_camera.stop: camera_stream_image
       - lvgl_image_presenter.pause: camera_stream_presenter
+      - lvgl.widget.hide: camera_source_picker_overlay
       - lvgl.widget.hide: camera_stream_widget

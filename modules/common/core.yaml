@@ -448,6 +448,22 @@ api:
     - action: debug_open_camera
       then:
         - lvgl.navigation.open: camera_application
+    - action: camera_set_sources
+      variables:
+        names: string[]
+        urls: string[]
+      then:
+        - network_camera.replace_sources:
+            id: camera_stream_image
+            names: !lambda 'return names;'
+            urls: !lambda 'return urls;'
+    - action: camera_select_source
+      variables:
+        index: int
+      then:
+        - network_camera.select:
+            id: camera_stream_image
+            index: !lambda 'return static_cast<uint16_t>(index < 0 ? 0 : index);'
     - action: debug_next_camera
       then:
         - network_camera.next: camera_stream_image
