@@ -43,6 +43,12 @@ upstream ESPHome conventions.
   redraws every display and overlay pixel.
 - Pause and drain direct-region workers before page changes, application
   handoff, snapshots, or any operation that changes the base frame.
+- Treat an external full-screen framebuffer session as exclusive ownership of
+  the complete DSI pool. Reject unrelated LVGL/direct-region queues until the
+  session ends, then realign both LVGL direct buffers before resuming workers.
+- A disabled direct widget must still retire completed in-flight presentation.
+  When its background changes, discard any stale unpresented ready frame before
+  scheduling the replacement generation.
 - Do not enable the generic RGB888 PPA fill/blend draw handlers without a
   hardware test. They have produced short horizontal corruption on ESP32-P4.
 - Do not replace a proven hardware path with a CPU copy as a permanent fix for
@@ -107,6 +113,12 @@ upstream ESPHome conventions.
 - Keep one encoded input buffer and one reusable decoded frame. Drop late
   frames instead of building a latency queue.
 - Publish a new image generation only after hardware JPEG decode completes.
+- For a native-size full-screen MJPEG frame, prefer hardware JPEG decode
+  directly into an idle DSI framebuffer lease and present at VSYNC. Use PPA SRM
+  only when scale or crop is actually required.
+- Measure camera presentation with the present counter/FPS, not only the decode
+  counter. Decode FPS can rise while a hidden or paused presenter shows a
+  static frame.
 - Pause and drain direct presentation before releasing the decoded frame or
   handing display ownership back to navigation.
 - Read `docs/architecture/camera-streaming.md` before changing stream,

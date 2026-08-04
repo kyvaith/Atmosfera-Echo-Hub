@@ -106,7 +106,11 @@ globals:
     type: bool
     restore_value: no
     initial_value: 'false'
-  - id: artwork_wave_handoff_busy
+  - id: artwork_refresh_generation
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+  - id: artwork_refresh_pending
     type: bool
     restore_value: no
     initial_value: 'false'
@@ -188,7 +192,7 @@ script:
             char time_buf[6];
             snprintf(time_buf, sizeof(time_buf), "%d:%02d", now.hour, now.minute);
             lv_label_set_text(id(global_time_label), time_buf);
-            lvgl_esphome_snapshot_set_clock_text(time_buf);
+            lvgl_esphome_snapshot_sync_clock_widget(id(global_time_label));
           }
           lv_label_set_text(id(title_label), "No Track");
           lv_label_set_text(id(artist_label), "-");
@@ -498,7 +502,12 @@ script:
           id(media_wavy_progress).initialize();
           id(media_wavy_progress).set_value_basis_points(progress);
           id(media_wavy_progress).set_playing(playing);
-          id(media_wavy_progress).set_pending(id(media_action_pending));
+          // The loading segment has its own delayed show/hide lifecycle.
+          // Applying the logical action-pending flag here bypassed that delay:
+          // a quick PLAYING -> IDLE pause briefly enabled the bright loading
+          // segment before the 450 ms hide callback, which looked like the
+          // protruding wave edges flashing.  The spinner scripts below are the
+          // sole owners of MaterialWavyProgress::pending.
 
   - id: media_title_marquee_reset
     mode: restart
@@ -557,9 +566,10 @@ script:
           if (overflow <= 0) {
             return;
           }
-          uint32_t duration = (uint32_t) overflow * 35U;
-          if (duration < 2500U) duration = 2500U;
-          if (duration > 9000U) duration = 9000U;
+          // Match one source pixel to one 60-Hz display frame. The PPA region
+          // compositor then receives a new integer position for every frame,
+          // instead of periodically repeating a position and looking jerky.
+          const uint32_t duration = ((uint32_t) overflow * 1000U + 59U) / 60U;
           id(title_marquee_scroll_ms) = duration;
           id(title_marquee_start_ms) = millis();
           id(title_marquee_active) = id(media_title_marquee).begin();
@@ -848,10 +858,9 @@ script:
                 if (id(artwork_decode_ui_guard)) {
                   auto *display = lv_obj_get_display(id(wear_root));
                   if (display != nullptr) lv_display_enable_invalidation(display, true);
-                  lvgl_esphome_direct_regions_pause(false, 0);
                   id(artwork_decode_ui_guard) = false;
                 }
-                id(artwork_wave_handoff_busy) = false;
+                id(artwork_refresh_pending) = false;
           else:
             # Hide the idle visual before publishing the artwork so both
             # visibility changes are rendered in the same full frame.
@@ -862,10 +871,9 @@ script:
                   if (id(artwork_decode_ui_guard)) {
                     auto *display = lv_obj_get_display(id(wear_root));
                     if (display != nullptr) lv_display_enable_invalidation(display, true);
-                    lvgl_esphome_direct_regions_pause(false, 0);
                     id(artwork_decode_ui_guard) = false;
                   }
-                  id(artwork_wave_handoff_busy) = false;
+                  id(artwork_refresh_pending) = false;
                   return;
                 }
                 id(artwork_download_deferred) = false;
@@ -879,23 +887,9 @@ script:
                 const bool decode_guard_active = id(artwork_decode_ui_guard);
                 const bool invalidation_enabled =
                     display != nullptr && lv_display_is_invalidation_enabled(display);
-                // The wave and marquee write directly into small DSI regions.
-                // Drain and pause the shared regional queue before LVGL
-                // repaints the full artwork frame. Merely disabling the two
-                // producers still left an already queued PPA transaction able
-                // to overwrite the newly rendered framebuffer.
-                if (!decode_guard_active) {
-                  const bool drained = lvgl_esphome_direct_regions_pause(true, 150);
-                  // pause(true) rejects new requests before waiting for the
-                  // barrier, so the matching resume is required even if the
-                  // drain itself timed out.
-                  id(artwork_decode_ui_guard) = true;
-                  if (!drained) {
-                    ESP_LOGW("artwork.ui", "regional compositor drain timed out before artwork refresh");
-                  }
-                }
-                id(artwork_wave_handoff_busy) = true;
-                id(media_wavy_progress).set_direct_present(false);
+                // Keep regional animations queued during the artwork handoff.
+                // The LVGL refresh mutex serializes writes to the DSI buffers,
+                // while the base-generation check discards an obsolete frame.
                 id(media_title_marquee).end(true);
                 if (invalidation_enabled) {
                   lv_display_enable_invalidation(display, false);
@@ -919,9 +913,16 @@ script:
                 if (!lv_obj_has_flag(id(artwork_error_label), LV_OBJ_FLAG_HIDDEN)) {
                   lv_obj_add_flag(id(artwork_error_label), LV_OBJ_FLAG_HIDDEN);
                 }
+                // Build the wave's small private backdrop while LVGL renders
+                // the same completed source. This overlaps work that used to
+                // happen after a fixed 80-ms stall.
+                id(media_wavy_progress).set_background(src, false);
+                id(artwork_refresh_generation) = lvgl_esphome_get_direct_region_base_generation();
+                id(artwork_refresh_pending) = source_changed;
                 if (display != nullptr && (invalidation_enabled || decode_guard_active)) {
                   lv_display_enable_invalidation(display, true);
                 }
+                id(artwork_decode_ui_guard) = false;
                 if (source_changed) {
                   // Direct/full-refresh mode turns this into one complete
                   // player frame. Do not call lv_refr_now() here: this script
@@ -931,18 +932,6 @@ script:
                   // frame while the regional compositors remain quiescent.
                   lv_obj_invalidate(id(wear_root));
                 }
-            # Yield the ESPHome loop so LVGL can render and present the single
-            # invalidated frame before the direct wave/marquee writers resume.
-            - delay: 80ms
-            - lambda: |-
-                // Keep the direct-rendered control backdrop in lockstep with
-                // the LVGL artwork. Opening Player with an already decoded
-                // image does not arm artwork_decode_ui_guard, but still needs
-                // to replace the boot-time placeholder under the wave.
-                auto *src = id(album_art_background).get_lv_image_dsc();
-                id(media_wavy_progress).set_background(src, false);
-                ESP_LOGD("artwork.ui", "artwork trace #%u ui source applied uptime=%lums",
-                         id(album_art_background).get_trace_id(), millis());
             - script.execute: media_complete_artwork_handoff
             - script.wait: media_complete_artwork_handoff
             - script.execute: media_title_marquee_reset_and_start
@@ -953,17 +942,23 @@ script:
     then:
       - wait_until:
           condition:
-            lambda: 'return id(media_wavy_progress).is_background_ready();'
-          timeout: 500ms
+            lambda: |-
+              const bool frame_presented =
+                  !id(artwork_refresh_pending) ||
+                  lvgl_esphome_get_direct_region_base_generation() != id(artwork_refresh_generation);
+              return frame_presented && id(media_wavy_progress).is_background_ready();
+          timeout: 700ms
       - lambda: |-
-          if (!id(media_wavy_progress).is_background_ready()) {
-            ESP_LOGW("artwork.ui", "wave backdrop was not ready before handoff timeout");
+          const bool background_ready = id(media_wavy_progress).is_background_ready();
+          const bool frame_presented =
+              !id(artwork_refresh_pending) ||
+              lvgl_esphome_get_direct_region_base_generation() != id(artwork_refresh_generation);
+          if (!background_ready || !frame_presented) {
+            ESP_LOGW("artwork.ui", "artwork handoff timeout: frame=%s backdrop=%s",
+                     YESNO(frame_presented), YESNO(background_ready));
           }
-          if (id(artwork_decode_ui_guard)) {
-            lvgl_esphome_direct_regions_pause(false, 0);
-            id(artwork_decode_ui_guard) = false;
-          }
-          id(artwork_wave_handoff_busy) = false;
+          id(artwork_decode_ui_guard) = false;
+          id(artwork_refresh_pending) = false;
 
   - id: media_handle_artwork_error
     mode: restart
@@ -973,10 +968,9 @@ script:
           if (id(artwork_decode_ui_guard)) {
             auto *display = lv_obj_get_display(id(wear_root));
             if (display != nullptr) lv_display_enable_invalidation(display, true);
-            lvgl_esphome_direct_regions_pause(false, 0);
             id(artwork_decode_ui_guard) = false;
           }
-          id(artwork_wave_handoff_busy) = false;
+          id(artwork_refresh_pending) = false;
           id(media_title_marquee).end(true);
           lv_obj_add_flag(id(title_marquee_scrim), LV_OBJ_FLAG_HIDDEN);
           id(media_wavy_progress).set_background(
@@ -1142,6 +1136,19 @@ text_sensor:
     id: media_player_state_sensor
     internal: true
     on_value:
+      - lambda: |-
+          // SendSpin exposes a paused stream as IDLE. Capture the last visible
+          // progress before the state handlers freeze the wave. This also
+          // covers pauses requested outside this screen (for example from MA).
+          if (x == "IDLE" || x == "idle") {
+            int hold = id(last_media_progress_basis_points);
+            if (hold < 0 && id(last_media_progress_permille) >= 0) hold = id(last_media_progress_permille) * 10;
+            if (hold < 0 && id(last_media_progress_percent) >= 0) hold = id(last_media_progress_percent) * 100;
+            if (hold < 0) hold = 0;
+            if (hold > 10000) hold = 10000;
+            id(media_progress_hold_basis_points) = hold;
+            id(media_progress_hold_until) = millis() + 1500U;
+          }
       - if:
           condition:
             lambda: 'return x == "PLAYING" || x == "playing";'
@@ -1179,7 +1186,22 @@ text_sensor:
             - script.execute: media_resume_deferred_artwork
       - if:
           condition:
-            lambda: 'return x == "IDLE" || x == "idle" || x == "OFF" || x == "off" || x == "STANDBY" || x == "standby" || x == "STOPPED" || x == "stopped";'
+            lambda: |-
+              const bool idle = x == "IDLE" || x == "idle";
+              const bool stopped = x == "OFF" || x == "off" || x == "STANDBY" || x == "standby" ||
+                                   x == "STOPPED" || x == "stopped";
+              if (stopped) return true;
+              if (!idle) return false;
+
+              // An IDLE transition at the actual end of a finite track should
+              // still clear the progress. Other IDLE transitions are pauses
+              // and retain the last rendered wave instead of flashing empty.
+              const float duration = id(media_duration_sensor).has_state() ? id(media_duration_sensor).state : 0.0f;
+              float position = id(last_media_position);
+              if (id(media_position_sensor).has_state() && id(media_position_sensor).state > position) {
+                position = id(media_position_sensor).state;
+              }
+              return duration > 0.0f && position >= duration - 0.75f;
           then:
             - lambda: |-
                 id(last_media_position) = 0.0f;
@@ -1316,7 +1338,6 @@ interval:
   - interval: 16ms
     then:
       - lambda: |-
-          static uint32_t marquee_last_submit_ms = 0;
           id(media_title_marquee).service();
           const int voice_phase = id(voice_assistant_phase);
           const bool voice_visible = voice_phase != ${voice_assist_idle_phase_id} &&
@@ -1332,7 +1353,6 @@ interval:
           if (id(global_volume_dragging)) blocker_mask |= 1U << 5;
           if (!lv_obj_has_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN)) blocker_mask |= 1U << 6;
           if (!lv_obj_has_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN)) blocker_mask |= 1U << 7;
-          if (id(artwork_wave_handoff_busy)) blocker_mask |= 1U << 8;
           const bool player_uncovered = blocker_mask == 0;
           static uint16_t previous_blocker_mask = 0xFFFF;
           if (id(settings_perf_logs_switch).state && player_visible && blocker_mask != previous_blocker_mask) {
@@ -1353,12 +1373,10 @@ interval:
           // frame instead of presenting two independently competing frames.
           if (id(title_marquee_active)) {
             if (!player_visible) {
-              marquee_last_submit_ms = 0;
               id(title_marquee_active) = false;
               id(media_title_marquee).end(true);
               if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
             } else if (!player_uncovered) {
-              marquee_last_submit_ms = 0;
               if (id(media_title_marquee).is_active()) {
                 id(media_title_marquee).end(true);
                 if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
@@ -1366,7 +1384,6 @@ interval:
             } else {
               const int overflow = id(title_marquee_text_width) - 520;
               if (overflow <= 0 || id(title_marquee_scroll_ms) == 0) {
-                marquee_last_submit_ms = 0;
                 id(title_marquee_active) = false;
                 id(media_title_marquee).end(true);
                 if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
@@ -1374,7 +1391,6 @@ interval:
                 const uint32_t now = millis();
                 const uint32_t elapsed = now - id(title_marquee_start_ms);
                 if (elapsed >= id(title_marquee_scroll_ms) + 700U) {
-                  marquee_last_submit_ms = 0;
                   id(title_marquee_active) = false;
                   if (id(media_title_marquee).is_active()) {
                     id(media_title_marquee).update(0);
@@ -1385,23 +1401,16 @@ interval:
                   const int x = -((int64_t) overflow * (int64_t) elapsed /
                                   (int64_t) id(title_marquee_scroll_ms));
                   if (id(media_title_marquee).is_active()) {
-                    // Position remains time-based, but a text strip does not
-                    // need to consume one PPA transaction every 16 ms. At
-                    // ~31 Hz it stays visually continuous while leaving every
-                    // other regional slot to the 60-Hz play animation.
-                    if (marquee_last_submit_ms == 0 || now - marquee_last_submit_ms >= 32U) {
-                      if (id(media_title_marquee).update(x)) {
-                        marquee_last_submit_ms = now;
-                      }
-                    }
+                    // The component deduplicates equal integer positions and
+                    // coalesces pending work, so submitting at display cadence
+                    // keeps motion smooth without rendering stale frames.
+                    id(media_title_marquee).update(x);
                   } else if (lv_obj_get_x(id(title_label)) != x) {
                     lv_obj_set_x(id(title_label), x);
                   }
                 }
               }
             }
-          } else {
-            marquee_last_submit_ms = 0;
           }
 
           // The worker on the core opposite ESPHome rasterizes the next
@@ -1442,7 +1451,7 @@ interval:
             const char *current = lv_label_get_text(id(global_time_label));
             if (current == nullptr || strcmp(current, time_buf) != 0) {
               lv_label_set_text(id(global_time_label), time_buf);
-              lvgl_esphome_snapshot_set_clock_text(time_buf);
+              lvgl_esphome_snapshot_sync_clock_widget(id(global_time_label));
             }
           }
           if (id(media_progress_hold_until) != 0 &&

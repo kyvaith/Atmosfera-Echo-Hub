@@ -210,7 +210,7 @@ script:
             id(page_indicator_3),
             id(page_indicator_4),
           };
-          lvgl_esphome_snapshot_set_clock_font(id(roboto_34)->get_lv_font());
+          lvgl_esphome_snapshot_sync_clock_widget(id(global_time_label));
           lv_obj_add_flag(id(global_time_button), LV_OBJ_FLAG_HIDDEN);
           for (auto *dot : dots) {
             if (dot != nullptr) lv_obj_add_flag(dot, LV_OBJ_FLAG_HIDDEN);

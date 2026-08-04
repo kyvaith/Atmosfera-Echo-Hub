@@ -38,6 +38,14 @@ this repository.
 - Create the swipe and JPEG-prefetch workers during Home preparation. At settle,
   keep the exact final snapshot visible and finish prefetch asynchronously
   rather than waiting in the LVGL loop.
+- Arm an application transition in its LVGL click callback, but start its
+  compositor worker only after the current `lv_timer_handler()` returns and the
+  pending DSI frame is presented. Otherwise the callback's native flush can
+  cover every correctly rendered transition frame.
+- If an application-close source aliases a DSI framebuffer, refresh its JPEG
+  cache before realigning the DSI pool to the final Home frame. Realignment
+  overwrites every display buffer and must never run before that source is
+  consumed.
 - At the final Home handoff, restore visibility through `LvglNavigation`, centre
   the target widget, and only then invalidate it. An invalidate call cannot
   reveal an object that still carries `LV_OBJ_FLAG_HIDDEN`.
@@ -61,6 +69,20 @@ this repository.
   its last presented Y coordinate and continue the new drag from that frame.
   Do not reject the gesture merely because snapshot playback hides the live
   Settings root.
+- In direct-region material renderers, draw transient state such as a loading
+  sweep as an independent overlay over the stable progress track. Do not clip
+  it against the played/remaining partition: that makes the sweep disappear
+  and reappear at segment boundaries. Give the transient segment its own
+  antialiased rounded caps and remove it atomically when the confirmed state
+  arrives.
+- Hand native LVGL content to a direct-region renderer atomically and without
+  blocking `lv_timer_handler()`. Hide the native object only for the off-screen
+  clean-background render, restore it immediately, and leave it visible until
+  the matching direct-region slot is confirmed active on DSI. Only then hide
+  the native object in the LVGL tree. Retry `BUSY` or rejected first frames
+  asynchronously and keep the native fallback on timeout. Never use a generic
+  frame wait as proof that the requested region was presented, and never call
+  `lv_refr_now()` while the native object is hidden.
 
 ## Change workflow
 

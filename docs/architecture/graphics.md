@@ -34,6 +34,7 @@ flowchart LR
     DIRECT_WIDGET["Direct widgets<br/>wave, marquee, volume"]
     SNAPSHOT["Home/app/settings snapshots"]
     IMAGE["Artwork and gallery JPEG"]
+    CAMERA["Native-size camera MJPEG"]
     LOTTIE["Lottie/ThorVG"]
 
     SW["LVGL software draw"]
@@ -53,6 +54,10 @@ flowchart LR
     SNAPSHOT --> DMA2D
     IMAGE --> JPEG
     JPEG --> PPA
+    CAMERA --> JPEG
+    JPEG -->|"direct idle lease"| FB0
+    JPEG -->|"direct idle lease"| FB1
+    JPEG -->|"direct idle lease"| FB2
     LOTTIE --> PPA
 
     SW --> FB0
@@ -111,6 +116,15 @@ stateDiagram-v2
 The driver tracks presented, active, queued, and staged indices atomically.
 Manual rendering may only acquire a buffer that is none of those active
 ownership states.
+
+An external full-screen session, such as native-size camera presentation, is
+the exclusive owner of this pool until it ends. The session pauses and drains
+the direct-region compositor before acquiring its first lease. While the
+session is active, the driver rejects frame queues from LVGL and independent
+regional workers; otherwise a late widget frame can replace a camera frame or
+leave LVGL with a stale base. On return, the active frame is made CPU-coherent,
+the session ends, both LVGL direct buffers are realigned, and only then are
+regional workers resumed.
 
 LVGL normally uses buffers 0 and 1. Buffer 2 is not a fourth hidden copy: it is
 the third member of the same display-owned pool and provides an idle target for
@@ -203,6 +217,7 @@ LVGL software renderer. This is intentional.
 | ARGB8888 overlay on RGB888 base | Explicit PPA blend | Alpha composition without CPU pixel loop |
 | Generic rounded LVGL widget | LVGL software or validated PPA path | Masks and RGB888 correctness take priority |
 | JPEG decode/encode | ESP32-P4 JPEG peripheral | Avoid software codec and extra color pass |
+| Native-size full-screen camera JPEG | JPEG directly to idle DSI frame | Avoid decoded RGB allocation and per-frame PPA copy |
 | Home/app snapshot movement | PPA/DMA2D direct compositor | Avoid LVGL tree redraw |
 
 ## Direct-region compositor
@@ -210,6 +225,18 @@ LVGL software renderer. This is intentional.
 The direct-region compositor updates a small dynamic region while preserving
 the rest of the active frame. It is used by the wavy media control, marquee,
 and volume overlay.
+
+When a direct renderer replaces a native LVGL object, its first frame must be
+an atomic and non-blocking handoff. The marquee temporarily hides the native
+title only while rendering the bounded clean background into an off-screen
+RGB888 strip, then restores it before returning to the event loop. Its worker
+presents the first direct text frame asynchronously. The main LVGL task hides
+the native label only after the matching direct-region slot is confirmed active
+on DSI. A rejected or busy request is retried while the native title remains
+visible; a timeout leaves the static native title in place. Never call
+`lv_refr_now()` with the native label hidden and never wait synchronously for a
+generic DSI frame, because the former exposes an empty title region and the
+latter stalls `lv_timer_handler()` without proving that the marquee was shown.
 
 It owns:
 
@@ -237,6 +264,15 @@ The generation mechanism prevents a region rendered over an old base from
 being presented after LVGL or navigation has changed the screen. Before a
 snapshot, page switch, or app transition, navigation pauses the region
 compositor and waits on its barrier. Resuming increments the base generation.
+The final DSI queue operation also verifies, under the submission lock, that
+the active framebuffer is still the base used for composition. This closes the
+smaller race between the last generation check and serialized DSI submission.
+
+Direct widgets must retire a completed in-flight frame even while presentation
+is temporarily disabled. A replacement background also invalidates any old
+unpresented ready frame before scheduling the new generation. Without these
+two rules, a player background handoff can wait forever for a spare buffer or
+keep an obsolete ready frame that prevents the new artwork from rendering.
 
 No additional full-screen region buffer exists. The compositor uses the three
 DSI buffers and bounded per-widget sources.
@@ -256,6 +292,13 @@ peripheral. The important rules are:
   region;
 - release the replaced buffer only after no display or worker still references
   it.
+
+Full-screen camera MJPEG has a stricter fast path. If the encoded frame exactly
+matches the display geometry and RGB888 stride, the JPEG peripheral writes into
+an idle DSI framebuffer lease and the driver presents that lease at VSYNC. PPA
+is bypassed. Geometry mismatch falls back to a reusable decoded source plus PPA
+SRM; it must never silently turn into a static LVGL image while decode counters
+continue to rise.
 
 The current artwork path reuses active buffer capacity and the gallery keeps a
 bounded encoded buffer. A decoded 800x800 RGB888 image still costs 1.83 MiB;

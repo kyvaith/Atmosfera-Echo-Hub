@@ -202,6 +202,13 @@ sequenceDiagram
 The raw preview is obtained on demand through one reusable full-screen work
 buffer. The Home frame remains visible behind the opening transition.
 
+Tile clicks are dispatched from inside `lv_timer_handler()`. The transition
+worker must therefore be armed by the click handler but started only from the
+next `LvglComponent::loop()` iteration, after that handler and its pending DSI
+handoff have completed. Starting the worker directly in the click callback can
+produce valid transition frames that are immediately covered by the native
+LVGL flush which dispatched the click.
+
 ### Close
 
 ```mermaid
@@ -227,6 +234,12 @@ sequenceDiagram
 The closing animation uses a fresh raw image so it matches the app's current
 state. Compression occurs after the visible close transition; the next open
 uses that refreshed JPEG.
+
+When the close source aliases a DSI framebuffer, encode the application preview
+before `realign_direct_buffer_after_manual_present()` synchronizes the DSI pool.
+Realignment copies the final Home frame to every display buffer; doing it first
+would replace the application source and cache the same Home image for every
+application.
 
 The current direct transition applies a circular mask and assumes a square
 display. The schema is reusable, but that implementation detail must be made

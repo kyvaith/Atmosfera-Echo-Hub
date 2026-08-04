@@ -32,6 +32,9 @@ esphome:
       - -DCONFIG_ESPHOME_ARTWORK_CACHE_SYNC_CHUNK=4096
       - -DCONFIG_ESPHOME_ARTWORK_CACHE_SYNC_FIFO_MIN=832
       - -DCONFIG_ESPHOME_ARTWORK_CACHE_SYNC_WAIT_US=3000
+      # Apply the 800x800 artwork scrim as short PPA transactions. This lets
+      # the 60 Hz wave and marquee compositor run between artwork bands.
+      - -DCONFIG_ESPHOME_ARTWORK_PPA_BLEND_BAND_HEIGHT=32
       - -DCONFIG_ESPHOME_ARTWORK_POST_DECODE_DSI_QUIET_MS=0
       - -DCONFIG_ESPHOME_ARTWORK_LOCAL_HTTP_DSI_QUIET_MS=0
       # Local Immich requests used to let the HTTP client write 4 KiB chunks
@@ -263,6 +266,23 @@ esphome:
         lvgl_esphome_snapshot_dsi_quiet_ms(240);
         lvgl_esphome_dsi_mark_stress("boot-boot-sound", 1200);
     - script.execute: ui_play_boot_sound
+    # Local playback is asynchronous. Depending on the active speaker_source
+    # pipeline ESPHome can expose the chime as PLAYING or ANNOUNCING. Wait for
+    # either state before wake word capture takes ownership of duplex audio.
+    - wait_until:
+        condition:
+          or:
+            - media_player.is_playing: local_music_player
+            - media_player.is_announcing: local_music_player
+        timeout: 2s
+    - wait_until:
+        condition:
+          and:
+            - not:
+                media_player.is_playing: local_music_player
+            - not:
+                media_player.is_announcing: local_music_player
+        timeout: 6s
     - lambda: |-
         lvgl_esphome_dsi_mark_stress("boot-done-flag", 600);
     - globals.set:
@@ -474,13 +494,19 @@ api:
       then:
         - lambda: |-
             ESP_LOGW("camera.diag",
-                     "state=%s source=%u frames=%u dropped=%u fps=%.1f decode=%uus memory=%uKiB has_frame=%s",
+                     "state=%s source=%u decoded=%u direct=%u dropped=%u decode_fps=%.1f decode=%uus "
+                     "presented=%u present_fps=%.1f present=%uus direct_decode=%uus memory=%uKiB has_frame=%s",
                      id(camera_stream_image).state_name(),
                      static_cast<unsigned>(id(camera_stream_image).active_source_index()),
                      static_cast<unsigned>(id(camera_stream_image).decoded_frames()),
+                     static_cast<unsigned>(id(camera_stream_image).direct_frames()),
                      static_cast<unsigned>(id(camera_stream_image).dropped_frames()),
                      static_cast<double>(id(camera_stream_image).measured_fps()),
                      static_cast<unsigned>(id(camera_stream_image).last_decode_us()),
+                     static_cast<unsigned>(id(camera_stream_presenter).presented_frames()),
+                     static_cast<double>(id(camera_stream_presenter).measured_present_fps()),
+                     static_cast<unsigned>(id(camera_stream_presenter).last_present_us()),
+                     static_cast<unsigned>(id(camera_stream_presenter).last_direct_jpeg_decode_us()),
                      static_cast<unsigned>(id(camera_stream_image).memory_usage_bytes() / 1024U),
                      YESNO(id(camera_stream_image).has_frame()));
     - action: debug_next_track

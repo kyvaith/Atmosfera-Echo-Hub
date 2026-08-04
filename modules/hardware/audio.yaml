@@ -250,6 +250,11 @@ script:
   - id: ui_play_boot_sound
     mode: restart
     then:
+      - speaker.stop: assistant_speaker
+      - wait_until:
+          condition:
+            speaker.is_stopped: assistant_speaker
+          timeout: 1s
       - media_player.play_media:
           id: local_music_player
           media_url: "audio-file://boot_chime_file"
@@ -262,6 +267,11 @@ script:
           condition:
             switch.is_on: voice_assistant_wake_sound_switch
           then:
+            - speaker.stop: assistant_speaker
+            - wait_until:
+                condition:
+                  speaker.is_stopped: assistant_speaker
+                timeout: 1s
             - media_player.play_media:
                 id: local_music_player
                 media_url: "audio-file://va_listening_chime_file"
@@ -270,6 +280,11 @@ script:
   - id: ui_play_va_error_sound
     mode: restart
     then:
+      - speaker.stop: assistant_speaker
+      - wait_until:
+          condition:
+            speaker.is_stopped: assistant_speaker
+          timeout: 1s
       - media_player.play_media:
           id: local_music_player
           media_url: "audio-file://va_error_chime_file"

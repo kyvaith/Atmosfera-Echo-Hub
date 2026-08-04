@@ -40,8 +40,9 @@ flowchart LR
     PROXY["HA camera_proxy_stream<br/>short-lived signed URL"]
     API["Existing ESPHome API session<br/>runtime source catalog"]
     HTTP["network_camera<br/>persistent MJPEG reader"]
-    JPEG["ESP32-P4 JPEG peripheral<br/>RGB888 decode"]
-    PPA["PPA SRM<br/>scale and crop"]
+    JPEG["ESP32-P4 JPEG peripheral<br/>direct RGB888 decode"]
+    FALLBACK["Decoded RGB frame<br/>only for non-native geometry"]
+    PPA["PPA SRM fallback<br/>scale and crop"]
     DSI["Idle DSI frame<br/>frame-boundary present"]
     PANEL["MIPI DSI panel"]
 
@@ -52,7 +53,9 @@ flowchart LR
     CONFIG --> API
     API --> HTTP
     HTTP --> JPEG
-    JPEG --> PPA
+    JPEG -->|"native display geometry"| DSI
+    JPEG -->|"other geometry"| FALLBACK
+    FALLBACK --> PPA
     PPA --> DSI
     DSI --> PANEL
 ```
@@ -125,17 +128,29 @@ The maximum catalog size is bounded at compile time by
 
 ## Buffer ownership
 
-The stream uses two large allocations at most:
+The preferred native-geometry stream uses one component-owned large
+allocation. Its decoded destination is an idle display-owned frame buffer, not
+another camera allocation:
 
 | Buffer | Product limit | Owner | Lifetime |
 | --- | ---: | --- | --- |
 | Encoded JPEG input | 768 KiB | `network_camera` worker | Component lifetime |
-| Decoded RGB888 frame | source dimensions x 3 | Hardware JPEG image lease | Active stream only |
+| Decoded RGB888 fallback | source dimensions x 3 | `network_camera` | Active stream, only when direct output is unsupported |
+| Direct RGB888 output | display frame size | DSI driver lease | One frame decode/present operation |
 
-The HTTP read buffer is internal RAM. The decoded frame is reused in place.
-Decode starts only while no presenter holds a source lease; a busy frame is
-dropped rather than queued. The previous complete DSI frame remains visible
-while a replacement is read and decoded.
+The HTTP read buffer is internal RAM. When JPEG geometry, stride, color depth,
+and order match the display, `network_camera` offers the complete encoded frame
+to `lvgl_image_presenter`. The presenter leases an idle DSI frame and the
+ESP32-P4 JPEG peripheral writes RGB888 directly into it. There is no decoded
+camera buffer and no PPA copy in this path. A busy frame is dropped rather than
+queued, and the previous complete DSI frame remains visible until replacement
+decode finishes and the lease is presented at a frame boundary.
+
+If the encoded frame cannot be written directly into a display lease, the
+consumer returns `UNSUPPORTED`. `network_camera` then decodes into its reusable
+RGB888 fallback buffer and the presenter uses PPA SRM for scale/crop. This keeps
+the component generic without charging native 800x800 streams for an
+unnecessary 1.92 MiB copy per frame.
 
 `release_buffer_on_stop: true` releases the decoded RGB888 allocation when the
 Camera application closes. The encoded buffer remains allocated to avoid PSRAM
@@ -148,23 +163,28 @@ The network reader runs in a dedicated FreeRTOS task. It:
 1. keeps one HTTP connection open;
 2. extracts complete JPEG frames from multipart MJPEG;
 3. drops frames that arrive before `frame_interval`;
-4. decodes directly into the reusable RGB888 destination with the ESP32-P4 JPEG
-   peripheral;
-5. publishes a generation only after decode completes.
+4. offers the encoded JPEG to a registered direct consumer;
+5. decodes into an idle display frame with the ESP32-P4 JPEG peripheral when
+   geometry matches, otherwise decodes into the reusable RGB888 fallback;
+6. publishes a generation only after decode or direct presentation completes.
 
-`lvgl_image_presenter` consumes new generations in continuous direct mode.
-PPA scales and crops into an idle display-owned DSI frame and presents it on a
-frame boundary. The complete LVGL tree is not invalidated for every video
-frame.
+`lvgl_image_presenter` owns the direct framebuffer session while the full-screen
+camera widget is visible. Native-size JPEG frames are decoded straight into an
+idle display-owned frame and presented on a frame boundary. PPA scales and
+crops only fallback frames whose geometry does not match the display. The
+complete LVGL tree is not invalidated for every video frame.
 
 The Suntek LTE camera validation used the Home Assistant proxy path, without
 Frigate. A second validation source was registered in Home Assistant with its
 built-in MJPEG Camera integration and then selected through the same runtime
-catalog. The moving public aquarium stream reached 12.8 FPS with 930 decoded
-frames and 29 deliberately dropped late frames; hardware JPEG decode averaged
-about 38.9 ms. The Suntek source also reached `streaming` through the HA proxy.
-These are integration checkpoints, not guaranteed frame rates for every camera
-or network.
+catalog. On 2026-08-02, the moving 800x800 public aquarium source presented
+10.3-14.7 FPS across cold-open and close/reopen tests. Decoded, direct-consumed,
+and presented counters advanced one-for-one, hardware JPEG decode took about
+39-45 ms, and no PPA frame copy was used. Starting the presenter before the
+network source removed the first-frame RGB fallback allocation: camera-owned
+memory now remains about 750 KiB while both active and idle, instead of rising
+to about 2625 KiB. These are integration checkpoints, not guaranteed frame
+rates for every camera or network.
 
 ## Application behavior
 

@@ -81,7 +81,6 @@ lvgl:
         close_gesture: true
         close_on_threshold: true
         on_prepare_open:
-          - lvgl.widget.hide: global_time_button
           - script.stop: ui_refresh_tile_snapshots
           - script.stop: volume_overlay_timeout
           - script.stop: open_speaker_group_panel
@@ -130,7 +129,6 @@ lvgl:
           # final snapshot frame, preventing a one-frame placeholder flash.
           - script.execute: ui_prepare_player_page
         on_opened:
-          - lvgl.widget.show: global_time_button
           - globals.set:
               id: ui_active_app
               value: '1'
@@ -143,7 +141,6 @@ lvgl:
           - script.execute: media_update_main_control
           - script.execute: media_resume_artwork_after_player_open
         on_prepare_close:
-          - lvgl.widget.hide: global_time_button
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'true'
@@ -172,7 +169,6 @@ lvgl:
               - queue_panel
               - speaker_group_panel
         on_close_cancelled:
-          - lvgl.widget.show: global_time_button
           - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
           - globals.set:
               id: ui_snapshot_io_busy
@@ -180,7 +176,6 @@ lvgl:
           - script.execute: media_update_main_control
           - script.execute: media_title_marquee_reset_and_start
         on_closed:
-          - lvgl.widget.show: global_time_button
           - globals.set:
               id: ui_active_app
               value: '0'
@@ -197,7 +192,6 @@ lvgl:
         close_gesture: true
         close_on_threshold: true
         on_prepare_open:
-          - lvgl.widget.hide: global_time_button
           - script.stop: ui_refresh_tile_snapshots
           - script.execute: ui_quiesce_player_direct_regions
           - globals.set:
@@ -207,7 +201,6 @@ lvgl:
               if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
               id(ui_touch_click_block_until_ms) = millis() + 800;
         on_opened:
-          - lvgl.widget.show: global_time_button
           - script.execute: ui_prepare_settings_page
           - globals.set:
               id: ui_active_app
@@ -219,19 +212,16 @@ lvgl:
               value: 'false'
           - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
         on_prepare_close:
-          - lvgl.widget.hide: global_time_button
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'true'
           - script.execute: ui_quiesce_player_direct_regions
         on_close_cancelled:
-          - lvgl.widget.show: global_time_button
           - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'false'
         on_closed:
-          - lvgl.widget.show: global_time_button
           - globals.set:
               id: ui_active_app
               value: '0'
@@ -248,7 +238,6 @@ lvgl:
         close_gesture: true
         close_on_threshold: true
         on_prepare_open:
-          - lvgl.widget.hide: global_time_button
           - script.stop: ui_refresh_tile_snapshots
           - script.stop: media_title_marquee_start_delayed
           - script.stop: media_title_marquee_reset_and_start
@@ -263,7 +252,6 @@ lvgl:
               id(media_wavy_progress).set_direct_present(false);
               id(media_title_marquee).end(true);
         on_opened:
-          - lvgl.widget.show: global_time_button
           - globals.set:
               id: ui_active_app
               value: '3'
@@ -276,7 +264,6 @@ lvgl:
               }
           - script.execute: voice_assistant_start_from_ui
         on_prepare_close:
-          - lvgl.widget.hide: global_time_button
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'true'
@@ -287,13 +274,11 @@ lvgl:
         on_close:
           - script.execute: voice_assistant_stop_from_ui
         on_close_cancelled:
-          - lvgl.widget.show: global_time_button
           - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'false'
         on_closed:
-          - lvgl.widget.show: global_time_button
           - globals.set:
               id: ui_active_app
               value: '0'
@@ -311,7 +296,6 @@ lvgl:
         close_gesture: true
         close_on_threshold: true
         on_prepare_open:
-          - lvgl.widget.hide: global_time_button
           - script.stop: ui_refresh_tile_snapshots
           - script.execute: ui_quiesce_player_direct_regions
           - script.wait: ui_quiesce_player_direct_regions
@@ -324,7 +308,6 @@ lvgl:
         on_before_reveal:
           - script.execute: ui_prepare_immich_page
         on_opened:
-          - lvgl.widget.show: global_time_button
           - globals.set:
               id: ui_active_app
               value: '4'
@@ -339,7 +322,6 @@ lvgl:
           - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
           - script.execute: immich_opened
         on_prepare_close:
-          - lvgl.widget.hide: global_time_button
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'true'
@@ -353,13 +335,11 @@ lvgl:
           # presenter may now complete its DSI handoff before animation starts.
           - lambda: 'id(immich_ken_burns).complete_snapshot_handoff();'
         on_close_cancelled:
-          - lvgl.widget.show: global_time_button
           - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'false'
         on_closed:
-          - lvgl.widget.show: global_time_button
           - script.execute: immich_closed
           - globals.set:
               id: ui_active_app
@@ -378,7 +358,6 @@ lvgl:
         close_gesture: true
         close_on_threshold: true
         on_prepare_open:
-          - lvgl.widget.hide: global_time_button
           - script.stop: ui_refresh_tile_snapshots
           - script.execute: ui_quiesce_player_direct_regions
           - script.wait: ui_quiesce_player_direct_regions
@@ -391,7 +370,6 @@ lvgl:
         on_before_reveal:
           - script.execute: ui_prepare_camera_page
         on_opened:
-          - lvgl.widget.show: global_time_button
           - globals.set:
               id: ui_active_app
               value: '5'
@@ -403,7 +381,6 @@ lvgl:
           - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
           - script.execute: camera_opened
         on_prepare_close:
-          - lvgl.widget.hide: global_time_button
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'true'
@@ -416,14 +393,12 @@ lvgl:
           - lvgl_image_presenter.complete_snapshot_handoff: camera_stream_presenter
           - network_camera.stop: camera_stream_image
         on_close_cancelled:
-          - lvgl.widget.show: global_time_button
           - lvgl_image_presenter.resume: camera_stream_presenter
           - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'false'
         on_closed:
-          - lvgl.widget.show: global_time_button
           - script.execute: camera_closed
           - globals.set:
               id: ui_active_app

@@ -450,6 +450,14 @@ lvgl:
                         pad_all: 0
                         scrollable: false
                         gesture_bubble: true
+                        # The transparent LVGL button is only a hit target.
+                        # Keep its native pressed state transparent; the
+                        # Material wavy renderer owns the visible state layer.
+                        pressed:
+                          bg_opa: 0%
+                          border_width: 0
+                          outline_width: 0
+                          shadow_width: 0
                         on_press:
                           then:
                             - lambda: 'id(media_wavy_progress).set_pressed(true);'
