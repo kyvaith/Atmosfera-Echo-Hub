@@ -178,7 +178,9 @@ lvgl:
                   id: title_marquee_viewport
                   align: TOP_MID
                   y: 82
-                  width: 520
+                  # Fits inside the circular viewport with at least 15 px of
+                  # visible edge clearance at the title's top line.
+                  width: 456
                   height: 66
                   bg_color: 0x000000
                   bg_opa: 0%
@@ -192,7 +194,7 @@ lvgl:
                         id: title_marquee_scrim
                         x: 0
                         y: 0
-                        width: 520
+                        width: 456
                         height: 66
                         bg_color: 0x210F48
                         bg_opa: 60%
@@ -207,7 +209,7 @@ lvgl:
                         text: "No Track"
                         x: 0
                         y: 0
-                        width: 520
+                        width: 456
                         height: 66
                         long_mode: CLIP
                         text_align: CENTER
@@ -439,9 +441,15 @@ lvgl:
                         align: CENTER
                         x: 0
                         y: 0
-                        width: 178
-                        height: 178
-                        radius: 89
+                        # Only the direct Material renderer owns the visible
+                        # 178 px control. Keep LVGL's native state object tiny
+                        # so PRESSED/RELEASED cannot invalidate and repaint the
+                        # complete wave region; ext_click_area preserves the
+                        # original circular touch target.
+                        width: 2
+                        height: 2
+                        radius: 1
+                        ext_click_area: 88
                         bg_color: 0xE4C2FF
                         bg_opa: 0%
                         border_width: 0
@@ -480,7 +488,9 @@ lvgl:
                                     return id(display_backlight).current_values.is_on() &&
                                            (int32_t)(millis() - id(ui_touch_click_block_until_ms)) >= 0;
                                 then:
-                                  - script.execute: media_show_action_spinner
+                                  - script.execute:
+                                      id: media_show_action_spinner
+                                      track_change: false
                                   - media_player.toggle: sendspin_group
 
               - obj:

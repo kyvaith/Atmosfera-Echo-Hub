@@ -29,6 +29,12 @@ from .const import (
     API_ACTION_SET_SOURCES,
     CONF_CAMERAS,
     CONF_DEVICE_ID,
+    CONF_STREAM_FPS,
+    CONF_STREAM_HEIGHT,
+    CONF_STREAM_WIDTH,
+    DEFAULT_STREAM_FPS,
+    DEFAULT_STREAM_HEIGHT,
+    DEFAULT_STREAM_WIDTH,
     RETRY_INTERVAL_SECONDS,
     TOKEN_REFRESH_INTERVAL,
 )
@@ -55,6 +61,24 @@ class CameraBridge:
         self.device_id: str = entry.data[CONF_DEVICE_ID]
         self.camera_entity_ids: list[str] = list(
             entry.options.get(CONF_CAMERAS, entry.data[CONF_CAMERAS])
+        )
+        self.stream_width = int(
+            entry.options.get(
+                CONF_STREAM_WIDTH,
+                entry.data.get(CONF_STREAM_WIDTH, DEFAULT_STREAM_WIDTH),
+            )
+        )
+        self.stream_height = int(
+            entry.options.get(
+                CONF_STREAM_HEIGHT,
+                entry.data.get(CONF_STREAM_HEIGHT, DEFAULT_STREAM_HEIGHT),
+            )
+        )
+        self.stream_fps = int(
+            entry.options.get(
+                CONF_STREAM_FPS,
+                entry.data.get(CONF_STREAM_FPS, DEFAULT_STREAM_FPS),
+            )
         )
 
         device = dr.async_get(hass).async_get(self.device_id)
@@ -213,10 +237,25 @@ class CameraBridge:
             if duplicate:
                 name = f"{name} ({duplicate + 1})"
 
-            path = f"/api/camera_proxy_stream/{quote(entity_id, safe='.:_')}"
-            query = urlencode({"token": str(token)})
+            path = (
+                "/api/atmosfera_echo_hub/camera_stream/"
+                f"{quote(entity_id, safe='.:_')}"
+            )
+            query = urlencode(
+                {
+                    "token": str(token),
+                    "width": self.stream_width,
+                    "height": self.stream_height,
+                    "fps": self.stream_fps,
+                }
+            )
             sources.append(CameraSource(entity_id, name, f"{base_url}{path}?{query}"))
         return sources
+
+    @callback
+    def async_prefer_source(self, option: str) -> None:
+        """Remember a restored HA selection before the catalog is republished."""
+        self.current_option = option
 
     def _find_api_action(self, action_name: str) -> UserService | None:
         runtime_data = self.esphome_entry.runtime_data
@@ -236,6 +275,7 @@ class CameraBridge:
         async with self._push_lock:
             runtime_data = self.esphome_entry.runtime_data
             action = self._find_api_action(API_ACTION_SET_SOURCES)
+            select_action = self._find_api_action(API_ACTION_SELECT_SOURCE)
             sources = await self._async_build_sources()
             if (
                 runtime_data is None
@@ -264,6 +304,17 @@ class CameraBridge:
             self.sources = sources
             if self.current_option not in self.options:
                 self.current_option = self.options[0]
+            if select_action is not None and self.current_option is not None:
+                try:
+                    await runtime_data.client.execute_service(
+                        select_action,
+                        {"index": self.options.index(self.current_option)},
+                    )
+                except (APIConnectionError, TimeoutError) as err:
+                    self.available = False
+                    self._notify_listeners()
+                    _LOGGER.debug("Unable to restore camera selection: %s", err)
+                    return False
             self.available = True
             self._notify_listeners()
             return True

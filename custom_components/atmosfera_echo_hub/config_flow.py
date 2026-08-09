@@ -10,10 +10,29 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import device_registry as dr, selector
 
-from .const import CONF_CAMERAS, CONF_DEVICE_ID, DOMAIN
+from .const import (
+    CONF_CAMERAS,
+    CONF_DEVICE_ID,
+    CONF_STREAM_FPS,
+    CONF_STREAM_HEIGHT,
+    CONF_STREAM_WIDTH,
+    DEFAULT_STREAM_FPS,
+    DEFAULT_STREAM_HEIGHT,
+    DEFAULT_STREAM_WIDTH,
+    DOMAIN,
+    MAX_STREAM_FPS,
+    MIN_STREAM_FPS,
+)
 
 
-def _schema(*, device_id: str | None = None, cameras: list[str] | None = None):
+def _schema(
+    *,
+    device_id: str | None = None,
+    cameras: list[str] | None = None,
+    stream_width: int = DEFAULT_STREAM_WIDTH,
+    stream_height: int = DEFAULT_STREAM_HEIGHT,
+    stream_fps: int = DEFAULT_STREAM_FPS,
+):
     fields: dict[Any, Any] = {}
     if device_id is None:
         fields[vol.Required(CONF_DEVICE_ID)] = selector.DeviceSelector(
@@ -21,6 +40,34 @@ def _schema(*, device_id: str | None = None, cameras: list[str] | None = None):
         )
     fields[vol.Required(CONF_CAMERAS, default=cameras or [])] = selector.EntitySelector(
         selector.EntitySelectorConfig(domain="camera", multiple=True, reorder=True)
+    )
+    fields[vol.Required(CONF_STREAM_WIDTH, default=stream_width)] = (
+        selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=160,
+                max=1920,
+                step=8,
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        )
+    )
+    fields[vol.Required(CONF_STREAM_HEIGHT, default=stream_height)] = (
+        selector.NumberSelector(
+            selector.NumberSelectorConfig(
+                min=160,
+                max=1920,
+                step=8,
+                mode=selector.NumberSelectorMode.BOX,
+            )
+        )
+    )
+    fields[vol.Required(CONF_STREAM_FPS, default=stream_fps)] = selector.NumberSelector(
+        selector.NumberSelectorConfig(
+            min=MIN_STREAM_FPS,
+            max=MAX_STREAM_FPS,
+            step=1,
+            mode=selector.NumberSelectorMode.SLIDER,
+        )
     )
     return vol.Schema(fields)
 
@@ -52,6 +99,9 @@ class AtmosferaEchoHubConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     data={
                         CONF_DEVICE_ID: user_input[CONF_DEVICE_ID],
                         CONF_CAMERAS: list(user_input[CONF_CAMERAS]),
+                        CONF_STREAM_WIDTH: int(user_input[CONF_STREAM_WIDTH]),
+                        CONF_STREAM_HEIGHT: int(user_input[CONF_STREAM_HEIGHT]),
+                        CONF_STREAM_FPS: int(user_input[CONF_STREAM_FPS]),
                     },
                 )
 
@@ -81,7 +131,13 @@ class AtmosferaEchoHubOptionsFlow(config_entries.OptionsFlow):
                 errors[CONF_CAMERAS] = "no_cameras"
             else:
                 return self.async_create_entry(
-                    title="", data={CONF_CAMERAS: list(user_input[CONF_CAMERAS])}
+                    title="",
+                    data={
+                        CONF_CAMERAS: list(user_input[CONF_CAMERAS]),
+                        CONF_STREAM_WIDTH: int(user_input[CONF_STREAM_WIDTH]),
+                        CONF_STREAM_HEIGHT: int(user_input[CONF_STREAM_HEIGHT]),
+                        CONF_STREAM_FPS: int(user_input[CONF_STREAM_FPS]),
+                    },
                 )
 
         cameras = list(
@@ -89,10 +145,32 @@ class AtmosferaEchoHubOptionsFlow(config_entries.OptionsFlow):
                 CONF_CAMERAS, self.config_entry.data[CONF_CAMERAS]
             )
         )
+        stream_width = int(
+            self.config_entry.options.get(
+                CONF_STREAM_WIDTH,
+                self.config_entry.data.get(CONF_STREAM_WIDTH, DEFAULT_STREAM_WIDTH),
+            )
+        )
+        stream_height = int(
+            self.config_entry.options.get(
+                CONF_STREAM_HEIGHT,
+                self.config_entry.data.get(CONF_STREAM_HEIGHT, DEFAULT_STREAM_HEIGHT),
+            )
+        )
+        stream_fps = int(
+            self.config_entry.options.get(
+                CONF_STREAM_FPS,
+                self.config_entry.data.get(CONF_STREAM_FPS, DEFAULT_STREAM_FPS),
+            )
+        )
         return self.async_show_form(
             step_id="init",
             data_schema=_schema(
-                device_id=self.config_entry.data[CONF_DEVICE_ID], cameras=cameras
+                device_id=self.config_entry.data[CONF_DEVICE_ID],
+                cameras=cameras,
+                stream_width=stream_width,
+                stream_height=stream_height,
+                stream_fps=stream_fps,
             ),
             errors=errors,
         )

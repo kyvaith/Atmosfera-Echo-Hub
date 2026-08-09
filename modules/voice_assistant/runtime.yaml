@@ -107,6 +107,14 @@ globals:
     type: bool
     restore_value: false
     initial_value: 'false'
+  - id: voice_assistant_terminal_close_pending
+    type: bool
+    restore_value: false
+    initial_value: 'false'
+  - id: voice_assistant_restore_display_off
+    type: bool
+    restore_value: false
+    initial_value: 'false'
 
 micro_wake_word:
   id: wake_word_engine
@@ -195,54 +203,83 @@ micro_wake_word:
                                                    id(voice_assistant_phase), (unsigned long) millis());
                                         }
                                   else:
-                                    - script.execute: display_wake
+                                    # A wake word must enter the same navigation-owned
+                                    # Voice application as a tile tap. The old shortcut
+                                    # exposed the direct wave before LVGL had presented
+                                    # the black application surface and left no active
+                                    # application for the close gesture to own.
                                     - if:
                                         condition:
-                                          media_player.is_playing: local_music_player
-                                        then:
-                                          - globals.set:
-                                              id: voice_assistant_paused_media
-                                              value: 'true'
-                                          - media_player.pause: local_music_player
-                                          - delay: 300ms
-                                        else:
-                                          - globals.set:
-                                              id: voice_assistant_paused_media
-                                              value: 'false'
-                                    - if:
-                                        condition:
-                                          lambda: 'return id(voice_assistant_phase) == ${voice_assist_replying_phase_id};'
+                                          lambda: |-
+                                            return !id(ui_navigation).is_application_open(id(voice_application));
                                         then:
                                           - lambda: |-
-                                              id(voice_assistant_vad_barge_in_ms) = millis();
-                                              id(va)->send_interrupt();
-                                          - speaker.stop: assistant_speaker
-                                    - mixer_speaker.apply_ducking:
-                                        id: media_mixing_input
-                                        decibel_reduction: 20
-                                        duration: 0ms
-                                    - lambda: |-
-                                        id(voice_assistant_phase) = ${voice_assist_waiting_phase_id};
-                                        id(voice_assistant_tts_active) = false;
-                                        id(voice_assistant_reply_seen) = false;
-                                        id(voice_assistant_auto_continue_pending) = false;
-                                        id(voice_assistant_stop_requested) = false;
-                                        id(voice_assistant_realtime_idle_pending) = false;
-                                        id(voice_assistant_request_text).publish_state("");
-                                        id(voice_assistant_response_text).publish_state("");
-                                    - script.execute: voice_assistant_update_overlay
-                                    - micro_wake_word.stop:
-                                    - switch.turn_on: voice_audio_processing_switch
-                                    - script.execute: ui_play_va_listening_sound
-                                    - script.wait: ui_play_va_listening_sound
-                                    - if:
-                                        condition:
-                                          switch.is_on: voice_assistant_wake_sound_switch
-                                        then:
-                                          - delay: !lambda 'return id(va)->get_wake_open_delay_ms();'
+                                              id(voice_assistant_restore_display_off) =
+                                                  !id(display_backlight).remote_values.is_on();
+                                              id(voice_assistant_terminal_close_pending) = false;
+                                              id(voice_assistant_stop_requested) = false;
+                                              id(voice_assistant_realtime_idle_pending) = false;
+                                          - script.execute: display_wake
+                                          - micro_wake_word.stop:
+                                          - if:
+                                              condition:
+                                                lambda: |-
+                                                  return id(ui_navigation).get_active_application() != nullptr;
+                                              then:
+                                                - lvgl.navigation.home: ui_navigation
+                                          - lvgl.navigation.open: voice_application
                                         else:
-                                          - delay: 250ms
-                                    - lambda: 'id(va)->start_session();'
+                                          # A wake word while Voice is already open is
+                                          # a realtime barge-in, not another navigation
+                                          # transition.
+                                          - script.execute: display_wake
+                                          - if:
+                                              condition:
+                                                media_player.is_playing: local_music_player
+                                              then:
+                                                - globals.set:
+                                                    id: voice_assistant_paused_media
+                                                    value: 'true'
+                                                - media_player.pause: local_music_player
+                                                - delay: 300ms
+                                              else:
+                                                - globals.set:
+                                                    id: voice_assistant_paused_media
+                                                    value: 'false'
+                                          - if:
+                                              condition:
+                                                lambda: 'return id(voice_assistant_phase) == ${voice_assist_replying_phase_id};'
+                                              then:
+                                                - lambda: |-
+                                                    id(voice_assistant_vad_barge_in_ms) = millis();
+                                                    id(va)->send_interrupt();
+                                                - speaker.stop: assistant_speaker
+                                          - mixer_speaker.apply_ducking:
+                                              id: media_mixing_input
+                                              decibel_reduction: 20
+                                              duration: 0ms
+                                          - lambda: |-
+                                              id(voice_assistant_phase) = ${voice_assist_waiting_phase_id};
+                                              id(voice_assistant_tts_active) = false;
+                                              id(voice_assistant_reply_seen) = false;
+                                              id(voice_assistant_auto_continue_pending) = false;
+                                              id(voice_assistant_stop_requested) = false;
+                                              id(voice_assistant_realtime_idle_pending) = false;
+                                              id(voice_assistant_request_text).publish_state("");
+                                              id(voice_assistant_response_text).publish_state("");
+                                          - script.execute: voice_assistant_update_overlay
+                                          - micro_wake_word.stop:
+                                          - switch.turn_on: voice_audio_processing_switch
+                                          - script.execute: ui_play_va_listening_sound
+                                          - script.wait: ui_play_va_listening_sound
+                                          - if:
+                                              condition:
+                                                switch.is_on: voice_assistant_wake_sound_switch
+                                              then:
+                                                - delay: !lambda 'return id(va)->get_wake_open_delay_ms();'
+                                              else:
+                                                - delay: 250ms
+                                          - lambda: 'id(va)->start_session();'
 
 switch:
   - platform: template
@@ -401,6 +438,7 @@ va_pipecat:
         } else if (phase == "thanks") {
           id(voice_assistant_phase) = ${voice_assist_thanks_phase_id};
           id(voice_assistant_tts_active) = false;
+          id(voice_assistant_terminal_close_pending) = true;
         }
     - script.execute: voice_assistant_update_overlay
     - if:
@@ -413,7 +451,13 @@ va_pipecat:
         condition:
           lambda: 'return phase == "idle";'
         then:
-          - script.execute: voice_assistant_handle_realtime_idle
+          - if:
+              condition:
+                lambda: 'return id(voice_assistant_terminal_close_pending);'
+              then:
+                - script.execute: voice_assistant_close_terminal_session
+              else:
+                - script.execute: voice_assistant_handle_realtime_idle
     - if:
         condition:
           lambda: 'return phase == "thanks";'
@@ -439,6 +483,9 @@ va_pipecat:
           id(voice_assistant_response_text).publish_state(text);
         }
     - script.execute: voice_assistant_update_overlay
+  on_audio_level:
+    - lambda: |-
+        id(voice_assistant_presenter).set_audio_levels(input_level, output_level);
   on_repeated_failure:
     - lambda: |-
         id(voice_assistant_phase) = ${voice_assist_not_ready_phase_id};
@@ -770,6 +817,10 @@ script:
                 condition:
                   lambda: 'return id(va)->is_connected();'
                 then:
+                  - lambda: |-
+                      id(voice_assistant_stop_requested) = false;
+                      id(voice_assistant_realtime_idle_pending) = false;
+                      id(voice_assistant_terminal_close_pending) = false;
                   - if:
                       condition:
                         media_player.is_playing: local_music_player
@@ -826,7 +877,15 @@ script:
   - id: voice_assistant_stop_from_ui
     mode: single
     then:
-      - lambda: 'id(va)->end_session();'
+      - lambda: |-
+          // Suppress delayed backend phase callbacks while the navigation
+          // compositor finishes returning to Home.
+          id(voice_assistant_stop_requested) = true;
+          id(voice_assistant_realtime_idle_pending) = false;
+          id(voice_assistant_terminal_close_pending) = false;
+          id(voice_assistant_reply_seen) = false;
+          id(voice_assistant_auto_continue_pending) = false;
+          id(va)->end_session();
       - speaker.stop: assistant_speaker
       - switch.turn_off: timer_ringing
       - switch.turn_off: voice_audio_processing_switch
@@ -839,6 +898,12 @@ script:
           then:
             - micro_wake_word.start:
             - script.execute: voice_assistant_apply_idle_wake_word
+      - mixer_speaker.apply_ducking:
+          id: media_mixing_input
+          decibel_reduction: 0
+          duration: 1s
+      - script.execute: voice_assistant_resume_paused_media
+      - script.execute: media_resume_deferred_artwork
 
   - id: voice_assistant_apply_idle_wake_word
     mode: restart
@@ -866,6 +931,7 @@ script:
           then:
             - lambda: |-
                 id(voice_assistant_realtime_idle_pending) = false;
+                id(voice_assistant_terminal_close_pending) = false;
                 id(voice_assistant_tts_active) = false;
                 id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
             - script.execute: voice_assistant_update_overlay
@@ -885,6 +951,42 @@ script:
             - script.execute: voice_assistant_stop_word_watchdog
             - script.execute: voice_assistant_resume_paused_media
             - script.execute: media_resume_deferred_artwork
+
+  # Pipecat keeps Thanks visible briefly and then emits idle. That terminal
+  # idle closes the navigation-owned Voice application instead of entering the
+  # normal follow-up timeout path.
+  - id: voice_assistant_close_terminal_session
+    mode: restart
+    then:
+      - script.stop: voice_assistant_handle_realtime_idle
+      - lambda: |-
+          id(voice_assistant_terminal_close_pending) = false;
+          id(voice_assistant_realtime_idle_pending) = false;
+      - if:
+          condition:
+            lambda: 'return id(ui_navigation).is_application_open(id(voice_application));'
+          then:
+            - lvgl.navigation.home: ui_navigation
+          else:
+            - script.execute: voice_assistant_finish_conversation
+            - script.execute: voice_assistant_restore_display_after_close
+
+  - id: voice_assistant_restore_display_after_close
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return id(voice_assistant_restore_display_off);'
+          then:
+            - output.ledc.set_next_fade_duration:
+                id: backlight_output
+                duration: 3600ms
+            - light.turn_off:
+                id: display_backlight
+                transition_length: 0ms
+      - globals.set:
+          id: voice_assistant_restore_display_off
+          value: 'false'
 
   - id: voice_assistant_stop_word_watchdog
     mode: restart
@@ -914,6 +1016,7 @@ script:
           }
           id(voice_assistant_stop_requested) = true;
           id(voice_assistant_realtime_idle_pending) = false;
+          id(voice_assistant_terminal_close_pending) = false;
           id(voice_assistant_reply_seen) = false;
           id(voice_assistant_auto_continue_pending) = false;
           id(va)->end_session();
@@ -945,6 +1048,7 @@ script:
             - delay: 1s
       - lambda: |-
           id(voice_assistant_realtime_idle_pending) = false;
+          id(voice_assistant_terminal_close_pending) = false;
           id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
           id(voice_assistant_tts_active) = false;
       - script.execute: voice_assistant_update_overlay
@@ -1082,9 +1186,10 @@ script:
     then:
       - lambda: |-
           const int phase = id(voice_assistant_phase);
-          const bool active_phase = phase != ${voice_assist_idle_phase_id} &&
-                                    phase != ${voice_assist_not_ready_phase_id};
-          const bool visible = id(ui_active_app) == 3 || active_phase;
+          // Navigation is the sole owner of Voice visibility. Backend phases
+          // describe content inside the app; they must never open it or bring
+          // it back after a local close gesture.
+          const bool visible = id(ui_active_app) == 3 && !id(voice_assistant_stop_requested);
 
           // The marquee uses a direct framebuffer strip, so it must be stopped
           // before the assistant overlay becomes visible or it can paint above
@@ -1099,6 +1204,9 @@ script:
 
           // Phase and transcript callbacks can repeat the same state. Keep
           // those events from invalidating the complete assistant overlay.
+          if (!visible) {
+            id(voice_assistant_presenter).set_active(false);
+          }
           if (id(voice_assistant_overlay) != nullptr) {
             const bool hidden = lv_obj_has_flag(id(voice_assistant_overlay), LV_OBJ_FLAG_HIDDEN);
             if (visible && hidden) {
@@ -1113,61 +1221,23 @@ script:
           }
 
           const char *status = "Assistant";
-          uint32_t accent = 0xC3EDCF;
           if (phase == ${voice_assist_waiting_phase_id}) {
             status = "Listening";
-            accent = 0xC3EDCF;
           } else if (phase == ${voice_assist_listening_phase_id}) {
             status = "Listening";
-            accent = 0xC2E7FF;
           } else if (phase == ${voice_assist_thinking_phase_id}) {
             status = "Thinking";
-            accent = 0xD3E3FD;
           } else if (phase == ${voice_assist_replying_phase_id}) {
             status = "Answering";
-            accent = 0xC3EDCF;
           } else if (phase == ${voice_assist_thanks_phase_id}) {
             status = "Thanks";
-            accent = 0xC3EDCF;
           } else if (phase == ${voice_assist_timer_finished_phase_id}) {
             status = "Timer";
-            accent = 0xFD7267;
           } else if (phase == ${voice_assist_error_phase_id}) {
             status = "Error";
-            accent = 0xFD7267;
           }
-
-          const auto set_label_if_changed = [](lv_obj_t *label, const char *text) {
-            if (label == nullptr) {
-              return;
-            }
-            const char *current = lv_label_get_text(label);
-            if (current == nullptr || strcmp(current, text) != 0) {
-              lv_label_set_text(label, text);
-            }
-          };
-
-          static bool accent_initialized = false;
-          static uint32_t last_accent = 0;
-          if (id(voice_assistant_status_label) != nullptr) {
-            set_label_if_changed(id(voice_assistant_status_label), status);
-            if (!accent_initialized || accent != last_accent) {
-              lv_obj_set_style_text_color(id(voice_assistant_status_label), lv_color_hex(accent), 0);
-            }
-          }
-          if (id(voice_assistant_orb_shell) != nullptr &&
-              (!accent_initialized || accent != last_accent)) {
-            lv_obj_set_style_border_color(id(voice_assistant_orb_shell), lv_color_hex(accent), 0);
-            lv_obj_set_style_shadow_color(id(voice_assistant_orb_shell), lv_color_hex(accent), 0);
-          }
-          accent_initialized = true;
-          last_accent = accent;
-
-          if (id(voice_assistant_you_label) != nullptr) {
-            const auto &request = id(voice_assistant_request_text).state;
-            set_label_if_changed(id(voice_assistant_you_label), request.c_str());
-          }
-          if (id(voice_assistant_response_label) != nullptr) {
-            const auto &response = id(voice_assistant_response_text).state;
-            set_label_if_changed(id(voice_assistant_response_label), response.c_str());
-          }
+          const auto &request = id(voice_assistant_request_text).state;
+          const auto &response = id(voice_assistant_response_text).state;
+          id(voice_assistant_presenter).set_phase(status);
+          id(voice_assistant_presenter).set_transcripts(request, response);
+          id(voice_assistant_presenter).set_active(visible);

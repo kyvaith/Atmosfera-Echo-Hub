@@ -35,6 +35,14 @@ globals:
     type: std::string
     restore_value: no
     initial_value: '""'
+  - id: immich_album_name
+    type: std::string
+    restore_value: no
+    initial_value: '"Album"'
+  - id: immich_album_name_for_id
+    type: std::string
+    restore_value: no
+    initial_value: '""'
   - id: immich_fetch_in_flight
     type: bool
     restore_value: no
@@ -83,6 +91,10 @@ globals:
     type: bool
     restore_value: no
     initial_value: 'false'
+  - id: immich_encoded_ready
+    type: bool
+    restore_value: no
+    initial_value: 'false'
   - id: immich_force_transition
     type: bool
     restore_value: no
@@ -110,6 +122,9 @@ artwork_image:
     type: RGB
     hardware_jpeg: true
     reuse_active_buffer_capacity: true
+    # Fetch the next compressed JPEG while the current photo is still moving,
+    # but delay the high-bandwidth DMA2D decode until the transition window.
+    defer_decode: true
     placeholder: album_art_placeholder
     # Covers the largest full-resolution image in the configured album. The
     # encoded buffer is allocated while the display is dark and reused, so an
@@ -118,13 +133,33 @@ artwork_image:
     allow_insecure_local_urls: true
     request_headers:
       x-api-key: !lambda 'return id(immich_api_key_text).state;'
+    on_download_ready:
+      - lambda: 'id(immich_encoded_ready) = true;'
+      - if:
+          condition:
+            lambda: |-
+              if (id(ui_active_app) != 4) return false;
+              if (id(immich_active_image_slot) < 0 || id(immich_force_transition)) return true;
+              if (!id(immich_slideshow_enabled).state) return false;
+              const uint32_t interval_ms =
+                  static_cast<uint32_t>(id(immich_slide_interval_seconds).state * 1000.0f);
+              // JPEG DMA2D briefly freezes the reusable RGB source. Start it
+              // only just before the 800 ms fade instead of leaving a visibly
+              // stationary photo at the end of its pan.
+              constexpr uint32_t transition_lead_ms = 1200;
+              return id(immich_last_photo_ms) == 0 ||
+                     millis() - id(immich_last_photo_ms) + transition_lead_ms >= interval_ms;
+          then:
+            - lambda: 'id(immich_encoded_ready) = false;'
+            - artwork_image.decode_pending: immich_photo_image
     on_decode_start:
       - lambda: |-
           // Full-resolution photos write around 4.5 MB through JPEG DMA2D. Stop
           // the full-screen PPA pan first and shorten only this decoder's DMA
           // bursts so DSI gets regular PSRAM arbitration opportunities.
+          id(immich_encoded_ready) = false;
           if (id(ui_active_app) == 4) {
-            id(immich_ken_burns).freeze_direct();
+            id(immich_slideshow).freeze_direct();
             esphome::esp32_jpeg::set_decoder_dma2d_burst_length(8);
           }
     on_decode_finished:
@@ -139,9 +174,10 @@ artwork_image:
     on_error:
       - lambda: |-
           esphome::esp32_jpeg::set_decoder_dma2d_burst_length(64);
+          id(immich_encoded_ready) = false;
           id(immich_fetch_in_flight) = false;
           if (id(ui_active_app) == 4)
-            id(immich_ken_burns).resume_direct();
+            id(immich_slideshow).resume_direct();
           id(immich_consecutive_failures)++;
           id(immich_current_asset_retry_count)++;
           if (id(immich_current_asset_retry_count) <= 2 && !id(immich_current_url).empty()) {
@@ -177,15 +213,22 @@ script:
           lv_obj_add_flag(id(immich_next_button), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(immich_play_pause_button), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(immich_metadata_panel), LV_OBJ_FLAG_HIDDEN);
-          if (id(ui_active_app) == 4 && id(immich_image_loaded))
-            id(immich_ken_burns).resume();
+          if (id(ui_active_app) != 4 || !id(immich_image_loaded)) return;
+          if (id(immich_slideshow_enabled).state) {
+            id(immich_slideshow).resume();
+          } else {
+            // A paused slideshow keeps the exact captured DSI frame. Only
+            // remove the controls; do not reconstruct or recenter the photo.
+            lv_obj_invalidate(id(immich_root));
+            lv_refr_now(lv_obj_get_display(id(immich_root)));
+          }
 
   - id: immich_show_controls
     mode: restart
     then:
       - lambda: |-
           if (id(ui_active_app) != 4 || !id(immich_image_loaded)) return;
-          if (!id(immich_ken_burns).pause()) {
+          if (!id(immich_slideshow).pause_for_overlay()) {
             ESP_LOGW("immich", "Navigation HUD deferred: direct framebuffer handoff is still busy");
             return;
           }
@@ -227,7 +270,7 @@ script:
           if (src == nullptr || w <= 0 || h <= 0) {
             id(immich_fetch_in_flight) = false;
             if (id(ui_active_app) == 4)
-              id(immich_ken_burns).resume_direct();
+              id(immich_slideshow).resume_direct();
             lv_label_set_text(id(immich_status_label), "Image decoded without LVGL source");
             if (id(immich_active_image_slot) < 0)
               lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
@@ -247,7 +290,7 @@ script:
             lv_obj_add_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
             const uint32_t interval_ms =
                 static_cast<uint32_t>(id(immich_slide_interval_seconds).state * 1000.0f);
-            constexpr uint32_t transition_lead_ms = 1800;
+            constexpr uint32_t transition_lead_ms = 1200;
             const bool transition_window = id(immich_last_photo_ms) == 0 ||
                 millis() - id(immich_last_photo_ms) + transition_lead_ms >= interval_ms;
             ESP_LOGD("immich", "Photo slot %d prefetched (active=%d force=%s window=%s)", slot,
@@ -263,8 +306,8 @@ script:
 
           // First image (or a photo decoded while the app is closed): promote
           // it directly. Subsequent visible changes use the PPA transition.
-          id(immich_ken_burns).pause();
-          id(immich_ken_burns).reset_transform();
+          id(immich_slideshow).pause();
+          id(immich_slideshow).reset_transform();
           lv_lock();
           lv_image_set_src(id(immich_photo_widget), src);
           lv_obj_set_pos(id(immich_photo_widget), 0, 0);
@@ -291,6 +334,7 @@ script:
             id(immich_pending_asset_id) = "";
           }
           id(immich_prefetch_ready) = false;
+          id(immich_encoded_ready) = false;
           id(immich_force_transition) = false;
           id(immich_transition_pending) = false;
           id(immich_transition_starting) = false;
@@ -313,12 +357,14 @@ script:
           // picture is already pinned in a DSI framebuffer.
           const uint32_t slide_ms =
               static_cast<uint32_t>(id(immich_slide_interval_seconds).state * 1000.0f);
-          // Keep the outgoing pan alive until the transition actually starts.
-          // The earlier prefetch is only a network/decode lead; it must not
-          // shorten the visible motion phase and leave a stationary frame.
-          id(immich_ken_burns).set_phase_duration(std::max<uint32_t>(5000, slide_ms));
+          constexpr uint32_t transition_lead_ms = 1200;
+          const uint32_t motion_ms = slide_ms > transition_lead_ms
+                                         ? slide_ms - transition_lead_ms
+                                         : slide_ms;
+          // Finish the pan exactly when the prepared transition begins.
+          id(immich_slideshow).set_phase_duration(std::max<uint32_t>(5000, motion_ms));
           if (id(ui_active_app) == 4)
-            id(immich_ken_burns).restart();
+            id(immich_slideshow).restart();
 
   - id: immich_start_ready_transition
     mode: restart
@@ -340,16 +386,21 @@ script:
             id(immich_transition_starting) = false;
             return;
           }
-          id(immich_ken_burns).set_fade_through_black(id(immich_fade_through_black).state);
+          id(immich_slideshow).set_fade_through_black(id(immich_fade_through_black).state);
           const uint32_t slide_ms =
               static_cast<uint32_t>(id(immich_slide_interval_seconds).state * 1000.0f);
-          id(immich_ken_burns).set_phase_duration(std::max<uint32_t>(5000, slide_ms));
-          if (!id(immich_ken_burns).transition_to(src, 800)) {
+          constexpr uint32_t transition_lead_ms = 1200;
+          const uint32_t motion_ms = slide_ms > transition_lead_ms
+                                         ? slide_ms - transition_lead_ms
+                                         : slide_ms;
+          id(immich_slideshow).set_phase_duration(std::max<uint32_t>(5000, motion_ms));
+          if (!id(immich_slideshow).transition_to(src, 800)) {
             ESP_LOGD("immich", "Transition deferred while direct compositor is busy");
             id(immich_transition_starting) = false;
             return;
           }
           id(immich_prefetch_ready) = false;
+          id(immich_encoded_ready) = false;
           id(immich_force_transition) = false;
           id(immich_transition_pending) = true;
           id(immich_transition_starting) = false;
@@ -357,9 +408,30 @@ script:
           ESP_LOGD("immich", "Hardware transition queued: %d -> %d",
                    id(immich_active_image_slot), slot);
 
+  - id: immich_prepare_manual_transition
+    mode: restart
+    then:
+      - script.stop: immich_show_controls
+      - lambda: |-
+          if (!id(immich_controls_visible) && id(immich_slideshow_enabled).state)
+            return;
+          id(immich_controls_visible) = false;
+          lv_obj_add_flag(id(immich_prev_button), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(immich_next_button), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(immich_play_pause_button), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(immich_metadata_panel), LV_OBJ_FLAG_HIDDEN);
+          // Keep the exact frozen photo as the transition source. Resuming the
+          // slideshow here restarts its pan before the JPEG is ready, which
+          // makes the arrows appear to reset the current photo instead of
+          // advancing it.
+          lv_obj_invalidate(id(immich_root));
+          lv_refr_now(lv_obj_get_display(id(immich_root)));
+
   - id: immich_next_photo_now
     mode: restart
     then:
+      - script.execute: immich_prepare_manual_transition
+      - script.wait: immich_prepare_manual_transition
       - lambda: |-
           id(immich_retry_after_ms) = 0;
           id(immich_force_transition) = true;
@@ -393,6 +465,7 @@ script:
           id(immich_transition_pending) = false;
           id(immich_transition_starting) = false;
           id(immich_prefetch_ready) = false;
+          id(immich_encoded_ready) = false;
           id(immich_force_transition) = false;
           id(immich_controls_visible) = false;
           id(immich_show_controls_after_load) = false;
@@ -422,6 +495,7 @@ script:
   - id: immich_opened
     mode: restart
     then:
+      - script.execute: immich_refresh_album_name
       - if:
           condition:
             lambda: 'return id(immich_image_loaded);'
@@ -429,6 +503,9 @@ script:
             - script.execute: immich_show_controls
           else:
             - lambda: |-
+                id(immich_slideshow).clear();
+                lv_obj_add_flag(id(immich_photo_widget), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_clear_flag(id(immich_background), LV_OBJ_FLAG_HIDDEN);
                 lv_label_set_text(id(immich_status_label), "Loading first photo...");
                 lv_obj_add_flag(id(immich_empty_icon), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_clear_flag(id(immich_loading_spinner), LV_OBJ_FLAG_HIDDEN);
@@ -461,13 +538,14 @@ script:
                   - delay: 75ms
                   - lambda: |-
                       id(immich_close_handoff_ready) =
-                          id(immich_ken_burns).complete_snapshot_handoff(150);
+                          id(immich_slideshow).complete_snapshot_handoff(150);
       - lambda: |-
           if (id(ui_active_app) == 4) return;
           if (!id(immich_close_handoff_ready)) {
             ESP_LOGW("immich", "Deferred close handoff remains busy; preserving photo buffers");
             return;
           }
+          id(immich_slideshow).clear();
           id(immich_photo_image).release(true);
           ESP_LOGD("immich", "Released decoded photo buffer after deferred DSI handoff");
 
@@ -475,16 +553,19 @@ script:
     mode: restart
     then:
       - lambda: |-
-          id(immich_close_handoff_ready) = id(immich_ken_burns).pause_for_snapshot();
+          id(immich_close_handoff_ready) = id(immich_slideshow).pause_for_snapshot();
       - if:
           condition:
             lambda: 'return !id(immich_close_handoff_ready);'
           then:
             - delay: 50ms
             - lambda: |-
-                id(immich_close_handoff_ready) = id(immich_ken_burns).complete_snapshot_handoff();
+                id(immich_close_handoff_ready) = id(immich_slideshow).complete_snapshot_handoff();
       - lambda: |-
+          lv_obj_add_flag(id(immich_photo_widget), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_clear_flag(id(immich_background), LV_OBJ_FLAG_HIDDEN);
           if (id(immich_close_handoff_ready)) {
+            id(immich_slideshow).clear();
             id(immich_photo_image).release(true);
           } else {
             ESP_LOGD("immich", "Close handoff busy; deferring decoded photo release");
@@ -497,6 +578,7 @@ script:
           id(immich_transition_pending) = false;
           id(immich_transition_starting) = false;
           id(immich_prefetch_ready) = false;
+          id(immich_encoded_ready) = false;
           id(immich_force_transition) = false;
           id(immich_controls_visible) = false;
           id(immich_show_controls_after_load) = false;
@@ -558,7 +640,47 @@ script:
                 then:
                   - script.execute: immich_fetch_memory_photo
                 else:
-                  - script.execute: immich_fetch_random_photo
+            - script.execute: immich_fetch_random_photo
+
+  - id: immich_refresh_album_name
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: |-
+              if (id(immich_photo_source).current_option() != "Album") return false;
+              const std::string album_id = id(immich_gallery_client).first_csv_value(id(immich_album_ids).state);
+              return !album_id.empty() && album_id != id(immich_album_name_for_id) &&
+                     id(immich_gallery_client).valid_base_url(id(immich_url).state) &&
+                     !id(immich_api_key_text).state.empty();
+          then:
+            - http_request.get:
+                id: http_req
+                url: !lambda |-
+                  return id(immich_gallery_client).trim_url(id(immich_url).state) + "/api/albums/" +
+                         id(immich_gallery_client).first_csv_value(id(immich_album_ids).state);
+                capture_response: true
+                max_response_buffer_size: 8kB
+                request_headers:
+                  Accept: application/json
+                  x-api-key: !lambda 'return id(immich_api_key_text).state.c_str();'
+                on_response:
+                  then:
+                    - lambda: |-
+                        std::string album_name;
+                        if (response->status_code != 200 ||
+                            !id(immich_gallery_client).parse_album_response(body, &album_name)) {
+                          ESP_LOGW("immich", "Album metadata request failed: HTTP %d", response->status_code);
+                          return;
+                        }
+                        id(immich_album_name) = album_name;
+                        id(immich_album_name_for_id) =
+                            id(immich_gallery_client).first_csv_value(id(immich_album_ids).state);
+                        if (id(immich_photo_source).current_option() == "Album") {
+                          id(immich_current_title) = album_name;
+                          if (id(immich_image_loaded))
+                            lv_label_set_text(id(immich_title_label), album_name.c_str());
+                        }
 
   - id: immich_fetch_random_photo
     mode: restart
@@ -594,7 +716,7 @@ script:
                   if (response->status_code != 200) {
                     id(immich_fetch_in_flight) = false;
                     if (id(ui_active_app) == 4)
-                      id(immich_ken_burns).resume_direct();
+                      id(immich_slideshow).resume_direct();
                     id(immich_consecutive_failures)++;
                     std::string msg = "Immich HTTP " + std::to_string(response->status_code);
                     lv_label_set_text(id(immich_status_label), msg.c_str());
@@ -611,7 +733,7 @@ script:
                           id(immich_recent_asset_ids))) {
                     id(immich_fetch_in_flight) = false;
                     if (id(ui_active_app) == 4)
-                      id(immich_ken_burns).resume_direct();
+                      id(immich_slideshow).resume_direct();
                     id(immich_consecutive_failures)++;
                     lv_label_set_text(id(immich_status_label), "No matching image found");
                     lv_obj_add_flag(id(immich_loading_spinner), LV_OBJ_FLAG_HIDDEN);
@@ -624,9 +746,14 @@ script:
                   id(immich_pending_asset_id) = photo.asset_id;
                   id(immich_current_asset_retry_count) = 0;
                   id(immich_current_url) = photo.image_url;
-                  id(immich_current_title) = photo.date.empty() ? "Immich Photo" : photo.date;
-                  id(immich_current_subtitle) = !photo.location.empty() ? photo.location :
-                                               (!photo.person.empty() ? photo.person : id(immich_photo_source).current_option());
+                  if (id(immich_photo_source).current_option() == "Album") {
+                    id(immich_current_title) = id(immich_album_name).empty()
+                                                   ? "Album"
+                                                   : id(immich_album_name);
+                  } else {
+                    id(immich_current_title) = id(immich_photo_source).current_option();
+                  }
+                  id(immich_current_subtitle) = photo.date.empty() ? "Date unavailable" : photo.date;
                   ESP_LOGD("immich", "Selected asset=%s url=%s title=%s",
                            id(immich_pending_asset_id).c_str(),
                            id(immich_current_url).c_str(),
@@ -641,7 +768,7 @@ script:
               - lambda: |-
                   id(immich_fetch_in_flight) = false;
                   if (id(ui_active_app) == 4)
-                    id(immich_ken_burns).resume_direct();
+                    id(immich_slideshow).resume_direct();
                   id(immich_consecutive_failures)++;
                   lv_label_set_text(id(immich_status_label), "Immich request failed");
                   lv_obj_add_flag(id(immich_loading_spinner), LV_OBJ_FLAG_HIDDEN);
@@ -676,7 +803,7 @@ script:
                   if (response->status_code != 200) {
                     id(immich_fetch_in_flight) = false;
                     if (id(ui_active_app) == 4)
-                      id(immich_ken_burns).resume_direct();
+                      id(immich_slideshow).resume_direct();
                     lv_label_set_text(id(immich_status_label), "No memories today");
                     lv_obj_add_flag(id(immich_loading_spinner), LV_OBJ_FLAG_HIDDEN);
                     lv_obj_clear_flag(id(immich_empty_icon), LV_OBJ_FLAG_HIDDEN);
@@ -688,7 +815,7 @@ script:
                           body, id(immich_gallery_client).trim_url(id(immich_url).state), &photo)) {
                     id(immich_fetch_in_flight) = false;
                     if (id(ui_active_app) == 4)
-                      id(immich_ken_burns).resume_direct();
+                      id(immich_slideshow).resume_direct();
                     lv_label_set_text(id(immich_status_label), "No memories today");
                     lv_obj_add_flag(id(immich_loading_spinner), LV_OBJ_FLAG_HIDDEN);
                     lv_obj_clear_flag(id(immich_empty_icon), LV_OBJ_FLAG_HIDDEN);
@@ -698,8 +825,8 @@ script:
                   id(immich_pending_asset_id) = photo.asset_id;
                   id(immich_current_asset_retry_count) = 0;
                   id(immich_current_url) = photo.image_url;
-                  id(immich_current_title) = photo.date.empty() ? "Memory" : photo.date;
-                  id(immich_current_subtitle) = "On this day";
+                  id(immich_current_title) = "Memories";
+                  id(immich_current_subtitle) = photo.date.empty() ? "Date unavailable" : photo.date;
               - if:
                   condition:
                     lambda: 'return !id(immich_current_url).empty();'
@@ -710,7 +837,7 @@ script:
               - lambda: |-
                   id(immich_fetch_in_flight) = false;
                   if (id(ui_active_app) == 4)
-                    id(immich_ken_burns).resume_direct();
+                    id(immich_slideshow).resume_direct();
                   lv_label_set_text(id(immich_status_label), "Immich memories request failed");
                   lv_obj_add_flag(id(immich_loading_spinner), LV_OBJ_FLAG_HIDDEN);
                   lv_obj_clear_flag(id(immich_empty_icon), LV_OBJ_FLAG_HIDDEN);
@@ -719,6 +846,8 @@ script:
   - id: immich_previous_photo
     mode: restart
     then:
+      - script.execute: immich_prepare_manual_transition
+      - script.wait: immich_prepare_manual_transition
       - if:
           condition:
             lambda: 'return !id(immich_previous_url).empty();'
@@ -737,6 +866,21 @@ interval:
       - if:
           condition:
             lambda: |-
+              if (id(ui_active_app) != 4 || !id(immich_encoded_ready) ||
+                  id(immich_transition_pending) || id(immich_transition_starting)) return false;
+              if (id(immich_active_image_slot) < 0 || id(immich_force_transition)) return true;
+              if (!id(immich_slideshow_enabled).state) return false;
+              const uint32_t interval_ms =
+                  static_cast<uint32_t>(id(immich_slide_interval_seconds).state * 1000.0f);
+              constexpr uint32_t transition_lead_ms = 1200;
+              return id(immich_last_photo_ms) == 0 ||
+                     millis() - id(immich_last_photo_ms) + transition_lead_ms >= interval_ms;
+          then:
+            - lambda: 'id(immich_encoded_ready) = false;'
+            - artwork_image.decode_pending: immich_photo_image
+      - if:
+          condition:
+            lambda: |-
               return id(ui_active_app) == 4 && id(immich_retry_same_asset) &&
                      !id(immich_fetch_in_flight) && !id(immich_current_url).empty() &&
                      (int32_t) (millis() - id(immich_retry_after_ms)) >= 0;
@@ -750,17 +894,17 @@ interval:
           condition:
             lambda: |-
               return id(immich_transition_pending) &&
-                     !id(immich_ken_burns).is_transition_pending_or_active();
+                     !id(immich_slideshow).is_transition_pending_or_active();
           then:
             - lambda: |-
                 id(immich_transition_pending) = false;
                 id(immich_transition_starting) = false;
                 id(immich_fetch_in_flight) = false;
-                if (id(immich_ken_burns).transition_failed()) {
+                if (id(immich_slideshow).transition_failed()) {
                   ESP_LOGW("immich", "Hardware transition failed; retaining slot %d",
                            id(immich_active_image_slot));
                   if (id(ui_active_app) == 4)
-                    id(immich_ken_burns).resume_direct();
+                    id(immich_slideshow).resume_direct();
                   return;
                 }
                 id(immich_active_image_slot) = id(immich_pending_image_slot);
@@ -780,6 +924,8 @@ interval:
                 id(immich_last_photo_ms) = millis();
                 lv_label_set_text(id(immich_title_label), id(immich_current_title).c_str());
                 lv_label_set_text(id(immich_meta_label), id(immich_current_subtitle).c_str());
+                if (!id(immich_slideshow_enabled).state && id(ui_active_app) == 4)
+                  id(immich_slideshow).pause_for_overlay();
                 ESP_LOGD("immich", "Hardware transition promoted slot %d",
                          id(immich_active_image_slot));
       - if:
@@ -787,10 +933,11 @@ interval:
             lambda: |-
               if (id(ui_active_app) != 4 || !id(immich_prefetch_ready) ||
                   id(immich_transition_pending) || id(immich_transition_starting)) return false;
+              if (!id(immich_slideshow_enabled).state && !id(immich_force_transition)) return false;
               const uint32_t interval_ms =
                   static_cast<uint32_t>(id(immich_slide_interval_seconds).state * 1000.0f);
               if (id(immich_force_transition)) return true;
-              constexpr uint32_t transition_lead_ms = 1800;
+              constexpr uint32_t transition_lead_ms = 1200;
               return id(immich_last_photo_ms) == 0 ||
                      millis() - id(immich_last_photo_ms) + transition_lead_ms >= interval_ms;
           then:
@@ -807,11 +954,11 @@ interval:
               const uint32_t interval_ms = (uint32_t) (id(immich_slide_interval_seconds).state * 1000.0f);
               if (interval_ms < 5000) return false;
               if (id(immich_last_photo_ms) == 0) return false;
-              // The guarded local HTTP path needs about 5-6 seconds for a
-              // full-resolution JPEG. Begin early enough to have the decoded
-              // photo ready before the current pan reaches its final frame.
-              constexpr uint32_t prefetch_lead_ms = 8000;
-              return millis() - id(immich_last_photo_ms) + prefetch_lead_ms >= interval_ms;
+              // Fetch the compressed successor almost immediately. Decode is
+              // still deferred until the transition window, so this removes
+              // network latency without competing with the visible pan.
+              constexpr uint32_t prefetch_delay_ms = 1000;
+              return millis() - id(immich_last_photo_ms) >= prefetch_delay_ms;
           then:
             - lambda: 'id(immich_force_transition) = false;'
             - script.execute: immich_fetch_next_photo

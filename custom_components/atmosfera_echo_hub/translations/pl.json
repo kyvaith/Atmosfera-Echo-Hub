@@ -7,7 +7,10 @@
         "description": "Wybierz Atmosfera Echo Hub oraz kamery Home Assistant, które może wyświetlać.",
         "data": {
           "device_id": "Urządzenie ESPHome",
-          "cameras": "Dostępne kamery"
+          "cameras": "Dostępne kamery",
+          "stream_width": "Szerokość strumienia",
+          "stream_height": "Wysokość strumienia",
+          "stream_fps": "Liczba klatek strumienia"
         }
       }
     },
@@ -25,7 +28,10 @@
         "title": "Dostępne kamery",
         "description": "Tylko wybrane kamery Home Assistant zostaną udostępnione temu ekranowi.",
         "data": {
-          "cameras": "Dostępne kamery"
+          "cameras": "Dostępne kamery",
+          "stream_width": "Szerokość strumienia",
+          "stream_height": "Wysokość strumienia",
+          "stream_fps": "Liczba klatek strumienia"
         }
       }
     },

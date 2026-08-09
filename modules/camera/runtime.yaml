@@ -1,6 +1,12 @@
 # Camera stream runtime. Home Assistant, Frigate or go2rtc should normalize
 # source protocols to MJPEG; the device decodes only complete JPEG frames in
 # hardware and drops late frames instead of building a latency queue.
+globals:
+  - id: camera_paused_media
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
 network_camera:
   id: camera_stream_image
   max_runtime_sources: 16
@@ -58,19 +64,22 @@ network_camera:
           source: "{{ selected_source }}"
 
 lvgl_image_presenter:
-  id: camera_stream_presenter
-  widget: camera_stream_widget
-  source: camera_stream_image
-  direct: true
-  # The go2rtc bridge normalizes camera frames to the native 800x800 display
-  # geometry, so hardware JPEG can write straight into an idle DSI framebuffer.
-  direct_jpeg: true
-  continuous: true
-  phase_duration: 1s
-  frame_interval: 16ms
-  zoom_start: 1.0
-  zoom_end: 1.0
-  pan_limit: 0%
+  - id: camera_stream_presenter
+    widget: camera_stream_widget
+    source: camera_stream_image
+    direct: true
+    # The go2rtc bridge normalizes camera frames to the native 800x800 display
+    # geometry, so hardware JPEG can write straight into an idle DSI framebuffer.
+    direct_jpeg: true
+    # Keep LVGL and its spinner alive until a complete encoded frame is ready.
+    # The camera task takes the direct DSI session only at that handoff.
+    defer_direct_session_until_frame: true
+    continuous: true
+    phase_duration: 1s
+    frame_interval: 16ms
+    zoom_start: 1.0
+    zoom_end: 1.0
+    pan_limit: 0%
 
 script:
   - id: ui_prepare_camera_page
@@ -120,21 +129,60 @@ script:
   - id: camera_confirm_source
     mode: restart
     then:
-      - lambda: |-
-          id(camera_stream_image).select_source(id(camera_source_roller)->get_selected_index());
       - lvgl.widget.hide: camera_source_picker_overlay
-      - lvgl.widget.hide: camera_stream_widget
-      - lvgl.widget.show: camera_status_card
-      - lvgl.label.update:
-          id: camera_status_label
-          text: "Connecting to live view"
-      - lambda: 'lv_refr_now(nullptr);'
+      - if:
+          condition:
+            lambda: |-
+              return id(camera_source_roller)->get_selected_index() ==
+                         id(camera_stream_image).active_source_index() &&
+                     id(camera_stream_image).is_running();
+          then:
+            # Reopening the currently selected source must only dismiss the
+            # picker. NetworkCamera deliberately emits no source event for the
+            # same running index, so waiting for on_first_frame would leave the
+            # presenter paused behind an endless spinner.
+            - lvgl.widget.hide: camera_status_card
+            - lvgl.widget.show: camera_stream_widget
+            - lvgl_image_presenter.resume: camera_stream_presenter
+            - lambda: 'lv_refr_now(nullptr);'
+          else:
+            - lvgl.widget.hide: camera_stream_widget
+            - lvgl.widget.show: camera_status_card
+            - lvgl.label.update:
+                id: camera_status_label
+                text: "Connecting to live view"
+            - lvgl_image_presenter.restart: camera_stream_presenter
+            - delay: 20ms
+            - network_camera.select:
+                id: camera_stream_image
+                index: !lambda |-
+                  return static_cast<uint16_t>(id(camera_source_roller)->get_selected_index());
+            - lambda: 'lv_refr_now(nullptr);'
 
   - id: camera_opened
     mode: restart
     then:
-      # Arm the direct DSI lease before the camera worker can deliver its first
-      # JPEG. This avoids allocating a one-frame RGB fallback at every open.
+      # Camera content owns the complete viewport. The top-layer clock remains
+      # a touch activation region only and must never be painted over video.
+      - lvgl.widget.hide: global_time_button
+      # Video decode, full-screen PPA scaling and SendSpin audio otherwise
+      # compete for both CPU time and PSRAM bandwidth. Resume only playback
+      # that this app actually paused.
+      - if:
+          condition:
+            media_player.is_playing: local_music_player
+          then:
+            - globals.set:
+                id: camera_paused_media
+                value: 'true'
+            - media_player.pause: local_music_player
+            - delay: 250ms
+          else:
+            - globals.set:
+                id: camera_paused_media
+                value: 'false'
+      # Arm the encoded-frame consumer now, but keep LVGL in control until the
+      # first complete JPEG arrives so the native loader remains animated.
       - lvgl.widget.show: camera_stream_widget
       - lvgl_image_presenter.restart: camera_stream_presenter
       - delay: 20ms
@@ -143,7 +191,19 @@ script:
   - id: camera_closed
     mode: restart
     then:
-      - network_camera.stop: camera_stream_image
+      # Drain the display-owned DSI lease before the camera task releases any
+      # decoded fallback frame. The stream task then frees that RGB buffer on
+      # its next stopped iteration because release_buffer_on_stop is enabled.
       - lvgl_image_presenter.pause: camera_stream_presenter
+      - network_camera.stop: camera_stream_image
       - lvgl.widget.hide: camera_source_picker_overlay
       - lvgl.widget.hide: camera_stream_widget
+      - if:
+          condition:
+            lambda: 'return id(camera_paused_media);'
+          then:
+            - delay: 100ms
+            - media_player.play: local_music_player
+            - globals.set:
+                id: camera_paused_media
+                value: 'false'

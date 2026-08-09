@@ -179,6 +179,34 @@ transition timing and display handoff; YAML callbacks own application policy.
 stores compressed backing. Application previews do not remain as independent
 raw 800x800 surfaces.
 
+Applications can select their transition source independently for opening and
+closing:
+
+```yaml
+applications:
+  - id: immich_application
+    page: immich_page
+    widget: immich_root
+    transition_snapshot:
+      open: black
+      close: live
+```
+
+`live` remains the default in both directions. The scalar forms
+`transition_snapshot: live` and `transition_snapshot: black` remain compatible
+and apply the same value to both directions. A black opening skips boot-time
+capture. A black closing skips the close-time capture and refresh. The
+compositor allocates one display-sized black draw buffer in the active LVGL
+color format and shares it between every application that needs it. It does
+not allocate one black frame per app.
+
+Gallery and Camera use a black opening and a live closing. Opening from black
+prevents a stale photo or video frame from appearing before the source has
+restarted and shown its loader. Closing captures the current, fully presented
+media frame, so the application shrinks back into Home instead of collapsing
+as a black surface. Their transition geometry remains identical to normal
+applications.
+
 ### Open
 
 ```mermaid
@@ -235,6 +263,17 @@ The closing animation uses a fresh raw image so it matches the app's current
 state. Compression occurs after the visible close transition; the next open
 uses that refreshed JPEG.
 
+For a black close policy, the close path deliberately does not capture or
+compress the live app. It binds the shared immutable black frame and leaves the
+media owner free to stop its worker and release decoded content after the
+navigation handoff.
+
+For a live close policy on a direct full-screen producer, navigation first
+pauses and drains that producer, then captures the exact DSI frame currently
+presented by the panel. The close animation owns the resulting raw frame. Only
+after capture may Camera or Gallery release its decoder, source, and motion
+buffers. This is intentionally asymmetric with their black opening policy.
+
 When the close source aliases a DSI framebuffer, encode the application preview
 before `realign_direct_buffer_after_manual_present()` synchronizes the DSI pool.
 Realignment copies the final Home frame to every display buffer; doing it first
@@ -255,10 +294,25 @@ Applications need different policy:
 - Settings allocates and releases its scroll snapshot.
 - Immich freezes gallery presentation, hands off the current DSI frame, and
   releases decoded photos only when no worker references them.
+- Camera drains its direct JPEG presentation session, hands the current frame
+  to the close transition, then releases stream-owned fallback storage.
 
 These callbacks are intentionally explicit. The goal is to move stable policy
 into application controllers, not to hide unrelated cleanup inside the generic
 navigation component.
+
+Voice has one additional ownership invariant: wake words and tile taps must
+both enter through `lvgl.navigation.open: voice_application`. Backend phases
+describe the contents of the open application; they are not navigation events
+and must never show the overlay directly. The presenter becomes active only
+after `ui_active_app` identifies Voice, which keeps the direct waveform behind
+the black application surface during handoff. Closing first raises the local
+stop latch and then terminates the backend session, preventing delayed phase
+callbacks from bringing Voice back after the close transition.
+
+Regression tests for this contract must cover closing immediately after open,
+before any speech, and keeping Home visible for several seconds after closing
+during an active listening or replying session.
 
 ## Settings snapshot scrolling
 

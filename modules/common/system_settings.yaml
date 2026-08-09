@@ -9,6 +9,10 @@ globals:
   type: bool
   restore_value: true
   initial_value: 'false'
+- id: display_last_interaction_ms
+  type: uint32_t
+  restore_value: no
+  initial_value: '0'
 
 script:
 - id: display_wake
@@ -19,6 +23,7 @@ script:
         lambda: 'return id(boot_sequence_done);'
       then:
       - lambda: |-
+          id(display_last_interaction_ms) = millis();
           ESP_LOGW("backlight.diag", "wake brightness=%.0f%% uptime=%lums",
                    id(settings_display_brightness).state,
                    (unsigned long) millis());
@@ -27,14 +32,79 @@ script:
             lambda: 'return id(ui_active_app) == 1;'
           then:
             - script.execute: media_title_marquee_reset_and_start
+      # Repeated assistant/UI activity refreshes the timeout but must not
+      # restart a long hardware fade while the panel is already lit.
+      - if:
+          condition:
+            lambda: 'return !id(display_backlight).remote_values.is_on();'
+          then:
+          - output.ledc.set_next_fade_duration:
+              id: backlight_output
+              duration: 3600ms
+          - light.turn_on:
+              id: display_backlight
+              brightness: !lambda |-
+                const float b = id(settings_display_brightness).state;
+                return (b < 28.0f ? 28.0f : b) / 100.0f;
+              transition_length: 0ms
+
+# Use a product-level inactivity clock instead of LVGL's one-shot on_idle
+# trigger. This remains deterministic when a keep-awake application ends
+# without a new touch and ignores internal LVGL redraw/presentation activity.
+interval:
+- interval: 1s
+  then:
+  - if:
+      condition:
+        lambda: |-
+          if (!id(boot_sequence_done) ||
+              !id(display_backlight).remote_values.is_on()) {
+            return false;
+          }
+
+          const float timeout_s = id(settings_display_timeout).state;
+          if (!std::isfinite(timeout_s) || timeout_s <= 0.0f) {
+            return false;
+          }
+
+          const int app = id(ui_active_app);
+          const int voice_phase = id(voice_assistant_phase);
+          // The backend phase, not the currently selected page, owns the
+          // conversation lifetime. A wake-word session may be active before
+          // ui_active_app catches up, or while an overlay temporarily changes
+          // navigation state; neither case may let the display timeout fire.
+          const bool conversation_active =
+              voice_phase == ${voice_assist_waiting_phase_id} ||
+              voice_phase == ${voice_assist_listening_phase_id} ||
+              voice_phase == ${voice_assist_thinking_phase_id} ||
+              voice_phase == ${voice_assist_replying_phase_id};
+          // The gallery owns the whole display while it is open. Keep it lit
+          // both during motion and while its navigation HUD is visible.
+          const bool slideshow_active = app == 4;
+          const bool camera_preview_active = app == 5;
+
+          if (conversation_active || slideshow_active || camera_preview_active) {
+            // Start a fresh timeout after the protected activity ends instead
+            // of switching the panel off immediately on app/session close.
+            id(display_last_interaction_ms) = millis();
+            return false;
+          }
+
+          const uint32_t timeout_ms =
+              static_cast<uint32_t>(timeout_s * 1000.0f);
+          return millis() - id(display_last_interaction_ms) >= timeout_ms;
+      then:
+      - lambda: |-
+          ESP_LOGW("backlight.diag",
+                   "timeout off app=%d voice_phase=%d idle=%lums uptime=%lums",
+                   id(ui_active_app), id(voice_assistant_phase),
+                   (unsigned long) (millis() - id(display_last_interaction_ms)),
+                   (unsigned long) millis());
       - output.ledc.set_next_fade_duration:
           id: backlight_output
           duration: 3600ms
-      - light.turn_on:
+      - light.turn_off:
           id: display_backlight
-          brightness: !lambda |-
-            const float b = id(settings_display_brightness).state;
-            return (b < 28.0f ? 28.0f : b) / 100.0f;
           transition_length: 0ms
 
 switch:

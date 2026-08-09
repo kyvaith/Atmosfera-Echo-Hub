@@ -47,6 +47,10 @@ globals:
     type: bool
     restore_value: no
     initial_value: 'false'
+  - id: global_clock_suppressed
+    type: bool
+    restore_value: no
+    initial_value: 'false'
 
 lvgl:
   top_layer:

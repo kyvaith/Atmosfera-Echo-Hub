@@ -186,7 +186,7 @@ PPA scale/rotate/mirror is used for:
 
 - RGB888 snapshot movement;
 - image scaling and rotation;
-- gallery pan and Ken Burns style transforms;
+- gallery pan and slideshow transforms;
 - direct-region copies;
 - Lottie XRGB/ARGB conversion to the RGB888 display target;
 - application transition geometry where supported.
@@ -220,6 +220,182 @@ LVGL software renderer. This is intentional.
 | Native-size full-screen camera JPEG | JPEG directly to idle DSI frame | Avoid decoded RGB allocation and per-frame PPA copy |
 | Home/app snapshot movement | PPA/DMA2D direct compositor | Avoid LVGL tree redraw |
 
+## Reusable image scene transitions
+
+`lvgl_image_presenter` separates image transport and decoding from display
+presentation. The player uses it with `motion: none` and `crossfade: true`;
+gallery and camera views can use the same owner with their own motion policy.
+
+For a continuous source whose first frame may arrive much later than the page,
+`defer_direct_session_until_frame` leaves LVGL in control of the loading scene.
+The producer task signals that one complete encoded frame exists, while the
+LVGL task owns the subsequent DSI-session begin/end lifecycle. The readiness
+frame is dropped and the next frame enters the direct decode path. Never move
+the session acquisition into the producer task: DSI presentation mutexes must
+be released by the same task that acquired them.
+
+On the validated ESP32-P4 RGB888 DSI path a crossfade does not create a second
+LVGL image widget and does not invalidate the full screen for every animation
+step. Its ownership sequence is:
+
+1. `prepare_transition` runs before the decoder replaces or reuses the image
+   source buffer and immediately takes direct-image ownership of the DSI pool.
+   There must be no decoder-to-worker gap in which a dynamic region can queue
+   a complete framebuffer from the previous artwork generation.
+2. Registered dynamic regions keep producing updates, but while the scene
+   transition owns DSI those updates only replace their cached ARGB overlays;
+   they cannot independently present a framebuffer.
+3. The currently presented DSI framebuffer remains the immutable old scene.
+4. LVGL renders the complete incoming scene once into one temporary RGB888
+   frame sized from the runtime display dimensions. The render includes the
+   bottom, active-screen, top and system layers, so global overlays such as the
+   clock survive the handoff.
+5. Background copies required by direct widgets are completed before the
+   crossfade starts. The player wave keeps three bounded RGB565 backdrop crops:
+   active, in-flight and next. A replacement crop can therefore become active
+   without waiting for, or overwriting, the source of an older PPA request. A
+   task-owned PPA blend client then crossfades the old DSI frame into the final
+   scene on the worker core. The pinned old DSI frame already contains the last
+   direct overlay, so each direct region also preserves one compact clean
+   background at transition start. After every full-frame blend, the compositor
+   replaces that region with the matching clean old-to-new background blend and
+   only then applies the newest registered ARGB overlay once. The player wave
+   and marquee therefore remain live during an artwork change without briefly
+   becoming thicker from two overlapping generations.
+6. The final frame is handed back to LVGL and the temporary frame is released.
+
+The presenter owns LVGL display invalidation for this entire transaction.
+Decoder and product YAML callbacks must not toggle invalidation separately.
+Every success, cancellation, timeout, and decode-error path returns ownership
+through the presenter, which re-enables invalidation and invalidates the active
+screen. This keeps panels opened during an artwork transition renderable rather
+than merely visible in the LVGL object tree.
+
+A direct region taking part in this transition is cached as a
+background-independent ARGB overlay. Never preserve its already composited RGB
+rectangle: that rectangle contains the artwork generation visible when it was
+produced and can paste a second or third cover over the current crossfade. Both
+the transition worker and live direct-region updates blend ARGB in place over
+the current target framebuffer.
+
+The one-shot LVGL render of the incoming scene must exclude any native widget
+whose pixels are also preserved as a direct-region overlay. Otherwise the
+crossfade frame contains the widget once and the direct compositor blends it a
+second time. `capture_exclude` declares these objects for an image presenter;
+the player excludes its native wavy-progress image and preserves only the live
+ARGB direct region.
+
+The source is allowed to reuse the same decoded allocation. The old pixels are
+owned by the pinned DSI framebuffer, not by a second artwork allocation. This
+is why pointer equality between the old and new image descriptors must not
+disable the direct-scene path.
+
+The first player artwork follows the same path even though the decoded image
+widget is still hidden behind a separate placeholder. `prepare_transition`
+pins that visible placeholder scene before JPEG decode. The completed scene
+then reveals the artwork widget, hides the placeholder, and crossfades from the
+pinned DSI frame without allocating a placeholder-sized image buffer.
+
+Gallery motion is exposed as the `slideshow` image option and implemented by
+`SlideshowController`. The name describes the reusable presentation owner; it
+does not imply zoom. The current Atmosfera gallery configures pan-only motion.
+
+Pausing the gallery for its controls does not recenter, retransform, or redraw
+the source image. `pause_for_overlay()` copies the exact currently presented
+DSI frame into one transient RGB888 surface, ends the direct slideshow lease,
+and lets LVGL draw the controls over that frozen frame. Hiding the controls
+returns ownership to the slideshow worker. This avoids the striped paused
+frame previously produced by reconstructing a centered image through a second
+render path.
+
+Manual Previous and Next use that same frozen frame as the outgoing transition
+source. The button handler hides the controls without resuming pan, fetches or
+selects the requested image, and lets `transition_to()` re-enter direct mode
+from the paused overlay capture. The hardware PPA crossfade is therefore the
+same path as an automatic slideshow change. Calling `resume()` before the new
+JPEG is ready is incorrect: it restarts motion on the current photo and makes a
+button press look like a reset to the beginning of the same image.
+
+The optional fade transition is scheduled before the pan duration expires.
+The product currently uses a 1.2-second lead, so fade-out overlaps the final
+part of motion instead of beginning after the image has visibly stopped.
+
+The compressed successor is fetched shortly after the current image becomes
+visible, but hardware decode remains deferred until that transition window.
+This removes network latency from the end of a pan without adding a second
+decoded photo for the whole slide.
+
+Closing the gallery is an ownership boundary. The exact-frame scratch surface
+may remain the LVGL image source while the application-close snapshot is being
+captured, so `pause_for_snapshot()` must not release it at that point. After the
+close snapshot owns a complete copy, `SlideshowController::clear()` detaches
+the LVGL source and releases transition/subpixel buffers; only then may the
+decoded artwork allocation be returned. Reversing this order leaves the image
+widget pointing at freed PSRAM and produces the striped previous image on the
+next open.
+
+The temporary memory cost is one display-sized RGB888 frame during a transition
+or while the exact-frame controls overlay is visible. Unsupported targets fall
+back to an immediate source change; they must not emulate this path by redrawing
+two full-screen LVGL widgets on every frame.
+
+A direct marquee returns to its initial position through its registered direct
+region. Once that frame is confirmed, the region remains parked at position
+zero and submits no more frames. Releasing it immediately would expose the last
+scrolled strip from another DSI framebuffer; normal panel/app handoff or a new
+title releases and rebuilds it explicitly.
+
+The global volume overlay captures the screen once on touch-down. Its prepared
+dimmed frame removes the clock by rendering and patching only the clock-sized
+rectangle. Long-press activation reuses that frame instead of performing a
+second full-screen capture and scrim pass.
+
+The clock patch is conditional. Camera intentionally suppresses the clock for
+the entire application lifetime, while the touchscreen still treats the same
+top-centre coordinates as the volume gesture activation area. In that state
+the renderer must not reconstruct a clock-sized rectangle: doing so paints a
+black box into an otherwise direct-rendered camera frame and leaves it visible
+briefly after the arc closes.
+
+Full-screen direct image producers cannot continue writing while that capture
+is used as an overlay base. `DirectSceneController` is the common suspension
+contract for Gallery and Camera. The volume renderer suspends every registered
+controller immediately before capture. When the gesture ends it restores the
+original frame, releases the overlay presentation session, and synchronously
+lets the visible direct producer reacquire its own session while LVGL
+invalidation is still disabled. Only then may LVGL invalidation be enabled
+again. This preserves one writer for the DSI pool and prevents Gallery
+artifacts or Camera frames covering the arc. A new full-screen direct producer
+must be added to `scene_controllers`; it must not be fixed with timing delays or
+per-screen YAML branches.
+
+Suspending producers and disabling new LVGL invalidation are necessary but not
+sufficient. A refresh queued before the gesture can still flush an undimmed
+LVGL framebuffer after the full scrim has been presented. For the complete
+direct-overlay gesture, the renderer therefore owns an LVGL framebuffer
+presentation session. The session pauses the LVGL refresh timer, drains direct
+regions and pending DSI work, and keeps that ownership through every regional
+arc/knob update. The original complete frame is restored before the session is
+released and Gallery or Camera is resumed. Without this session, an old flush
+can remove the scrim globally while later regional updates redraw it only below
+the moving knob, which appears as large undimmed image rectangles.
+
+When moving Gallery is suspended, it already owns an exact 800x800 RGB888
+capture used to freeze its current pan position. It exposes that immutable
+surface through `DirectSceneController::get_direct_overlay_frame()`, and the
+volume renderer borrows it until Gallery resumes. The renderer never frees a
+borrowed surface and does not allocate or capture a duplicate original frame.
+The product's paused Gallery state also retains this exact capture, so it lends
+the same surface without rebuilding the transformed photo. Both paths disable
+LVGL invalidation and hold the framebuffer presentation session while the
+direct arc owns DSI. Teardown follows one strict order: restore the complete
+base frame, release the overlay presentation session, resume the suspended
+producer and let it reacquire its direct session, then re-enable LVGL
+invalidation. A black Camera flash at this boundary is not the previous video
+frame; it is the black native LVGL Camera page exposed by an ownership gap.
+Do not call `lv_refr_now()` after the direct handoff; it races the resumed
+full-screen producer and reintroduces striped native-LVGL rows.
+
 ## Direct-region compositor
 
 The direct-region compositor updates a small dynamic region while preserving
@@ -231,9 +407,16 @@ an atomic and non-blocking handoff. The marquee temporarily hides the native
 title only while rendering the bounded clean background into an off-screen
 RGB888 strip, then restores it before returning to the event loop. Its worker
 presents the first direct text frame asynchronously. The main LVGL task hides
-the native label only after the matching direct-region slot is confirmed active
-on DSI. A rejected or busy request is retried while the native title remains
-visible; a timeout leaves the static native title in place. Never call
+the native label only after the matching direct-region slot has accepted the
+position-zero frame. That hidden-flag mutation is performed with display
+invalidation temporarily suppressed: the panel therefore keeps scanning the
+old native pixels until DSI replaces them with the prepared direct frame,
+instead of publishing one empty title strip. The temporary hide/restore used to
+capture the clean background follows the same rule. The motion clock starts on
+the following UI tick, so the handoff cannot surface an already-offset first
+animation frame as a title blink. A rejected or busy request is retried while
+the native title remains visible; a timeout leaves the static native title in
+place. Never call
 `lv_refr_now()` with the native label hidden and never wait synchronously for a
 generic DSI frame, because the former exposes an empty title region and the
 latter stalls `lv_timer_handler()` without proving that the marquee was shown.
@@ -269,13 +452,72 @@ the active framebuffer is still the base used for composition. This closes the
 smaller race between the last generation check and serialized DSI submission.
 
 Direct widgets must retire a completed in-flight frame even while presentation
-is temporarily disabled. A replacement background also invalidates any old
-unpresented ready frame before scheduling the new generation. Without these
-two rules, a player background handoff can wait forever for a spare buffer or
-keep an obsolete ready frame that prevents the new artwork from rendering.
+is temporarily disabled. A widget that composites a private background must
+also keep that background independent from its ARGB overlay and reserve every
+buffer referenced by an in-flight PPA request. The wavy control blends its
+RGB565 crop directly with ARGB8888; it does not convert the crop to RGB888 or
+rerasterize all wave buffers when artwork changes. Without these ownership
+rules, a background handoff can wait forever for a spare buffer or paste an
+obsolete artwork rectangle below an otherwise correct overlay.
+
+Animation-frame updates may use a short try-lock and coalesce when the raster
+worker is busy. A new artwork backdrop is different: it is a mandatory state
+handoff and must wait for ownership of the renderer mutex. Dropping that update
+leaves the previous cover embedded below every later wave frame even though the
+main artwork widget already shows the new source.
 
 No additional full-screen region buffer exists. The compositor uses the three
 DSI buffers and bounded per-widget sources.
+
+A stopped direct widget must not be carried forward by copying its pixels from
+whichever physical framebuffer happens to be active. Other direct regions can
+still present frames after the widget stops, and one of the three DSI buffers
+may contain an older animation phase. The compositor therefore marks a final
+ARGB overlay as a stable carry, keeps one bounded copy of that overlay, and
+reblends it over the current compact background whenever another region builds
+a frame. This prevents marquee or artwork updates from resurrecting old
+play/pause glyphs or wave phases without synchronizing a full screen.
+
+The same reconstruction is mandatory when native LVGL rebases its `DIRECT`
+render target. Copying the region from the currently presented framebuffer at
+that boundary can import an older phase from another member of the DSI pool,
+then visibly snap back when the regional compositor restores the stable carry.
+Stable slots must instead rebuild the target from their clean background and
+cached final ARGB overlay.
+
+### Player transport wave state
+
+The confirmed playback rotation and the transient loading sweep use separate
+phases. `playing` and `pending` are submitted as one renderer transaction, so
+an intermediate play glyph, pause glyph, or progress frame cannot reach DSI.
+The loading segment is intentionally delayed by one second, so a transport
+action that is confirmed quickly does not flash a short-lived spinner.
+Touch-down freezes the base wave before LVGL can emit `CLICKED` on release,
+and the release cycle discards any phase step accumulated with that input
+transition. Command dispatch keeps it frozen. Before the delayed loader becomes
+visible no phase advances; afterwards only the independent loader phase
+advances until transport confirmation arrives. A touch released outside the
+button resumes normal playback animation on the next display tick.
+
+The renderer retains the exact progress value while a slow action is pending,
+but temporarily draws a complete inactive wave plus the bright moving loader.
+This keeps a 100% stream progress ring from hiding the loader. When the backend
+acknowledges the action, the saved progress reappears without being reconstructed
+from delayed position metadata. A confirmed paused frame is then marked as the
+stable direct-region carry described above.
+
+Transport feedback has an explicit confirmation type. `PLAYING` confirms play,
+`IDLE` confirms pause, and changed track metadata confirms previous/next.
+Position, duration, and duplicate metadata updates must not release feedback;
+otherwise they briefly restart the main wave before the real state arrives.
+
+SendSpin reports pause as `IDLE` and may publish a transient stale or near-zero
+position while the previous `PLAYING` state is still visible. At command start,
+the product captures the progress value directly from the material renderer.
+That value has priority over title, position, duration and state echoes until
+the command-feedback window closes. The same rule preserves the synthetic 100%
+track used for an unbounded stream. Never recompute paused progress from a
+delayed position echo or let a repeated title update replace this hold value.
 
 ## Hardware JPEG path
 

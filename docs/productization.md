@@ -14,7 +14,6 @@ repositories.
 | --- | --- |
 | `kyvaith/Atmosfera-Echo-Hub` | `09bb26ed20f4d49ab9b5141dc3e204f16142ab18` |
 | `kyvaith/esphome` | `d35c9664c71413bb4676a095f48f00d85e73ab11` |
-| `kyvaith/esphome-intercom` | `df37bbcfa18c5d9e97f84366b9be52b59160f703` |
 
 The ESPHome productization branch is built in a separate worktree from the
 current upstream `dev`. The working firmware checkout must not be switched to
@@ -87,7 +86,10 @@ background crop is derived from the active display and configured widget
 coordinates rather than an 800x800 screen assumption. The validated product
 widget remains 244x244; making the renderer scale its internal shape geometry
 is intentionally a separate hardware-tested change. This migration removes
-the product-local 1,400-line renderer without increasing DIRAM.
+the product-local 1,400-line renderer without increasing DIRAM. Artwork
+handoff uses three owned RGB565 backdrop crops and a separate ARGB wave layer;
+PPA blends both formats directly, so a new cover neither borrows the mutable
+artwork buffer nor rebuilds the wave just to replace its background.
 
 Application preview preparation now uses the registered
 `lvgl.navigation.applications` collection through the declarative
@@ -139,14 +141,14 @@ image and 8 bytes of DIRAM.
   and the relevant device regression scenarios before it replaces the baseline.
 
 All currently required product components now come from one ESPHome integration
-tree. The separate legacy LVGL, artwork bridge, voice client, and intercom
+tree. The separate legacy LVGL, artwork bridge, voice client, and audio
 external sources have been removed from the product configuration. This is an
 integration checkpoint, not the final upstream boundary: the table below still
 tracks which components must be reconciled or replaced before release.
 
 ## External component inventory
 
-The product currently imports 15 components from one consolidated ESPHome
+The product currently imports 16 components from one consolidated ESPHome
 integration tree:
 
 | Component | Target |
@@ -160,24 +162,26 @@ integration tree:
 | `image` | Reconcile with the current upstream image platform |
 | `immich_gallery` | Grow from the validated API/parser boundary into the generic Immich application controller |
 | `lvgl_material` | Keep independent reusable widgets, direct state layers, marquees, volume overlays, and wavy progress controls |
+| `lvgl_image_presenter` | Keep the generic image ownership/crossfade/direct-presentation state machine |
 | `lvgl` | Rebase accelerators; extract navigation and snapshots |
 | `micro_wake_word` | Keep only the configurable buffering changes missing upstream |
 | `mipi_dsi` | Rebase local DSI changes and upstream them in scoped PRs |
+| `network_camera` | Keep the generic authenticated camera/MJPEG source and frame-drop policy |
 | `sendspin` | Keep only fixes missing from current upstream |
 | `task_runtime_profiler` | Keep as an optional ESP32-P4 diagnostic component; profiling is inactive until explicitly requested |
 | `va_pipecat` | External product transport using standard microphone and speaker APIs |
 
-The unused `generic_image`, `online_image`, `runtime_image`,
-`lvgl_image_presenter`, and `lvgl_region_presenter` implementations remain in
+The unused `generic_image`, `online_image`, `runtime_image`, and
+`lvgl_region_presenter` implementations remain in
 the integration tree for their own feature branches, but the product no longer
 imports them. The active image path is now explicit: `artwork_image` owns
 network image lifetime, `esp32_jpeg` owns hardware decoding, and `image`
 provides stable pixel-buffer leases. Further consolidation must preserve the
 proven direct hardware JPEG path and artwork replacement behavior.
 
-The project does not use `intercom_api`. The former repository name was
-historical; only its generic audio processing and full-duplex transport layers
-were carried into the consolidated ESPHome integration tree.
+The product imports no separate call-transport component. Only the generic
+audio processing and full-duplex layers were carried into the consolidated
+ESPHome integration tree.
 
 ## Target component boundaries
 
@@ -232,7 +236,7 @@ than application-specific code:
 3. Reconcile existing upstream changes before porting local patches.
 4. Replace project-local compile flags with component schemas, generated
    defines, supported sdkconfig values, or source-level fixes.
-5. Move the three audio components out of the intercom repository.
+5. Keep the generic audio components in the consolidated ESPHome tree.
 6. Extract snapshot code from `lvgl_esphome.cpp` without changing behavior.
 7. Add the declarative navigation schema and remove raw touchscreen lambdas.
 8. Convert `static/ui_*.h` helpers into reusable LVGL widgets.

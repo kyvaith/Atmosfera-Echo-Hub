@@ -172,6 +172,14 @@ switch:
     optimistic: true
     restore_mode: RESTORE_DEFAULT_ON
     icon: "mdi:play-box-multiple"
+    on_turn_on:
+      - lambda: |-
+          if (id(ui_active_app) == 4 && id(immich_image_loaded) && !id(immich_controls_visible))
+            id(immich_slideshow).resume();
+    on_turn_off:
+      - lambda: |-
+          if (id(ui_active_app) == 4 && id(immich_image_loaded) && !id(immich_controls_visible))
+            id(immich_slideshow).pause_for_overlay();
 
   - platform: template
     name: "Immich: Metadata"
@@ -189,8 +197,8 @@ switch:
     restore_mode: RESTORE_DEFAULT_OFF
     icon: "mdi:transition"
     on_turn_on:
-      - lambda: 'id(immich_ken_burns).set_fade_through_black(true);'
+      - lambda: 'id(immich_slideshow).set_fade_through_black(true);'
       - script.execute: ui_update_immich_fade_state
     on_turn_off:
-      - lambda: 'id(immich_ken_burns).set_fade_through_black(false);'
+      - lambda: 'id(immich_slideshow).set_fade_through_black(false);'
       - script.execute: ui_update_immich_fade_state

@@ -1,161 +1,95 @@
-# Voice Assistant overlay.
-# It lives on LVGL top_layer so it can appear above tiles, player and settings without changing pages.
+# Full-screen conversational surface. Runtime presentation and waveform
+# rendering are owned by lvgl_material; this file contains only composition.
 lvgl:
-    top_layer:
-        widgets:
-          - obj:
-                id: voice_assistant_overlay
+  top_layer:
+    widgets:
+      - obj:
+          id: voice_assistant_overlay
+          x: 0
+          y: 0
+          width: 800
+          height: 800
+          bg_color: 0x000000
+          bg_opa: 100%
+          border_width: 0
+          radius: 0
+          pad_all: 0
+          scrollable: false
+          clickable: true
+          hidden: true
+          widgets:
+            - obj:
+                id: voice_assistant_bottom_gradient
                 x: 0
-                y: 0
+                y: 500
                 width: 800
-                height: 800
+                height: 300
                 bg_color: 0x000000
+                bg_grad_color: 0x2D2136
+                bg_grad_dir: VER
                 bg_opa: 100%
                 border_width: 0
                 radius: 0
                 pad_all: 0
                 scrollable: false
-                clickable: true
-                hidden: true
+                clickable: false
+
+            - label:
+                id: voice_assistant_status_label
+                text: "Assistant"
+                align: TOP_MID
+                y: 28
+                width: 520
+                text_align: CENTER
+                text_color: 0xA8A8AE
+                text_font: roboto_20
+
+            - obj:
+                id: voice_assistant_transcript_panel
+                x: 60
+                y: 116
+                width: 680
+                height: 360
+                bg_opa: 0%
+                border_width: 0
+                radius: 0
+                pad_all: 0
+                scrollable: false
+                clickable: false
+                layout:
+                  type: flex
+                  flex_flow: COLUMN
+                  flex_align_main: CENTER
+                  flex_align_cross: CENTER
+                  flex_align_track: CENTER
+                  pad_row: 22
                 widgets:
                   - label:
-                        id: voice_assistant_time_label
-                        hidden: true
-                        text: "9:30"
-                        align: TOP_MID
-                        y: 12
-                        width: 180
-                        text_align: CENTER
-                        text_color: 0xF5EEFB
-                        text_font: roboto_34
-                  - obj:
-                        id: voice_assistant_orb_shell
-                        width: 220
-                        height: 220
-                        align: CENTER
-                        y: -182
-                        bg_color: 0x0F5223
-                        bg_opa: 100%
-                        border_width: 3
-                        border_color: 0xC3EDCF
-                        radius: 110
-                        pad_all: 0
-                        scrollable: false
-                        shadow_width: 0
-                        shadow_color: 0xC3EDCF
-                        shadow_opa: 0%
+                      id: voice_assistant_you_label
+                      text: ""
+                      width: 680
+                      text_align: CENTER
+                      text_color: 0x85858D
+                      text_font: roboto_30
+                      long_mode: WRAP
                   - label:
-                        id: voice_assistant_status_label
-                        text: "Assistant"
-                        align: CENTER
-                        y: -30
-                        width: 500
-                        text_align: CENTER
-                        text_color: 0xC3EDCF
-                        text_font: roboto_24
-                  - obj:
-                        id: voice_assistant_you_surface
-                        align: CENTER
-                        y: 128
-                        width: 576
-                        height: 92
-                        radius: 46
-                        bg_color: 0x332E3C
-                        bg_opa: 100%
-                        border_width: 0
-                        shadow_width: 0
-                        outline_width: 0
-                        pad_all: 0
-                        scrollable: false
-                        clickable: false
-                  - label:
-                        text: "You"
-                        align: CENTER
-                        x: -204
-                        y: 94
-                        width: 120
-                        text_align: LEFT
-                        text_color: 0xC4C7C5
-                        text_font: roboto_16
-                  - label:
-                        id: voice_assistant_you_label
-                        text: ""
-                        align: CENTER
-                        y: 128
-                        width: 520
-                        height: 54
-                        text_align: CENTER
-                        text_color: 0xF2F2F2
-                        text_font: roboto_20
-                        long_mode: WRAP
-                  - obj:
-                        id: voice_assistant_response_surface
-                        align: CENTER
-                        y: 246
-                        width: 576
-                        height: 108
-                        radius: 54
-                        bg_color: 0x0F5223
-                        bg_opa: 100%
-                        border_width: 0
-                        shadow_width: 0
-                        outline_width: 0
-                        pad_all: 0
-                        scrollable: false
-                        clickable: false
-                  - label:
-                        text: "Assistant"
-                        align: CENTER
-                        x: -196
-                        y: 204
-                        width: 160
-                        text_align: LEFT
-                        text_color: 0xC4C7C5
-                        text_font: roboto_16
-                  - label:
-                        id: voice_assistant_response_label
-                        text: ""
-                        align: CENTER
-                        y: 246
-                        width: 536
-                        height: 72
-                        text_align: CENTER
-                        text_color: 0xF2F2F2
-                        text_font: roboto_20
-                        long_mode: WRAP
-                  - button:
-                        id: voice_assistant_stop_button
-                        align: CENTER
-                        y: 354
-                        width: 136
-                        height: 68
-                        radius: 34
-                        bg_color: 0xFD7267
-                        bg_opa: 72%
-                        border_width: 0
-                        outline_width: 0
-                        shadow_width: 0
-                        pad_all: 0
-                        scrollable: false
-                        gesture_bubble: true
-                        style_transition_time: 120ms
-                        style_transition_path: ease_out
-                        pressed:
-                          bg_opa: 100%
-                        on_press:
-                          then:
-                            - lambda: |-
-                                id(voice_assistant_stop_requested) = true;
-                            - if:
-                                condition:
-                                  lvgl.navigation.is_open: voice_application
-                                then:
-                                  - lvgl.navigation.close: ui_navigation
-                                else:
-                                  - script.execute: voice_assistant_stop_conversation
-                        widgets:
-                          - label:
-                                text: "\uE5CD"
-                                align: CENTER
-                                text_color: 0x1B1B1B
-                                text_font: material_symbols_36
+                      id: voice_assistant_response_label
+                      text: ""
+                      width: 680
+                      text_align: CENTER
+                      text_color: 0xFFFFFF
+                      text_font: roboto_36
+                      long_mode: WRAP
+
+            - obj:
+                id: voice_assistant_waveform
+                x: 70
+                y: 525
+                width: 660
+                height: 190
+                bg_opa: 0%
+                border_width: 0
+                radius: 0
+                pad_all: 0
+                scrollable: false
+                clickable: false

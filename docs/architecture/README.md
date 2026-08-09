@@ -98,7 +98,8 @@ view is not automatically optimized merely because it uses LVGL.
 | Home snapshot paging | Reusable controller | Add the page root and corresponding indicator to `navigation.home` |
 | Application open/close animation | Reusable controller | Register the application and provide only its policy callbacks |
 | Snapshot-backed list scrolling | Reusable controller | Register the scroll region and its limits |
-| Direct Material renderers | Reusable widgets | Declare the component and pause it when another full-screen owner takes over |
+| Direct Material renderers | Reusable widgets | Declare the component and pause it when another full-screen owner takes over; Voice waveform presentation is one such bounded regional renderer |
+| Image scene crossfade | Reusable presenter | Prepare before decode replaces the source, then transition after the final scene state is ready |
 | Network camera stream | Reusable image source | Normalize sources to MJPEG and register the view as a navigation application |
 | Roboto and Material Symbols | Shared product convention | Use the shared font IDs; it is not imposed by LVGL itself |
 | Voice session flow | Reusable transport plus product policy | Bind the post-AFE microphone, speaker, wake words, and UI phase callbacks |
@@ -137,6 +138,32 @@ by responsibility:
 
 Reusable implementations are imported from the consolidated ESPHome
 integration tree configured by `modules/common/external_components.yaml`.
+
+## Display power lifecycle
+
+Display inactivity is product policy owned by
+`modules/common/system_settings.yaml`; it is intentionally independent of
+LVGL's one-shot `on_idle` callback. A verified touchscreen contact or an
+explicit `display_wake` request starts a new timeout. Internal LVGL redraws,
+image presentation, media metadata, and background component updates do not.
+
+The backlight may remain on past the configured timeout in exactly three cases:
+
+1. The Voice application is visible and a conversation is in `waiting`,
+   `listening`, `thinking`, or `replying`.
+2. The Immich application is visible and its slideshow switch is enabled.
+3. The Camera application is visible and presenting a live preview.
+
+While one of these policies is active, the timeout epoch follows current time.
+When it ends, a complete new timeout period begins. An open but idle/error Voice
+screen and a paused slideshow do not inhibit sleep. `display_wake` is
+idempotent: when the panel is already lit it refreshes the timeout but does not
+restart the hardware LEDC fade.
+
+The GT911 wake path requires coherent touch samples before turning the
+backlight on. This filters isolated electrical-noise contacts without adding a
+visible delay to a real touch. Waking blocks the initiating touch from clicking
+the underlying UI.
 
 ## Sources of truth
 

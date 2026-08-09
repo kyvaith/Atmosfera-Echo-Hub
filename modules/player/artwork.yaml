@@ -33,18 +33,15 @@ artwork_image:
     buffer_size: 262144
     allow_insecure_local_urls: true
     on_decode_start:
-      - lambda: |-
-          if (id(ui_active_app) != 1 || id(artwork_decode_ui_guard)) {
-            return;
-          }
-          id(artwork_decode_ui_guard) = true;
-          // The decoder overwrites the artwork source only. The visible DSI
-          // frame, wave backdrop, and marquee strip are independent copies,
-          // so they can keep animating until the completed image is published.
-          auto *display = lv_obj_get_display(id(wear_root));
-          if (display != nullptr) {
-            lv_display_enable_invalidation(display, false);
-          }
+      - if:
+          condition:
+            lambda: 'return id(ui_active_app) == 1 && !id(artwork_decode_ui_guard);'
+          then:
+            - lambda: |-
+                id(artwork_decode_ui_guard) = true;
+                // LvglImagePresenter owns display invalidation from prepare
+                // through the final DSI handoff.
+            - lvgl_image_presenter.prepare_transition: player_artwork_presenter
     on_download_finished:
       - script.execute: media_apply_artwork
     on_error:

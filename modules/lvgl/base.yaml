@@ -245,6 +245,9 @@ lvgl:
               id: ui_snapshot_io_busy
               value: 'true'
           - lambda: |-
+              id(voice_assistant_stop_requested) = false;
+              id(voice_assistant_realtime_idle_pending) = false;
+              id(voice_assistant_terminal_close_pending) = false;
               id(ui_touch_click_block_until_ms) = millis() + 800;
               if (!lvgl_esphome_direct_regions_pause(true, 150)) {
                 ESP_LOGW("ui.layers", "regional compositor drain timed out before Voice handoff");
@@ -262,6 +265,7 @@ lvgl:
               if (id(perf_overlay_label) != nullptr && id(settings_perf_overlay_switch).state) {
                 lv_obj_move_foreground(id(perf_overlay_label));
               }
+              lvgl_esphome_direct_regions_pause(false, 0);
           - script.execute: voice_assistant_start_from_ui
         on_prepare_close:
           - globals.set:
@@ -290,9 +294,13 @@ lvgl:
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'false'
+          - script.execute: voice_assistant_restore_display_after_close
       - id: immich_application
         page: immich_page
         widget: immich_root
+        transition_snapshot:
+          open: black
+          close: live
         close_gesture: true
         close_on_threshold: true
         on_prepare_open:
@@ -329,11 +337,11 @@ lvgl:
               if (!lvgl_esphome_direct_regions_pause(true, 150)) {
                 ESP_LOGW("ui.close", "regional compositor drain timed out before Immich close");
               }
-              id(immich_ken_burns).pause_for_snapshot();
+              id(immich_slideshow).pause_for_snapshot();
         on_close:
           # The compositor has captured the closing frame, so the photo
           # presenter may now complete its DSI handoff before animation starts.
-          - lambda: 'id(immich_ken_burns).complete_snapshot_handoff();'
+          - lambda: 'id(immich_slideshow).complete_snapshot_handoff();'
         on_close_cancelled:
           - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
           - globals.set:
@@ -355,12 +363,19 @@ lvgl:
       - id: camera_application
         page: camera_page
         widget: camera_root
+        transition_snapshot:
+          open: black
+          close: live
         close_gesture: true
         close_on_threshold: true
         on_prepare_open:
           - script.stop: ui_refresh_tile_snapshots
           - script.execute: ui_quiesce_player_direct_regions
           - script.wait: ui_quiesce_player_direct_regions
+          - globals.set:
+              id: global_clock_suppressed
+              value: 'true'
+          - lvgl.widget.hide: global_time_button
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'true'
@@ -403,6 +418,10 @@ lvgl:
           - globals.set:
               id: ui_active_app
               value: '0'
+          - globals.set:
+              id: global_clock_suppressed
+              value: 'false'
+          - lvgl.widget.show: global_time_button
           - script.execute: voice_assistant_update_overlay
           - lvgl.widget.hide: app_close_gesture_zone
           - lvgl.widget.hide: ui_touch_blocker
@@ -546,26 +565,3 @@ lvgl:
                 text_align: CENTER
                 text_color: 0xF2F2F2
                 text_font: roboto_24
-  on_idle:
-    timeout: !lambda |-
-      const float timeout_s = id(settings_display_timeout).state;
-      if (timeout_s <= 0.0f) {
-        return 0xFFFFFFFFUL;
-      }
-      return (uint32_t) (timeout_s * 1000.0f);
-    then:
-      - if:
-          condition:
-            and:
-              - lambda: 'return id(boot_sequence_done);'
-              - light.is_on: display_backlight
-          then:
-            - lambda: |-
-                ESP_LOGW("backlight.diag", "idle off uptime=%lums",
-                         (unsigned long) millis());
-            - output.ledc.set_next_fade_duration:
-                id: backlight_output
-                duration: 3600ms
-            - light.turn_off:
-                id: display_backlight
-                transition_length: 0ms

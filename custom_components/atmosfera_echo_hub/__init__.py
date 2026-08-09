@@ -21,6 +21,7 @@ from .const import (
     PLATFORMS,
     SERVICE_REPORT_CAMERA_SOURCE,
 )
+from .camera_proxy import AtmosferaCameraStreamView
 from .controller import CameraBridge
 
 _LOGGER = logging.getLogger(__name__)
@@ -40,6 +41,8 @@ CONFIG_SCHEMA = vol.Schema(
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register the device-to-HA source synchronization action."""
+
+    hass.http.register_view(AtmosferaCameraStreamView(hass))
 
     async def async_report_camera_source(call: ServiceCall) -> None:
         node_name: str = call.data[ATTR_NODE_NAME]

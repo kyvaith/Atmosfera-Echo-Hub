@@ -75,6 +75,14 @@ the Atmosfera product configuration.
 - No blue/black flash during boot-to-Home handoff.
 - No boot with backlight on and no image.
 - Brightness fade is smooth and does not starve animation.
+- After boot, leave the device untouched for the configured display timeout and
+  verify one `backlight.diag: timeout off` event.
+- Leave the sleeping device untouched long enough to catch isolated GT911 noise;
+  the backlight must not wake without a coherent contact.
+- Verify the timeout is inhibited only by an active Voice conversation, an
+  enabled Immich slideshow, or the Camera preview. After each protected state
+  ends, verify that a full fresh timeout elapses before sleep.
+- Verify an idle/error Voice screen and a paused Immich slideshow still sleep.
 
 ### Home navigation
 
@@ -124,7 +132,14 @@ For Player, Settings, Voice, and Immich:
 - Verify correct RGB order, crop, and full-screen placement.
 - Verify no blue flash during JPEG decode/presentation.
 - Verify wavy progress remains smooth during artwork replacement.
-- Open queue, speaker grouping, and volume overlay.
+- While an artwork replacement is in flight, open queue, speaker grouping, and
+  volume overlay. Confirm each becomes visible and display invalidation remains
+  enabled after the transition.
+- Open the volume overlay from Home, Player, Voice, Gallery (moving and paused),
+  and Camera. Confirm the clock disappears immediately and remains absent for
+  the complete gesture, including from a frozen direct-scene background.
+- Let a long title complete one marquee cycle. Confirm it returns to the exact
+  initial position, remains still, and does not resume frame submissions.
 - Confirm direct Player controls never appear above another app.
 - Close Player while the wave and marquee are active.
 
@@ -142,11 +157,42 @@ For Player, Settings, Voice, and Immich:
 - Wake from idle.
 - Ask a simple question and a tool/MCP question.
 - Verify `listening -> thinking -> replying`.
+- Verify the user transcript enters in gray and the assistant transcript enters
+  below it in white without restarting the animation for every text delta.
+- Verify backend wire events contain cumulative phrases rather than individual
+  words. Test punctuation, a short final fragment, duplicate transcript
+  sources, and a final transcript carried in the same message as the next
+  phase.
+- Verify the waveform breathes during silence, follows microphone energy while
+  listening, and follows assistant PCM while replying.
 - Interrupt TTS and verify direct `replying -> listening`.
-- End by voice and by the on-screen close button.
+- End by voice and by the application-close gesture; the Voice scene has no
+  on-screen buttons.
 - Verify AFE is disabled and normal wake word restored after final cleanup.
 - Verify music pauses/ducks once and resumes only after final conversation end.
 - Test backend disconnect and repeated failure recovery.
+- With performance logs enabled, require at least 59 submitted waveform frames
+  per two seconds at the 30 Hz setting, no rejected steady-state presentations,
+  no DSI underruns, and no per-frame allocation growth.
+- Run `python tools/test_voice_assistant_ui.py --output .tmp-voice-ui` to capture
+  isolated Listening, Thinking, and Answering scenes without starting a real
+  conversation. Treat full-screen JPEG capture timing separately from the
+  steady waveform benchmark.
+- Run `python tools/test_voice_assistant_ui.py --motion-seconds 12 --motion-hz
+  30 --transcript-mode phrase --profile --skip-captures` for a repeatable
+  dynamic-envelope and cumulative-phrase benchmark. Use `--transcript-mode
+  word` only as a deliberate stress comparison; it is not the production wire
+  contract.
+  After the one-time full-page opening handoff, require request/render/submit
+  parity, 28-31 FPS, `no_slot=0`, no rejected steady-state presentations, a
+  1-8 ms maximum LVGL loop, zero native
+  invalidated areas/pixels while text animates, and no DSI underruns. Status
+  and transcript changes must be logged by the material direct-text presenter;
+  a native LVGL label refresh is a regression.
+- Set Display Timeout temporarily to 15 seconds, start a real Pipecat session,
+  and verify the backlight remains on after at least 20 seconds in `waiting`,
+  `listening`, `thinking`, or `replying`. Close the session, restore the prior
+  setting, and verify the ordinary timeout starts from a fresh epoch.
 
 ### Immich
 
@@ -156,8 +202,37 @@ For Player, Settings, Voice, and Immich:
 - Prefetch and transition to several distinct assets.
 - Direct pan in both axes.
 - Optional fade-through-black mode.
+- With fade enabled, verify fade-out starts during the final part of pan rather
+  than after motion has stopped.
+- Tap during pan and verify controls appear over the exact current frame: no
+  recenter, transform restart, stripes, or white horizontal lines.
+- Verify the title is the Immich album name and the subtitle is the photo date
+  in `YYYY-MM-DD` form. The original asset filename must not be displayed.
 - Close while prefetch/decode is active.
 - Verify decoded image and transition buffers are released.
+
+### Camera
+
+- Open while SendSpin is playing: playback pauses before camera decode starts.
+- Close and verify playback resumes only if Camera initiated the pause.
+- Test one native 800x800 MJPEG source and verify decoded/presented counters,
+  frame rate, drops, and JPEG/presentation durations.
+- Test an unavailable native stream and verify the HA proxy falls back without
+  committing an empty successful response or leaving a blank frame.
+
+### Boot and player presentation
+
+- Verify the boot chime starts with the ESPHome wordmark and finishes before
+  the display begins fading out.
+- Verify the expensive Home/application snapshot caches finish behind the
+  opaque boot overlay before fade-out. While the panel is fully black, only
+  switch the already-prepared Home tree, then fade in without a blue or
+  intermediate LVGL frame.
+- Start playback from the initial player placeholder and verify that the first
+  artwork crossfades rather than appearing abruptly.
+- Verify later artwork changes still crossfade with the wave and marquee live.
+- Verify the song title keeps at least 15 px of visible clearance from both
+  circular display edges.
 
 ## Diagnostics to capture
 

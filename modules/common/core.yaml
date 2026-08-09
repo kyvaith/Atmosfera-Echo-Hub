@@ -201,8 +201,37 @@ esphome:
           return (b < 28.0f ? 28.0f : b) / 100.0f;
         transition_length: 0ms
     - delay: 2600ms
+    # Audio initialization is complete by this point. Enable the amplifier
+    # before the final splash phase so the chime can accompany the wordmark
+    # without exposing codec/PA startup noise.
+    - lambda: |-
+        lvgl_esphome_snapshot_dsi_quiet_ms(450);
+        lvgl_esphome_dsi_mark_stress("boot-pa-enable", 500);
+    - switch.turn_on: pa_enable
+    - delay: 240ms
+    - media_player.unmute: local_music_player
+    - media_player.volume_set:
+        id: local_music_player
+        volume: 50%
+    - lambda: |-
+        lvgl_esphome_snapshot_dsi_quiet_ms(240);
+        lvgl_esphome_dsi_mark_stress("boot-boot-sound", 6000);
     - script.execute: boot_start_esphome_animation
     - script.wait: boot_reveal_esphome_wordmark
+    # Lottie has released its large frame cache, but the completed boot frame
+    # and wordmark still cover the display. Build the expensive application and
+    # Home snapshot caches now so they no longer extend the fully-black handoff.
+    - script.execute: ui_finish_boot_tile_snapshot_cache
+    - script.wait: ui_finish_boot_tile_snapshot_cache
+    # The wordmark and chime are now complete. Fade the panel fully to black,
+    # switch the underlying LVGL tree while it is invisible, then reveal Home.
+    - output.ledc.set_next_fade_duration:
+        id: backlight_output
+        duration: 700ms
+    - light.turn_off:
+        id: display_backlight
+        transition_length: 0ms
+    - delay: 730ms
     - lambda: |-
         ESP_LOGW("boot.diag",
                  "boot transition: hide animation internal=%uK/%uK psram=%uK/%uK",
@@ -213,11 +242,6 @@ esphome:
         lvgl_esphome_dsi_mark_stress("boot-hide-overlay", 700);
     - script.execute: boot_hide_esphome_animation
     - script.wait: boot_hide_esphome_animation
-    # The fourth raw page does not fit until the completed Lottie frame cache
-    # has been released. Prepare it while the opaque boot overlay still hides
-    # the home tree, so the first 3->4 swipe never pays this decode cost.
-    - script.execute: ui_finish_boot_tile_snapshot_cache
-    - script.wait: ui_finish_boot_tile_snapshot_cache
     - lambda: |-
         auto *frame = id(my_display).get_presented_frame_buffer();
         lv_area_t area{};
@@ -249,45 +273,24 @@ esphome:
     - lambda: |-
         lv_refr_now(nullptr);
         lvgl_esphome_snapshot_dsi_quiet_ms(450);
-    - delay: 700ms
-    - lambda: |-
-        lvgl_esphome_snapshot_dsi_quiet_ms(450);
-        lvgl_esphome_dsi_mark_stress("boot-pa-enable", 500);
-    - switch.turn_on: pa_enable
-    - lambda: |-
-        lvgl_esphome_snapshot_dsi_quiet_ms(240);
-        lvgl_esphome_dsi_mark_stress("boot-audio-unmute", 600);
-    - delay: 240ms
-    - media_player.unmute: local_music_player
-    - media_player.volume_set:
-        id: local_music_player
-        volume: 50%
-    - lambda: |-
-        lvgl_esphome_snapshot_dsi_quiet_ms(240);
-        lvgl_esphome_dsi_mark_stress("boot-boot-sound", 1200);
-    - script.execute: ui_play_boot_sound
-    # Local playback is asynchronous. Depending on the active speaker_source
-    # pipeline ESPHome can expose the chime as PLAYING or ANNOUNCING. Wait for
-    # either state before wake word capture takes ownership of duplex audio.
-    - wait_until:
-        condition:
-          or:
-            - media_player.is_playing: local_music_player
-            - media_player.is_announcing: local_music_player
-        timeout: 2s
-    - wait_until:
-        condition:
-          and:
-            - not:
-                media_player.is_playing: local_music_player
-            - not:
-                media_player.is_announcing: local_music_player
-        timeout: 6s
+    - output.ledc.set_next_fade_duration:
+        id: backlight_output
+        duration: 900ms
+    - light.turn_on:
+        id: display_backlight
+        brightness: !lambda |-
+          const float b = id(settings_display_brightness).state;
+          return (b < 28.0f ? 28.0f : b) / 100.0f;
+        transition_length: 0ms
+    - delay: 930ms
     - lambda: |-
         lvgl_esphome_dsi_mark_stress("boot-done-flag", 600);
     - globals.set:
         id: boot_sequence_done
         value: 'true'
+    - lambda: |-
+        id(display_last_interaction_ms) = millis();
+        lv_display_trigger_activity(nullptr);
     - micro_wake_word.start:
     - script.execute: voice_assistant_apply_idle_wake_word
     - lambda: |-
@@ -409,7 +412,9 @@ api:
         # Exercise the exact same path as the centre player button.
         - lambda: |-
             ESP_LOGW("player.diag", "toggle: begin");
-        - script.execute: media_show_action_spinner
+        - script.execute:
+            id: media_show_action_spinner
+            track_change: false
         - lambda: |-
             ESP_LOGW("player.diag", "toggle: spinner scheduled");
         - media_player.toggle: sendspin_group
@@ -449,7 +454,90 @@ api:
             lvgl_esphome_set_swipe_logging_enabled(id(settings_swipe_logs_switch).state);
     - action: debug_open_voice
       then:
+        - lambda: |-
+            id(voice_assistant_restore_display_off) = false;
+            id(voice_assistant_terminal_close_pending) = false;
         - lvgl.navigation.open: voice_application
+    - action: debug_show_voice_visual
+      then:
+        - script.execute: display_wake
+        - lambda: |-
+            lv_obj_remove_flag(id(voice_assistant_overlay), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_move_foreground(id(voice_assistant_overlay));
+            id(voice_assistant_presenter).set_active(true);
+            lvgl_esphome_direct_regions_pause(false, 0);
+    - action: debug_hide_voice_visual
+      then:
+        - lambda: |-
+            id(voice_assistant_presenter).set_active(false);
+            lv_obj_add_flag(id(voice_assistant_overlay), LV_OBJ_FLAG_HIDDEN);
+    - action: debug_voice_visual_state
+      variables:
+        phase: string
+        user_text: string
+        assistant_text: string
+        input_level: float
+        output_level: float
+      then:
+        - lambda: |-
+            id(voice_assistant_presenter).set_phase(phase);
+            id(voice_assistant_presenter).set_transcripts(user_text, assistant_text);
+            id(voice_assistant_presenter).set_audio_levels(input_level, output_level);
+            id(voice_assistant_presenter).set_active(true);
+    - action: debug_capture_screen
+      variables:
+        offset: int
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda |-
+              static std::string capture;
+              static constexpr size_t CHUNK_SIZE = 3000;
+              if (offset <= 0) {
+                capture.clear();
+                auto *frame = id(my_display).get_presented_frame_buffer();
+                if (frame == nullptr) {
+                  root["error"] = "no presented framebuffer";
+                  return;
+                }
+                esphome::esp32_jpeg::JpegBuffer jpeg;
+                const esphome::esp32_jpeg::EncodeConfig config{
+                    .width = 800,
+                    .height = 800,
+                    .input_format = esphome::esp32_jpeg::PixelFormat::RGB888,
+                    .down_sampling = esphome::esp32_jpeg::DownSampling::YUV420,
+                    .quality = 70,
+                    .pixel_reverse = false,
+                    .retain_output_buffer = false,
+                    .dma2d_burst_length = 64,
+                    .dma2d_descriptor_burst = 0,
+                    .timeout_ms = 120,
+                };
+                const esp_err_t error =
+                    esphome::esp32_jpeg::encode(config, frame, 800U * 800U * 3U, &jpeg);
+                if (error != ESP_OK || jpeg.empty()) {
+                  root["error"] = esp_err_to_name(error);
+                  return;
+                }
+                capture = esphome::base64_encode(jpeg.data(), jpeg.size());
+              }
+              const size_t start = static_cast<size_t>(std::max<int32_t>(offset, 0));
+              if (start >= capture.size()) {
+                root["error"] = "capture offset out of range";
+                return;
+              }
+              const size_t count = std::min(CHUNK_SIZE, capture.size() - start);
+              const bool complete = start + count >= capture.size();
+              const std::string chunk = capture.substr(start, count);
+              root["width"] = 800;
+              root["height"] = 800;
+              root["total_size"] = capture.size();
+              root["offset"] = start;
+              root["jpeg_base64_chunk"] = chunk;
+              if (complete) {
+                capture.clear();
+                capture.shrink_to_fit();
+              }
     - action: debug_open_queue
       then:
         - script.execute: open_queue_panel
@@ -465,6 +553,9 @@ api:
     - action: debug_next_immich_photo
       then:
         - script.execute: immich_next_photo_now
+    - action: debug_previous_immich_photo
+      then:
+        - script.execute: immich_previous_photo
     - action: debug_open_camera
       then:
         - lvgl.navigation.open: camera_application
@@ -509,6 +600,39 @@ api:
                      static_cast<unsigned>(id(camera_stream_presenter).last_direct_jpeg_decode_us()),
                      static_cast<unsigned>(id(camera_stream_image).memory_usage_bytes() / 1024U),
                      YESNO(id(camera_stream_image).has_frame()));
+    - action: debug_reopen_current_camera
+      then:
+        - script.execute: camera_show_source_picker
+        - delay: 250ms
+        - script.execute: camera_confirm_source
+    - action: debug_volume_overlay
+      then:
+        - lambda: |-
+            id(global_volume_time_press_start_x) = 400;
+            id(global_volume_time_press_start_y) = 40;
+            id(global_volume_renderer).set_activation_widget_was_visible(!id(global_clock_suppressed));
+            id(global_volume_renderer).prepare();
+        - script.execute: global_volume_begin_drag
+        - repeat:
+            count: 21
+            then:
+              - lambda: |-
+                  const int visual_pct = 20 + static_cast<int>(iteration) * 3;
+                  const int value_pct = id(global_volume_renderer).drag_value_from_visual_pct(
+                      visual_pct, id(global_volume_drag_start_pct));
+                  id(global_volume_renderer).update_drag_point(value_pct, visual_pct, 0, 0);
+              - delay: 16ms
+        - repeat:
+            count: 21
+            then:
+              - lambda: |-
+                  const int visual_pct = 80 - static_cast<int>(iteration) * 3;
+                  const int value_pct = id(global_volume_renderer).drag_value_from_visual_pct(
+                      visual_pct, id(global_volume_drag_start_pct));
+                  id(global_volume_renderer).update_drag_point(value_pct, visual_pct, 0, 0);
+              - delay: 16ms
+        - delay: 250ms
+        - script.execute: global_volume_finish_drag
     - action: debug_next_track
       then:
         - media_player.next: sendspin_group
@@ -526,9 +650,11 @@ api:
     - action: debug_player_state
       then:
         - lambda: |-
+            auto *display = lv_obj_get_display(id(wear_root));
             ESP_LOGW("media.wave",
                      "state app=%d page=%d busy=%s backlight_current=%s backlight_target=%s media=%s "
-                     "speaker=%s queue=%s panel=%s drag=%s global_volume=%s local_volume=%s",
+                     "speaker=%s queue=%s panel=%s drag=%s global_volume=%s local_volume=%s "
+                     "invalidation=%s artwork_transition=%s marquee=%s last=%d hold=%d hold_ms=%ld action_pending=%s",
                      id(ui_active_app), id(ui_page), YESNO(id(ui_snapshot_io_busy)),
                      YESNO(id(display_backlight).current_values.is_on()),
                      YESNO(id(display_backlight).remote_values.is_on()),
@@ -538,7 +664,15 @@ api:
                      YESNO(!lv_obj_has_flag(id(speaker_group_panel), LV_OBJ_FLAG_HIDDEN)),
                      YESNO(id(global_volume_dragging)),
                      YESNO(!lv_obj_has_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN)),
-                     YESNO(!lv_obj_has_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN)));
+                     YESNO(!lv_obj_has_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN)),
+                     YESNO(display == nullptr || lv_display_is_invalidation_enabled(display)),
+                     YESNO(id(player_artwork_presenter).is_transition_pending_or_active()),
+                     YESNO(id(media_title_marquee).is_active()), id(last_media_progress_basis_points),
+                     id(media_progress_hold_basis_points),
+                     id(media_progress_hold_until) == 0
+                         ? 0L
+                         : static_cast<long>(static_cast<int32_t>(id(media_progress_hold_until) - millis())),
+                     YESNO(id(media_action_pending)));
             id(media_wavy_progress).log_state("api diagnostic");
   on_client_connected:
   - lambda: |-

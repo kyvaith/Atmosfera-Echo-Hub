@@ -69,9 +69,13 @@ script:
             lv_obj_set_style_opa(static_cast<lv_obj_t *>(target), static_cast<lv_opa_t>(value), LV_PART_MAIN);
           });
           lv_anim_start(&animation);
+      # Play the boot chime while the ESPHome wordmark is appearing. The
+      # caller will not begin the screen fade until this script has completed.
+      - script.execute: ui_play_boot_sound
       # Keep both the final Lottie trace and the completed wordmark fade on the
       # opaque boot overlay until the already-rendered home frame is ready.
       - delay: 560ms
+      - script.wait: ui_play_boot_sound
       - lambda: |-
           auto *frame = id(my_display).get_presented_frame_buffer();
           lv_area_t area{};

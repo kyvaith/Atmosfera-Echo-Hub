@@ -24,7 +24,7 @@ script:
           const size_t snapshot_bytes = lvgl_esphome_snapshot_memory_bytes();
           const size_t player_art_bytes = id(album_art_background).memory_usage_bytes();
           const size_t gallery_a_bytes = id(immich_photo_image).memory_usage_bytes();
-          const size_t gallery_motion_bytes = id(immich_ken_burns).memory_usage_bytes();
+          const size_t gallery_motion_bytes = id(immich_slideshow).memory_usage_bytes();
           const size_t camera_bytes = id(camera_stream_image).memory_usage_bytes();
           size_t lottie_bytes = 0;
           if (id(boot_esphome_animation) != nullptr) {
@@ -52,7 +52,7 @@ script:
           lvgl_esphome_snapshot_log_memory(phase.c_str());
           id(album_art_background).log_memory_usage((phase + ".player").c_str());
           id(immich_photo_image).log_memory_usage((phase + ".photo_a").c_str());
-          id(immich_ken_burns).log_memory_usage((phase + ".gallery_motion").c_str());
+          id(immich_slideshow).log_memory_usage((phase + ".gallery_motion").c_str());
 
 text_sensor:
   - platform: template

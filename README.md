@@ -218,7 +218,7 @@ Atmosfera Echo Hub has enough hardware surface area to grow into a truly ultimat
 - Adaptive dashboards that change by time of day, presence, media state, or active automation.
 - Scene launcher with haptic and RGB confirmation.
 - Alarm keypad and security status surface.
-- Intercom or push-to-talk room communication.
+- Push-to-talk room communication as a future, separate product feature.
 - Baby monitor or elder-care room awareness modes.
 - Energy dashboard for nearby plugs, appliances, and room consumption.
 - Climate advisor that combines temperature, humidity, CO2, PM2.5, HVAC state, and window/door sensors.

@@ -259,6 +259,22 @@ script:
           id: local_music_player
           media_url: "audio-file://boot_chime_file"
           announcement: true
+      # Keep the script alive until the local announcement has actually ended.
+      # The boot sequence waits for this script before fading the display out.
+      - wait_until:
+          condition:
+            or:
+              - media_player.is_playing: local_music_player
+              - media_player.is_announcing: local_music_player
+          timeout: 2s
+      - wait_until:
+          condition:
+            and:
+              - not:
+                  media_player.is_playing: local_music_player
+              - not:
+                  media_player.is_announcing: local_music_player
+          timeout: 6s
 
   - id: ui_play_va_listening_sound
     mode: restart

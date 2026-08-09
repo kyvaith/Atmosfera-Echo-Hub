@@ -129,7 +129,8 @@ The primary conversational transport is the external `va_pipecat` component:
 4. The persistent, authenticated Pipecat WebSocket is already warm and a new
    wake turn begins.
 5. `voice_microphone` streams 16 kHz mono PCM through a PSRAM uplink ring.
-6. Server phase and transcript messages update the overlay.
+6. Server phase, transcript, and normalized PCM-envelope events update the
+   assistant presentation.
 7. Incoming 24 kHz mono TTS enters a PSRAM playback ring.
 8. `assistant_speaker` resamples to the 48 kHz mixer/output path.
 9. During reply, microphone streaming remains active for barge-in.
@@ -150,6 +151,129 @@ The microphone callback is gated while no conversation is active. It does not
 retain or replay pre-roll, so wake chimes and their acoustic tail cannot leak
 into the next Pipecat turn. Speech should begin when the listening state is
 visible.
+
+## Voice assistant presentation
+
+The Voice application is a full-screen black scene with no on-screen controls.
+It is closed only through the normal application-close gesture, which also
+terminates the Pipecat session. The visual hierarchy is:
+
+1. a small phase label at the top (`Listening`, `Thinking`, `Answering`,
+   `Thanks`, or an error state);
+2. a bounded rolling dialog in large centered paragraphs;
+3. a three-line purple waveform over a bottom-anchored purple gradient.
+
+The dialog keeps at most three paragraphs: the immediately preceding assistant
+answer in white, the current user turn in gray, and the current assistant
+answer in white. When a follow-up starts, the older user paragraph is removed,
+the preceding assistant answer moves up, and the new user paragraph enters
+below it. This preserves conversational order without allocating an unbounded
+history or another display-sized surface. If the three blocks exceed the text
+region, they are bottom-aligned so the newest turn remains visible.
+
+Navigation is the sole owner of Voice visibility. A wake word must open the
+registered `voice_application` through `lvgl.navigation.open`; it must not
+directly unhide the overlay or activate the waveform. This guarantees that the
+black LVGL surface has completed its transition before the direct presenter can
+draw and that the close gesture owns an active application even before the user
+speaks.
+
+Backend phase and transcript callbacks only update content inside an already
+open Voice application. A local close sets `voice_assistant_stop_requested`
+before sending `end_session()`, so delayed `listening`, `replying`, transcript,
+or idle callbacks cannot reopen the scene while navigation returns to Home.
+Clear that latch only when a new navigation-owned Voice opening begins.
+
+A wake-word opening records whether the backlight was off before `display_wake`
+runs. A terminal Pipecat reply enters `thanks`; the device component keeps that
+state visible for 1200 ms and then emits `idle`. This terminal `idle` closes the
+navigation-owned Voice application. Only after the close transition completes
+may the backlight return to its recorded off state. A Voice session opened from
+an already-lit display returns to Home without changing display power. Manual
+tile and diagnostic opens always count as display-on origins.
+
+The Pipecat bridge must not expose raw model tokens as display events. It
+normalizes cumulative and token-style sources, accumulates each RTVI observer
+(`bot-output`, transcription, TTS text, and LLM text) independently, selects
+one authoritative source by priority, and emits cumulative phrases: four words
+for user partials and six
+words for assistant partials, or earlier at punctuation and at turn end. A
+pending final phrase may share one protocol message with the following phase;
+the ESPHome parser therefore processes both fields instead of returning after
+the transcript. This preserves the final words without briefly losing the
+`listening`, `thanks`, or terminal transition. Never append chunks from two
+assistant observers to one accumulator: differing chunk boundaries and
+punctuation can otherwise duplicate a complete clause on the device.
+
+Device-side transcript updates remain latest-wins and are committed at most
+every 100 ms. A new paragraph fades and translates into place over seven 33 ms
+steps; the bounded dialog shifts upward in the same animation, while cumulative
+phrase continuations update in place. Streaming text therefore does not restart
+the entrance animation or create a second raster pass.
+
+The declarative LVGL phase and transcript labels define geometry, fonts,
+colors, and wrapping only. After setup the material presenter hides them and
+owns two fixed RGB888 direct regions: one for status and one for the complete
+transcript panel. It rasterizes UTF-8 glyphs with the configured immutable LVGL
+fonts into reusable PSRAM buffers and submits only those regions through the
+regional PPA presenter. The entrance fade and vertical translation are also
+drawn inside the transcript region. The wave frame is scheduled before phrase
+rasterization so a 30-45 ms PSRAM text pass cannot postpone the independent
+wave worker. Live text must never be switched back to native label updates: in
+RGB888 DIRECT mode that invalidates a large native area, runs font/layout work
+in the LVGL loop, and stalls the independent wave. The presenter never
+allocates a full-screen text buffer or allocates per phrase.
+
+`va_pipecat.on_audio_level` publishes separate normalized input and output PCM
+envelopes. The presenter selects input while listening and output while
+speaking, applies its own attack/release smoothing, and falls back to a slow
+breathing wave during thinking or silence. It never reads PCM directly.
+
+The waveform is not an LVGL object tree animation. A low-priority raster worker
+builds one 660x190 RGB888 region in two reusable presentation slots while the
+regional PPA compositor runs on the other core. The renderer owns exactly one
+backdrop and two in-flight buffers (1,128,600 bytes total) for its lifetime,
+does not allocate per frame, and coalesces work when both slots are busy. Each
+slot tracks the rows touched by its previous wave and restores only that dirty
+vertical span from the immutable backdrop before reuse; copying the complete
+660x190 backdrop every frame wastes PSRAM bandwidth. Stopping the application
+drains both slots before releasing the direct region.
+
+At the validated 30 Hz setting, the dynamic Listening/Answering benchmark
+presents 60-61 frames per two seconds with request, render, and submit counts
+equal and no slot starvation. Dynamic raster work averages roughly 10-13 ms
+and regional presentation roughly 9 ms. With the real microphone and AFE
+active, the presenter remains at about 30 FPS and raster work averages 5-6 ms.
+The media-player direct presenters must be quiesced before Voice takes the
+region queue; deliberately running both workloads reduced the wave to roughly
+15-23 FPS. A full-screen diagnostic JPEG capture is a separate stress
+operation and must not be included in these steady-state figures.
+
+Native LVGL text invalidation is expensive in RGB888 DIRECT mode. Before the
+direct text regions, a synthetic word-at-a-time stream reduced the wave to
+5.4-22.9 FPS and produced 187-283 ms LVGL loop spikes; even phrase updates
+caused 116-161 ms stalls. With phrase batching and direct text presentation,
+the cumulative-phrase benchmark keeps the wave at 28.8-30.4 FPS after the
+initial full-page handoff, bounds the LVGL loop to 1-8 ms, and reports zero
+native invalidated areas, zero native invalidated pixels, and zero DSI
+underruns. The one-time first acquisition of the three direct regions measured
+23.3 FPS and is tracked separately from streaming phrase updates. Phrase
+batching remains part of the wire contract because it avoids unnecessary
+raster submissions, while the direct regions remove the full-screen LVGL
+refresh from the critical path.
+
+```mermaid
+flowchart LR
+    PCM_IN["Post-AEC microphone PCM"] --> ENV_IN["Input envelope"]
+    PCM_OUT["Assistant PCM"] --> ENV_OUT["Output envelope"]
+    PHASE["Pipecat phase"] --> UI["Material voice presenter"]
+    TEXT["Streaming transcripts"] --> UI
+    ENV_IN --> UI
+    ENV_OUT --> UI
+    UI --> RASTER["Reusable RGB888 wave buffers"]
+    RASTER --> PPA["Direct-region PPA presentation"]
+    PPA --> DSI["DSI frame-boundary handoff"]
+```
 
 ## Barge-in
 
@@ -177,11 +301,18 @@ The backend owns conversational phases:
 | Phase | UI | Audio policy |
 | --- | --- | --- |
 | `idle` | Assistant hidden after cleanup | AFE off, normal wake word active, media may resume |
-| `listening` | Listening overlay and user transcript | AFE on, mic streaming |
+| `listening` | Listening scene and user transcript | AFE on, mic streaming |
 | `thinking` | Thinking state; keep Assistant visible | AFE on, media remains paused |
-| `replying` | Answering state and assistant transcript | TTS playing, mic still streaming |
+| `replying` | Answering scene and assistant transcript | TTS playing, mic still streaming |
 | `thanks` | Short completion state | Drain output, then cleanup |
 | error/not ready | Error state and chime | Stop broken session, return to idle wake if possible |
+
+These phases also own display power policy. While the backend reports
+`waiting`, `listening`, `thinking`, or `replying`, the inactivity epoch is
+refreshed regardless of `ui_active_app`. Navigation can lag a wake event or
+temporarily change overlay ownership; neither is permission to turn the panel
+off during a live conversation. Once the protected phase ends, a complete new
+timeout interval starts.
 
 The device must not invent a `thinking` transition merely because no audio is
 currently playing. It follows the backend phase message.

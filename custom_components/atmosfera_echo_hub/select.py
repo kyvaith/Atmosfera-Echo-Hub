@@ -5,6 +5,7 @@ from __future__ import annotations
 from homeassistant.components.select import SelectEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .controller import CameraBridge
@@ -19,7 +20,7 @@ async def async_setup_entry(
     async_add_entities([CameraSourceSelect(entry.runtime_data)])
 
 
-class CameraSourceSelect(SelectEntity):
+class CameraSourceSelect(RestoreEntity, SelectEntity):
     """Choose which configured HA camera is displayed."""
 
     _attr_has_entity_name = True
@@ -51,6 +52,9 @@ class CameraSourceSelect(SelectEntity):
     async def async_added_to_hass(self) -> None:
         await super().async_added_to_hass()
         self.async_on_remove(self._bridge.add_listener(self._handle_bridge_update))
+        if (last_state := await self.async_get_last_state()) is not None:
+            self._bridge.async_prefer_source(last_state.state)
+            await self._bridge.async_push_sources()
 
     @callback
     def _handle_bridge_update(self) -> None:

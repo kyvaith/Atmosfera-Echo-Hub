@@ -36,11 +36,11 @@ lvgl:
               - obj:
                   id: camera_status_card
                   align: CENTER
-                  width: 500
-                  height: 250
-                  radius: 64
-                  bg_color: 0x101010
-                  bg_opa: 94%
+                  width: 800
+                  height: 800
+                  radius: 0
+                  bg_color: 0x000000
+                  bg_opa: 0%
                   border_width: 0
                   pad_all: 0
                   scrollable: false
@@ -48,6 +48,7 @@ lvgl:
                   widgets:
                     - label:
                         id: camera_status_icon
+                        hidden: true
                         text: "\uE04B"
                         align: TOP_MID
                         y: 30
@@ -55,10 +56,13 @@ lvgl:
                         text_font: material_symbols_58
                     - spinner:
                         id: camera_loading_spinner
-                        align: TOP_MID
-                        y: 24
+                        align: CENTER
                         width: 72
                         height: 72
+                        bg_color: 0x000000
+                        bg_opa: 100%
+                        border_width: 0
+                        shadow_width: 0
                         spin_time: 800ms
                         arc_length: 76deg
                         arc_width: 7
@@ -68,6 +72,7 @@ lvgl:
                           arc_color: 0xE8DEF8
                     - label:
                         id: camera_source_label
+                        hidden: true
                         text: "Cameras"
                         align: TOP_MID
                         y: 112
@@ -78,6 +83,7 @@ lvgl:
                         text_font: roboto_30
                     - label:
                         id: camera_status_label
+                        hidden: true
                         text: "Connecting to live view"
                         align: TOP_MID
                         y: 164

@@ -27,6 +27,10 @@ globals:
     type: int
     restore_value: no
     initial_value: '0'
+  - id: display_touch_wake_samples
+    type: uint16_t
+    restore_value: no
+    initial_value: '0'
   - id: immich_swipe_tracking
     type: bool
     restore_value: no
@@ -80,6 +84,35 @@ globals:
     restore_value: no
     initial_value: '0'
 
+script:
+  # GT911 can occasionally report a single electrical-noise contact. Require
+  # two coherent samples before waking, while keeping real-touch latency below
+  # one tenth of a second.
+  - id: display_touch_wake_guard
+    mode: restart
+    then:
+      - delay: 48ms
+      - if:
+          condition:
+            lambda: |-
+              if (!id(display_touch_wake_pending) ||
+                  !id(boot_sequence_done) ||
+                  id(display_backlight).remote_values.is_on()) {
+                return false;
+              }
+              const int dx = id(display_touch_wake_last_x) - id(display_touch_wake_start_x);
+              const int dy = id(display_touch_wake_last_y) - id(display_touch_wake_start_y);
+              return id(display_touch_wake_samples) >= 2 &&
+                     millis() - id(display_touch_wake_start_ms) >= 32U &&
+                     abs(dx) <= 80 && abs(dy) <= 80;
+          then:
+            - lambda: |-
+                id(display_touch_wake_pending) = false;
+                id(display_last_interaction_ms) = millis();
+                id(ui_touch_click_block_until_ms) = millis() + 900;
+                lv_indev_reset(nullptr, nullptr);
+            - script.execute: display_wake
+
 touchscreen:
   - platform: gt911
     id: my_touchscreen
@@ -89,14 +122,30 @@ touchscreen:
     on_touch:
       then:
         - lambda: |-
-            if (id(boot_sequence_done) && !id(display_backlight).current_values.is_on()) {
-              id(display_touch_wake_pending) = false;
+            id(display_touch_wake_start_ms) = millis();
+            id(display_touch_wake_start_x) = touch.x;
+            id(display_touch_wake_start_y) = touch.y;
+            id(display_touch_wake_last_x) = touch.x;
+            id(display_touch_wake_last_y) = touch.y;
+            id(display_touch_wake_samples) = 1;
+
+            if (id(boot_sequence_done) && !id(display_backlight).remote_values.is_on()) {
+              id(display_touch_wake_pending) = true;
+              id(ui_touch_active) = true;
               id(ui_touch_click_block_until_ms) = millis() + 900;
               lv_indev_reset(nullptr, nullptr);
-              id(display_wake).execute();
+              id(display_touch_wake_guard).execute();
               return;
             }
+            id(display_touch_wake_pending) = false;
 
+            // GT911 can occasionally re-announce one uninterrupted contact
+            // after a direct framebuffer handoff. Keep the existing long press
+            // or drag alive instead of preparing the overlay a second time.
+            if (id(global_volume_dragging) || id(global_volume_time_press_tracking)) {
+              id(ui_touch_active) = true;
+              return;
+            }
             id(global_volume_time_press_tracking) = false;
             if (id(boot_sequence_done) && id(display_backlight).current_values.is_on() &&
                 !id(ui_snapshot_io_busy) &&
@@ -107,6 +156,7 @@ touchscreen:
               id(global_volume_time_press_start_y) = touch.y;
               id(ui_touch_click_block_until_ms) = millis() + 1500;
               id(global_volume_long_press_guard).execute();
+              id(global_volume_renderer).set_activation_widget_was_visible(!id(global_clock_suppressed));
               id(global_volume_renderer).prepare();
               return;
             }
@@ -171,10 +221,18 @@ touchscreen:
         - lambda: |-
             if (touches.empty()) return;
             const auto &touch = touches[0];
+            id(display_touch_wake_last_x) = touch.x;
+            id(display_touch_wake_last_y) = touch.y;
+            if (id(display_touch_wake_samples) < UINT16_MAX)
+              id(display_touch_wake_samples)++;
             if (id(display_touch_wake_pending)) {
-              id(display_touch_wake_last_x) = touch.x;
-              id(display_touch_wake_last_y) = touch.y;
               return;
+            }
+            if (id(boot_sequence_done) &&
+                id(display_backlight).remote_values.is_on() &&
+                id(display_touch_wake_samples) >= 2 &&
+                millis() - id(display_touch_wake_start_ms) >= 16U) {
+              id(display_last_interaction_ms) = millis();
             }
             if (id(global_volume_dragging)) {
               const int knob_pct = id(global_volume_renderer).arc_pct_from_point(touch.x, touch.y);
@@ -212,7 +270,7 @@ touchscreen:
                 id(global_volume_renderer).cancel_prepare();
                 return;
               }
-              if (millis() - id(global_volume_time_press_start_ms) >= 450) {
+              if (millis() - id(global_volume_time_press_start_ms) >= 250) {
                 id(global_volume_begin_drag).execute();
               }
               return;
@@ -247,6 +305,20 @@ touchscreen:
     on_release:
       then:
         - lambda: |-
+            const uint32_t touch_release_ms = millis();
+            const uint32_t touch_held_ms =
+                touch_release_ms - id(display_touch_wake_start_ms);
+            const int touch_dx =
+                id(display_touch_wake_last_x) - id(display_touch_wake_start_x);
+            const int touch_dy =
+                id(display_touch_wake_last_y) - id(display_touch_wake_start_y);
+            const uint16_t touch_samples = id(display_touch_wake_samples);
+            if (!id(display_touch_wake_pending) &&
+                id(boot_sequence_done) &&
+                id(display_backlight).remote_values.is_on() &&
+                ((touch_samples >= 2 && touch_held_ms >= 16U) || touch_held_ms >= 48U)) {
+              id(display_last_interaction_ms) = touch_release_ms;
+            }
             id(ui_touch_active) = false;
             if (id(ui_manual_pressed_obj) != nullptr) {
               lv_obj_clear_state(id(ui_manual_pressed_obj),
@@ -255,20 +327,22 @@ touchscreen:
               id(ui_manual_pressed_obj) = nullptr;
             }
             if (id(display_touch_wake_pending)) {
-              const uint32_t held_ms = millis() - id(display_touch_wake_start_ms);
-              const int dx = id(display_touch_wake_last_x) - id(display_touch_wake_start_x);
-              const int dy = id(display_touch_wake_last_y) - id(display_touch_wake_start_y);
+              id(display_touch_wake_guard).stop();
               const bool deliberate_wake =
-                  held_ms >= 80 && held_ms <= 2500 && abs(dx) <= 120 && abs(dy) <= 120;
+                  (((touch_samples >= 2 && touch_held_ms >= 24U) || touch_held_ms >= 80U) &&
+                   touch_held_ms <= 2500U && abs(touch_dx) <= 120 && abs(touch_dy) <= 120);
               id(display_touch_wake_pending) = false;
+              id(display_touch_wake_samples) = 0;
               if (deliberate_wake && id(boot_sequence_done) &&
-                  !id(display_backlight).current_values.is_on()) {
+                  !id(display_backlight).remote_values.is_on()) {
+                id(display_last_interaction_ms) = touch_release_ms;
                 id(ui_touch_click_block_until_ms) = millis() + 900;
                 lv_indev_reset(nullptr, nullptr);
                 id(display_wake).execute();
               }
               return;
             }
+            id(display_touch_wake_samples) = 0;
             if (id(global_volume_dragging)) {
               id(ui_touch_click_block_until_ms) = millis() + 900;
               id(global_volume_finish_drag).execute();

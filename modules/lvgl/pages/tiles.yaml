@@ -1251,6 +1251,9 @@ lvgl:
                         text_font: roboto_14
                   on_click:
                     then:
+                      - lambda: |-
+                          id(voice_assistant_restore_display_off) = false;
+                          id(voice_assistant_terminal_close_pending) = false;
                       - lvgl.navigation.open: voice_application
               - obj: { hidden: true, x: 360, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
               - obj: { hidden: true, x: 382, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }

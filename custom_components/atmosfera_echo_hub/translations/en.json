@@ -7,7 +7,10 @@
         "description": "Choose an Atmosfera Echo Hub and the Home Assistant cameras it may display.",
         "data": {
           "device_id": "ESPHome device",
-          "cameras": "Available cameras"
+          "cameras": "Available cameras",
+          "stream_width": "Stream width",
+          "stream_height": "Stream height",
+          "stream_fps": "Stream frame rate"
         }
       }
     },
@@ -25,7 +28,10 @@
         "title": "Available cameras",
         "description": "Only selected Home Assistant cameras are sent to this display.",
         "data": {
-          "cameras": "Available cameras"
+          "cameras": "Available cameras",
+          "stream_width": "Stream width",
+          "stream_height": "Stream height",
+          "stream_fps": "Stream frame rate"
         }
       }
     },

@@ -46,14 +46,11 @@ lvgl:
                   height: 800
                   src: immich_photo_image
                   antialias: false
-                  ken_burns:
-                    id: immich_ken_burns
+                  slideshow:
+                    id: immich_slideshow
                     direct: true
-                    # Complete one pan in the first half of the slide interval.
-                    # The remaining half is deliberately static so the next
-                    # full-resolution photo can be fetched and decoded without
-                    # competing with a full-screen PPA transfer.
-                    phase_duration: 15s
+                    # Runtime aligns the pan end with the transition window.
+                    phase_duration: 30s
                     # Live measurements show a complete 800x800 PPA frame is
                     # currently budgeted at about 33 ms. Match that cadence so
                     # an over-budget frame cannot spin immediately and starve
@@ -67,11 +64,9 @@ lvgl:
                     # and alternates direction instead of looping forever.
                     zoom_start: 1.0
                     zoom_end: 1.0
-                    # Traverse half of the controller's original 75% travel.
-                    # PPA now submits a frame only when the integer source crop
-                    # actually changes, so this remains calm without spending
-                    # bandwidth on dozens of identical full-screen copies.
-                    pan_limit: 37.5%
+                    # A restrained crop travel keeps the motion slow while the
+                    # compositor still renders at the same frame cadence.
+                    pan_limit: 18.75%
                   hidden: true
               - button:
                   id: immich_prev_button
@@ -187,11 +182,11 @@ lvgl:
               - obj:
                   id: immich_empty_state
                   align: CENTER
-                  width: 520
-                  height: 250
-                  radius: 64
-                  bg_color: 0x101010
-                  bg_opa: 92%
+                  width: 800
+                  height: 800
+                  radius: 0
+                  bg_color: 0x000000
+                  bg_opa: 0%
                   border_width: 0
                   pad_all: 0
                   scrollable: false
@@ -199,18 +194,21 @@ lvgl:
                   widgets:
                     - label:
                         id: immich_empty_icon
+                        hidden: true
                         text: "\uE3F4"
-                        align: TOP_MID
-                        y: 36
+                        align: CENTER
                         text_color: 0xD3E3FD
                         text_font: material_symbols_58
                     - spinner:
                         id: immich_loading_spinner
                         hidden: true
-                        align: TOP_MID
-                        y: 30
+                        align: CENTER
                         width: 70
                         height: 70
+                        bg_color: 0x000000
+                        bg_opa: 100%
+                        border_width: 0
+                        shadow_width: 0
                         spin_time: 900ms
                         arc_length: 80deg
                         arc_width: 7
@@ -219,6 +217,7 @@ lvgl:
                           arc_width: 7
                           arc_color: 0xE8DEF8
                     - label:
+                        hidden: true
                         text: "Immich Photos"
                         align: TOP_MID
                         y: 105
@@ -228,6 +227,7 @@ lvgl:
                         text_font: roboto_30
                     - label:
                         id: immich_status_label
+                        hidden: true
                         text: "Configure server URL and API key"
                         align: TOP_MID
                         y: 154
@@ -237,6 +237,7 @@ lvgl:
                         text_color: 0xC4C7C5
                         text_font: roboto_16
                     - label:
+                        hidden: true
                         text: "Swipe or tap the screen edges"
                         align: BOTTOM_MID
                         y: -18
