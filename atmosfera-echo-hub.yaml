@@ -57,7 +57,10 @@ substitutions:
   # can sit in front of the clock without moving the labels. The selected
   # sunny scene is rendered at its native display size, avoiding a second
   # scale pass and preserving the animation's edge quality.
-  home_weather_lottie_x: '402'
+  # Keep the direct weather region clear of the widest outlined minute glyph.
+  # The direct compositor paints an opaque backdrop for the whole region, so
+  # its left edge must not overlap the rightmost clock digit.
+  home_weather_lottie_x: '444'
   home_weather_lottie_y: '68'
   home_weather_lottie_size: '384'
   # Native size avoids a 320 -> 384 PPA scale pass for the fast radial scene.
@@ -74,9 +77,11 @@ substitutions:
   home_weather_temperature_unit_y: '468'
   home_weather_temperature_c_x: '549'
   home_weather_temperature_c_y: '456'
-  home_weather_condition_x: '442'
+  # Preserve the existing visible start of the short condition labels while
+  # extending their one-line area to the physical right edge.
+  home_weather_condition_x: '472'
   home_weather_condition_y: '548'
-  home_weather_condition_width: '150'
+  home_weather_condition_width: '328'
   home_weather_condition_height: '51'
   home_volume_icon_x: '339'
   home_wifi_icon_x: '391'

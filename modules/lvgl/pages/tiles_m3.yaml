@@ -265,7 +265,10 @@ lvgl:
                         y: ${home_weather_condition_y}
                         width: ${home_weather_condition_width}
                         height: ${home_weather_condition_height}
-                        text_align: CENTER
+                        # Keep the condition on one line and give it every
+                        # pixel from its anchor to the right display edge.
+                        long_mode: CLIP
+                        text_align: LEFT
                         text_color: 0xFFFFFF
                         text_font: roboto_34_bold
                         text_outline_stroke_color: ${home_outline_color}

@@ -96,8 +96,10 @@ frame, rather than flashing frame zero and then restarting. This makes the
 snapshot-to-live handoff visually continuous while still replaying one full
 cycle.
 
-The first-page weather canvas is 384x384 at `(402,68)` in the 800px reference
-space. Its ARGB source is transparent: rays can overlap the minute glyphs.
+The first-page weather canvas is 384x384 at `(444,68)` in the 800px product
+space. The direct compositor paints the complete weather region with its
+backdrop, so the left edge stays to the right of the widest outlined minute
+glyph; otherwise the last minute digit can be covered intermittently.
 The circular physical viewport intentionally clips the outer rays.
 For screenshot comparison, crop the supplied PowerPoint reference to its
 physical screen circle before scaling it to the framebuffer. The second

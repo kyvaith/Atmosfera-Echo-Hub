@@ -24,13 +24,15 @@ REFERENCE = {
     "home_weather_y": 0,
     "home_weather_width": 800,
     "home_weather_height": 800,
-    "home_weather_lottie_x": 402,
+    "home_weather_lottie_x": 444,
     "home_weather_lottie_y": 68,
     "home_weather_lottie_size": 384,
     "home_weather_pill_x": 431,
     "home_weather_pill_y": 489,
     "home_weather_pill_width": 400,
     "home_weather_pill_height": 114,
+    "home_weather_condition_x": 472,
+    "home_weather_condition_width": 328,
     "home_mic_x": 356,
     "home_mic_y": 610,
     "home_mic_size": 90,
@@ -149,6 +151,10 @@ def validate_source_contract(source_root: Path) -> list[str]:
         errors.append(f"{page_path}: the obsolete duplicate minute shadow is still declared")
     if "text_font: cherry_bomb_300_outline" not in page:
         errors.append(f"{page_path}: minute text has no registered bitmap contour")
+    if not re.search(r"id: home_weather_condition[\s\S]*?long_mode: CLIP", page):
+        errors.append(f"{page_path}: weather condition must use one-line CLIP mode")
+    if not re.search(r"id: home_weather_condition[\s\S]*?text_align: LEFT", page):
+        errors.append(f"{page_path}: weather condition must use the full right-aligned span")
     return errors
 
 
