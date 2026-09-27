@@ -10,12 +10,14 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import device_registry as dr, selector
 
+from .cards import normalize_cards
 from .const import (
     CONF_CAMERAS,
     CONF_DEVICE_ID,
     CONF_STREAM_FPS,
     CONF_STREAM_HEIGHT,
     CONF_STREAM_WIDTH,
+    CONF_TILES,
     DEFAULT_STREAM_FPS,
     DEFAULT_STREAM_HEIGHT,
     DEFAULT_STREAM_WIDTH,
@@ -89,13 +91,11 @@ class AtmosferaEchoHubConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 for entry_id in device.config_entries
             ):
                 errors[CONF_DEVICE_ID] = "not_esphome"
-            elif not user_input[CONF_CAMERAS]:
-                errors[CONF_CAMERAS] = "no_cameras"
             else:
                 await self.async_set_unique_id(user_input[CONF_DEVICE_ID])
                 self._abort_if_unique_id_configured()
                 return self.async_create_entry(
-                    title=f"{device.name or 'Atmosfera Echo Hub'} cameras",
+                    title=device.name or "Atmosfera Echo Hub",
                     data={
                         CONF_DEVICE_ID: user_input[CONF_DEVICE_ID],
                         CONF_CAMERAS: list(user_input[CONF_CAMERAS]),
@@ -127,24 +127,27 @@ class AtmosferaEchoHubOptionsFlow(config_entries.OptionsFlow):
         """Edit the camera list."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            if not user_input[CONF_CAMERAS]:
-                errors[CONF_CAMERAS] = "no_cameras"
-            else:
-                return self.async_create_entry(
-                    title="",
-                    data={
-                        CONF_CAMERAS: list(user_input[CONF_CAMERAS]),
-                        CONF_STREAM_WIDTH: int(user_input[CONF_STREAM_WIDTH]),
-                        CONF_STREAM_HEIGHT: int(user_input[CONF_STREAM_HEIGHT]),
-                        CONF_STREAM_FPS: int(user_input[CONF_STREAM_FPS]),
-                    },
-                )
+            return self.async_create_entry(
+                title="",
+                data={
+                    CONF_CAMERAS: list(user_input[CONF_CAMERAS]),
+                    CONF_STREAM_WIDTH: int(user_input[CONF_STREAM_WIDTH]),
+                    CONF_STREAM_HEIGHT: int(user_input[CONF_STREAM_HEIGHT]),
+                    CONF_STREAM_FPS: int(user_input[CONF_STREAM_FPS]),
+                    CONF_TILES: normalize_cards(
+                        self.config_entry.options.get(
+                            CONF_TILES, self.config_entry.data.get(CONF_TILES)
+                        )
+                    ),
+                },
+            )
 
         cameras = list(
             self.config_entry.options.get(
                 CONF_CAMERAS, self.config_entry.data[CONF_CAMERAS]
             )
         )
+        cameras = [entity_id for entity_id in cameras if self.hass.states.get(entity_id)]
         stream_width = int(
             self.config_entry.options.get(
                 CONF_STREAM_WIDTH,

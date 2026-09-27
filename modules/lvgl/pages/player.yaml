@@ -5,12 +5,6 @@ lvgl:
     - id: music_page
       bg_color: 0x000000
       widgets:
-        - canvas:
-            id: lottie_canvas_dependency
-            width: 1
-            height: 1
-            x: -10
-            y: -10
         - obj:
             id: wear_root
             width: 800
@@ -61,7 +55,9 @@ lvgl:
                   width: 800
                   height: 800
                   bg_color: 0x4D3D76
-                  bg_opa: 30%
+                  # Keep one artwork scrim only. A second full-frame blend
+                  # here was intermittently visible below the play control.
+                  bg_opa: 0%
                   border_width: 0
                   radius: 0
                   pad_all: 0
@@ -149,30 +145,6 @@ lvgl:
                   on_click:
                     then:
                       - script.execute: open_speaker_group_panel
-
-              - obj:
-                  id: lottie_visual_zone
-                  width: 1
-                  height: 1
-                  x: -10
-                  y: -10
-                  bg_color: 0x000000
-                  bg_opa: 0%
-                  border_width: 0
-                  radius: 0
-                  pad_all: 0
-                  scrollable: false
-                  gesture_bubble: true
-                  hidden: true
-                  widgets:
-                    - lottie:
-                        id: weather_animation
-                        file: "assets/animations/weather.json"
-                        x: -10
-                        y: -10
-                        width: 1
-                        height: 1
-                        hidden: true
 
               - obj:
                   id: title_marquee_viewport
@@ -728,11 +700,11 @@ lvgl:
                         max_value: 100
                         value: 50
                         adjustable: true
-                        arc_color: 0x5C5F5E
+                        arc_color: 0x382949
                         arc_width: 30
                         arc_rounded: true
                         indicator:
-                          arc_color: 0xD3E3FD
+                          arc_color: 0xE4C2FF
                           arc_width: 30
                           arc_rounded: true
                         knob:

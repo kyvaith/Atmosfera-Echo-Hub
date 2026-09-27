@@ -54,22 +54,20 @@ lvgl:
                         y: 30
                         text_color: 0xD3E3FD
                         text_font: material_symbols_58
-                    - spinner:
-                        id: camera_loading_spinner
+                    - lottie:
+                        id: camera_loading_lottie
+                        file: "assets/animations/m3_loading_contained_small_blue.json"
                         align: CENTER
-                        width: 72
-                        height: 72
-                        bg_color: 0x000000
-                        bg_opa: 100%
-                        border_width: 0
-                        shadow_width: 0
-                        spin_time: 800ms
-                        arc_length: 76deg
-                        arc_width: 7
-                        arc_color: 0x34283E
-                        indicator:
-                          arc_width: 7
-                          arc_color: 0xE8DEF8
+                        width: 96
+                        height: 96
+                        # This compact loader stays on the native LVGL path.
+                        # The black status card already owns the backdrop; an
+                        # opaque direct region would reserve a DSI/PPA surface
+                        # and can leave its last arc fragment behind when the
+                        # camera frame takes over.
+                        loop: true
+                        auto_start: false
+                        hidden: true
                     - label:
                         id: camera_source_label
                         hidden: true
@@ -98,6 +96,7 @@ lvgl:
               # compositing controls into every video frame.
               - button:
                   id: camera_previous_touch_zone
+                  hidden: true
                   x: 0
                   y: 100
                   width: 180
@@ -115,6 +114,7 @@ lvgl:
                     - network_camera.next: camera_stream_image
               - button:
                   id: camera_next_touch_zone
+                  hidden: true
                   x: 620
                   y: 100
                   width: 180
@@ -133,6 +133,7 @@ lvgl:
 
               - button:
                   id: camera_source_picker_touch_zone
+                  hidden: true
                   x: 180
                   y: 100
                   width: 440

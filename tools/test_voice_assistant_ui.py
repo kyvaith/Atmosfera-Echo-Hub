@@ -182,6 +182,12 @@ async def run(args: argparse.Namespace) -> None:
     try:
         services = await find_services(client)
         print(f"Connected to {args.host}; {len(services)} user services available", flush=True)
+        if args.current_only:
+            destination = args.output / "screen-current.jpg"
+            await capture_screen(client, services, destination)
+            print(f"Captured current screen: {destination}", flush=True)
+            return
+
         if args.profile:
             log_markers = (
                 "lvgl_material.voice",
@@ -328,6 +334,11 @@ def main() -> None:
     )
     parser.add_argument("--profile", action="store_true")
     parser.add_argument("--skip-captures", action="store_true")
+    parser.add_argument(
+        "--current-only",
+        action="store_true",
+        help="Capture the currently presented framebuffer without changing the UI state.",
+    )
     asyncio.run(run(parser.parse_args()))
 
 

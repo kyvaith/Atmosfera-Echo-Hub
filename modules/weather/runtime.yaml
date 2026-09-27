@@ -1,0 +1,110 @@
+# Weather state presentation for the first M3 home tile. Home Assistant remains
+# the source of truth; the device owns only the fixed LVGL presentation objects.
+
+text_sensor:
+  - platform: homeassistant
+    id: home_weather_condition_sensor
+    entity_id: ${tile_weather_entity}
+    internal: true
+    on_value:
+      - script.execute: home_weather_refresh
+
+  - platform: homeassistant
+    id: home_sun_state_sensor
+    entity_id: ${tile_sun_entity}
+    internal: true
+    on_value:
+      - script.execute: home_weather_refresh
+
+sensor:
+  - platform: homeassistant
+    id: home_weather_temperature_sensor
+    entity_id: ${tile_weather_entity}
+    attribute: temperature
+    internal: true
+    on_value:
+      - script.execute: home_weather_refresh
+
+  - platform: homeassistant
+    id: home_weather_apparent_temperature_sensor
+    entity_id: ${tile_weather_entity}
+    attribute: apparent_temperature
+    internal: true
+    on_value:
+      - script.execute: home_weather_refresh
+
+  - platform: homeassistant
+    id: home_weather_humidity_sensor
+    entity_id: ${tile_weather_entity}
+    attribute: humidity
+    internal: true
+    on_value:
+      - script.execute: home_weather_refresh
+
+script:
+  - id: home_weather_update_now
+    mode: restart
+    then:
+      - lambda: |-
+          ESP_LOGI("weather.diag",
+                   "state condition=%s('%s') sun=%s('%s') temperature=%s(%.1f) apparent=%s(%.1f) humidity=%s(%.1f)",
+                   YESNO(id(home_weather_condition_sensor).has_state()),
+                   id(home_weather_condition_sensor).state.c_str(),
+                   YESNO(id(home_sun_state_sensor).has_state()), id(home_sun_state_sensor).state.c_str(),
+                   YESNO(id(home_weather_temperature_sensor).has_state()), id(home_weather_temperature_sensor).state,
+                   YESNO(id(home_weather_apparent_temperature_sensor).has_state()),
+                   id(home_weather_apparent_temperature_sensor).state,
+                   YESNO(id(home_weather_humidity_sensor).has_state()), id(home_weather_humidity_sensor).state);
+      - lvgl_material.weather.update:
+          id: home_weather_presenter
+          condition: !lambda |-
+            if (${home_weather_preview}) return "sunny";
+            return id(home_weather_condition_sensor).state;
+          is_day: !lambda |-
+            if (${home_weather_preview}) return true;
+            return id(home_sun_state_sensor).state != "below_horizon";
+          temperature: !lambda |-
+            if (${home_weather_preview}) return static_cast<float>(${home_weather_preview_temperature});
+            return id(home_weather_temperature_sensor).state;
+          apparent_temperature: !lambda 'return id(home_weather_apparent_temperature_sensor).state;'
+          humidity: !lambda 'return id(home_weather_humidity_sensor).state;'
+      - lambda: |-
+          // The degree/unit labels are separate so the Cherry Bomb number can
+          // remain a compact digit-only subset. Keep them attached to the
+          // rendered value for both one- and two-digit temperatures.
+          const char *temperature = lv_label_get_text(id(home_weather_temperature));
+          const size_t length = temperature == nullptr ? 0U : strlen(temperature);
+          // The unit labels follow the actual digit advance. A one-digit
+          // value is narrower by roughly one digit advance, not by the full
+          // two-digit placement delta.
+          const int shift = length == 1U ? -17 : 0;
+          lv_obj_set_x(id(home_weather_temperature_unit), ${home_weather_temperature_unit_x} + shift);
+          lv_obj_set_x(id(home_weather_temperature_c), ${home_weather_temperature_c_x} + shift);
+          // Cherry Bomb's superscript glyphs have a high font ascent. Keep
+          // their ink inside the weather chip instead of letting it float
+          // above the chip after a snapshot/native handoff.
+          lv_obj_set_y(id(home_weather_temperature_unit), ${home_weather_temperature_unit_y} + 23);
+          lv_obj_set_y(id(home_weather_temperature_c), ${home_weather_temperature_c_y} + 37);
+
+  - id: home_weather_refresh
+    mode: restart
+    then:
+      - delay: 120ms
+      - if:
+          condition:
+            lambda: 'return id(boot_sequence_done);'
+          then:
+            - script.execute: home_weather_update_now
+
+  - id: home_weather_refresh_after_connect
+    mode: restart
+    then:
+      # Home Assistant subscriptions are established immediately after API
+      # authentication. Give the initial state burst one bounded window, then
+      # repaint even when those values arrived before boot_sequence_done.
+      - delay: 750ms
+      - if:
+          condition:
+            lambda: 'return id(boot_sequence_done);'
+          then:
+            - script.execute: home_weather_update_now

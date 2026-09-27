@@ -34,6 +34,54 @@ lvgl:
   # native sysmon disabled so it does not add another always-on overlay/timer.
   perf_monitor: false
   color_depth: 32
+  # M3 Wear OS Tiles design tokens. Geometry is defined by each tile
+  # archetype, while surfaces, typography colors and radii stay centralized.
+  style_definitions:
+    - id: m3_tile_surface
+      bg_color: 0x332E3C
+      bg_opa: 100%
+      border_width: 0
+      outline_width: 0
+      shadow_width: 0
+      radius: 200
+      pad_all: 0
+      text_color: 0xF5EEFB
+    - id: m3_tile_primary
+      bg_color: 0xE9DDFF
+      bg_opa: 100%
+      border_width: 0
+      outline_width: 0
+      shadow_width: 0
+      radius: 200
+      pad_all: 0
+      text_color: 0x210F48
+    - id: m3_tile_secondary
+      bg_color: 0xBAC3FF
+      bg_opa: 100%
+      border_width: 0
+      outline_width: 0
+      shadow_width: 0
+      radius: 200
+      pad_all: 0
+      text_color: 0x0C1649
+    - id: m3_tile_tertiary
+      bg_color: 0xB7EDE2
+      bg_opa: 100%
+      border_width: 0
+      outline_width: 0
+      shadow_width: 0
+      radius: 200
+      pad_all: 0
+      text_color: 0x08201C
+    - id: m3_tile_primary_container
+      bg_color: 0x633F1C
+      bg_opa: 100%
+      border_width: 0
+      outline_width: 0
+      shadow_width: 0
+      radius: 200
+      pad_all: 0
+      text_color: 0xFFDABC
   use_ppa: true
   use_ppa_draw: true
   use_ppa_blend: true
@@ -63,9 +111,14 @@ lvgl:
       - ui_touch_blocker
     close_edge_size: 50
     close_commit_threshold: 36
-    # Capture on the first directional pixel. A stationary touch remains a tap.
+    # Capture on the first directional sample. A stationary contact is still
+    # deferred and replayed as a tap on release, so this does not turn normal
+    # taps into swipes.
+    # Ignore only the GT911's one-pixel stationary jitter. A real horizontal
+    # move still starts on its first physical sample, while a tap cannot nudge
+    # the direct carousel before its button action is replayed.
     swipe_start_distance: 0
-    axis_bias: 0
+    axis_bias: 1
     home_commit_threshold: 25%
     on_home_changed:
       - globals.set:
@@ -74,6 +127,39 @@ lvgl:
       - globals.set:
           id: ui_home_page
           value: !lambda 'return page;'
+    on_home_touch_start:
+      - lambda: |-
+          id(ui_last_touch_activity_ms) = millis();
+      - script.stop: ui_refresh_home_snapshot_if_pending
+      - script.stop: ui_refresh_managed_tile_snapshots
+    on_home_swipe_start:
+      - lvgl_material.weather.suspend: home_weather_presenter
+    on_home_touch_end:
+      - lambda: 'id(ui_last_touch_activity_ms) = millis();'
+      - if:
+          condition:
+            lambda: 'return id(ui_managed_tile_refresh_pending_mask) != 0;'
+          then:
+            - script.execute: ui_refresh_managed_tile_snapshots
+      # Weather is resumed only from on_home_presented, after the swipe
+      # compositor has committed the destination page. Resuming here races
+      # the last gesture frame and makes page 1 briefly catch up or disappear.
+    on_home_presented:
+      # Returning from an application can present the same Home index, so
+      # on_home_changed is not guaranteed to run after an app changes ui_page.
+      - globals.set:
+          id: ui_page
+          value: !lambda 'return page;'
+      - globals.set:
+          id: ui_home_page
+          value: !lambda 'return page;'
+      - lvgl_material.weather.resume:
+          id: home_weather_presenter
+          value: !lambda 'return id(boot_sequence_done) && page == 1;'
+      # Weather promotion is asynchronous. Re-assert the fixed status chrome
+      # after the handoff so a completed weather frame cannot cover it.
+      - delay: 20ms
+      - script.execute: ui_refresh_global_status_icons
     applications:
       - id: player_application
         page: music_page
@@ -81,13 +167,31 @@ lvgl:
         close_gesture: true
         close_on_threshold: true
         on_prepare_open:
+          - script.execute: ui_clear_interaction_press
+          - script.wait: ui_clear_interaction_press
           - script.stop: ui_refresh_tile_snapshots
+          - lambda: 'lvgl_esphome_snapshot_set_status_icons_visible(true);'
           - script.stop: volume_overlay_timeout
           - script.stop: open_speaker_group_panel
           - script.stop: update_speaker_group_panel
+          - lambda: 'id(home_weather_presenter).release_for_application();'
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'true'
+          - lambda: |-
+              // Retain the active cover across closes; only idle decoder
+              // capacity may be reclaimed before rebuilding the pair.
+              id(album_art_background).release_unused_decode_capacity();
+              // Keep Gallery's large contiguous decode surface intact. Player
+              // owns a separate two-buffer RGB565 pool so its current cover
+              // and next crossfade generation never fragment Gallery memory.
+              constexpr size_t player_decode_capacity = 800U * 800U * sizeof(uint16_t);
+              const bool player_pool_ready =
+                  id(album_art_background).reserve_decode_buffer_capacity(player_decode_capacity, 2);
+              ESP_LOGI("ui.memory", "Player decode pool ready=%s psram=%uK/%uK",
+                       YESNO(player_pool_ready),
+                       (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+                       (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
           - lambda: |-
               if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
               id(ui_touch_click_block_until_ms) = millis() + 800;
@@ -109,21 +213,23 @@ lvgl:
               lv_obj_add_flag(id(speaker_group_panel), LV_OBJ_FLAG_HIDDEN);
               auto *live_artwork = id(album_art_background).get_lv_image_dsc();
               const bool has_live_artwork =
-                  id(album_art_background).get_trace_id() != 0 &&
+                  id(album_art_background).get_buffer_generation() != 0 &&
                   live_artwork != nullptr && live_artwork->header.w > 0 && live_artwork->header.h > 0;
               if (has_live_artwork) {
                 lv_image_set_src(id(album_art_background_widget), live_artwork);
                 lv_obj_add_flag(id(figma_media_artwork_widget), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_clear_flag(id(album_art_background_widget), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_clear_flag(id(artwork_primary_overlay), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_clear_flag(id(artwork_scrim), LV_OBJ_FLAG_HIDDEN);
                 id(media_wavy_progress).set_background(live_artwork, false);
               } else {
                 lv_obj_clear_flag(id(figma_media_artwork_widget), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_add_flag(id(album_art_background_widget), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_clear_flag(id(artwork_primary_overlay), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_clear_flag(id(artwork_scrim), LV_OBJ_FLAG_HIDDEN);
                 id(media_wavy_progress).set_background(
                     id(album_art_placeholder).get_lv_image_dsc(), false);
               }
-              lv_obj_add_flag(id(artwork_primary_overlay), LV_OBJ_FLAG_HIDDEN);
-              lv_obj_add_flag(id(artwork_scrim), LV_OBJ_FLAG_HIDDEN);
         on_before_reveal:
           # Prepare the live Player while the compositor still presents the
           # final snapshot frame, preventing a one-frame placeholder flash.
@@ -132,12 +238,18 @@ lvgl:
           - globals.set:
               id: ui_active_app
               value: '1'
+          - script.execute: ui_refresh_global_status_icons
           - lvgl.widget.show: app_close_gesture_zone
           - lambda: 'lv_obj_move_foreground(id(app_close_gesture_zone));'
           - delay: 40ms
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'false'
+          - lambda: |-
+              // Wake the player renderer immediately after the app becomes visible.
+              // Waiting for the next 16 ms interval made the first player frame look frozen.
+              id(media_wavy_progress).set_direct_present(true);
+              id(media_wavy_progress).service_present();
           - script.execute: media_update_main_control
           - script.execute: media_resume_artwork_after_player_open
         on_prepare_close:
@@ -161,29 +273,42 @@ lvgl:
               lv_obj_add_flag(id(queue_panel), LV_OBJ_FLAG_HIDDEN);
               lv_obj_add_flag(id(speaker_group_panel), LV_OBJ_FLAG_HIDDEN);
           - script.execute: ui_quiesce_player_direct_regions
+          - script.wait: ui_quiesce_player_direct_regions
         on_close:
-          - lambda: 'id(album_art_background).set_sendspin_paused(true);'
           - lvgl.widget.hide:
               - global_volume_overlay
               - volume_overlay
               - queue_panel
               - speaker_group_panel
         on_close_cancelled:
-          - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
+          - lambda: |-
+              lvgl_esphome_direct_regions_pause(false, 0);
+              id(album_art_background).set_sendspin_paused(false);
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'false'
           - script.execute: media_update_main_control
           - script.execute: media_title_marquee_reset_and_start
+          - script.execute: media_resume_artwork_after_player_open
         on_closed:
           - globals.set:
               id: ui_active_app
               value: '0'
+          - lambda: 'id(home_weather_presenter).resume_after_application(id(ui_page) == 1);'
+          - script.execute: ui_refresh_global_status_icons
           - script.execute: voice_assistant_update_overlay
           - lvgl.widget.hide: app_close_gesture_zone
           - lvgl.widget.hide: ui_touch_blocker
           - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
           - delay: 100ms
+          - lambda: |-
+              // Preserve the current cover but return the idle crossfade
+              // destination. Pending/leased generations remain protected by
+              // the component's ownership checks.
+              id(album_art_background).release_unused_decode_capacity();
+              ESP_LOGI("ui.memory", "Player idle decode capacity released psram=%uK/%uK",
+                       (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+                       (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'false'
@@ -192,19 +317,52 @@ lvgl:
         close_gesture: true
         close_on_threshold: true
         on_prepare_open:
+          - script.execute: ui_clear_interaction_press
+          - script.wait: ui_clear_interaction_press
           - script.stop: ui_refresh_tile_snapshots
+          - lambda: 'lvgl_esphome_snapshot_set_status_icons_visible(true);'
+          - lambda: 'id(home_weather_presenter).release_for_application();'
           - script.execute: ui_quiesce_player_direct_regions
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'true'
           - lambda: |-
+              // Settings borrows Gallery's idle contiguous JPEG destination.
+              // Allocate it now, while the page transition has already
+              // quiesced the direct renderers. It is kept alive for the whole
+              // Settings session and returned on close.
+              id(immich_photo_image).release(true, true);
+              const size_t settings_snapshot_capacity =
+                  lvgl_esphome_snapshot_scroll_required_bytes(id(settings_root));
+              const bool pool_ready = id(immich_photo_image).reserve_decode_buffer_capacity(
+                  settings_snapshot_capacity);
+              size_t loan_capacity = 0;
+              uint8_t *loan = id(immich_photo_image).loan_decode_buffer_capacity(
+                  settings_snapshot_capacity, &loan_capacity);
+              const bool attached = loan != nullptr &&
+                  lvgl_esphome_snapshot_scroll_set_external_buffer(loan, loan_capacity);
+              if (!attached && loan != nullptr)
+                id(immich_photo_image).return_decode_buffer_capacity(loan, loan_capacity);
+              ESP_LOGI("ui.memory", "Gallery pool loaned to Settings pool=%s attached=%s bytes=%u required=%u psram=%uK/%uK",
+                       YESNO(pool_ready), YESNO(attached), (unsigned) loan_capacity,
+                       (unsigned) settings_snapshot_capacity,
+                       (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+                       (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
+          - lambda: |-
               if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
               id(ui_touch_click_block_until_ms) = millis() + 800;
         on_opened:
           - script.execute: ui_prepare_settings_page
+          - script.wait: ui_prepare_settings_page
+          # Create the resident list snapshot after the final control state is
+          # applied. `refresh` only works after a snapshot already exists and
+          # therefore left the first Settings open with a black/non-scrollable
+          # surface.
+          - lvgl.snapshot_scroll.prepare: settings_scroll_snapshot
           - globals.set:
               id: ui_active_app
               value: '2'
+          - script.execute: ui_refresh_global_status_icons
           - lvgl.widget.show: app_close_gesture_zone
           - lambda: 'lv_obj_move_foreground(id(app_close_gesture_zone));'
           - globals.set:
@@ -222,9 +380,27 @@ lvgl:
               id: ui_snapshot_io_busy
               value: 'false'
         on_closed:
+          - lvgl.snapshot_scroll.release: settings_scroll_snapshot
+          - lambda: |-
+              size_t returned_capacity = 0;
+              uint8_t *returned =
+                  lvgl_esphome_snapshot_scroll_take_external_buffer(&returned_capacity);
+              const bool gallery_buffer_ready = returned != nullptr &&
+                  id(immich_photo_image).return_decode_buffer_capacity(returned, returned_capacity);
+              // The shared buffer is needed only while Settings owns the
+              // scroll surface. Do not leave its ~2 MB allocation parked as a
+              // Gallery spare after the handoff; Gallery reserves it again on
+              // the next open, when it is actually needed.
+              id(immich_photo_image).release_unused_decode_capacity();
+              ESP_LOGI("ui.memory", "Settings returned shared Gallery pool=%s bytes=%u psram=%uK/%uK",
+                       YESNO(gallery_buffer_ready), (unsigned) returned_capacity,
+                       (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+                       (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
           - globals.set:
               id: ui_active_app
               value: '0'
+          - lambda: 'id(home_weather_presenter).resume_after_application(id(ui_page) == 1);'
+          - script.execute: ui_refresh_global_status_icons
           - script.execute: voice_assistant_update_overlay
           - lvgl.widget.hide: app_close_gesture_zone
           - lvgl.widget.hide: ui_touch_blocker
@@ -238,9 +414,13 @@ lvgl:
         close_gesture: true
         close_on_threshold: true
         on_prepare_open:
+          - script.execute: ui_clear_interaction_press
+          - script.wait: ui_clear_interaction_press
           - script.stop: ui_refresh_tile_snapshots
+          - lambda: 'lvgl_esphome_snapshot_set_status_icons_visible(false);'
           - script.stop: media_title_marquee_start_delayed
           - script.stop: media_title_marquee_reset_and_start
+          - lambda: 'id(home_weather_presenter).release_for_application();'
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'true'
@@ -258,6 +438,7 @@ lvgl:
           - globals.set:
               id: ui_active_app
               value: '3'
+          - script.execute: ui_refresh_global_status_icons
           - lvgl.widget.show: app_close_gesture_zone
           - lambda: |-
               lv_obj_move_foreground(id(app_close_gesture_zone));
@@ -286,6 +467,8 @@ lvgl:
           - globals.set:
               id: ui_active_app
               value: '0'
+          - lambda: 'id(home_weather_presenter).resume_after_application(id(ui_page) == 1);'
+          - script.execute: ui_refresh_global_status_icons
           - script.execute: voice_assistant_update_overlay
           - lvgl.widget.hide: app_close_gesture_zone
           - lvgl.widget.hide: ui_touch_blocker
@@ -295,6 +478,7 @@ lvgl:
               id: ui_snapshot_io_busy
               value: 'false'
           - script.execute: voice_assistant_restore_display_after_close
+          - script.execute: voice_assistant_restore_previous_application
       - id: immich_application
         page: immich_page
         widget: immich_root
@@ -304,9 +488,17 @@ lvgl:
         close_gesture: true
         close_on_threshold: true
         on_prepare_open:
+          - script.execute: ui_clear_interaction_press
+          - script.wait: ui_clear_interaction_press
           - script.stop: ui_refresh_tile_snapshots
+          - lambda: 'lvgl_esphome_snapshot_set_status_icons_visible(false);'
+          - lambda: 'id(home_weather_presenter).release_for_application();'
+          - lambda: 'id(immich_closing) = false;'
           - script.execute: ui_quiesce_player_direct_regions
           - script.wait: ui_quiesce_player_direct_regions
+          # JPEG SOF determines the full-resolution source size. An 800x800
+          # spare cannot hold it and fragments the only large free block.
+          - lambda: 'id(immich_photo_image).release_unused_decode_capacity();'
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'true'
@@ -319,6 +511,7 @@ lvgl:
           - globals.set:
               id: ui_active_app
               value: '4'
+          - script.execute: ui_refresh_global_status_icons
           - lvgl.widget.show: app_close_gesture_zone
           - lambda: |-
               lv_obj_update_layout(id(immich_root));
@@ -330,6 +523,7 @@ lvgl:
           - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
           - script.execute: immich_opened
         on_prepare_close:
+          - lambda: 'id(immich_closing) = true;'
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'true'
@@ -343,7 +537,9 @@ lvgl:
           # presenter may now complete its DSI handoff before animation starts.
           - lambda: 'id(immich_slideshow).complete_snapshot_handoff();'
         on_close_cancelled:
-          - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
+          - lambda: |-
+              id(immich_closing) = false;
+              lvgl_esphome_direct_regions_pause(false, 0);
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'false'
@@ -352,6 +548,8 @@ lvgl:
           - globals.set:
               id: ui_active_app
               value: '0'
+          - lambda: 'id(home_weather_presenter).resume_after_application(id(ui_page) == 1);'
+          - script.execute: ui_refresh_global_status_icons
           - script.execute: voice_assistant_update_overlay
           - lvgl.widget.hide: app_close_gesture_zone
           - lvgl.widget.hide: ui_touch_blocker
@@ -369,13 +567,17 @@ lvgl:
         close_gesture: true
         close_on_threshold: true
         on_prepare_open:
+          - script.execute: ui_clear_interaction_press
+          - script.wait: ui_clear_interaction_press
           - script.stop: ui_refresh_tile_snapshots
+          - lambda: 'lvgl_esphome_snapshot_set_status_icons_visible(false);'
+          - lambda: 'id(home_weather_presenter).release_for_application();'
           - script.execute: ui_quiesce_player_direct_regions
           - script.wait: ui_quiesce_player_direct_regions
           - globals.set:
-              id: global_clock_suppressed
+              id: global_volume_activation_suppressed
               value: 'true'
-          - lvgl.widget.hide: global_time_button
+          - lvgl.widget.hide: global_volume_activation_surface
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'true'
@@ -388,6 +590,7 @@ lvgl:
           - globals.set:
               id: ui_active_app
               value: '5'
+          - script.execute: ui_refresh_global_status_icons
           - lvgl.widget.show: app_close_gesture_zone
           - lambda: 'lv_obj_move_foreground(id(app_close_gesture_zone));'
           - globals.set:
@@ -418,10 +621,12 @@ lvgl:
           - globals.set:
               id: ui_active_app
               value: '0'
+          - lambda: 'id(home_weather_presenter).resume_after_application(id(ui_page) == 1);'
+          - script.execute: ui_refresh_global_status_icons
           - globals.set:
-              id: global_clock_suppressed
+              id: global_volume_activation_suppressed
               value: 'false'
-          - lvgl.widget.show: global_time_button
+          - lvgl.widget.show: global_volume_activation_surface
           - script.execute: voice_assistant_update_overlay
           - lvgl.widget.hide: app_close_gesture_zone
           - lvgl.widget.hide: ui_touch_blocker
@@ -451,7 +656,10 @@ lvgl:
         application: settings_application
         widget: settings_root
         backend: direct
-        preload: true
+        # The application lifecycle performs one deterministic capture after
+        # applying state. Automatic screen-load preload raced that capture and
+        # transferred the same multi-megabyte bitmap twice.
+        preload: false
         max_content_size: 8MB
         overscroll: 15%
         momentum_duration: 560ms
@@ -545,7 +753,17 @@ lvgl:
                       y: 72
                       width: 104
                       height: 148
+                      bg_color: 0x000000
+                      bg_opa: 0%
+                      # The trace is fully contained by the blue house asset.
+                      # Flattening it to that same color keeps boot on the
+                      # direct XRGB/PPA path instead of waiting for a native
+                      # LVGL canvas publication on every frame.
                       opaque_background: 0x18BCF2
+                      border_width: 0
+                      radius: 0
+                      pad_all: 0
+                      opa: 100%
                       loop: false
                       auto_start: false
                       hidden: true

@@ -1,5 +1,27 @@
 # Navigation state and screen-level actions.
 # Tile pages, music view and settings view share this small state machine.
+interval:
+  - interval: 15s
+    then:
+      - lambda: |-
+          if (!id(boot_sequence_done) || id(display_backlight).remote_values.is_on() ||
+              id(ui_active_app) != 0 || id(ui_touch_active) || id(ui_snapshot_io_busy) ||
+              id(global_volume_dragging) || lvgl_esphome_snapshot_is_active())
+            return;
+          // Refresh one inactive data page per interval without changing the
+          // Home page/window. Page 1 keeps its prepared weather-frame cache.
+          static uint8_t next_page = 0;
+          lv_obj_t *pages[] = {id(controls_root_2), id(controls_root_3), id(controls_root_4)};
+          auto *page = pages[next_page];
+          id(ui_snapshot_io_busy) = true;
+          const bool refreshed = lvgl_esphome_snapshot_refresh_tile_backing(
+              page, lv_display_get_horizontal_resolution(lv_obj_get_display(page)));
+          id(ui_snapshot_io_busy) = false;
+          if (refreshed) {
+            ESP_LOGI("snapshot.refresh", "Sleeping Home refresh page=%u", next_page + 2);
+            next_page = (next_page + 1) % 3;
+          }
+
 globals:
   - id: ui_page
     type: int
@@ -43,10 +65,38 @@ globals:
     type: bool
     restore_value: no
     initial_value: 'false'
+  - id: ui_last_touch_activity_ms
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+  - id: ui_home_snapshot_refresh_pending
+    type: bool
+    restore_value: no
+    initial_value: 'true'
+  - id: ui_home_clock_last_minute
+    type: int
+    restore_value: no
+    initial_value: '-1'
+  - id: ui_home_status_last_bucket
+    type: int
+    restore_value: no
+    initial_value: '-1'
+  - id: ui_managed_tile_refresh_pending_mask
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
   - id: ui_manual_pressed_obj
     type: lv_obj_t*
     restore_value: no
     initial_value: 'nullptr'
+  - id: ui_settings_snapshot_request_generation
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+  - id: ui_settings_snapshot_applied_generation
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
 
 script:
   - id: ui_quiesce_player_direct_regions
@@ -54,7 +104,20 @@ script:
     then:
       - script.stop: media_title_marquee_start_delayed
       - script.stop: media_title_marquee_reset_and_start
+      - script.stop: media_apply_artwork
       - lambda: |-
+          // A prepared artwork crossfade owns the DSI framebuffer set before
+          // the JPEG worker completes. Relinquish that ownership before the
+          // application snapshot compositor starts, otherwise both paths wait
+          // for one another and the close transition remains pending forever.
+          id(album_art_background).set_sendspin_paused(true);
+          // Keep the active cover, but release an idle/retired decoder spare
+          // before a full-screen application transition needs a 1.92 MB
+          // contiguous RGB888 frame.
+          id(album_art_background).release_unused_decode_capacity();
+          id(player_artwork_presenter).cancel_transition();
+          id(artwork_decode_ui_guard) = false;
+          id(artwork_refresh_pending) = false;
           if (!lvgl_esphome_direct_regions_pause(true, 150)) {
             ESP_LOGW("ui.layers", "regional compositor drain timed out before app handoff");
           }
@@ -100,7 +163,211 @@ script:
               lv_obj_remove_state(dots[i], LV_STATE_CHECKED);
           }
           lv_obj_update_layout(id(page_indicator_row));
+          lvgl_esphome_snapshot_swipe_set_page_indicator_geometry(id(page_indicator_row));
           lvgl_esphome_snapshot_swipe_set_page_indicator(page, 4);
+
+  - id: ui_refresh_global_status_icons
+    then:
+      - lambda: |-
+          // Home owns fixed chrome for status icons and page dots.
+          // Player and Settings use the separate top-layer
+          // chrome; fullscreen Assistant/Gallery/Camera hide both owners.
+          const bool show_home_status = id(ui_active_app) == 0;
+          const bool show_global_status = id(ui_active_app) == 1 ||
+                                          id(ui_active_app) == 2;
+          const bool show_home_local_status = false;
+          lvgl_esphome_snapshot_set_status_icons_visible(show_home_status || show_global_status);
+          lv_obj_t *home_status[] = {
+            id(home_volume_icon), id(home_wifi_icon),
+            id(home_page2_status_volume_icon), id(home_page2_status_wifi_icon),
+            id(home_page3_status_volume_icon), id(home_page3_status_wifi_icon),
+            id(home_page4_status_volume_icon), id(home_page4_status_wifi_icon),
+          };
+          for (auto *obj : home_status) {
+            if (obj == nullptr) continue;
+            if (show_home_local_status) lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
+            else lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+          }
+          if (show_global_status) {
+            lv_obj_clear_flag(id(global_status_volume_icon), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(id(global_status_wifi_icon), LV_OBJ_FLAG_HIDDEN);
+            // A page root can be promoted after this script and otherwise
+            // cover the top-layer chrome on the next compositor pass.
+            lv_obj_move_foreground(id(global_status_chrome));
+            lv_obj_invalidate(id(global_status_chrome));
+            // Clearing a flag is a no-op when the icon was already logically
+            // visible. After a direct snapshot handoff it still needs a
+            // small redraw to restore the glyph in the active framebuffer.
+            lv_obj_invalidate(id(global_status_volume_icon));
+            lv_obj_invalidate(id(global_status_wifi_icon));
+          } else {
+            lv_obj_add_flag(id(global_status_volume_icon), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(id(global_status_wifi_icon), LV_OBJ_FLAG_HIDDEN);
+          }
+          if (show_home_status) {
+            lv_obj_clear_flag(id(home_fixed_status_volume_icon), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(id(home_fixed_status_wifi_icon), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_move_foreground(id(home_fixed_status_volume_icon));
+            lv_obj_move_foreground(id(home_fixed_status_wifi_icon));
+            lv_obj_invalidate(id(home_fixed_status_volume_icon));
+            lv_obj_invalidate(id(home_fixed_status_wifi_icon));
+          } else {
+            lv_obj_add_flag(id(home_fixed_status_volume_icon), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(id(home_fixed_status_wifi_icon), LV_OBJ_FLAG_HIDDEN);
+          }
+
+  # The large Home clock is part of the page snapshot. Update its live labels
+  # freely, but patch only its region when the minute changes. Fixed status
+  # chrome is independent and never requires rebuilding the page snapshot.
+  - id: ui_refresh_home_header
+    mode: restart
+    then:
+      - lambda: |-
+          bool changed = false;
+          auto now = id(ha_time).now();
+          if (now.is_valid() || ${home_clock_preview_time}) {
+            int hour = ${home_clock_preview_time} ? 12 : now.hour;
+            if (hour < 0) hour = 0;
+            if (hour > 23) hour = 23;
+            int minute = ${home_clock_preview_time} ? 58 : now.minute;
+            if (minute < 0) minute = 0;
+            if (minute > 59) minute = 59;
+            const int minute_key = hour * 60 + minute;
+            if (minute_key != id(ui_home_clock_last_minute)) {
+              char hour_text[32];
+              char minute_text[32];
+              char minute_outline[3];
+              std::snprintf(minute_outline, sizeof(minute_outline), "%02d", minute);
+               std::snprintf(hour_text, sizeof(hour_text), "#FFFFFF %c##${home_accent_hex} %c#",
+                            static_cast<char>('0' + hour / 10), static_cast<char>('0' + hour % 10));
+              std::snprintf(minute_text, sizeof(minute_text), "#${home_accent_hex} %c##FFFFFF %c#",
+                            static_cast<char>('0' + minute / 10), static_cast<char>('0' + minute % 10));
+              if (strcmp(lv_label_get_text(id(home_clock_text)), hour_text) != 0) {
+                lv_label_set_text(id(home_clock_text), hour_text);
+                changed = true;
+              }
+              if (strcmp(lv_label_get_text(id(home_minute_text)), minute_text) != 0) {
+                lv_label_set_text(id(home_minute_text), minute_text);
+                lv_label_set_text(id(home_minute_outline), minute_outline);
+                changed = true;
+              }
+              id(ui_home_clock_last_minute) = minute_key;
+            }
+          }
+
+          const bool api_connected = esphome::api::global_api_server != nullptr &&
+                                     esphome::api::global_api_server->is_connected_with_state_subscription();
+          int status_bucket = 0;
+          // Keep a visible Wi-Fi glyph while HA/Wi-Fi is reconnecting. The
+          // generated wifi_off glyph is not emitted by this compact raster.
+          const char *wifi_icon = "\U0000e4d9";
+          if (api_connected) {
+            const float rssi = id(diagnostics_wifi_rssi).state;
+            if (rssi == rssi && rssi > -60.0f) {
+              status_bucket = 3;
+              wifi_icon = "\U0000e63e";
+            } else if (rssi == rssi && rssi >= -75.0f) {
+              // The middle bucket must remain visibly a Wi-Fi glyph. In the
+              // generated Material Symbols font e4ca is only a dot, while
+              // e4d9 contains the two-bar shape.
+              status_bucket = 2;
+              wifi_icon = "\U0000e4d9";
+            } else {
+              status_bucket = 1;
+              // The one-bar glyph is rendered as a lone dot by this font
+              // subset. Keep a visible signal shape on weak connections.
+              wifi_icon = "\U0000e4d9";
+            }
+          }
+          bool status_changed = false;
+          if (id(ui_home_status_last_bucket) != status_bucket ||
+              strcmp(lv_label_get_text(id(home_wifi_icon)), wifi_icon) != 0 ||
+              strcmp(lv_label_get_text(id(global_status_wifi_icon)), wifi_icon) != 0 ||
+              strcmp(lv_label_get_text(id(home_page2_status_wifi_icon)), wifi_icon) != 0 ||
+              strcmp(lv_label_get_text(id(home_page3_status_wifi_icon)), wifi_icon) != 0 ||
+              strcmp(lv_label_get_text(id(home_page4_status_wifi_icon)), wifi_icon) != 0) {
+            lv_label_set_text(id(home_wifi_icon), wifi_icon);
+            lv_label_set_text(id(home_fixed_status_wifi_icon), wifi_icon);
+            lv_label_set_text(id(global_status_wifi_icon), wifi_icon);
+            lv_label_set_text(id(home_page2_status_wifi_icon), wifi_icon);
+            lv_label_set_text(id(home_page3_status_wifi_icon), wifi_icon);
+            lv_label_set_text(id(home_page4_status_wifi_icon), wifi_icon);
+            id(ui_home_status_last_bucket) = status_bucket;
+            status_changed = true;
+          }
+          // Status visibility and z-order are transition-owned. Reapplying
+          // flags every second forces LVGL style-tree invalidation and can
+          // starve DSI/Lottie. Only patch the resident chrome when its glyph
+          // actually changed.
+          if (status_changed) {
+            lvgl_esphome_snapshot_sync_status_widgets(id(home_fixed_status_volume_icon), id(home_fixed_status_wifi_icon));
+          }
+          if (changed)
+            id(ui_home_snapshot_refresh_pending) = true;
+
+  - id: ui_refresh_home_snapshot_if_pending
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_home_snapshot_refresh_pending) &&
+                     id(boot_sequence_done) &&
+                     lv_obj_has_flag(id(boot_overlay), LV_OBJ_FLAG_HIDDEN) &&
+                     id(ui_active_app) == 0 && id(ui_page) == 1 &&
+                     !id(ui_snapshot_io_busy) && !id(ui_touch_active) &&
+                     !id(global_volume_dragging) && !id(global_volume_time_press_tracking) &&
+                     !lvgl_esphome_snapshot_is_active();
+          then:
+            - delay: 180ms
+            - lambda: |-
+                if (!id(boot_sequence_done) ||
+                    !lv_obj_has_flag(id(boot_overlay), LV_OBJ_FLAG_HIDDEN) ||
+                    id(ui_active_app) != 0 || id(ui_page) != 1 || id(ui_snapshot_io_busy) ||
+                    id(ui_touch_active) || id(global_volume_dragging) ||
+                    id(global_volume_time_press_tracking) || lvgl_esphome_snapshot_is_active()) return;
+                lv_obj_t *regions[] = {id(home_clock_text), id(home_minute_outline), id(home_minute_text)};
+                auto *display = lv_obj_get_display(id(controls_root_1));
+                const int width = lv_display_get_horizontal_resolution(display);
+                id(ui_home_snapshot_refresh_pending) = !lvgl_esphome_snapshot_refresh_tile_regions(
+                    id(controls_root_1), regions, 3, width, true);
+
+  - id: ui_clear_interaction_press
+    then:
+      - lambda: |-
+          // The application transition starts from the current Home frame.
+          // The GT911/LVGL handoff does not always leave the pressed object in
+          // ui_manual_pressed_obj: for a tap that becomes an application
+          // open, LVGL can clear the pointer before navigation calls this
+          // hook. Clear every tile state instead of relying on that pointer;
+          // otherwise the opening animation captures the tile's pressed fill
+          // as a foreground rectangle.
+          lv_obj_t *tile_buttons[] = {
+            id(tile_light_button), id(tile_switch_button), id(tile_scene_button),
+            id(tile_trigger_button), id(tile_climate_button), id(tile_cover_button),
+            id(tile_garage_button), id(tile_lock_button), id(tile_alarm_button),
+            id(tile_door_window_button), id(tile_presence_button), id(tile_sensor_button),
+            id(tile_weather_button), id(tile_clock_button), id(tile_camera_button),
+            id(tile_media_button), id(tile_subpage_button), id(tile_fan_button),
+            id(tile_fan_speed_button), id(tile_webhook_button), id(tile_internal_button),
+            id(tile_settings_button), id(tile_voice_button), id(ui_manual_pressed_obj),
+            id(home_mic_button),
+          };
+          for (auto *tile : tile_buttons) {
+            if (tile == nullptr || !lv_obj_is_valid(tile)) continue;
+            lv_obj_clear_state(tile, static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED |
+                                                             LV_STATE_HOVERED));
+            lv_obj_invalidate(tile);
+          }
+          id(ui_manual_pressed_obj) = nullptr;
+          lv_indev_reset(nullptr, nullptr);
+          // Commit the cleared state before the navigation compositor takes
+          // ownership of the current framebuffer. This is one bounded refresh
+          // per app launch, not a new per-frame rendering path.
+          lv_refr_now(nullptr);
+          if (!lvgl_esphome_direct_handoff_to_lvgl(120)) {
+            ESP_LOGW("ui.navigation", "app-open source handoff timed out after clearing press state");
+          }
 
   - id: ui_apply_tile_positions
     then:
@@ -118,15 +385,16 @@ script:
           const int page_width = display != nullptr
                                      ? lv_display_get_horizontal_resolution(display)
                                      : lv_obj_get_width(lv_screen_active());
-          for (int i = 0; i < page_count; i++) {
-            if (roots[i] == nullptr) continue;
-            lv_obj_align(roots[i], LV_ALIGN_CENTER, (i + 1 - page) * page_width, 0);
-            if (i + 1 == page)
-              lv_obj_clear_flag(roots[i], LV_OBJ_FLAG_HIDDEN);
-            else
-              lv_obj_add_flag(roots[i], LV_OBJ_FLAG_HIDDEN);
-          }
+           for (int i = 0; i < page_count; i++) {
+             if (roots[i] == nullptr) continue;
+             lv_obj_align(roots[i], LV_ALIGN_CENTER, (i + 1 - page) * page_width, 0);
+             if (i + 1 == page)
+               lv_obj_clear_flag(roots[i], LV_OBJ_FLAG_HIDDEN);
+             else
+               lv_obj_add_flag(roots[i], LV_OBJ_FLAG_HIDDEN);
+           }
       - script.execute: ui_update_page_indicator
+      - script.execute: ui_refresh_global_status_icons
 
   - id: ui_show_home_content_after_boot
     then:
@@ -137,16 +405,23 @@ script:
             id(page_indicator_3),
             id(page_indicator_4),
           };
-          for (auto *obj : indicators) {
-            if (obj != nullptr) {
-              lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
-            }
-          }
+           for (auto *obj : indicators) {
+             if (obj != nullptr) {
+               lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
+             }
+           }
           // Snapshot preparation already leaves page 1 aligned and rendered
           // behind the opaque boot overlay. Re-applying all four 800x800 roots
           // here invalidated the screen a second time and starved DSI exactly
           // when the overlay was about to disappear.
           lvgl_esphome_snapshot_swipe_set_page_indicator(id(ui_page), 4);
+
+  - id: ui_refresh_home_fixed_chrome
+    then:
+      - lambda: |-
+          // Application close returns to the page that was underneath it.
+          // The microphone follows controls_root_1, including its snapshot.
+          lvgl_esphome_snapshot_set_status_icons_visible(true);
 
   - id: ui_set_tile_visibility_1
     then:
@@ -172,6 +447,8 @@ script:
   - id: ui_build_tile_snapshots_now
     mode: single
     then:
+      - script.execute: ui_refresh_home_header
+      - script.wait: ui_refresh_home_header
       - globals.set:
           id: ui_snapshot_io_busy
           value: 'true'
@@ -210,9 +487,8 @@ script:
             id(page_indicator_3),
             id(page_indicator_4),
           };
-          lvgl_esphome_snapshot_sync_clock_widget(id(global_time_label));
-          lv_obj_add_flag(id(global_time_button), LV_OBJ_FLAG_HIDDEN);
-          for (auto *dot : dots) {
+           lv_obj_add_flag(id(global_volume_activation_surface), LV_OBJ_FLAG_HIDDEN);
+           for (auto *dot : dots) {
             if (dot != nullptr) lv_obj_add_flag(dot, LV_OBJ_FLAG_HIDDEN);
           }
           const int page_count = sizeof(roots) / sizeof(roots[0]);
@@ -236,6 +512,7 @@ script:
                 lv_obj_remove_state(dots[i], LV_STATE_CHECKED);
             }
             lv_obj_update_layout(id(page_indicator_row));
+            lvgl_esphome_snapshot_swipe_set_page_indicator_geometry(id(page_indicator_row));
             lvgl_esphome_snapshot_swipe_set_page_indicator(page, 4);
             lv_obj_update_layout(lv_obj_get_parent(id(controls_root_1)));
           };
@@ -243,10 +520,10 @@ script:
           // released its frame cache. Capturing them here produced valid JPEG
           // files from an unstable, memory-starved first render and caused the
           // first app opening after every reboot to show noise.
-          const bool apps_prepared = false;
           // Lottie still owns its frame cache here, so page compression is
-          // deliberately deferred until that memory has been released.
-          const bool compressed_pages_prepared = false;
+          // deliberately deferred until that memory has been released. This
+          // stage is intentionally reported as deferred; the post-Lottie
+          // stage below records the real cache result.
           // Application previews stay compressed until one app is selected.
           // A single shared full-resolution RGB888 surface is allocated after
           // Lottie releases its frame cache and reused by every transition.
@@ -259,18 +536,18 @@ script:
           id(ui_tile_snapshot_prepared_page) = 0;
           id(ui_tile_snapshot_cached_first) = 0;
           id(ui_tile_snapshot_cached_last) = 0;
-          lv_obj_clear_flag(id(global_time_button), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_clear_flag(id(global_volume_activation_surface), LV_OBJ_FLAG_HIDDEN);
           for (auto *dot : dots) {
             if (dot != nullptr) lv_obj_clear_flag(dot, LV_OBJ_FLAG_HIDDEN);
           }
           ESP_LOGW("boot.diag",
-                   "snapshot cache: done pages=%u apps=%u raw_range=%d-%d ready=%u internal=%uK/%uK psram=%uK/%uK",
-                   (unsigned) compressed_pages_prepared, (unsigned) apps_prepared,
-                   id(ui_tile_snapshot_cached_first), id(ui_tile_snapshot_cached_last), 0U,
+                   "snapshot cache: deferred pages=0 apps=0 raw_range=%d-%d ready=0 internal=%uK/%uK psram=%uK/%uK",
+                   id(ui_tile_snapshot_cached_first), id(ui_tile_snapshot_cached_last),
                    (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
                    (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
                    (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                    (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
+          id(ui_home_snapshot_refresh_pending) = false;
       - script.execute: ui_set_tile_visibility_1
       - delay: 40ms
       - globals.set:
@@ -372,13 +649,96 @@ script:
             ESP_LOGW("snapshot.refresh", "Home page %d refresh deferred", id(ui_page));
           }
 
+  # Coalesce state bursts from Home Assistant and patch only changed card
+  # regions in resident raw pages. A page outside the three-slot working set
+  # keeps the existing lazy full-page fallback.
+  - id: ui_refresh_managed_tile_snapshots
+    mode: restart
+    then:
+      # Home Assistant can send several tile state updates in one burst. Keep
+      # only their union and wait until navigation has been idle long enough
+      # that a scanout capture cannot sit in front of the user's first drag.
+      - delay: 500ms
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_active_app) != 0 || id(ui_snapshot_io_busy) ||
+                     id(ui_touch_active) ||
+                     id(global_volume_time_press_tracking) ||
+                     id(global_volume_dragging) ||
+                     millis() - id(ui_last_touch_activity_ms) < 800U ||
+                     lvgl_esphome_snapshot_is_active();
+          then:
+            - script.execute: ui_refresh_managed_tile_snapshots
+          else:
+            - lambda: |-
+                const uint32_t changed_slots = id(ui_managed_tile_refresh_pending_mask);
+                if (changed_slots == 0)
+                  return;
+                uint32_t page_mask = 0;
+                if (id(ui_page) == 1) page_mask = (1UL << 0) | (1UL << 1);
+                else if (id(ui_page) == 2) page_mask = (1UL << 2) | (1UL << 3) | (1UL << 4) | (1UL << 5);
+                else if (id(ui_page) == 4) page_mask = (1UL << 6) | (1UL << 7) | (1UL << 8) |
+                                                       (1UL << 9) | (1UL << 10);
+                const uint32_t refresh_slots = changed_slots & page_mask;
+                if (refresh_slots == 0)
+                  return;
+                id(ui_managed_tile_refresh_pending_mask) = changed_slots & ~refresh_slots;
+                auto *display = lv_obj_get_display(id(controls_root_1));
+                const int width = display != nullptr
+                                      ? lv_display_get_horizontal_resolution(display)
+                                      : lv_obj_get_width(lv_screen_active());
+                id(ui_snapshot_io_busy) = true;
+                bool ok = false;
+                if (id(ui_page) == 1) {
+                  lv_obj_t *regions[2]{};
+                  size_t count = 0;
+                  if ((refresh_slots & (1UL << 0)) != 0) regions[count++] = id(tile_light_button);
+                  if ((refresh_slots & (1UL << 1)) != 0) regions[count++] = id(tile_climate_button);
+                  ok = lvgl_esphome_snapshot_refresh_tile_regions(id(controls_root_1), regions, count, width);
+                } else if (id(ui_page) == 2) {
+                  lv_obj_t *regions[4]{};
+                  size_t count = 0;
+                  if ((refresh_slots & (1UL << 2)) != 0) regions[count++] = id(tile_cover_button);
+                  if ((refresh_slots & (1UL << 3)) != 0) regions[count++] = id(tile_lock_button);
+                  if ((refresh_slots & (1UL << 4)) != 0) regions[count++] = id(tile_alarm_button);
+                  if ((refresh_slots & (1UL << 5)) != 0) regions[count++] = id(tile_garage_button);
+                  ok = lvgl_esphome_snapshot_refresh_tile_regions(id(controls_root_2), regions, count, width);
+                } else if (id(ui_page) == 4) {
+                  lv_obj_t *regions[5]{};
+                  size_t count = 0;
+                  if ((refresh_slots & (1UL << 6)) != 0) regions[count++] = id(tile_fan_button);
+                  if ((refresh_slots & (1UL << 7)) != 0) regions[count++] = id(tile_fan_speed_button);
+                  if ((refresh_slots & (1UL << 8)) != 0) regions[count++] = id(tile_switch_button);
+                  if ((refresh_slots & (1UL << 9)) != 0) regions[count++] = id(tile_scene_button);
+                  if ((refresh_slots & (1UL << 10)) != 0) regions[count++] = id(tile_trigger_button);
+                  ok = lvgl_esphome_snapshot_refresh_tile_regions(id(controls_root_4), regions, count, width);
+                }
+                id(ui_snapshot_io_busy) = false;
+                if (!ok) {
+                  id(ui_managed_tile_refresh_pending_mask) |= refresh_slots;
+                  id(ui_refresh_managed_tile_snapshots).execute();
+                  if (id(settings_swipe_logs_switch).state)
+                    ESP_LOGW("snapshot.refresh", "Managed tile refresh deferred mask=0x%08x",
+                             static_cast<unsigned>(refresh_slots));
+                }
+
   # Settings keeps one decoded list surface for its entire lifetime. Refresh
   # that allocation in place after a value changes, so the next drag cannot
   # reveal stale controls or require another multi-megabyte PSRAM allocation.
   - id: ui_refresh_settings_snapshot
     mode: restart
     then:
-      - delay: 180ms
+      - lambda: 'id(ui_settings_snapshot_request_generation)++;'
+      # One quiet window coalesces a sequence of toggles into one expensive
+      # list capture. The apply worker below retries without creating another
+      # generation when a touch or a direct presentation is still active.
+      - delay: 60ms
+      - script.execute: ui_apply_settings_snapshot_refresh
+
+  - id: ui_apply_settings_snapshot_refresh
+    mode: restart
+    then:
       - if:
           condition:
             lambda: 'return id(ui_active_app) == 2;'
@@ -390,7 +750,8 @@ script:
                            id(ui_manual_pressed_obj) != nullptr ||
                            lvgl_esphome_snapshot_is_active();
                 then:
-                  - script.execute: ui_refresh_settings_snapshot
+                  - delay: 80ms
+                  - script.execute: ui_apply_settings_snapshot_refresh
                 else:
                   - globals.set:
                       id: ui_snapshot_io_busy
@@ -399,6 +760,9 @@ script:
                   - globals.set:
                       id: ui_snapshot_io_busy
                       value: 'false'
+                  - lambda: |-
+                      id(ui_settings_snapshot_applied_generation) =
+                          id(ui_settings_snapshot_request_generation);
 
   - id: ui_finish_boot_tile_snapshot_cache
     mode: single
@@ -412,34 +776,78 @@ script:
                 value: 'true'
             - lambda: |-
                 ESP_LOGW("boot.diag",
-                         "post-Lottie app snapshots: begin internal=%uK/%uK psram=%uK/%uK",
+                         "post-Lottie caches: begin internal=%uK/%uK psram=%uK/%uK",
                          (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
                          (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
                          (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                          (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
                 id(album_art_background).set_sendspin_paused(true);
+                id(media_wavy_progress).initialize();
                 id(media_wavy_progress).set_background(
                     id(album_art_placeholder).get_lv_image_dsc(), false);
-                id(media_wavy_progress).initialize();
                 id(media_wavy_progress).set_value(id(last_media_progress_percent));
                 lv_obj_update_layout(lv_screen_active());
+            # Seed the first Home page while the splash is still opaque. This
+            # makes the weather tile part of the boot snapshot instead of
+            # asking the first carousel gesture to create its frame.
+            - script.execute: home_weather_update_now
+            - script.wait: home_weather_update_now
+            - wait_until:
+                condition:
+                  lambda: 'return id(home_weather_presenter).prepare_snapshot_frame(100);'
+                timeout: 2s
+            - lambda: |-
+                const bool ready = id(home_weather_presenter).prepare_snapshot_frame(100);
+                ESP_LOGI("boot.diag", "weather snapshot frame ready=%s", YESNO(ready));
+                // core.yaml owns the single boot-wide direct-region pause
+                // around this script. Do not acquire it again here: the
+                // matching resume happens after all boot snapshots are ready.
+                // Acquiring a second depth and releasing only once leaves
+                // weather, wave and Lottie loaders permanently paused.
+                lvgl_esphome_snapshot_dsi_quiet_ms(120);
+            # Reserve the three contiguous Home RGB888 surfaces before the
+            # larger gallery/application pools fragment PSRAM. The Home cache
+            # also creates every compact page JPEG while its single scratch
+            # surface can still be reused by application snapshot encoding.
+            - lvgl.navigation.refresh: ui_navigation
             # Camera must have a deterministic non-streaming frame before its
             # boot snapshot is compressed. The page itself is inactive, so
             # showing its root here does not expose it on the panel.
             - script.execute: ui_prepare_camera_page
             - script.wait: ui_prepare_camera_page
             - lvgl.navigation.prepare_applications: ui_navigation
-            - lvgl.navigation.refresh: ui_navigation
+            # The direct compositor releases its full-screen encoding scratch
+            # before reserving the reusable application transition frame.
+            # ui_prepare_camera_page starts the regional loader used by a real
+            # Camera open. Boot snapshot preparation only needs the stable
+            # LVGL tree; leaving that loader alive would keep submitting a
+            # hidden 70x70 region at 30 FPS on every subsequent screen.
+            - script.execute: camera_loading_stop
+            - lambda: |-
+                lvgl_esphome_snapshot_dsi_quiet_ms(120);
+                // Keep all direct producers paused until core.yaml has
+                // finished every Home/application snapshot. Releasing here
+                // lets the weather task publish a stale boot-adjacent frame
+                // while later pages are still being captured.
+            # Gallery, Settings and Player reserve their large decode/snapshot
+            # blocks only when their application is opened. Keeping these idle
+            # pools alive during Home starved the weather direct compositor of
+            # its one-time region background and made every frame get rejected.
+            # The source-quality policy is unchanged: Gallery still requests
+            # the fullsize Immich derivative when it opens.
+            - lambda: |-
+                ESP_LOGI("boot.diag", "deferred application pools psram=%uK/%uK",
+                         (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+                         (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
             - lambda: |-
                 const bool prepared = id(ui_navigation).is_home_snapshot_prepared();
-                const bool app_work_buffer = lvgl_esphome_snapshot_app_reserve_work_buffer(id(wear_root));
                 id(ui_tile_snapshots_ready) = prepared;
                 id(ui_tile_snapshot_prepared_page) = prepared ? 1 : 0;
                 id(ui_tile_snapshot_cached_first) = prepared ? 1 : 0;
                 id(ui_tile_snapshot_cached_last) = prepared ? 3 : 0;
                 ESP_LOGW("boot.diag",
-                         "post-Lottie caches app_work=%u home=%u range=%d-%d psram=%uK/%uK",
-                         (unsigned) app_work_buffer, (unsigned) prepared,
+                         "post-Lottie caches home=%u range=%d-%d psram=%uK/%uK",
+                         (unsigned) prepared,
                          id(ui_tile_snapshot_cached_first), id(ui_tile_snapshot_cached_last),
                          (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                          (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
@@ -482,6 +890,11 @@ script:
 
   - id: ui_prepare_settings_page
     then:
+      # Applying all persisted controls schedules refreshes of the same list.
+      # Cancel those requests on both sides of the batch; on_opened performs
+      # one synchronous capture after this script completes.
+      - script.stop: ui_refresh_settings_snapshot
+      - script.stop: ui_apply_settings_snapshot_refresh
       - lvgl.widget.update:
           id: settings_root
           y: 0
@@ -490,6 +903,9 @@ script:
           id: ui_page
           value: '5'
       - script.execute: ui_apply_settings_state
+      - script.wait: ui_apply_settings_state
+      - script.stop: ui_refresh_settings_snapshot
+      - script.stop: ui_apply_settings_snapshot_refresh
 
   - id: ui_prepare_immich_page
     then:

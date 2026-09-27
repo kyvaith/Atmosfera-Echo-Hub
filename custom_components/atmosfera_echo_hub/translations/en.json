@@ -38,5 +38,35 @@
     "error": {
       "no_cameras": "Choose at least one camera."
     }
+  },
+  "services": {
+    "report_camera_source": {
+      "name": "Report camera source",
+      "description": "Synchronize a source selected on the display back to Home Assistant.",
+      "fields": {
+        "node_name": {
+          "name": "Node name",
+          "description": "Native ESPHome node name."
+        },
+        "source": {
+          "name": "Source",
+          "description": "Selected camera source name."
+        }
+      }
+    },
+    "report_tile_press": {
+      "name": "Report card press",
+      "description": "Route a card press through its configured Home Assistant action.",
+      "fields": {
+        "node_name": {
+          "name": "Node name",
+          "description": "Native ESPHome node name."
+        },
+        "slot": {
+          "name": "Card slot",
+          "description": "Zero-based fixed card slot."
+        }
+      }
+    }
   }
 }

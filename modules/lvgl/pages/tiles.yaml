@@ -44,16 +44,6 @@ lvgl:
                   pad_bottom: 4
                   text_color: 0xC4C7C5
                   text_font: roboto_14
-              - label:
-                  id: home_time_label_1
-                  hidden: true
-                  text: "9:30"
-                  align: TOP_MID
-                  y: 12
-                  width: 180
-                  text_align: CENTER
-                  text_color: 0xF5EEFB
-                  text_font: roboto_34
               - button:
                   id: tile_light_button
                   x: 112
@@ -375,16 +365,6 @@ lvgl:
                   pad_bottom: 4
                   text_color: 0xC4C7C5
                   text_font: roboto_14
-              - label:
-                  id: home_time_label_2
-                  hidden: true
-                  text: "9:30"
-                  align: TOP_MID
-                  y: 12
-                  width: 180
-                  text_align: CENTER
-                  text_color: 0xF5EEFB
-                  text_font: roboto_34
               - button:
                   id: tile_cover_button
                   x: 112
@@ -687,16 +667,6 @@ lvgl:
                   pad_bottom: 4
                   text_color: 0xC4C7C5
                   text_font: roboto_14
-              - label:
-                  id: home_time_label_3
-                  hidden: true
-                  text: "9:30"
-                  align: TOP_MID
-                  y: 12
-                  width: 180
-                  text_align: CENTER
-                  text_color: 0xF5EEFB
-                  text_font: roboto_34
               - button:
                   id: tile_sensor_button
                   x: 112
@@ -981,16 +951,6 @@ lvgl:
                   pad_bottom: 4
                   text_color: 0xC4C7C5
                   text_font: roboto_14
-              - label:
-                  id: home_time_label_4
-                  hidden: true
-                  text: "9:30"
-                  align: TOP_MID
-                  y: 12
-                  width: 180
-                  text_align: CENTER
-                  text_color: 0xF5EEFB
-                  text_font: roboto_34
               - button:
                   id: tile_fan_button
                   x: 112
@@ -1253,18 +1213,19 @@ lvgl:
                     then:
                       - lambda: |-
                           id(voice_assistant_restore_display_off) = false;
+                          id(voice_assistant_restore_app_id) = 0;
                           id(voice_assistant_terminal_close_pending) = false;
                       - lvgl.navigation.open: voice_application
-              - obj: { hidden: true, x: 360, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
-              - obj: { hidden: true, x: 382, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
-              - obj: { hidden: true, x: 404, y: 716, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
-              - obj: { hidden: true, x: 426, y: 716, width: 30, height: 10, radius: 5, bg_color: 0xF2F2F2, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 360, y: ${home_page_indicator_y}, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 382, y: ${home_page_indicator_y}, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 404, y: ${home_page_indicator_y}, width: 10, height: 10, radius: 5, bg_color: 0x5C5F5E, bg_opa: 100%, border_width: 0, scrollable: false }
+              - obj: { hidden: true, x: 426, y: ${home_page_indicator_y}, width: 30, height: 10, radius: 5, bg_color: 0xF2F2F2, bg_opa: 100%, border_width: 0, scrollable: false }
 
 
         - obj:
             id: page_indicator_row
             x: 352
-            y: 716
+            y: ${home_page_indicator_y}
             width: 96
             height: 10
             bg_opa: TRANSP

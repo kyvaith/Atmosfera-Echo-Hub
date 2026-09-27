@@ -30,6 +30,7 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 
 _JPEG_QUALITY = 82
+_FFMPEG_JPEG_QSCALE = 7
 
 
 def _bounded_query_int(
@@ -113,15 +114,89 @@ class AtmosferaCameraStreamView(HomeAssistantView):
             MAX_STREAM_FPS,
         )
 
-        # A camera integration with its own MJPEG handler already exposes the
-        # cheapest possible streaming path. In particular, Home Assistant's
-        # MJPEG platform can proxy a working go2rtc stream even when it has no
-        # still_image_url. Requiring async_get_image() first incorrectly turns
-        # that valid stream into HTTP 502 and adds a decode/encode round trip.
-        if type(camera).handle_async_mjpeg_stream is not Camera.handle_async_mjpeg_stream:
-            response = await camera.handle_async_mjpeg_stream(request)
-            if response is not None:
-                return response
+        try:
+            stream_source = await camera.stream_source()
+        except HomeAssistantError:
+            stream_source = None
+        if stream_source:
+            manager = get_ffmpeg_manager(self.hass)
+            if shutil.which(manager.binary) is None:
+                _LOGGER.debug(
+                    "FFmpeg binary %s is unavailable; using still frames for %s",
+                    manager.binary,
+                    entity_id,
+                )
+                stream_source = None
+
+        if stream_source:
+            stream = CameraMjpeg(manager.binary)
+            input_source = stream_source
+            source_lower = stream_source.lower()
+            pace_hls_output = False
+            if source_lower.startswith(("rtsp://", "rtsps://")):
+                input_source = (
+                    "-rtsp_transport tcp -i " + shlex.quote(stream_source)
+                )
+            elif source_lower.startswith(("http://", "https://")) and ".m3u8" in source_lower:
+                # Let the demux thread prefetch the next HLS segment while the
+                # video filter paces completed frames. Input-side -re blocks
+                # segment prefetch and exposes each CDN boundary as a visible
+                # 300-700 ms pause on the display.
+                input_source = (
+                    "-thread_queue_size 1024 -i " + shlex.quote(stream_source)
+                )
+                pace_hls_output = True
+                _LOGGER.debug(
+                    "Applying buffered output pacing to HLS camera %s", entity_id
+                )
+            video_filter = (
+                f"scale={width}:{height}:force_original_aspect_ratio=increase,"
+                f"crop={width}:{height}"
+            )
+            if pace_hls_output:
+                video_filter += ",realtime=limit=2:speed=1"
+            opened = await stream.open_camera(
+                input_source,
+                extra_cmd=(
+                    f"-vf {shlex.quote(video_filter)} -r {fps} "
+                    f"-pix_fmt yuvj420p -q:v {_FFMPEG_JPEG_QSCALE}"
+                ),
+            )
+            if opened:
+                try:
+                    stream_reader = await stream.get_reader()
+                    try:
+                        # HLS sources commonly need one segment before FFmpeg
+                        # can emit its first MJPEG frame. Five seconds was on
+                        # the boundary for the public aquarium stream and sent
+                        # otherwise healthy streams through every slow
+                        # fallback. Keep this below the device-side HTTP
+                        # timeout, but leave enough margin for one cold start.
+                        async with asyncio.timeout(12):
+                            first_chunk = await stream_reader.read(8192)
+                    except TimeoutError:
+                        first_chunk = b""
+                    if first_chunk:
+                        response = web.StreamResponse(
+                            headers={
+                                "Cache-Control": "no-store",
+                                "Content-Type": manager.ffmpeg_stream_content_type,
+                            }
+                        )
+                        await response.prepare(request)
+                        try:
+                            await response.write(first_chunk)
+                            while chunk := await stream_reader.read(65536):
+                                await response.write(chunk)
+                        except (BrokenPipeError, ConnectionResetError):
+                            pass
+                        return response
+                    _LOGGER.debug(
+                        "Native stream for %s produced no MJPEG data; using stills",
+                        entity_id,
+                    )
+                finally:
+                    await stream.close()
 
         last_source: bytes | None = None
         last_frame: bytes | None = None
@@ -152,77 +227,26 @@ class AtmosferaCameraStreamView(HomeAssistantView):
             last_frame = normalized
             return normalized
 
-        # Do not commit a successful HTTP response until at least one complete
-        # JPEG exists. The ESPHome client can then distinguish an unavailable
-        # camera from a live stream without displaying an empty frame.
+        # Still-image cameras are normalized server-side as well. Do not
+        # commit a successful response until one complete JPEG exists.
         for _attempt in range(3):
             if await next_frame() is not None:
                 break
             await asyncio.sleep(0.2)
+
         if last_frame is None:
+            # Preserve compatibility with integrations that expose only a
+            # custom MJPEG handler. This last-resort path cannot guarantee the
+            # requested geometry, so it deliberately comes after both native
+            # size normalization paths above.
+            if (
+                type(camera).handle_async_mjpeg_stream
+                is not Camera.handle_async_mjpeg_stream
+            ):
+                response = await camera.handle_async_mjpeg_stream(request)
+                if response is not None:
+                    return response
             raise web.HTTPBadGateway
-
-        try:
-            stream_source = await camera.stream_source()
-        except HomeAssistantError:
-            stream_source = None
-        if stream_source:
-            manager = get_ffmpeg_manager(self.hass)
-            if shutil.which(manager.binary) is None:
-                _LOGGER.debug(
-                    "FFmpeg binary %s is unavailable; using still frames for %s",
-                    manager.binary,
-                    entity_id,
-                )
-                stream_source = None
-
-        if stream_source:
-            stream = CameraMjpeg(manager.binary)
-            input_source = stream_source
-            if stream_source.lower().startswith(("rtsp://", "rtsps://")):
-                input_source = (
-                    "-rtsp_transport tcp -i " + shlex.quote(stream_source)
-                )
-            video_filter = (
-                f"scale={width}:{height}:force_original_aspect_ratio=increase,"
-                f"crop={width}:{height}"
-            )
-            opened = await stream.open_camera(
-                input_source,
-                extra_cmd=(
-                    f"-vf {shlex.quote(video_filter)} -r {fps} "
-                    "-pix_fmt yuvj420p -q:v 5"
-                ),
-            )
-            if opened:
-                try:
-                    stream_reader = await stream.get_reader()
-                    try:
-                        async with asyncio.timeout(5):
-                            first_chunk = await stream_reader.read(8192)
-                    except TimeoutError:
-                        first_chunk = b""
-                    if first_chunk:
-                        response = web.StreamResponse(
-                            headers={
-                                "Cache-Control": "no-store",
-                                "Content-Type": manager.ffmpeg_stream_content_type,
-                            }
-                        )
-                        await response.prepare(request)
-                        try:
-                            await response.write(first_chunk)
-                            while chunk := await stream_reader.read(65536):
-                                await response.write(chunk)
-                        except (BrokenPipeError, ConnectionResetError):
-                            pass
-                        return response
-                    _LOGGER.debug(
-                        "Native stream for %s produced no MJPEG data; using stills",
-                        entity_id,
-                    )
-                finally:
-                    await stream.close()
 
         first_frame = last_frame
 

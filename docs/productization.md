@@ -108,6 +108,68 @@ experiments. The active compression worker, JPEG-backed cache, three-slot Home
 window, and direct PPA presentation paths are unchanged. The ESP32-P4 direct
 component build now has no warnings originating from the LVGL component.
 
+Home now uses a reusable M3 Wear OS tile framework rather than product-local
+layout logic. `lvgl_material.tile_surfaces` binds a fixed pool of LVGL objects
+to eleven configuration slots. The Home Assistant integration edits those
+slots through an authenticated panel and sends one bounded JSON payload through
+the native ESPHome API. Only changed slots invalidate their managed snapshots;
+the firmware never reconstructs the object tree at runtime.
+
+The first Home page also validates `lvgl_material.weather_presenters`: weather
+labels and one of nine predeclared Lottie conditions are updated in place. The
+visible condition plays exactly one complete cycle every time the page becomes visible,
+then retains a non-empty final frame in its existing canvas allocation. During
+playback an immutable LVGL canvas and one private RGB888 render source are
+leased asynchronously to the direct-region compositor. This keeps the retained
+weather allocation near 633 KiB and measured playback near 33-35 FPS without an
+intermediate ARGB frame copy. Completion callbacks explicitly return source
+ownership; per-frame canvas rebinding is forbidden because it corrupts LVGL
+image-cache lifetime.
+
+`lvgl_material.notifications` provides a bounded four-item queue, M3 bottom
+sheet animation, timeout/tap dismissal, and display activity. It reference-
+counts ownership of the shared direct-region pause, drains in-flight PPA work
+before the modal overlay appears, and resumes renderers only after the
+underlying LVGL frame reaches DSI. This prevents weather, marquee, or other
+direct producers from painting above a full-screen overlay.
+
+The Home Assistant companion integration now owns the browser editor,
+configuration storage, card-state projection, and notification service. The
+editor runs inside Home Assistant's authenticated session; it does not ask for
+or store a long-lived access token. Entity text is HTML-decoded and whitespace
+normalized before it reaches the device. The implementation was informed by
+the feature set of `jtenniswood/espcontrol`, but no source was copied because
+that project uses a non-commercial license.
+
+## Implemented product surface and remaining gaps
+
+This checkpoint contains a usable control plane, but it is not a claim that
+every EspControl capability has been ported.
+
+| Area | Implemented now | Deliberately not yet implemented |
+| --- | --- | --- |
+| Web configuration | Authenticated Home Assistant sidebar panel; edits entity, title, icon, palette, optional service, and visibility for eleven fixed slots | Device-hosted unauthenticated web server, drag-and-drop layout, arbitrary pages/card sizes, full appearance editor |
+| Home cards | Fixed LVGL object pool, live HA state projection, conservative tap actions, changed-slot snapshot invalidation | EspControl's complete card catalog, subpages, per-card advanced controls, runtime object-tree construction |
+| Notifications | HA notify entity, bounded four-item queue, modal M3 bottom sheet, timeout/tap dismissal | Notification history, rich media/actions, per-notification styling editor |
+| Text normalization | HTML entity decoding, tag removal where applicable, whitespace normalization, bounded UTF-8 payloads | Rich HTML rendering |
+| Cameras | Select and order existing `camera.*` entities in HA; signed proxy URLs; native MJPEG delegation; FFmpeg/still fallback; on-device source picker | Camera discovery without installing the companion integration, H.264 presentation, recording/timeline UI |
+| Weather | HA-backed labels and nine bounded Lottie conditions; one complete cycle on every page reveal; retained final frame included in snapshots | Forecast editor and arbitrary downloaded animation packs |
+| Backup/language/update UI | Firmware retains compiled defaults if HA is unavailable | EspControl-compatible layout backup/restore, localization editor, web installer and firmware-channel UI |
+
+The browser surface is hosted by Home Assistant at the authenticated
+`/atmosfera-echo-hub` panel route. The ESP32 does not run a second configuration
+server and does not store a Home Assistant bearer token. This keeps the device
+memory footprint bounded and reuses the established ESPHome API trust boundary.
+Frontend errors are recursively reduced to their message/code/body text before
+rendering, so Home Assistant API exceptions never collapse to the unhelpful
+`[object Object]` string.
+
+EspControl remains a product-research reference. The independently implemented
+parts are the fixed-card editor/state bridge, conservative entity actions,
+HTML cleanup, notification presentation, and several camera/media lifecycle
+ideas. Its source is not copied because PolyForm Noncommercial is incompatible
+with the intended upstream ESPHome boundary.
+
 The obsolete PlatformIO-only FreeRTOS and ESP-Hosted patch scripts have been
 removed. Native ESP-IDF builds never executed them, so keeping their absolute
 paths in the product configuration provided no runtime behavior and made the
@@ -161,7 +223,7 @@ integration tree:
 | `esp32_jpeg` | Keep as a generic hardware JPEG codec and upstream it |
 | `image` | Reconcile with the current upstream image platform |
 | `immich_gallery` | Grow from the validated API/parser boundary into the generic Immich application controller |
-| `lvgl_material` | Keep independent reusable widgets, direct state layers, marquees, volume overlays, and wavy progress controls |
+| `lvgl_material` | Keep independent reusable widgets, fixed tile surfaces, weather and notification presenters, direct state layers, marquees, volume overlays, and wavy progress controls |
 | `lvgl_image_presenter` | Keep the generic image ownership/crossfade/direct-presentation state machine |
 | `lvgl` | Rebase accelerators; extract navigation and snapshots |
 | `micro_wake_word` | Keep only the configurable buffering changes missing upstream |
@@ -218,7 +280,10 @@ than application-specific code:
 - marquee label;
 - direct volume arc overlay;
 - Material state-layer feedback;
-- page indicator.
+- page indicator;
+- fixed, runtime-configurable M3 tile surfaces;
+- bounded notification bottom sheet;
+- weather condition presenter with one active Lottie renderer.
 
 ### Application controllers
 
@@ -228,6 +293,15 @@ than application-specific code:
   deterministic finish behavior.
 - A media UI controller may follow after the generic widgets and image sources
   are stable.
+
+### Home Assistant companion boundary
+
+The `atmosfera_echo_hub` integration is the product configuration boundary, not
+an LVGL renderer. It owns persisted tile definitions, entity subscriptions,
+the authenticated editor panel, and notification dispatch. Firmware receives
+normalized fixed-slot data and remains usable with its compiled defaults when
+Home Assistant is unavailable. Camera selection can be projected from existing
+Home Assistant camera entities without requiring a separate proxy add-on.
 
 ## Migration sequence
 
@@ -264,3 +338,39 @@ Each stage must pass:
 
 The production project is ready to replace the baseline only when no gate
 regresses and the YAML contains no component-internal state machines.
+
+### M3 Home and gallery checkpoint (2026-08-10)
+
+The M3 Home, notification overlay, finite-weather ownership, and low-memory
+gallery transition changes passed configuration validation, a complete
+ESP-IDF 5.5.5 factory build, and a factory flash from address `0x0` on the
+800x800 ESP32-P4 device.
+
+Hardware validation confirmed:
+
+- the rounded weather surface has no protruding square background;
+- a page re-entry starts from the retained frame at normal speed, plays one
+  complete cycle, and retains a visible final frame;
+- the retained weather frame is present in the moving Home snapshot;
+- the stationary page indicator remains at the bottom of the viewport;
+- enlarged tile labels/icons and the Lights/Climate vertical alignment are
+  present in the captured physical framebuffer;
+- three consecutive Gallery open, next-image, and close cycles completed
+  without a restart, DSI underrun, TLSF assertion, or leaked transition frame.
+- the Camera application opened through the Home Assistant catalog, retained
+  its loader while the first configured source returned HTTP 502, and displayed
+  a real frame after selecting the next source. This separates an unavailable
+  upstream/proxy source from the working HA -> hardware JPEG -> DSI path.
+
+After those Gallery cycles, diagnostics reported 8.7 MiB free PSRAM, a 5.1 MiB
+largest block, 6.5 MiB of Home snapshot cache, and no retained Gallery decode
+or transition workspace. A framebuffer JPEG diagnostic requested while a
+1632x912 Gallery source occupied its 4.3 MiB staging allocation correctly
+returned `ESP_ERR_NO_MEM`; the application continued running and released the
+memory on close. This is a diagnostic-allocation limit, not proof that all
+future Gallery source dimensions fit concurrently.
+
+This checkpoint does not replace the complete gate above: sustained Camera
+streaming and source switching, audio playback, voice/AEC, repeated cold boots,
+the full HA tile editor, and physical notification interaction remain separate
+product tests.

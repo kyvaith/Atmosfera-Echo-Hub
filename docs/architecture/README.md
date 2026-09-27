@@ -151,12 +151,14 @@ The backlight may remain on past the configured timeout in exactly three cases:
 
 1. The Voice application is visible and a conversation is in `waiting`,
    `listening`, `thinking`, or `replying`.
-2. The Immich application is visible and its slideshow switch is enabled.
+2. The Immich application is visible, including its navigation HUD.
 3. The Camera application is visible and presenting a live preview.
 
-While one of these policies is active, the timeout epoch follows current time.
-When it ends, a complete new timeout period begins. An open but idle/error Voice
-screen and a paused slideshow do not inhibit sleep. `display_wake` is
+These policies inhibit sleep without changing the last-interaction timestamp.
+After leaving, sleep is still measured from the latest real touch. A manual
+Assistant close clears the wake-from-dark restore flag, while an automatic
+conversation completion can restore the originally dark display. An open but
+idle/error Voice screen does not inhibit sleep. `display_wake` is
 idempotent: when the panel is already lit it refreshes the timeout but does not
 restart the hardware LEDC fade.
 

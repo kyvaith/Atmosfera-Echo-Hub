@@ -1,0 +1,1366 @@
+# Home carousel based on the M3 Wear OS Tiles design kit.
+# The four roots and application button IDs are stable navigation contracts.
+
+lvgl:
+  pages:
+    - id: controls_page
+      bg_color: 0x000000
+      scrollable: false
+      scrollbar_mode: "off"
+      widgets:
+        # Page 1: the primary Wear-style home composition. The large digits and
+        # weather scene deliberately overflow the physical round viewport.
+        - obj:
+            id: controls_root_1
+            width: ${display_width}
+            height: ${display_height}
+            align: CENTER
+            bg_color: ${home_background_color}
+            bg_opa: 100%
+            border_width: 0
+            radius: 0
+            pad_all: 0
+            scrollable: false
+            overflow_visible: true
+            widgets:
+              - label:
+                  text: "Home"
+                  align: TOP_MID
+                  y: 76
+                  width: 360
+                  text_align: CENTER
+                  text_color: 0xF5EEFB
+                  text_font: roboto_24
+                  hidden: true
+
+              - obj:
+                  id: tile_weather_button
+                  x: ${home_weather_x}
+                  y: ${home_weather_y}
+                  width: ${home_weather_width}
+                  height: ${home_weather_height}
+                  bg_color: ${home_background_color}
+                  bg_opa: 0%
+                  border_width: 0
+                  outline_width: 0
+                  shadow_width: 0
+                  radius: 0
+                  # LVGL objects otherwise inherit the theme's 20px content
+                  # padding. The weather coordinates are measured in the
+                  # 800x800 design space and must land on that space directly.
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+                  gesture_bubble: true
+                  overflow_visible: true
+                  widgets:
+                    - lottie:
+                        id: weather_clear_day
+                        file: "assets/animations/weather/clear-day.json"
+                        x: ${home_weather_lottie_x}
+                        y: ${home_weather_lottie_y}
+                        width: ${home_weather_lottie_size}
+                        height: ${home_weather_lottie_size}
+                        render_width: ${home_weather_lottie_render_size}
+                        render_height: ${home_weather_lottie_render_size}
+                        # The clear-day scene is a radial sun; keep its Lottie
+                        # lifecycle but use the native anti-aliased primitive
+                        # renderer for smooth native-resolution frames.
+                        fast_radial: true
+                        fast_radial_fill_color: ${home_accent_color}
+                        fast_radial_outline_color: ${home_outline_color}
+                        loop: false
+                        play_count: 1
+                        auto_start: false
+                        retain_on_unload: false
+                        hidden: true
+                    - lottie:
+                        id: weather_clear_night
+                        opaque_background: ${home_background_color}
+                        file: "assets/animations/weather/clear-night.json"
+                        x: ${home_weather_lottie_x}
+                        y: ${home_weather_lottie_y}
+                        width: ${home_weather_lottie_size}
+                        height: ${home_weather_lottie_size}
+                        render_width: ${home_weather_lottie_render_size}
+                        render_height: ${home_weather_lottie_render_size}
+                        loop: false
+                        play_count: 1
+                        auto_start: false
+                        retain_on_unload: false
+                        hidden: true
+                    - lottie:
+                        id: weather_partly_cloudy_day
+                        opaque_background: ${home_background_color}
+                        file: "assets/animations/weather/partly-cloudy-day.json"
+                        x: ${home_weather_lottie_x}
+                        y: ${home_weather_lottie_y}
+                        width: ${home_weather_lottie_size}
+                        height: ${home_weather_lottie_size}
+                        render_width: ${home_weather_lottie_render_size}
+                        render_height: ${home_weather_lottie_render_size}
+                        loop: false
+                        play_count: 1
+                        auto_start: false
+                        retain_on_unload: false
+                        hidden: true
+                    - lottie:
+                        id: weather_partly_cloudy_night
+                        opaque_background: ${home_background_color}
+                        file: "assets/animations/weather/partly-cloudy-night.json"
+                        x: ${home_weather_lottie_x}
+                        y: ${home_weather_lottie_y}
+                        width: ${home_weather_lottie_size}
+                        height: ${home_weather_lottie_size}
+                        render_width: ${home_weather_lottie_render_size}
+                        render_height: ${home_weather_lottie_render_size}
+                        loop: false
+                        play_count: 1
+                        auto_start: false
+                        retain_on_unload: false
+                        hidden: true
+                    - lottie:
+                        id: weather_overcast
+                        opaque_background: ${home_background_color}
+                        file: "assets/animations/weather/overcast.json"
+                        x: ${home_weather_lottie_x}
+                        y: ${home_weather_lottie_y}
+                        width: ${home_weather_lottie_size}
+                        height: ${home_weather_lottie_size}
+                        render_width: ${home_weather_lottie_render_size}
+                        render_height: ${home_weather_lottie_render_size}
+                        loop: false
+                        play_count: 1
+                        auto_start: false
+                        retain_on_unload: false
+                        hidden: true
+                    - lottie:
+                        id: weather_rain
+                        opaque_background: ${home_background_color}
+                        file: "assets/animations/weather/rain.json"
+                        x: ${home_weather_lottie_x}
+                        y: ${home_weather_lottie_y}
+                        width: ${home_weather_lottie_size}
+                        height: ${home_weather_lottie_size}
+                        render_width: ${home_weather_lottie_render_size}
+                        render_height: ${home_weather_lottie_render_size}
+                        loop: false
+                        play_count: 1
+                        auto_start: false
+                        retain_on_unload: false
+                        hidden: true
+                    - lottie:
+                        id: weather_snow
+                        opaque_background: ${home_background_color}
+                        file: "assets/animations/weather/snow.json"
+                        x: ${home_weather_lottie_x}
+                        y: ${home_weather_lottie_y}
+                        width: ${home_weather_lottie_size}
+                        height: ${home_weather_lottie_size}
+                        render_width: ${home_weather_lottie_render_size}
+                        render_height: ${home_weather_lottie_render_size}
+                        loop: false
+                        play_count: 1
+                        auto_start: false
+                        retain_on_unload: false
+                        hidden: true
+                    - lottie:
+                        id: weather_thunderstorms
+                        opaque_background: ${home_background_color}
+                        file: "assets/animations/weather/thunderstorms.json"
+                        x: ${home_weather_lottie_x}
+                        y: ${home_weather_lottie_y}
+                        width: ${home_weather_lottie_size}
+                        height: ${home_weather_lottie_size}
+                        render_width: ${home_weather_lottie_render_size}
+                        render_height: ${home_weather_lottie_render_size}
+                        loop: false
+                        play_count: 1
+                        auto_start: false
+                        retain_on_unload: false
+                        hidden: true
+                    - lottie:
+                        id: weather_fog
+                        opaque_background: ${home_background_color}
+                        file: "assets/animations/weather/fog.json"
+                        x: ${home_weather_lottie_x}
+                        y: ${home_weather_lottie_y}
+                        width: ${home_weather_lottie_size}
+                        height: ${home_weather_lottie_size}
+                        render_width: ${home_weather_lottie_render_size}
+                        render_height: ${home_weather_lottie_render_size}
+                        loop: false
+                        play_count: 1
+                        auto_start: false
+                        retain_on_unload: false
+                        hidden: true
+
+                    # The dark diagonal chip is independent from its upright
+                    # labels, matching the layered construction in the slide.
+                    - obj:
+                        id: home_weather_chip
+                        x: ${home_weather_pill_x}
+                        y: ${home_weather_pill_y}
+                        width: ${home_weather_pill_width}
+                        height: ${home_weather_pill_height}
+                        bg_color: ${home_surface_color}
+                        bg_opa: 100%
+                        border_width: 0
+                        outline_width: 0
+                        shadow_width: 0
+                        radius: 57
+                        pad_all: 0
+                        scrollable: false
+                        clickable: false
+                        transform_rotation: 0
+                        transform_pivot_x: 50%
+                        transform_pivot_y: 50%
+                    - label:
+                        id: home_weather_temperature
+                        # Keep the design fixture visible until the first HA
+                        # weather update arrives. A `--` placeholder could be
+                        # captured before the presenter ran and showed as two
+                        # missing-glyph squares on the boot snapshot.
+                        text: "21"
+                        x: ${home_weather_temperature_x}
+                        y: ${home_weather_temperature_y}
+                        width: ${home_weather_temperature_width}
+                        height: ${home_weather_temperature_height}
+                        text_align: CENTER
+                        text_color: ${home_accent_color}
+                        text_font: cherry_bomb_56
+                        text_outline_stroke_color: ${home_outline_color}
+                        text_outline_stroke_opa: 100%
+                        text_outline_stroke_width: 2
+                    - label:
+                        id: home_weather_temperature_unit
+                        text: "\u00B0"
+                        x: ${home_weather_temperature_unit_x}
+                        y: ${home_weather_temperature_unit_y}
+                        width: 24
+                        height: 42
+                        text_align: LEFT
+                        text_color: ${home_accent_color}
+                        text_font: cherry_bomb_32_unit
+                        text_outline_stroke_color: ${home_outline_color}
+                        text_outline_stroke_opa: 100%
+                        text_outline_stroke_width: 1
+                    - label:
+                        id: home_weather_temperature_c
+                        text: "C"
+                        x: ${home_weather_temperature_c_x}
+                        y: ${home_weather_temperature_c_y}
+                        width: 34
+                        height: 34
+                        text_align: LEFT
+                        text_color: ${home_accent_color}
+                        text_font: cherry_bomb_24_unit
+                        text_outline_stroke_color: ${home_outline_color}
+                        text_outline_stroke_opa: 100%
+                        text_outline_stroke_width: 1
+                    - label:
+                        id: home_weather_condition
+                        text: "sunny"
+                        x: ${home_weather_condition_x}
+                        y: ${home_weather_condition_y}
+                        width: ${home_weather_condition_width}
+                        height: ${home_weather_condition_height}
+                        text_align: CENTER
+                        text_color: 0xFFFFFF
+                        text_font: roboto_34_bold
+                        text_outline_stroke_color: ${home_outline_color}
+                        text_outline_stroke_opa: 100%
+                        text_outline_stroke_width: 1
+                    - label:
+                        id: home_weather_range
+                        text: ""
+                        x: 0
+                        y: 0
+                        width: 1
+                        height: 1
+                        hidden: true
+
+              # The clock uses the same text boxes as the reference slide.
+              # The outline font is compiled from the same glyph metrics;
+              # it expands contours without changing digit advance/baseline.
+              - label:
+                  id: home_clock_text
+                  text: "#FFFFFF 1##${home_accent_hex} 2#"
+                  x: ${home_clock_x}
+                  y: ${home_clock_y}
+                  width: ${home_clock_width}
+                  height: ${home_clock_height}
+                  text_align: LEFT
+                  text_color: 0xFFFFFF
+                  text_font: cherry_bomb_420
+                  text_line_space: 44
+                  recolor: true
+              - label:
+                  id: home_minute_outline
+                  text: "58"
+                  x: ${home_minute_text_x}
+                  y: ${home_minute_text_y}
+                  width: ${home_minute_text_width}
+                  height: ${home_minute_text_height}
+                  text_align: LEFT
+                  text_color: ${home_outline_color}
+                  text_font: cherry_bomb_300_outline
+                  text_letter_space: 0
+              - label:
+                  id: home_minute_text
+                  text: "#${home_accent_hex} 5##FFFFFF 8#"
+                  x: ${home_minute_text_x}
+                  y: ${home_minute_text_y}
+                  width: ${home_minute_text_width}
+                  height: ${home_minute_text_height}
+                  text_align: LEFT
+                  text_color: 0xFFFFFF
+                  text_font: cherry_bomb_420
+                  text_letter_space: 0
+                  recolor: true
+
+              # These two labels replace the former top clock. The transparent
+              # global activation button remains above this area for volume.
+              - label:
+                  id: home_volume_icon
+                  text: "\uE050"
+                  x: ${home_volume_icon_x}
+                  y: ${home_status_icon_y}
+                  width: 48
+                  height: 52
+                  text_align: CENTER
+                  text_color: 0xFFFFFF
+                  text_font: material_symbols_44
+                  hidden: true
+              - label:
+                  id: home_wifi_icon
+                  text: "\uE63E"
+                  x: ${home_wifi_icon_x}
+                  y: ${home_wifi_icon_y}
+                  width: 58
+                  height: 60
+                  text_align: CENTER
+                  text_color: 0xFFFFFF
+                  text_font: material_symbols_58
+                  hidden: true
+
+              - button:
+                  id: tile_light_button
+                  hidden: true
+                  x: 75
+                  y: 454
+                  width: 310
+                  height: 128
+                  styles: m3_tile_primary
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        id: tile_light_icon
+                        text: "\uE0F0"
+                        x: 30
+                        align: LEFT_MID
+                        text_font: material_symbols_44
+                    - label:
+                        id: tile_light_title
+                        text: "Lights"
+                        x: 92
+                        y: 24
+                        width: 180
+                        long_mode: DOT
+                        text_font: roboto_30
+                    - label:
+                        id: tile_light_subtitle
+                        text: "Living room"
+                        x: 92
+                        y: 69
+                        width: 180
+                        long_mode: DOT
+                        text_font: roboto_18
+
+              - button:
+                  id: tile_climate_button
+                  hidden: true
+                  x: 415
+                  y: 454
+                  width: 310
+                  height: 128
+                  styles: m3_tile_primary_container
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        id: tile_climate_icon
+                        text: "\uE1FF"
+                        x: 30
+                        align: LEFT_MID
+                        text_font: material_symbols_44
+                    - label:
+                        id: tile_climate_title
+                        text: "Climate"
+                        x: 92
+                        y: 24
+                        width: 180
+                        long_mode: DOT
+                        text_font: roboto_30
+                    - label:
+                        id: tile_climate_subtitle
+                        text: "22 C"
+                        x: 92
+                        y: 69
+                        width: 180
+                        long_mode: DOT
+                        text_font: roboto_18
+
+              - obj:
+                  id: tile_slider_card
+                  hidden: true
+                  x: 112
+                  y: 610
+                  width: 576
+                  height: 76
+                  styles: m3_tile_surface
+                  radius: 38
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        text: "\uE050"
+                        x: 28
+                        y: 20
+                        text_color: 0xE9DDFF
+                        text_font: material_symbols_36
+                    - label:
+                        text: "Brightness"
+                        x: 78
+                        y: 24
+                        width: 176
+                        text_color: 0xF5EEFB
+                        text_font: roboto_20
+                    - slider:
+                        id: light_brightness_slider
+                        x: 264
+                        y: 29
+                        width: 264
+                        height: 18
+                        min_value: 1
+                        max_value: 100
+                        value: 65
+                        bg_color: 0x5C5368
+                        radius: 9
+                        indicator:
+                          bg_color: 0xE9DDFF
+                          radius: 9
+                        on_value:
+                          then:
+                            - script.execute: ui_refresh_current_tile_snapshot
+
+              # Live weather is deliberately the last page-owned layer. It is
+              # transparent and non-interactive, but its selected Lottie child
+              # is moved here so it is always above the clock and weather chip
+              # without borrowing the global LVGL top layer.
+              - obj:
+                  id: home_weather_animation_layer
+                  x: 0
+                  y: 0
+                  width: ${display_width}
+                  height: ${display_height}
+                  bg_opa: 0%
+                  border_width: 0
+                  outline_width: 0
+                  shadow_width: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+                  overflow_visible: true
+
+              - button:
+                  id: home_mic_button
+                  x: ${home_mic_x}
+                  y: ${home_mic_y}
+                  width: ${home_mic_size}
+                  height: ${home_mic_size}
+                  bg_color: ${home_surface_color}
+                  bg_opa: 100%
+                  border_width: 0
+                  outline_width: 0
+                  shadow_width: 0
+                  radius: 55
+                  pad_all: 0
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        id: home_mic_icon
+                        text: "\uE029"
+                        align: CENTER
+                        text_color: ${home_accent_color}
+                        text_font: material_symbols_68
+                  on_click:
+                    then:
+                      - lambda: |-
+                          id(voice_assistant_restore_display_off) = false;
+                          id(voice_assistant_restore_app_id) = 0;
+                          id(voice_assistant_terminal_close_pending) = false;
+                      - lvgl.navigation.open: voice_application
+
+        # Page 2: security with icon-button and compact data-card archetypes.
+        - obj:
+            id: controls_root_2
+            width: ${display_width}
+            height: ${display_height}
+            align: CENTER
+            hidden: true
+            bg_color: 0x000000
+            bg_opa: 100%
+            border_width: 0
+            radius: 0
+            pad_all: 0
+            scrollable: false
+            widgets:
+              - label:
+                  id: home_page2_status_volume_icon
+                  text: "\uE050"
+                  x: ${home_volume_icon_x}
+                  y: ${home_status_icon_y}
+                  width: 48
+                  height: 52
+                  text_align: CENTER
+                  text_color: 0xFFFFFF
+                  text_font: material_symbols_44
+                  clickable: false
+              - label:
+                  id: home_page2_status_wifi_icon
+                  text: "\uE648"
+                  x: ${home_wifi_icon_x}
+                  y: ${home_wifi_icon_y}
+                  width: 58
+                  height: 60
+                  text_align: CENTER
+                  text_color: 0xFFFFFF
+                  text_font: material_symbols_58
+                  clickable: false
+              - label:
+                  text: "Security"
+                  align: TOP_MID
+                  y: 76
+                  width: 360
+                  text_align: CENTER
+                  text_color: 0xF5EEFB
+                  text_font: roboto_24
+
+              - button:
+                  id: tile_cover_button
+                  x: 55
+                  y: 176
+                  width: 220
+                  height: 248
+                  styles: m3_tile_secondary
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        id: tile_cover_icon
+                        text: "\uE88A"
+                        align: TOP_MID
+                        y: 52
+                        text_font: material_symbols_68
+                    - label:
+                        id: tile_cover_title
+                        text: "Cover"
+                        align: BOTTOM_MID
+                        y: -58
+                        width: 184
+                        text_align: CENTER
+                        long_mode: DOT
+                        text_font: roboto_24
+                    - label:
+                        id: tile_cover_subtitle
+                        text: "Closed"
+                        align: BOTTOM_MID
+                        y: -28
+                        width: 184
+                        text_align: CENTER
+                        long_mode: DOT
+                        text_font: roboto_16
+
+              - button:
+                  id: tile_lock_button
+                  x: 290
+                  y: 176
+                  width: 220
+                  height: 248
+                  styles: m3_tile_primary
+                  radius: 72
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        id: tile_lock_icon
+                        text: "\uE897"
+                        align: TOP_MID
+                        y: 52
+                        text_font: material_symbols_68
+                    - label:
+                        id: tile_lock_title
+                        text: "Front door"
+                        align: BOTTOM_MID
+                        y: -58
+                        width: 184
+                        text_align: CENTER
+                        long_mode: DOT
+                        text_font: roboto_24
+                    - label:
+                        id: tile_lock_subtitle
+                        text: "Locked"
+                        align: BOTTOM_MID
+                        y: -28
+                        width: 184
+                        text_align: CENTER
+                        long_mode: DOT
+                        text_font: roboto_16
+
+              - button:
+                  id: tile_alarm_button
+                  x: 525
+                  y: 176
+                  width: 220
+                  height: 248
+                  styles: m3_tile_secondary
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        id: tile_alarm_icon
+                        text: "\uE9E0"
+                        align: TOP_MID
+                        y: 52
+                        text_font: material_symbols_68
+                    - label:
+                        id: tile_alarm_title
+                        text: "Alarm"
+                        align: BOTTOM_MID
+                        y: -58
+                        width: 184
+                        text_align: CENTER
+                        long_mode: DOT
+                        text_font: roboto_24
+                    - label:
+                        id: tile_alarm_subtitle
+                        text: "Disarmed"
+                        align: BOTTOM_MID
+                        y: -28
+                        width: 184
+                        text_align: CENTER
+                        long_mode: DOT
+                        text_font: roboto_16
+
+              - button:
+                  id: tile_garage_button
+                  x: 94
+                  y: 462
+                  width: 296
+                  height: 116
+                  styles: m3_tile_surface
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        id: tile_garage_icon
+                        text: "\uE88A"
+                        x: 28
+                        y: 34
+                        text_color: 0xB7EDE2
+                        text_font: material_symbols_44
+                    - label:
+                        id: tile_garage_title
+                        text: "Garage"
+                        x: 86
+                        y: 21
+                        width: 178
+                        long_mode: DOT
+                        text_font: roboto_24
+                    - label:
+                        id: tile_garage_subtitle
+                        text: "Closed"
+                        x: 86
+                        y: 61
+                        width: 178
+                        long_mode: DOT
+                        text_color: 0xCFC5D8
+                        text_font: roboto_16
+
+              - button:
+                  id: tile_door_window_button
+                  x: 410
+                  y: 462
+                  width: 296
+                  height: 116
+                  styles: m3_tile_surface
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        text: "\uF1B4"
+                        x: 28
+                        y: 34
+                        text_color: 0xB7EDE2
+                        text_font: material_symbols_44
+                    - label:
+                        text: "Windows"
+                        x: 86
+                        y: 21
+                        width: 178
+                        long_mode: DOT
+                        text_font: roboto_24
+                    - label:
+                        text: "All secure"
+                        x: 86
+                        y: 61
+                        width: 178
+                        long_mode: DOT
+                        text_color: 0xCFC5D8
+                        text_font: roboto_16
+
+              - button:
+                  id: tile_presence_button
+                  x: 180
+                  y: 606
+                  width: 440
+                  height: 76
+                  styles: m3_tile_tertiary
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        text: "\uF0D3"
+                        x: 42
+                        y: 20
+                        text_font: material_symbols_36
+                    - label:
+                        text: "Home occupied"
+                        x: 96
+                        y: 23
+                        width: 290
+                        long_mode: DOT
+                        text_font: roboto_24
+
+        # Page 3: application launcher using M3 icon-button geometry.
+        - obj:
+            id: controls_root_3
+            width: ${display_width}
+            height: ${display_height}
+            align: CENTER
+            hidden: true
+            bg_color: 0x000000
+            bg_opa: 100%
+            border_width: 0
+            radius: 0
+            pad_all: 0
+            scrollable: false
+            widgets:
+              - label:
+                  id: home_page3_status_volume_icon
+                  text: "\uE050"
+                  x: ${home_volume_icon_x}
+                  y: ${home_status_icon_y}
+                  width: 48
+                  height: 52
+                  text_align: CENTER
+                  text_color: 0xFFFFFF
+                  text_font: material_symbols_44
+                  clickable: false
+              - label:
+                  id: home_page3_status_wifi_icon
+                  text: "\uE648"
+                  x: ${home_wifi_icon_x}
+                  y: ${home_wifi_icon_y}
+                  width: 58
+                  height: 60
+                  text_align: CENTER
+                  text_color: 0xFFFFFF
+                  text_font: material_symbols_58
+                  clickable: false
+              - label:
+                  text: "Apps"
+                  align: TOP_MID
+                  y: 76
+                  width: 360
+                  text_align: CENTER
+                  text_color: 0xF5EEFB
+                  text_font: roboto_24
+
+              - button:
+                  id: tile_camera_button
+                  x: 55
+                  y: 190
+                  width: 220
+                  height: 248
+                  styles: m3_tile_secondary
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        text: "\uE04B"
+                        align: CENTER
+                        y: -24
+                        text_font: material_symbols_96
+                    - label:
+                        text: "Cameras"
+                        align: BOTTOM_MID
+                        y: -36
+                        text_font: roboto_24
+                  on_click:
+                    then:
+                      - lvgl.navigation.open: camera_application
+
+              - button:
+                  id: tile_media_button
+                  x: 290
+                  y: 190
+                  width: 220
+                  height: 248
+                  styles: m3_tile_primary
+                  radius: 72
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        text: "\uE405"
+                        align: CENTER
+                        y: -24
+                        text_font: material_symbols_96
+                    - label:
+                        text: "Player"
+                        align: BOTTOM_MID
+                        y: -36
+                        text_font: roboto_24
+                  on_click:
+                    then:
+                      - lvgl.navigation.open: player_application
+
+              - button:
+                  id: tile_internal_button
+                  x: 525
+                  y: 190
+                  width: 220
+                  height: 248
+                  styles: m3_tile_secondary
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        text: "\uE3F4"
+                        align: CENTER
+                        y: -24
+                        text_font: material_symbols_96
+                    - label:
+                        text: "Photos"
+                        align: BOTTOM_MID
+                        y: -36
+                        text_font: roboto_24
+                  on_click:
+                    then:
+                      - lvgl.navigation.open: immich_application
+
+              - button:
+                  id: tile_settings_button
+                  x: 112
+                  y: 480
+                  width: 276
+                  height: 122
+                  styles: m3_tile_surface
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        text: "\uE8B8"
+                        x: 28
+                        y: 34
+                        text_color: 0xE9DDFF
+                        text_font: material_symbols_44
+                    - label:
+                        text: "Settings"
+                        x: 88
+                        y: 28
+                        width: 156
+                        long_mode: DOT
+                        text_font: roboto_24
+                    - label:
+                        text: "Device"
+                        x: 88
+                        y: 67
+                        width: 156
+                        long_mode: DOT
+                        text_color: 0xCFC5D8
+                        text_font: roboto_16
+                  on_click:
+                    then:
+                      - lvgl.navigation.open: settings_application
+
+              - button:
+                  id: tile_voice_button
+                  x: 412
+                  y: 480
+                  width: 276
+                  height: 122
+                  styles: m3_tile_tertiary
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        text: "\uE029"
+                        x: 28
+                        y: 34
+                        text_font: material_symbols_44
+                    - label:
+                        text: "Assistant"
+                        x: 88
+                        y: 28
+                        width: 156
+                        long_mode: DOT
+                        text_font: roboto_24
+                    - label:
+                        text: "Talk"
+                        x: 88
+                        y: 67
+                        width: 156
+                        long_mode: DOT
+                        text_font: roboto_16
+                  on_click:
+                    then:
+                      - lambda: |-
+                          id(voice_assistant_restore_display_off) = false;
+                          id(voice_assistant_restore_app_id) = 0;
+                          id(voice_assistant_terminal_close_pending) = false;
+                      - lvgl.navigation.open: voice_application
+
+              - button:
+                  id: tile_subpage_button
+                  x: 280
+                  y: 626
+                  width: 240
+                  height: 60
+                  styles: m3_tile_surface
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        text: "More"
+                        align: CENTER
+                        text_color: 0xF5EEFB
+                        text_font: roboto_18
+                  on_click:
+                    then:
+                      - script.execute: ui_show_tiles_4
+
+        # Page 4: mixed controls and information cards.
+        - obj:
+            id: controls_root_4
+            width: ${display_width}
+            height: ${display_height}
+            align: CENTER
+            hidden: true
+            bg_color: 0x000000
+            bg_opa: 100%
+            border_width: 0
+            radius: 0
+            pad_all: 0
+            scrollable: false
+            widgets:
+              - label:
+                  id: home_page4_status_volume_icon
+                  text: "\uE050"
+                  x: ${home_volume_icon_x}
+                  y: ${home_status_icon_y}
+                  width: 48
+                  height: 52
+                  text_align: CENTER
+                  text_color: 0xFFFFFF
+                  text_font: material_symbols_44
+                  clickable: false
+              - label:
+                  id: home_page4_status_wifi_icon
+                  text: "\uE648"
+                  x: ${home_wifi_icon_x}
+                  y: ${home_wifi_icon_y}
+                  width: 58
+                  height: 60
+                  text_align: CENTER
+                  text_color: 0xFFFFFF
+                  text_font: material_symbols_58
+                  clickable: false
+              - label:
+                  text: "Controls"
+                  align: TOP_MID
+                  y: 76
+                  width: 360
+                  text_align: CENTER
+                  text_color: 0xF5EEFB
+                  text_font: roboto_24
+
+              - button:
+                  id: tile_fan_button
+                  x: 60
+                  y: 168
+                  width: 210
+                  height: 190
+                  styles: m3_tile_secondary
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        id: tile_fan_icon
+                        text: "\uF168"
+                        align: TOP_MID
+                        y: 34
+                        text_font: material_symbols_68
+                    - label:
+                        id: tile_fan_title
+                        text: "Fan"
+                        align: BOTTOM_MID
+                        y: -46
+                        width: 176
+                        text_align: CENTER
+                        text_font: roboto_24
+                    - label:
+                        id: tile_fan_subtitle
+                        text: "Off"
+                        align: BOTTOM_MID
+                        y: -20
+                        width: 176
+                        text_align: CENTER
+                        text_font: roboto_16
+
+              - button:
+                  id: tile_fan_speed_button
+                  x: 295
+                  y: 168
+                  width: 210
+                  height: 190
+                  styles: m3_tile_primary
+                  radius: 62
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        id: tile_fan_speed_icon
+                        text: "\uE429"
+                        align: TOP_MID
+                        y: 34
+                        text_font: material_symbols_68
+                    - label:
+                        id: tile_fan_speed_title
+                        text: "Speed"
+                        align: BOTTOM_MID
+                        y: -46
+                        width: 176
+                        text_align: CENTER
+                        text_font: roboto_24
+                    - label:
+                        id: tile_fan_speed_subtitle
+                        text: "50%"
+                        align: BOTTOM_MID
+                        y: -20
+                        width: 176
+                        text_align: CENTER
+                        text_font: roboto_16
+
+              - button:
+                  id: tile_webhook_button
+                  x: 530
+                  y: 168
+                  width: 210
+                  height: 190
+                  styles: m3_tile_secondary
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        text: "\uE157"
+                        align: TOP_MID
+                        y: 34
+                        text_font: material_symbols_68
+                    - label:
+                        text: "Webhook"
+                        align: BOTTOM_MID
+                        y: -46
+                        width: 176
+                        text_align: CENTER
+                        text_font: roboto_24
+                    - label:
+                        text: "Run"
+                        align: BOTTOM_MID
+                        y: -20
+                        width: 176
+                        text_align: CENTER
+                        text_font: roboto_16
+                  on_click:
+                    then:
+                      - homeassistant.action:
+                          action: script.turn_on
+                          data:
+                            entity_id: script.atmosfera_webhook
+
+              - button:
+                  id: tile_switch_button
+                  x: 58
+                  y: 392
+                  width: 216
+                  height: 116
+                  styles: m3_tile_surface
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        id: tile_switch_icon
+                        text: "\uE8AC"
+                        align: TOP_MID
+                        y: 16
+                        text_color: 0xE9DDFF
+                        text_font: material_symbols_36
+                    - label:
+                        id: tile_switch_title
+                        text: "Switch"
+                        align: BOTTOM_MID
+                        y: -34
+                        width: 190
+                        text_align: CENTER
+                        long_mode: DOT
+                        text_font: roboto_20
+                    - label:
+                        id: tile_switch_subtitle
+                        text: "Off"
+                        align: BOTTOM_MID
+                        y: -12
+                        width: 190
+                        text_align: CENTER
+                        text_font: roboto_16
+
+              - button:
+                  id: tile_scene_button
+                  x: 292
+                  y: 392
+                  width: 216
+                  height: 116
+                  styles: m3_tile_surface
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        id: tile_scene_icon
+                        text: "\uE65F"
+                        align: TOP_MID
+                        y: 16
+                        text_color: 0xB7EDE2
+                        text_font: material_symbols_36
+                    - label:
+                        id: tile_scene_title
+                        text: "Scene"
+                        align: BOTTOM_MID
+                        y: -34
+                        width: 190
+                        text_align: CENTER
+                        long_mode: DOT
+                        text_font: roboto_20
+                    - label:
+                        id: tile_scene_subtitle
+                        text: "Relax"
+                        align: BOTTOM_MID
+                        y: -12
+                        width: 190
+                        text_align: CENTER
+                        text_font: roboto_16
+
+              - button:
+                  id: tile_trigger_button
+                  x: 526
+                  y: 392
+                  width: 216
+                  height: 116
+                  styles: m3_tile_surface
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        id: tile_trigger_icon
+                        text: "\uE5D5"
+                        align: TOP_MID
+                        y: 16
+                        text_color: 0xBAC3FF
+                        text_font: material_symbols_36
+                    - label:
+                        id: tile_trigger_title
+                        text: "Action"
+                        align: BOTTOM_MID
+                        y: -34
+                        width: 190
+                        text_align: CENTER
+                        long_mode: DOT
+                        text_font: roboto_20
+                    - label:
+                        id: tile_trigger_subtitle
+                        text: "Press"
+                        align: BOTTOM_MID
+                        y: -12
+                        width: 190
+                        text_align: CENTER
+                        text_font: roboto_16
+
+              - button:
+                  id: tile_sensor_button
+                  x: 112
+                  y: 548
+                  width: 276
+                  height: 112
+                  styles: m3_tile_surface
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        text: "21.8 C"
+                        align: TOP_MID
+                        y: 18
+                        text_color: 0xB7EDE2
+                        text_font: roboto_34
+                    - label:
+                        text: "Living room"
+                        align: BOTTOM_MID
+                        y: -18
+                        text_color: 0xCFC5D8
+                        text_font: roboto_16
+
+              - button:
+                  id: tile_clock_button
+                  x: 412
+                  y: 548
+                  width: 276
+                  height: 112
+                  styles: m3_tile_surface
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        text: "Next alarm"
+                        align: TOP_MID
+                        y: 20
+                        text_color: 0xCFC5D8
+                        text_font: roboto_16
+                    - label:
+                        text: "7:30"
+                        align: BOTTOM_MID
+                        y: -17
+                        text_color: 0xE9DDFF
+                        text_font: roboto_34
+
+        # These status labels are outside every moving root. The compositor
+        # therefore captures them once and keeps them fixed on all Home pages.
+        - label:
+            id: home_fixed_status_volume_icon
+            text: "\uE050"
+            x: ${home_volume_icon_x}
+            y: ${home_status_icon_y}
+            width: 48
+            height: 52
+            text_align: CENTER
+            text_color: 0xFFFFFF
+            text_font: material_symbols_44
+            hidden: false
+        - label:
+            id: home_fixed_status_wifi_icon
+            text: "\uE648"
+            x: ${home_wifi_icon_x}
+            y: ${home_wifi_icon_y}
+            width: 58
+            height: 60
+            text_align: CENTER
+            text_color: 0xFFFFFF
+            text_font: material_symbols_58
+            hidden: false
+
+        # The indicator is outside snapshots and stays fixed during swipe.
+        - obj:
+            id: page_indicator_row
+            x: ${home_page_indicator_x}
+            y: ${home_page_indicator_y}
+            width: 96
+            height: 10
+            bg_opa: TRANSP
+            border_width: 0
+            pad_all: 0
+            scrollable: false
+            clickable: false
+            layout:
+              type: flex
+              flex_flow: ROW
+              flex_align_main: CENTER
+              flex_align_cross: CENTER
+              pad_column: 12
+            widgets:
+              - obj:
+                  id: page_indicator_1
+                  width: 10
+                  height: 10
+                  radius: 5
+                  bg_color: 0xFFFFFF
+                  bg_opa: 55%
+                  border_width: 0
+                  clickable: false
+                  checked:
+                    width: 30
+                    bg_color: 0xFFFFFF
+                    bg_opa: 100%
+              - obj:
+                  id: page_indicator_2
+                  width: 10
+                  height: 10
+                  radius: 5
+                  bg_color: 0xFFFFFF
+                  bg_opa: 55%
+                  border_width: 0
+                  clickable: false
+                  checked:
+                    width: 30
+                    bg_color: 0xFFFFFF
+                    bg_opa: 100%
+              - obj:
+                  id: page_indicator_3
+                  width: 10
+                  height: 10
+                  radius: 5
+                  bg_color: 0xFFFFFF
+                  bg_opa: 55%
+                  border_width: 0
+                  clickable: false
+                  checked:
+                    width: 30
+                    bg_color: 0xFFFFFF
+                    bg_opa: 100%
+              - obj:
+                  id: page_indicator_4
+                  width: 10
+                  height: 10
+                  radius: 5
+                  bg_color: 0xFFFFFF
+                  bg_opa: 55%
+                  border_width: 0
+                  clickable: false
+                  checked:
+                    width: 30
+                    bg_color: 0xFFFFFF
+                    bg_opa: 100%
+
+        - obj:
+            id: screen_tone_overlay_controls
+            x: 0
+            y: 0
+            width: 800
+            height: 800
+            bg_color: 0x000000
+            bg_opa: 100%
+            border_width: 0
+            radius: 0
+            pad_all: 0
+            scrollable: false
+            clickable: false
+            hidden: true

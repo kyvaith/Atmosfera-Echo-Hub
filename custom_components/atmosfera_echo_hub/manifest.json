@@ -3,9 +3,17 @@
   "name": "Atmosfera Echo Hub",
   "codeowners": ["@kyvaith"],
   "config_flow": true,
-  "dependencies": ["camera", "esphome", "ffmpeg", "network"],
+  "dependencies": [
+    "camera",
+    "esphome",
+    "ffmpeg",
+    "frontend",
+    "network",
+    "panel_custom",
+    "websocket_api"
+  ],
   "documentation": "https://github.com/kyvaith/Atmosfera-Echo-Hub",
   "integration_type": "helper",
   "iot_class": "local_push",
-  "version": "0.2.3"
+  "version": "0.3.3"
 }

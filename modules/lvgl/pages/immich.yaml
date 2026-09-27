@@ -55,7 +55,7 @@ lvgl:
                     # currently budgeted at about 33 ms. Match that cadence so
                     # an over-budget frame cannot spin immediately and starve
                     # audio, LVGL or the next DSI scanout transaction.
-                    frame_interval: 34ms
+                    frame_interval: 25ms
                     # Keep a fixed cover crop and animate only the pan. A
                     # changing crop size adds a full-frame resample without
                     # improving the slideshow on the round display.
@@ -199,23 +199,18 @@ lvgl:
                         align: CENTER
                         text_color: 0xD3E3FD
                         text_font: material_symbols_58
-                    - spinner:
-                        id: immich_loading_spinner
-                        hidden: true
+                    - lottie:
+                        id: immich_loading_lottie
+                        file: "assets/animations/m3_loading_contained_small_blue.json"
                         align: CENTER
-                        width: 70
-                        height: 70
-                        bg_color: 0x000000
-                        bg_opa: 100%
-                        border_width: 0
-                        shadow_width: 0
-                        spin_time: 900ms
-                        arc_length: 80deg
-                        arc_width: 7
-                        arc_color: 0x34283E
-                        indicator:
-                          arc_width: 7
-                          arc_color: 0xE8DEF8
+                        width: 96
+                        height: 96
+                        # The black empty-state card is the backdrop. Keep the
+                        # small Material loader in native LVGL so it cannot
+                        # leave a stale direct-region fragment at handoff.
+                        loop: true
+                        auto_start: false
+                        hidden: true
                     - label:
                         hidden: true
                         text: "Immich Photos"
@@ -250,6 +245,7 @@ lvgl:
               # four seconds; it does not carry this overlay on every frame.
               - button:
                   id: immich_controls_touch_zone
+                  hidden: true
                   x: 180
                   y: 150
                   width: 440
@@ -271,6 +267,7 @@ lvgl:
               # into every fullscreen frame.
               - button:
                   id: immich_prev_touch_zone
+                  hidden: true
                   x: 0
                   y: 150
                   width: 180
@@ -288,6 +285,7 @@ lvgl:
                     - script.execute: immich_previous_photo
               - button:
                   id: immich_next_touch_zone
+                  hidden: true
                   x: 620
                   y: 150
                   width: 180

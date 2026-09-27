@@ -77,6 +77,18 @@ MJPEG; otherwise it serves complete normalized still frames. A failed fallback
 therefore cannot leave the device waiting behind an already-successful empty
 response. Frigate and non-Frigate camera entities follow the same contract.
 
+The first native-size FFmpeg frame is allowed up to 12 seconds. The aquarium
+HLS source measured roughly 4.8-5.1 seconds for that first frame, so the old
+five-second deadline consistently abandoned a healthy MJPEG conversion and
+fell through to a low-rate still-image path. The device request timeout is 15
+seconds, leaving the proxy time to establish the source without turning a
+temporary startup delay into a reconnect loop.
+
+The validated aquarium entity is `camera.public_aquarium_stream`. The older
+`camera.public_aquarium` entry pointed at a retired local MJPEG port; preserving
+that stale identifier made the application look broken even though the direct
+HLS source and the display pipeline were healthy.
+
 ## Home Assistant setup
 
 Install the repository as a HACS custom integration, or copy
@@ -97,6 +109,12 @@ options to add, remove, or reorder cameras; no firmware rebuild is required.
 A configured camera remains in the catalog while its entity is temporarily
 unavailable. Selecting it shows the normal reconnect state until Home Assistant
 can produce frames again.
+
+An unavailable entity still exists in `hass.states` and is therefore retained.
+A stale identifier that no longer exists is different: the options form drops
+it instead of repeatedly pushing a dead source to the display. This matters for
+YAML cameras, which can be valid runtime states without having an entity-registry
+entry; selection and validation must use `hass.states`, not only the registry.
 
 ## Runtime catalog contract
 
@@ -187,6 +205,15 @@ The network reader runs in a dedicated FreeRTOS task. It:
    geometry matches, otherwise decodes into the reusable RGB888 fallback;
 6. publishes a generation only after decode or direct presentation completes.
 
+For HTTP HLS sources the Home Assistant proxy must pace output, not input.
+FFmpeg receives `-thread_queue_size 1024` before the HLS input so its demuxer
+can fetch the next segment while the current one is consumed. The
+`realtime=limit=2:speed=1` video filter then emits the scaled 800x800 frames at
+wall-clock cadence. Input-side `-re` blocks that prefetch and exposes every CDN
+segment boundary as a 300-700 ms display pause. MJPEG quality scale 7 keeps the
+native 800x800 geometry while reducing the measured stream from roughly
+17.6 Mbit/s to 14.5 Mbit/s.
+
 With `defer_direct_session_until_frame: true`, Camera does not take exclusive
 display ownership while only its loading page is visible. The first complete
 encoded JPEG sets an atomic readiness signal and is deliberately dropped. On
@@ -251,6 +278,13 @@ Assistant camera only produces a new still every several seconds. Camera-owned
 memory returned to about 750 KiB after stop. These are integration checkpoints,
 not guaranteed frame rates for every camera or network.
 
+On 2026-09-08, the public HLS camera was validated again through the buffered,
+output-paced proxy. Device input held mostly at 14.7-15.6 FPS and presentation
+at about 13.7-15.5 FPS; direct DSI submission normally took tens of
+microseconds and hardware JPEG decode about 40-63 ms. Drops remained bounded
+instead of becoming a growing queue. Low samples emitted while closing Camera
+are teardown, not source-cadence measurements.
+
 ## Application behavior
 
 - Opening animates the shared black transition frame, so no stale camera frame
@@ -271,6 +305,23 @@ not guaranteed frame rates for every camera or network.
 The direct camera frame covers the panel. Persistent overlays must use a
 bounded direct-region renderer or be deliberately composed into the destination
 frame; forcing a full LVGL redraw per camera frame is not acceptable.
+
+## EspControl comparison
+
+EspControl's useful camera ideas are scheduling policies rather than a hidden
+video accelerator: prioritized image requests, generation-tagged results,
+latest-request replacement, reusable transfer buffers, and one shared
+modal-quality image. Its current camera cards and camera screensaver still use
+JPEG images through `artwork_image`; they do not provide hardware H.264 decode
+on ESP32-P4.
+
+Atmosfera applies the same principles to a persistent MJPEG stream: one bounded
+encoded buffer, no decoded-frame queue, stale-frame dropping, runtime camera
+selection, and generation-safe presentation. The full-screen native geometry
+path goes further by decoding JPEG directly into an idle DSI lease. Useful
+future work is adaptive source FPS/quality at the HA proxy and explicit request
+priority across artwork, Gallery prefetch and Camera startup. Replacing this
+path with periodic HA still-image polling would be a regression.
 
 ## Failure policy
 

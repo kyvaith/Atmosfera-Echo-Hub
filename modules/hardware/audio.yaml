@@ -148,15 +148,15 @@ audio_file:
   - id: boot_chime_file
     file:
       type: local
-      path: assets/sounds/boot.flac
-  - id: va_listening_chime_file
+      path: assets/sounds/device-startup.flac
+  - id: va_confirm_chime_file
     file:
       type: local
-      path: assets/sounds/va-listening.flac
+      path: assets/sounds/confirm.flac
   - id: va_error_chime_file
     file:
       type: local
-      path: assets/sounds/va-error.flac
+      path: assets/sounds/error.flac
 
 media_source:
   - platform: audio_http
@@ -227,7 +227,16 @@ media_player:
             and:
               - switch.is_off: timer_ringing
               - lambda: |-
-                  return id(voice_assistant_phase) == ${voice_assist_idle_phase_id};
+                  // A provisioning/backend error is not an active conversation.
+                  // Always undo announcement ducking when no session owns it.
+                  const int phase = id(voice_assistant_phase);
+                  const bool conversation_active =
+                      phase == ${voice_assist_waiting_phase_id} ||
+                      phase == ${voice_assist_listening_phase_id} ||
+                      phase == ${voice_assist_thinking_phase_id} ||
+                      phase == ${voice_assist_replying_phase_id} ||
+                      id(voice_assistant_tts_active) || id(ui_active_app) == 3;
+                  return !conversation_active;
               - not:
                   media_player.is_announcing: local_music_player
           then:
@@ -250,6 +259,9 @@ script:
   - id: ui_play_boot_sound
     mode: restart
     then:
+      - lambda: |-
+          ESP_LOGI("audio.chime", "boot chime start uptime=%lums boot_done=%s snapshot_busy=%s",
+                   (unsigned long) millis(), YESNO(id(boot_sequence_done)), YESNO(id(ui_snapshot_io_busy)));
       - speaker.stop: assistant_speaker
       - wait_until:
           condition:
@@ -275,13 +287,18 @@ script:
               - not:
                   media_player.is_announcing: local_music_player
           timeout: 6s
+      - lambda: |-
+          ESP_LOGI("audio.chime", "boot chime complete uptime=%lums",
+                   (unsigned long) millis());
 
   - id: ui_play_va_listening_sound
     mode: restart
     then:
       - if:
           condition:
-            switch.is_on: voice_assistant_wake_sound_switch
+            lambda: |-
+              return id(boot_sequence_done) && id(boot_audio_ready) &&
+                     !id(ui_snapshot_io_busy) && id(voice_assistant_wake_sound_switch).state;
           then:
             - speaker.stop: assistant_speaker
             - wait_until:
@@ -290,18 +307,32 @@ script:
                 timeout: 1s
             - media_player.play_media:
                 id: local_music_player
-                media_url: "audio-file://va_listening_chime_file"
+                media_url: "audio-file://va_confirm_chime_file"
                 announcement: true
 
   - id: ui_play_va_error_sound
     mode: restart
     then:
-      - speaker.stop: assistant_speaker
-      - wait_until:
+      - lambda: |-
+          ESP_LOGI("audio.chime", "VA error chime request uptime=%lums boot_done=%s snapshot_busy=%s allowed_after=%lums",
+                   (unsigned long) millis(), YESNO(id(boot_sequence_done)), YESNO(id(ui_snapshot_io_busy)),
+                   (unsigned long) id(boot_error_sound_allowed_after_ms));
+      - if:
           condition:
-            speaker.is_stopped: assistant_speaker
-          timeout: 1s
-      - media_player.play_media:
-          id: local_music_player
-          media_url: "audio-file://va_error_chime_file"
-          announcement: true
+            lambda: |-
+              return id(boot_sequence_done) && id(boot_audio_ready) && !id(ui_snapshot_io_busy) &&
+                     static_cast<int32_t>(millis() - id(boot_error_sound_allowed_after_ms)) >= 0;
+          then:
+            - speaker.stop: assistant_speaker
+            - wait_until:
+                condition:
+                  speaker.is_stopped: assistant_speaker
+                timeout: 1s
+            - media_player.play_media:
+                id: local_music_player
+                media_url: "audio-file://va_error_chime_file"
+                announcement: true
+          else:
+            - lambda: |-
+                ESP_LOGI("audio.chime", "VA error chime suppressed during boot handoff uptime=%lums",
+                         (unsigned long) millis());

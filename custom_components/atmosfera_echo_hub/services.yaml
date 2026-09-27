@@ -10,3 +10,19 @@ report_camera_source:
       example: Front camera
       selector:
         text: {}
+report_tile_press:
+  fields:
+    node_name:
+      required: true
+      example: atmosfera-echo-hub
+      selector:
+        text: {}
+    slot:
+      required: true
+      example: 0
+      selector:
+        number:
+          min: 0
+          max: 10
+          step: 1
+          mode: box

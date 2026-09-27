@@ -11,5 +11,7 @@
 /profiles/
 /.codex-remote-attachments/
 /.codex/
+/artifacts/
+/tools/_tmp_*.py
 __pycache__/
 *.pyc

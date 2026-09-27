@@ -123,6 +123,29 @@ upstream ESPHome conventions.
   handing display ownership back to navigation.
 - Read `docs/architecture/camera-streaming.md` before changing stream,
   presentation, or camera application lifecycle behavior.
+- Keep first-frame deadlines above the measured proxy startup latency. A
+  healthy HLS/FFmpeg source may need more than five seconds before its first
+  native-size MJPEG frame.
+- Discover and validate selected cameras against `hass.states`, not only the
+  entity registry. YAML cameras may be valid without registry entries; stale
+  identifiers absent from runtime states must not be pushed to the device.
+
+### Lottie and direct loaders
+
+- A hidden Lottie object is not free. Never keep one running as a dependency
+  anchor; use an explicit no-op compatibility action when the visual is absent.
+- Suspend and drain a visible direct Lottie region before Home navigation,
+  pressed-state presentation, or a full-screen ownership handoff.
+- Use the bounded 96x96 direct-region M3 Lottie loader for Camera and Gallery
+  loading. A native animated LVGL spinner on this full-refresh display
+  invalidates the complete frame every tick.
+- Preparation-only page loaders must be stopped before Home becomes visible.
+  Never leave a hidden direct spinner registered after boot snapshot creation.
+- A finite weather animation starts each visibility epoch from its retained
+  frame phase and plays one complete cycle. Do not expose frame zero between a
+  moving Home snapshot and live Lottie presentation.
+- Treat every completed direct framebuffer release as a new base generation,
+  even if the physical DSI buffer address did not change.
 
 ## Reusable component rules
 

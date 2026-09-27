@@ -2,6 +2,98 @@
 # Roboto keeps the interface aligned with Android/WearOS, while Material Symbols
 # are reserved for icon-only controls so text labels stay crisp and readable.
 font:
+  # The home clock is intentionally display-sized. Restricting the glyph set
+  # to digits keeps the generated bitmap font bounded despite the large size.
+  - file: "assets/fonts/CherryBombOne-Regular.ttf"
+    id: cherry_bomb_420
+    size: 300
+    bpp: 4
+    glyphs:
+      - "0"
+      - "1"
+      - "2"
+      - "3"
+      - "4"
+      - "5"
+      - "6"
+      - "7"
+      - "8"
+      - "9"
+
+  - file: "assets/fonts/CherryBombOne-Regular.ttf"
+    id: cherry_bomb_300_outline
+    size: 300
+    outline_width: ${home_minute_outline_width}
+    bpp: 4
+    glyphs:
+      - "0"
+      - "1"
+      - "2"
+      - "3"
+      - "4"
+      - "5"
+      - "6"
+      - "7"
+      - "8"
+      - "9"
+
+  - file: "assets/fonts/CherryBombOne-Regular.ttf"
+    id: cherry_bomb_64
+    size: 64
+    bpp: 4
+    glyphs:
+      - "0"
+      - "1"
+      - "2"
+      - "3"
+      - "4"
+      - "5"
+      - "6"
+      - "7"
+      - "8"
+      - "9"
+      - "-"
+      - "C"
+      - "c"
+      - "\u00B0"
+
+  - file: "assets/fonts/CherryBombOne-Regular.ttf"
+    id: cherry_bomb_56
+    size: 56
+    bpp: 4
+    glyphs:
+      - "0"
+      - "1"
+      - "2"
+      - "3"
+      - "4"
+      - "5"
+      - "6"
+      - "7"
+      - "8"
+      - "9"
+      - "-"
+      - "C"
+      - "c"
+      - "\u00B0"
+
+  - file: "assets/fonts/CherryBombOne-Regular.ttf"
+    id: cherry_bomb_32_unit
+    size: 32
+    bpp: 4
+    glyphs:
+      - "C"
+      - "c"
+      - "\u00B0"
+
+  - file: "assets/fonts/CherryBombOne-Regular.ttf"
+    id: cherry_bomb_24_unit
+    size: 24
+    bpp: 4
+    glyphs:
+      - "C"
+      - "c"
+
   - file:
       type: gfonts
       family: Roboto
@@ -63,6 +155,28 @@ font:
       weight: 500
     id: roboto_30
     size: 30
+    bpp: 2
+    glyphsets:
+      - GF_Latin_Core
+    ignore_missing_glyphs: true
+
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 700
+    id: roboto_30_bold
+    size: 30
+    bpp: 2
+    glyphsets:
+      - GF_Latin_Core
+    ignore_missing_glyphs: true
+
+  - file:
+      type: gfonts
+      family: Roboto
+      weight: 700
+    id: roboto_34_bold
+    size: 34
     bpp: 2
     glyphsets:
       - GF_Latin_Core
@@ -193,6 +307,12 @@ font:
       - "\U0000e5d4" # more_vert
       - "\U0000e833" # bolt
       - "\U0000e04b" # videocam
+      - "\U0000f0d3" # person
+      # Shared configurable-tile icon contract.
+      - "\U0000e157" # link
+      - "\U0000e429" # speed
+      - "\U0000e9e0" # shield
+      - "\U0000f168" # mode_fan
 
   - file: "gfonts://Material+Symbols+Rounded"
     id: material_symbols_36
@@ -200,14 +320,71 @@ font:
     bpp: 4
     ignore_missing_glyphs: true
     glyphs:
+      - "\U0000e029" # mic
       - "\U0000e034" # pause
       - "\U0000e037" # play_arrow
       - "\U0000e044" # skip_next
       - "\U0000e045" # skip_previous
+      - "\U0000e04b" # videocam
       - "\U0000e050" # volume_up
+      - "\U0000e0f0" # lightbulb
+      - "\U0000e157" # link
+      - "\U0000e1ff" # thermostat
       - "\U0000e03d" # queue_music
+      - "\U0000f1b4" # sensor_window
+      - "\U0000e3f4" # photo_library
+      - "\U0000e405" # music_note
+      - "\U0000e429" # speed
       - "\U0000e5d4" # more_vert
+      - "\U0000e5d5" # doorbell
+      - "\U0000e65f" # auto_awesome
+      - "\U0000f0d3" # person
+      - "\U0000e7f4" # notifications
+      - "\U0000e88a" # home
+      - "\U0000e897" # lock
+      - "\U0000e8ac" # power_settings_new
+      - "\U0000e8b8" # settings
       - "\U0000e5cd" # close
+      - "\U0000e9e0" # shield
+      - "\U0000f168" # mode_fan
+
+  - file: "gfonts://Material+Symbols+Rounded"
+    id: material_symbols_44
+    size: 44
+    bpp: 4
+    ignore_missing_glyphs: true
+    glyphs:
+      - "\U0000e029" # mic
+      - "\U0000e034" # pause
+      - "\U0000e037" # play_arrow
+      - "\U0000e044" # skip_next
+      - "\U0000e045" # skip_previous
+      - "\U0000e04b" # videocam
+      - "\U0000e050" # volume_up
+      - "\U0000e4ca" # wifi_1_bar
+      - "\U0000e4d9" # wifi_2_bar
+      - "\U0000e63e" # wifi
+      - "\U0000e648" # wifi_off
+      - "\U0000e0f0" # lightbulb
+      - "\U0000e157" # link
+      - "\U0000e1ff" # thermostat
+      - "\U0000e03d" # queue_music
+      - "\U0000f1b4" # sensor_window
+      - "\U0000e3f4" # photo_library
+      - "\U0000e405" # music_note
+      - "\U0000e429" # speed
+      - "\U0000e5d4" # more_vert
+      - "\U0000e5d5" # doorbell
+      - "\U0000e65f" # auto_awesome
+      - "\U0000f0d3" # person
+      - "\U0000e7f4" # notifications
+      - "\U0000e88a" # home
+      - "\U0000e897" # lock
+      - "\U0000e8ac" # power_settings_new
+      - "\U0000e8b8" # settings
+      - "\U0000e5cd" # close
+      - "\U0000e9e0" # shield
+      - "\U0000f168" # mode_fan
 
   - file: "gfonts://Material+Symbols+Rounded"
     id: material_symbols_58
@@ -218,12 +395,56 @@ font:
       - "\U0000e044" # skip_next
       - "\U0000e045" # skip_previous
       - "\U0000e050" # volume_up
+      - "\U0000e4ca" # wifi_1_bar
+      - "\U0000e4d9" # wifi_2_bar
+      - "\U0000e63e" # wifi
+      - "\U0000e648" # wifi_off
       - "\U0000e03d" # queue_music
       - "\U0000e5d4" # more_vert
       - "\U0000e034" # pause
       - "\U0000e037" # play_arrow
       - "\U0000e3f4" # photo_library
       - "\U0000e04b" # videocam
+      - "\U0000e157" # link
+      - "\U0000e429" # speed
+      - "\U0000e88a" # home
+      - "\U0000e897" # lock
+      - "\U0000e9e0" # shield
+      - "\U0000f168" # mode_fan
+      # Shared configurable-tile icon contract.
+      - "\U0000e0f0" # lightbulb
+      - "\U0000e1ff" # thermostat
+      - "\U0000e5d5" # doorbell
+      - "\U0000e65f" # auto_awesome
+      - "\U0000e8ac" # power_settings_new
+
+  - file: "gfonts://Material+Symbols+Rounded"
+    id: material_symbols_68
+    size: 68
+    bpp: 4
+    ignore_missing_glyphs: true
+    glyphs:
+      - "\U0000e029" # mic
+      - "\U0000e044" # skip_next
+      - "\U0000e045" # skip_previous
+      - "\U0000e050" # volume_up
+      - "\U0000e03d" # queue_music
+      - "\U0000e5d4" # more_vert
+      - "\U0000e034" # pause
+      - "\U0000e037" # play_arrow
+      - "\U0000e3f4" # photo_library
+      - "\U0000e04b" # videocam
+      - "\U0000e157" # link
+      - "\U0000e429" # speed
+      - "\U0000e88a" # home
+      - "\U0000e897" # lock
+      - "\U0000e9e0" # shield
+      - "\U0000f168" # mode_fan
+      - "\U0000e0f0" # lightbulb
+      - "\U0000e1ff" # thermostat
+      - "\U0000e5d5" # doorbell
+      - "\U0000e65f" # auto_awesome
+      - "\U0000e8ac" # power_settings_new
 
   - file: "gfonts://Material+Symbols+Rounded"
     id: material_symbols_86
@@ -233,3 +454,16 @@ font:
     glyphs:
       - "\U0000e034" # pause
       - "\U0000e037" # play_arrow
+      - "\U0000e04b" # videocam
+      - "\U0000e3f4" # photo_library
+      - "\U0000e405" # music_note
+
+  - file: "gfonts://Material+Symbols+Rounded"
+    id: material_symbols_96
+    size: 96
+    bpp: 4
+    ignore_missing_glyphs: true
+    glyphs:
+      - "\U0000e04b" # videocam
+      - "\U0000e3f4" # photo_library
+      - "\U0000e405" # music_note

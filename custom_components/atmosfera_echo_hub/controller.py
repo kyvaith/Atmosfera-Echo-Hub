@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass
+import json
 import logging
 from urllib.parse import quote, urlencode
 
@@ -24,20 +25,31 @@ from homeassistant.helpers.event import (
 )
 from homeassistant.helpers.network import NoURLAvailableError, get_url
 
+from .cards import (
+    card_entity_ids,
+    normalize_cards,
+    presentation_payload,
+    resolve_action,
+)
 from .const import (
     API_ACTION_SELECT_SOURCE,
+    API_ACTION_DISMISS_NOTIFICATION,
+    API_ACTION_SHOW_NOTIFICATION,
     API_ACTION_SET_SOURCES,
+    API_ACTION_SET_TILES,
     CONF_CAMERAS,
     CONF_DEVICE_ID,
     CONF_STREAM_FPS,
     CONF_STREAM_HEIGHT,
     CONF_STREAM_WIDTH,
+    CONF_TILES,
     DEFAULT_STREAM_FPS,
     DEFAULT_STREAM_HEIGHT,
     DEFAULT_STREAM_WIDTH,
     RETRY_INTERVAL_SECONDS,
     TOKEN_REFRESH_INTERVAL,
 )
+from .text import plain_text
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -80,6 +92,10 @@ class CameraBridge:
                 entry.data.get(CONF_STREAM_FPS, DEFAULT_STREAM_FPS),
             )
         )
+        self.tile_cards = normalize_cards(
+            entry.options.get(CONF_TILES, entry.data.get(CONF_TILES))
+        )
+        self.tile_entity_ids = card_entity_ids(self.tile_cards)
 
         device = dr.async_get(hass).async_get(self.device_id)
         if device is None:
@@ -95,8 +111,12 @@ class CameraBridge:
         self.available = False
         self._listeners: set[Callable[[], None]] = set()
         self._remove_debounce: CALLBACK_TYPE | None = None
+        self._remove_tile_debounce: CALLBACK_TYPE | None = None
         self._unsubscribers: list[CALLBACK_TYPE] = []
         self._push_lock = asyncio.Lock()
+        self._tile_push_lock = asyncio.Lock()
+        self._last_tile_payload = ""
+        self._missing_camera_entity_ids: tuple[str, ...] = ()
 
     @property
     def options(self) -> list[str]:
@@ -120,23 +140,56 @@ class CameraBridge:
 
     async def async_setup(self) -> None:
         """Start state tracking and publish the first catalog."""
-        self._unsubscribers.append(
-            async_track_state_change_event(
-                self.hass, self.camera_entity_ids, self._camera_state_changed
+        runtime_data = self.esphome_entry.runtime_data
+        if runtime_data is not None:
+            self._unsubscribers.append(
+                runtime_data.async_subscribe_device_updated(
+                    self._esphome_device_updated
+                )
             )
-        )
+        if self.camera_entity_ids:
+            self._unsubscribers.append(
+                async_track_state_change_event(
+                    self.hass, self.camera_entity_ids, self._camera_state_changed
+                )
+            )
+        if self.tile_entity_ids:
+            self._unsubscribers.append(
+                async_track_state_change_event(
+                    self.hass, self.tile_entity_ids, self._tile_state_changed
+                )
+            )
         self._unsubscribers.append(
             async_track_time_interval(
                 self.hass, self._periodic_refresh, TOKEN_REFRESH_INTERVAL
             )
         )
         self.async_schedule_push(delay=0)
+        self.async_schedule_tile_push(delay=0.5)
+
+    @callback
+    def _esphome_device_updated(self) -> None:
+        """Republish runtime configuration after an ESPHome reconnect."""
+        runtime_data = self.esphome_entry.runtime_data
+        if runtime_data is None or not runtime_data.available:
+            self.available = False
+            self._notify_listeners()
+            return
+
+        # ESPHome announces availability immediately before replacing its
+        # retained user-service catalog. Delay the first attempt slightly;
+        # async_push_sources() retains the normal retry when setup takes longer.
+        self.async_schedule_push(delay=0.25)
+        self.async_schedule_tile_push(delay=0.5)
 
     async def async_shutdown(self) -> None:
         """Stop tracking runtime state."""
         if self._remove_debounce is not None:
             self._remove_debounce()
             self._remove_debounce = None
+        if self._remove_tile_debounce is not None:
+            self._remove_tile_debounce()
+            self._remove_tile_debounce = None
         for unsubscribe in self._unsubscribers:
             unsubscribe()
         self._unsubscribers.clear()
@@ -156,8 +209,13 @@ class CameraBridge:
     def _camera_state_changed(self, event: Event) -> None:
         self.async_schedule_push(delay=1)
 
+    @callback
+    def _tile_state_changed(self, event: Event) -> None:
+        self.async_schedule_tile_push(delay=0.18)
+
     async def _periodic_refresh(self, _now) -> None:
         await self.async_push_sources()
+        await self.async_push_tiles(force=True)
 
     @callback
     def async_schedule_push(self, delay: float = 1) -> None:
@@ -172,6 +230,20 @@ class CameraBridge:
         self._remove_debounce = None
         if not await self.async_push_sources():
             self.async_schedule_push(delay=RETRY_INTERVAL_SECONDS)
+
+    @callback
+    def async_schedule_tile_push(self, delay: float = 0.18) -> None:
+        """Coalesce HA state bursts into one compact device update."""
+        if self._remove_tile_debounce is not None:
+            self._remove_tile_debounce()
+        self._remove_tile_debounce = async_call_later(
+            self.hass, delay, self._async_delayed_tile_push
+        )
+
+    async def _async_delayed_tile_push(self, _now) -> None:
+        self._remove_tile_debounce = None
+        if not await self.async_push_tiles():
+            self.async_schedule_tile_push(delay=RETRY_INTERVAL_SECONDS)
 
     async def _async_camera_base_url(self) -> str:
         """Return the HA Core URL reachable from the selected ESPHome device."""
@@ -216,22 +288,28 @@ class CameraBridge:
 
         names_seen: dict[str, int] = {}
         sources: list[CameraSource] = []
+        missing_entity_ids: list[str] = []
         for entity_id in self.camera_entity_ids:
             state = self.hass.states.get(entity_id)
+            if state is None:
+                missing_entity_ids.append(entity_id)
+                continue
             try:
                 camera = get_camera_from_entity_id(self.hass, entity_id)
             except HomeAssistantError:
+                missing_entity_ids.append(entity_id)
                 continue
             if not camera.access_tokens:
                 continue
             token = camera.access_tokens[-1]
 
-            name = str(
+            name = plain_text(
                 state.attributes.get(ATTR_FRIENDLY_NAME, entity_id)
                 if state is not None
-                else camera.name or entity_id
+                else camera.name or entity_id,
+                64,
             )
-            name = " ".join(name.replace("\n", " ").split())[:64] or entity_id
+            name = name or entity_id
             duplicate = names_seen.get(name, 0)
             names_seen[name] = duplicate + 1
             if duplicate:
@@ -250,6 +328,14 @@ class CameraBridge:
                 }
             )
             sources.append(CameraSource(entity_id, name, f"{base_url}{path}?{query}"))
+        missing = tuple(missing_entity_ids)
+        if missing != self._missing_camera_entity_ids:
+            self._missing_camera_entity_ids = missing
+            if missing:
+                _LOGGER.warning(
+                    "Ignoring unavailable configured camera entities: %s",
+                    ", ".join(missing),
+                )
         return sources
 
     @callback
@@ -273,6 +359,13 @@ class CameraBridge:
     async def async_push_sources(self) -> bool:
         """Push names and short-lived signed camera URLs to the display."""
         async with self._push_lock:
+            if not self.camera_entity_ids:
+                self.sources.clear()
+                self.current_option = None
+                self.available = False
+                self._notify_listeners()
+                return True
+
             runtime_data = self.esphome_entry.runtime_data
             action = self._find_api_action(API_ACTION_SET_SOURCES)
             select_action = self._find_api_action(API_ACTION_SELECT_SOURCE)
@@ -318,6 +411,75 @@ class CameraBridge:
             self.available = True
             self._notify_listeners()
             return True
+
+    async def async_push_tiles(self, *, force: bool = False) -> bool:
+        """Push changed card presentation without rebuilding the LVGL tree."""
+        async with self._tile_push_lock:
+            runtime_data = self.esphome_entry.runtime_data
+            action = self._find_api_action(API_ACTION_SET_TILES)
+            payload = json.dumps(
+                presentation_payload(self.hass, self.tile_cards),
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+            if not force and payload == self._last_tile_payload:
+                return True
+            if runtime_data is None or not runtime_data.available or action is None:
+                return False
+            try:
+                await runtime_data.client.execute_service(action, {"payload": payload})
+            except (APIConnectionError, TimeoutError) as err:
+                _LOGGER.debug("Unable to update home cards: %s", err)
+                return False
+            self._last_tile_payload = payload
+            return True
+
+    async def async_press_tile(self, slot: int) -> None:
+        """Execute the conservative action assigned to one card slot."""
+        card = next((card for card in self.tile_cards if card["slot"] == slot), None)
+        if card is None:
+            return
+        action = resolve_action(self.hass, card)
+        if action is None:
+            _LOGGER.debug("Tile %u has no executable action", slot)
+            return
+        await self.hass.services.async_call(
+            action.domain, action.service, action.data, blocking=False
+        )
+
+    async def async_show_notification(
+        self, title: str, message: str, icon: str, duration_ms: int
+    ) -> None:
+        """Present a notification through the native ESPHome API session."""
+        runtime_data = self.esphome_entry.runtime_data
+        action = self._find_api_action(API_ACTION_SHOW_NOTIFICATION)
+        if runtime_data is None or not runtime_data.available or action is None:
+            raise HomeAssistantError("Atmosfera Echo Hub is not available")
+        try:
+            await runtime_data.client.execute_service(
+                action,
+                {
+                    "title": title,
+                    "message": message,
+                    "icon": icon,
+                    "duration_ms": duration_ms,
+                },
+            )
+        except (APIConnectionError, TimeoutError) as err:
+            raise HomeAssistantError(
+                "Unable to show a notification on Atmosfera Echo Hub"
+            ) from err
+
+    async def async_dismiss_notification(self) -> None:
+        """Dismiss the active device notification."""
+        runtime_data = self.esphome_entry.runtime_data
+        action = self._find_api_action(API_ACTION_DISMISS_NOTIFICATION)
+        if runtime_data is None or not runtime_data.available or action is None:
+            return
+        try:
+            await runtime_data.client.execute_service(action, {})
+        except (APIConnectionError, TimeoutError):
+            return
 
     async def async_select_source(self, option: str) -> None:
         """Select one camera through the existing ESPHome API connection."""

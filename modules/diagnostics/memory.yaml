@@ -33,11 +33,38 @@ script:
             lottie_bytes = esphome::lvgl::lottie_memory_usage_bytes(ctx);
             esphome::lvgl::lottie_log_memory_usage(ctx, phase.c_str());
           }
+          lv_obj_t *weather_widgets[] = {
+              id(weather_clear_day), id(weather_clear_night), id(weather_partly_cloudy_day),
+              id(weather_partly_cloudy_night), id(weather_overcast), id(weather_rain),
+              id(weather_snow), id(weather_thunderstorms), id(weather_fog),
+          };
+          const char *weather_names[] = {
+              "clear-day", "clear-night", "partly-cloudy-day", "partly-cloudy-night", "overcast",
+              "rain", "snow", "thunderstorms", "fog",
+          };
+          size_t weather_lottie_bytes = 0;
+          for (size_t index = 0; index < sizeof(weather_widgets) / sizeof(weather_widgets[0]); index++) {
+            auto *widget = weather_widgets[index];
+            auto *ctx = widget == nullptr
+                            ? nullptr
+                            : static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(widget));
+            const size_t bytes = esphome::lvgl::lottie_memory_usage_bytes(ctx);
+            weather_lottie_bytes += bytes;
+            if (ctx != nullptr &&
+                (bytes != 0 || ctx->task_handle != nullptr || !lv_obj_has_flag(widget, LV_OBJ_FLAG_HIDDEN))) {
+              ESP_LOGW("memory.weather_lottie",
+                       "%s %s bytes=%uK pixel=%p task=%p hidden=%u runtime_hidden=%u ready=%u root_visible=%u",
+                       phase.c_str(), weather_names[index], (unsigned) (bytes / 1024), ctx->pixel_buffer,
+                       ctx->task_handle, (unsigned) lv_obj_has_flag(widget, LV_OBJ_FLAG_HIDDEN),
+                       (unsigned) ctx->runtime_hidden, (unsigned) ctx->prepared_frame_ready,
+                       (unsigned) lv_obj_is_visible(id(controls_root_1)));
+            }
+          }
           const size_t known = dsi_frame_bytes + snapshot_bytes + player_art_bytes + gallery_a_bytes +
-                               gallery_motion_bytes + camera_bytes + lottie_bytes;
+                               gallery_motion_bytes + camera_bytes + lottie_bytes + weather_lottie_bytes;
           ESP_LOGW("memory.phase",
                    "%s psram=%uK/%uK used=%uK largest=%uK internal=%uK/%uK used=%uK known=%uK residual=%dK "
-                   "dsi=%uK snapshot=%uK player_art=%uK gallery=%uK motion=%uK camera=%uK lottie=%uK",
+                   "dsi=%uK snapshot=%uK player_art=%uK gallery=%uK motion=%uK camera=%uK lottie=%uK weather=%uK",
                    phase.c_str(), (unsigned) (psram_free / 1024), (unsigned) (psram_total / 1024),
                    (unsigned) ((psram_total - psram_free) / 1024),
                    (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024),
@@ -48,7 +75,8 @@ script:
                    (unsigned) (player_art_bytes / 1024), (unsigned) (gallery_a_bytes / 1024),
                    (unsigned) (gallery_motion_bytes / 1024),
                    (unsigned) (camera_bytes / 1024),
-                   (unsigned) (lottie_bytes / 1024));
+                   (unsigned) (lottie_bytes / 1024),
+                   (unsigned) (weather_lottie_bytes / 1024));
           lvgl_esphome_snapshot_log_memory(phase.c_str());
           id(album_art_background).log_memory_usage((phase + ".player").c_str());
           id(immich_photo_image).log_memory_usage((phase + ".photo_a").c_str());

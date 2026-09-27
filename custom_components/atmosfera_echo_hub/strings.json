@@ -53,6 +53,20 @@
           "description": "Selected camera source name."
         }
       }
+    },
+    "report_tile_press": {
+      "name": "Report card press",
+      "description": "Route a card press through its configured Home Assistant action.",
+      "fields": {
+        "node_name": {
+          "name": "Node name",
+          "description": "Native ESPHome node name."
+        },
+        "slot": {
+          "name": "Card slot",
+          "description": "Zero-based fixed card slot."
+        }
+      }
     }
   }
 }

@@ -1,6 +1,6 @@
 # Global Wear OS status overlay.
-# It sits on top_layer after app overlays, so the clock and volume control stay
-# consistent on home, player, settings and voice assistant screens.
+# It sits on top_layer after app overlays, so the volume activation surface and
+# transient system overlays stay consistent on home and application screens.
 
 globals:
   - id: global_volume_time_press_tracking
@@ -47,7 +47,7 @@ globals:
     type: bool
     restore_value: no
     initial_value: 'false'
-  - id: global_clock_suppressed
+  - id: global_volume_activation_suppressed
     type: bool
     restore_value: no
     initial_value: 'false'
@@ -55,8 +55,46 @@ globals:
 lvgl:
   top_layer:
     widgets:
+      # One fixed chrome owner prevents weather/app roots from changing the
+      # relative order of the two status glyphs independently.
+      - obj:
+          id: global_status_chrome
+          x: 0
+          y: 0
+          width: ${display_width}
+          height: ${display_height}
+          bg_opa: 0%
+          border_width: 0
+          pad_all: 0
+          scrollable: false
+          clickable: false
+          hidden: false
+          widgets:
+            - label:
+                id: global_status_volume_icon
+                text: "\uE050"
+                x: ${home_volume_icon_x}
+                y: ${home_status_icon_y}
+                width: 48
+                height: 52
+                text_align: CENTER
+                text_color: 0xFFFFFF
+                text_font: material_symbols_44
+                hidden: false
+            - label:
+                id: global_status_wifi_icon
+                text: "\uE648"
+                x: ${home_wifi_icon_x}
+                y: ${home_wifi_icon_y}
+                width: 58
+                height: 60
+                text_align: CENTER
+                text_color: 0xFFFFFF
+                text_font: material_symbols_58
+                hidden: false
+
       - button:
-          id: global_time_button
+          id: global_volume_activation_surface
           width: 180
           height: 52
           align: TOP_MID
@@ -71,13 +109,19 @@ lvgl:
           scrollable: false
           clickable: false
           hidden: false
+          # Compatibility anchor for the direct volume renderer. It is
+          # deliberately non-rendering; the visible status area belongs to
+          # the M3 Home snapshot, never to this legacy overlay.
           widgets:
             - label:
-                id: global_time_label
-                text: "9:30"
-                align: CENTER
-                text_color: 0xF5EEFB
-                text_opa: 100%
+                id: global_volume_activation_anchor
+                text: ""
+                x: -2
+                y: -2
+                width: 1
+                height: 1
+                hidden: true
+                text_opa: 0%
                 text_font: roboto_34
 
       - obj:
@@ -152,3 +196,68 @@ lvgl:
                       align: CENTER
                       text_color: 0xF5EEFB
                       text_font: roboto_volume_112
+
+      # System notifications use one fixed bottom-sheet surface and a bounded
+      # queue in C++. The full-screen scrim dims the current UI without taking
+      # a framebuffer snapshot or allocating a new LVGL subtree.
+      - obj:
+          id: material_notification_root
+          x: 0
+          y: 0
+          width: 800
+          height: 800
+          bg_color: 0x000000
+          bg_opa: 0%
+          border_width: 0
+          radius: 0
+          pad_all: 0
+          scrollable: false
+          clickable: true
+          hidden: true
+          widgets:
+            - obj:
+                id: material_notification_panel
+                width: 800
+                height: 408
+                align: BOTTOM_MID
+                x: 0
+                y: 0
+                bg_color: 0x332E3C
+                bg_opa: 100%
+                border_width: 0
+                outline_width: 0
+                shadow_width: 0
+                radius: 72
+                pad_all: 0
+                scrollable: false
+                clickable: false
+                widgets:
+                  - label:
+                      id: material_notification_icon
+                      text: "\uE7F4"
+                      x: 76
+                      y: 66
+                      width: 60
+                      height: 60
+                      text_color: 0xE9DDFF
+                      text_font: material_symbols_36
+                  - label:
+                      id: material_notification_title
+                      text: "Notification"
+                      x: 154
+                      y: 62
+                      width: 520
+                      height: 52
+                      long_mode: DOT
+                      text_color: 0xF5EEFB
+                      text_font: roboto_30
+                  - label:
+                      id: material_notification_message
+                      text: ""
+                      x: 76
+                      y: 142
+                      width: 648
+                      height: 188
+                      long_mode: WRAP
+                      text_color: 0xD9D2E0
+                      text_font: roboto_24

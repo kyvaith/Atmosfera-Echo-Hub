@@ -46,7 +46,7 @@ esp32:
       # turned one fullscreen RGB888 writeback into roughly 235 critical
       # sections and measurably slowed every LVGL/direct-compositor frame.
       CONFIG_ESP_MM_CACHE_MSYNC_C2M_CHUNKED_OPS_MAX_LEN: "0x20000"
-      CONFIG_LV_DEF_REFR_PERIOD: "10"
+      CONFIG_LV_DEF_REFR_PERIOD: "5"
       CONFIG_LV_USE_LOG: n
       # ESP32-P4 exposes Espressif's xespv extension, not standard RISC-V V.
       # LVGL's RISCV_V path falls back to software emulation here, so keep it off.

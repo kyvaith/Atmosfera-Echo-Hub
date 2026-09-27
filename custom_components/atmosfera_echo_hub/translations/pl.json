@@ -38,5 +38,35 @@
     "error": {
       "no_cameras": "Wybierz co najmniej jedną kamerę."
     }
+  },
+  "services": {
+    "report_camera_source": {
+      "name": "Zgłoś źródło kamery",
+      "description": "Synchronizuje źródło wybrane na ekranie z Home Assistant.",
+      "fields": {
+        "node_name": {
+          "name": "Nazwa węzła",
+          "description": "Natywna nazwa węzła ESPHome."
+        },
+        "source": {
+          "name": "Źródło",
+          "description": "Nazwa wybranego źródła kamery."
+        }
+      }
+    },
+    "report_tile_press": {
+      "name": "Zgłoś naciśnięcie kafelka",
+      "description": "Uruchamia w Home Assistant akcję przypisaną do kafelka.",
+      "fields": {
+        "node_name": {
+          "name": "Nazwa węzła",
+          "description": "Natywna nazwa węzła ESPHome."
+        },
+        "slot": {
+          "name": "Pozycja kafelka",
+          "description": "Numer stałej pozycji kafelka liczony od zera."
+        }
+      }
+    }
   }
 }

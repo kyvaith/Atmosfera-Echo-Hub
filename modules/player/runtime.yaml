@@ -108,7 +108,11 @@ globals:
     type: uint32_t
     restore_value: no
     initial_value: '0'
-  - id: media_applied_artwork_trace_id
+  - id: media_applied_artwork_generation
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+  - id: artwork_apply_target_generation
     type: uint32_t
     restore_value: no
     initial_value: '0'
@@ -121,6 +125,14 @@ globals:
     restore_value: no
     initial_value: '0'
   - id: artwork_refresh_pending
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: media_player_state_was_playing
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: media_player_play_started
     type: bool
     restore_value: no
     initial_value: 'false'
@@ -147,13 +159,15 @@ lvgl_image_presenter:
   - id: player_artwork_presenter
     widget: album_art_background_widget
     source: album_art_background
-    # The wave is preserved by the direct-region compositor during the
-    # crossfade. Excluding its native ARGB widget prevents drawing it twice.
-    capture_exclude:
-      - media_main_progress_arc
+    # The direct-region compositor caches and reapplies the wave over every
+    # crossfade frame. Copying this whole transparent island from the old DSI
+    # frame would also preserve the previous artwork underneath the control.
     motion: none
-    crossfade: true
-    frame_interval: 33ms
+    crossfade: false
+    # Artwork changes must not schedule a second full-screen PPA animation next
+    # to the live wave. The presenter still owns the source handoff, but LVGL
+    # performs the short opacity transition without a worker-side scene blend.
+    frame_interval: 100ms
 
 script:
   - id: subscribe_media_after_boot
@@ -179,7 +193,9 @@ script:
           if (esphome::api::global_api_server == nullptr) return;
 
           std::string entity = id(media_player_entity).state;
-          if (entity.empty() || entity == "media_player.music_assistant" || entity == "media_player.sendspin_group") {
+          if (entity.empty() || entity == "media_player.music_assistant" ||
+              entity == "media_player.sendspin_group" ||
+              entity == "media_player.atmosfera_echo_hub") {
             entity = "${tile_media_entity}";
             auto call = id(media_player_entity).make_call();
             call.set_value(entity);
@@ -211,13 +227,6 @@ script:
           id(subscription_gen) += 1;
           id(subscribed_media_player_entity) = entity;
 
-          auto now = id(ha_time).now();
-          if (now.is_valid()) {
-            char time_buf[6];
-            snprintf(time_buf, sizeof(time_buf), "%d:%02d", now.hour, now.minute);
-            lv_label_set_text(id(global_time_label), time_buf);
-            lvgl_esphome_snapshot_sync_clock_widget(id(global_time_label));
-          }
           lv_label_set_text(id(title_label), "No Track");
           lv_label_set_text(id(artist_label), "-");
           lv_label_set_text(id(album_label), "");
@@ -226,8 +235,8 @@ script:
           lv_label_set_text(id(media_time_label), "0:00 / 0:00");
           lv_obj_clear_flag(id(figma_media_artwork_widget), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(album_art_background_widget), LV_OBJ_FLAG_HIDDEN);
-          lv_obj_add_flag(id(artwork_primary_overlay), LV_OBJ_FLAG_HIDDEN);
-          lv_obj_add_flag(id(artwork_scrim), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_clear_flag(id(artwork_primary_overlay), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_clear_flag(id(artwork_scrim), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(title_marquee_scrim), LV_OBJ_FLAG_HIDDEN);
           id(media_wavy_progress).set_background(
               id(album_art_placeholder).get_lv_image_dsc(), false);
@@ -321,9 +330,8 @@ script:
     then:
       - delay: 100ms
       - lambda: |-
-          const int phase = id(voice_assistant_phase);
-          const bool voice_busy = phase != ${voice_assist_idle_phase_id} &&
-                                  phase != ${voice_assist_not_ready_phase_id};
+          const bool voice_busy = id(ui_active_app) == 3 ||
+                                  lv_obj_is_visible(id(voice_assistant_overlay));
           const bool artwork_blocked = id(media_action_pending) ||
                                        id(ui_snapshot_io_busy) ||
                                        !id(boot_sequence_done) ||
@@ -335,13 +343,12 @@ script:
       - if:
           condition:
             lambda: |-
-              const int phase = id(voice_assistant_phase);
               const bool artwork_blocked = id(media_action_pending) ||
                                            id(ui_snapshot_io_busy) ||
                                            !id(boot_sequence_done) ||
                                            (int32_t)(id(artwork_block_until) - millis()) > 0;
               return !id(last_artwork_url).empty() &&
-                     (phase == ${voice_assist_idle_phase_id} || phase == ${voice_assist_not_ready_phase_id}) &&
+                     !lv_obj_is_visible(id(voice_assistant_overlay)) &&
                      id(ui_active_app) == 1 &&
                      !artwork_blocked;
           then:
@@ -357,13 +364,12 @@ script:
       - if:
           condition:
             lambda: |-
-              const int phase = id(voice_assistant_phase);
               const bool artwork_blocked = id(media_action_pending) ||
                                            id(ui_snapshot_io_busy) ||
                                            !id(boot_sequence_done) ||
                                            (int32_t)(id(artwork_block_until) - millis()) > 0;
               return id(artwork_download_deferred) &&
-                     (phase == ${voice_assist_idle_phase_id} || phase == ${voice_assist_not_ready_phase_id}) &&
+                     !lv_obj_is_visible(id(voice_assistant_overlay)) &&
                      id(ui_active_app) == 1 &&
                      !artwork_blocked;
           then:
@@ -393,13 +399,24 @@ script:
                      id(album_art_background).get_height() > 0;
           then:
             - script.execute: media_apply_artwork
+          else:
+            # After a reboot SendSpin can restore metadata before its artwork
+            # buffer is decoded. Publishing an empty image only marks the
+            # request deferred forever; retry the existing URL so the normal
+            # hardware-JPEG path fills the live buffer when Player is visible.
+            - if:
+                condition:
+                  lambda: |-
+                    return id(ui_active_app) == 1 && !id(ui_snapshot_io_busy) &&
+                           !id(last_artwork_url).empty();
+                then:
+                  - script.execute: debounce_artwork_download
 
   - id: refresh_progress_bar_from_state
     mode: restart
     then:
       - lambda: |-
-          const int phase = id(voice_assistant_phase);
-          if (phase != ${voice_assist_idle_phase_id} && phase != ${voice_assist_not_ready_phase_id}) {
+          if (id(ui_active_app) == 3 || lv_obj_is_visible(id(voice_assistant_overlay))) {
             return;
           }
 
@@ -589,9 +606,8 @@ script:
     then:
       - delay: 2s
       - lambda: |-
-          const int voice_phase = id(voice_assistant_phase);
-          const bool voice_visible = voice_phase != ${voice_assist_idle_phase_id} &&
-                                     voice_phase != ${voice_assist_not_ready_phase_id};
+          const bool voice_visible = id(ui_active_app) == 3 ||
+                                     lv_obj_is_visible(id(voice_assistant_overlay));
           if (id(ui_active_app) != 1 || voice_visible || id(ui_snapshot_io_busy) ||
               id(media_speaker_panel_open) || id(global_volume_dragging) ||
               !lv_obj_has_flag(id(queue_panel), LV_OBJ_FLAG_HIDDEN) ||
@@ -739,7 +755,7 @@ script:
           lvgl_esphome_direct_regions_pause(false, 0);
           if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
           lv_obj_add_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN);
-          lv_obj_add_flag(id(global_time_button), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(global_volume_activation_surface), LV_OBJ_FLAG_HIDDEN);
           lv_obj_clear_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN);
           lv_obj_move_foreground(id(global_volume_overlay));
           const int pct = id(global_volume_renderer).clamp_pct(id(global_volume_pct));
@@ -761,19 +777,17 @@ script:
           lvgl_esphome_direct_regions_pause(false, 0);
           if (lv_obj_get_x(id(title_label)) != 0) lv_obj_set_x(id(title_label), 0);
           id(global_volume_time_press_tracking) = false;
+          id(ui_navigation).set_external_touch_capture(true);
           id(global_volume_dragging) = true;
           id(global_volume_drag_start_pct) = id(global_volume_renderer).clamp_pct(id(global_volume_pct));
           id(global_volume_knob_pct) = 50;
           lv_obj_add_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN);
-          id(global_volume_renderer).update(id(global_volume_drag_start_pct), 50);
           lv_obj_add_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN);
-          lv_obj_add_flag(id(global_time_button), LV_OBJ_FLAG_HIDDEN);
-          id(global_volume_renderer).set_activation_widget_was_visible(!id(global_clock_suppressed));
-          const bool direct_ready = id(global_volume_renderer).begin();
-          id(global_volume_renderer).update_drag_point(
-              id(global_volume_drag_start_pct), 50,
-              id(global_volume_time_press_start_x), id(global_volume_time_press_start_y));
+          lv_obj_add_flag(id(global_volume_activation_surface), LV_OBJ_FLAG_HIDDEN);
+          id(global_volume_renderer).set_activation_widget_was_visible(!id(global_volume_activation_suppressed));
+          const bool direct_ready = id(global_volume_renderer).begin(id(global_volume_drag_start_pct), 50);
           if (!direct_ready) {
+            id(global_volume_renderer).update(id(global_volume_drag_start_pct), 50);
             lv_obj_clear_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN);
             lv_obj_move_foreground(id(global_volume_overlay));
             lv_obj_invalidate(id(global_volume_overlay));
@@ -803,10 +817,10 @@ script:
           const bool direct_presented = id(global_volume_renderer).is_active();
           id(global_volume_renderer).end();
           lv_obj_add_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN);
-          if (id(global_clock_suppressed))
-            lv_obj_add_flag(id(global_time_button), LV_OBJ_FLAG_HIDDEN);
+          if (id(global_volume_activation_suppressed))
+            lv_obj_add_flag(id(global_volume_activation_surface), LV_OBJ_FLAG_HIDDEN);
           else
-            lv_obj_clear_flag(id(global_time_button), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_clear_flag(id(global_volume_activation_surface), LV_OBJ_FLAG_HIDDEN);
           // A direct overlay restores the captured frame itself. Forcing an
           // LVGL refresh here races the direct slideshow/camera renderer that
           // has just resumed and produces horizontal strips. Native fallback
@@ -814,6 +828,19 @@ script:
           if (!direct_presented)
             lv_refr_now(nullptr);
       - script.execute: global_volume_send_to_ha
+      - script.execute: global_volume_release_touch_capture
+
+  - id: global_volume_release_touch_capture
+    mode: restart
+    then:
+      # The physical RELEASE which closes the direct overlay is still pending
+      # in LVGL's indev queue. Keep navigation captured through one complete UI
+      # cycle so that release cannot click the Home tile below the clock.
+      - lambda: 'lv_indev_reset(nullptr, nullptr);'
+      - delay: 80ms
+      - lambda: |-
+          lv_indev_reset(nullptr, nullptr);
+          id(ui_navigation).set_external_touch_capture(false);
 
   - id: global_volume_send_to_ha
     mode: restart
@@ -862,10 +889,10 @@ script:
       - lambda: |-
           if (!id(global_volume_dragging)) {
             lv_obj_fade_out(id(global_volume_overlay), 120, 0);
-            if (id(global_clock_suppressed))
-              lv_obj_add_flag(id(global_time_button), LV_OBJ_FLAG_HIDDEN);
+            if (id(global_volume_activation_suppressed))
+              lv_obj_add_flag(id(global_volume_activation_surface), LV_OBJ_FLAG_HIDDEN);
             else
-              lv_obj_clear_flag(id(global_time_button), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_clear_flag(id(global_volume_activation_surface), LV_OBJ_FLAG_HIDDEN);
           }
       - delay: 130ms
       - if:
@@ -894,38 +921,59 @@ script:
   - id: media_show_lottie_visual
     mode: restart
     then:
-      - lvgl.widget.show: lottie_visual_zone
-      - lambda: |-
-          if (id(weather_animation) != nullptr) {
-            auto *ctx = static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(id(weather_animation)));
-            esphome::lvgl::lottie_show(ctx, true);
-          }
+      # Compatibility hook retained for navigation scripts. The old hidden
+      # player Lottie rendered continuously even though its 1x1 canvas was
+      # invisible; the artwork placeholder is now the only idle visual.
+      - lambda: 'return;'
 
   - id: media_hide_lottie_visual
     mode: restart
     then:
-      - lambda: |-
-          if (id(weather_animation) != nullptr) {
-            auto *ctx = static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(id(weather_animation)));
-            esphome::lvgl::lottie_hide(ctx);
-          }
-      - lvgl.widget.hide: lottie_visual_zone
+      - lambda: 'return;'
 
   - id: media_apply_artwork
     mode: restart
     then:
-      - script.stop: media_complete_artwork_handoff
+      # SendSpin commonly publishes station artwork and track artwork back to
+      # back. Coalesce that burst and let an already-running frame handoff
+      # finish; cancelling it mid-PPA pass can leave the DSI scene owned by a
+      # stale generation.
+      - delay: 80ms
+      - lambda: |-
+          ESP_LOGW("artwork.ui",
+                   "apply requested trace=%u generation=%u applied=%u target=%u app=%d phase=%d snapshot=%s "
+                   "transition=%s prepared=%s guard=%s",
+                   static_cast<unsigned>(id(album_art_background).get_trace_id()),
+                   static_cast<unsigned>(id(album_art_background).get_buffer_generation()),
+                   static_cast<unsigned>(id(media_applied_artwork_generation)),
+                   static_cast<unsigned>(id(artwork_apply_target_generation)), id(ui_active_app),
+                   id(voice_assistant_phase),
+                   YESNO(id(ui_snapshot_io_busy)),
+                   YESNO(id(player_artwork_presenter).is_transition_active()),
+                   YESNO(id(player_artwork_presenter).is_transition_prepared()),
+                   YESNO(id(artwork_decode_ui_guard)));
+      - wait_until:
+          condition:
+            lambda: 'return !id(player_artwork_presenter).is_transition_active();'
+          timeout: 3000ms
       - if:
           condition:
             lambda: |-
-              const int phase = id(voice_assistant_phase);
-              const bool voice_busy = phase != ${voice_assist_idle_phase_id} &&
-                                      phase != ${voice_assist_not_ready_phase_id};
-              return voice_busy || id(ui_snapshot_io_busy) || !id(boot_sequence_done) || id(ui_active_app) != 1;
+              const bool voice_busy = id(ui_active_app) == 3 ||
+                                      lv_obj_is_visible(id(voice_assistant_overlay));
+              return id(player_artwork_presenter).is_transition_active() || voice_busy ||
+                     id(ui_snapshot_io_busy) || !id(boot_sequence_done) || id(ui_active_app) != 1;
           then:
             - lambda: |-
+                ESP_LOGW("artwork.ui",
+                         "apply deferred trace=%u generation=%u app=%d phase=%d snapshot=%s transition=%s",
+                         static_cast<unsigned>(id(album_art_background).get_trace_id()),
+                         static_cast<unsigned>(id(album_art_background).get_buffer_generation()), id(ui_active_app),
+                         id(voice_assistant_phase), YESNO(id(ui_snapshot_io_busy)),
+                         YESNO(id(player_artwork_presenter).is_transition_active()));
                 id(artwork_download_deferred) = true;
-                id(player_artwork_presenter).cancel_transition();
+                if (!id(player_artwork_presenter).is_transition_active())
+                  id(player_artwork_presenter).cancel_transition();
                 id(artwork_decode_ui_guard) = false;
                 id(artwork_refresh_pending) = false;
           else:
@@ -944,14 +992,35 @@ script:
                 auto *img = id(album_art_background_widget);
                 auto *src = id(album_art_background).get_lv_image_dsc();
                 const uint32_t artwork_trace_id = id(album_art_background).get_trace_id();
-                const bool source_changed =
-                    artwork_trace_id == 0 || artwork_trace_id != id(media_applied_artwork_trace_id) ||
-                    lv_image_get_src(img) != src;
+                const uint32_t artwork_generation = id(album_art_background).get_buffer_generation();
+                const bool source_changed = artwork_generation != 0 &&
+                                            artwork_generation != id(media_applied_artwork_generation);
+                ESP_LOGW("artwork.ui",
+                         "apply accepted trace=%u generation=%u applied=%u changed=%s src=%p background_ready=%s",
+                         static_cast<unsigned>(artwork_trace_id), static_cast<unsigned>(artwork_generation),
+                         static_cast<unsigned>(id(media_applied_artwork_generation)), YESNO(source_changed), src,
+                         YESNO(id(media_wavy_progress).is_background_ready()));
                 ESP_LOGD("artwork.ui", "artwork trace #%u ui apply start uptime=%lums src=%p img=%p",
                          artwork_trace_id, millis(), src, img);
                 if (source_changed) {
+                  // Park the direct marquee before the incoming LVGL scene is
+                  // captured. Otherwise the static title in the captured
+                  // frame and the old direct marquee region can briefly be
+                  // presented together during the artwork handoff.
+                  id(media_title_marquee).end(true);
+                  id(title_marquee_active) = false;
+                  id(title_marquee_start_ms) = 0;
+                  id(title_marquee_scroll_ms) = 0;
+                  if (lv_obj_get_x(id(title_label)) != 0)
+                    lv_obj_set_x(id(title_label), 0);
                   lv_obj_add_flag(id(title_marquee_scrim), LV_OBJ_FLAG_HIDDEN);
-                  id(media_applied_artwork_trace_id) = artwork_trace_id;
+                  id(artwork_apply_target_generation) = artwork_generation;
+                  const bool first_visible_artwork = id(media_applied_artwork_generation) == 0;
+                  if (!first_visible_artwork && !id(player_artwork_presenter).is_transition_prepared() &&
+                      !id(player_artwork_presenter).prepare_transition()) {
+                    ESP_LOGW("artwork.ui", "unable to prepare artwork transition for trace #%u",
+                             static_cast<unsigned>(artwork_trace_id));
+                  }
                 }
                 if (!lv_obj_has_flag(id(figma_media_artwork_widget), LV_OBJ_FLAG_HIDDEN)) {
                   lv_obj_add_flag(id(figma_media_artwork_widget), LV_OBJ_FLAG_HIDDEN);
@@ -959,18 +1028,41 @@ script:
                 if (lv_obj_has_flag(img, LV_OBJ_FLAG_HIDDEN)) {
                   lv_obj_clear_flag(img, LV_OBJ_FLAG_HIDDEN);
                 }
-                lv_obj_add_flag(id(artwork_primary_overlay), LV_OBJ_FLAG_HIDDEN);
-                lv_obj_add_flag(id(artwork_scrim), LV_OBJ_FLAG_HIDDEN);
+                // Keep the purple artwork scrim above every decoded cover;
+                // the private wave backdrop must never become visible itself.
+                lv_obj_clear_flag(id(artwork_primary_overlay), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_clear_flag(id(artwork_scrim), LV_OBJ_FLAG_HIDDEN);
                 if (!lv_obj_has_flag(id(artwork_error_label), LV_OBJ_FLAG_HIDDEN)) {
                   lv_obj_add_flag(id(artwork_error_label), LV_OBJ_FLAG_HIDDEN);
                 }
-                // Build the wave's private backdrop while the presenter owns
-                // the immutable old DSI frame. Starting the crossfade before
-                // this copy is ready lets a later wave frame paste a rectangle
-                // from the preceding artwork generation.
-                id(media_wavy_progress).set_background(src, false);
-                id(artwork_refresh_generation) = lvgl_esphome_get_direct_region_base_generation();
-                id(artwork_refresh_pending) = source_changed;
+                if (source_changed) {
+                  const bool first_visible_artwork = id(media_applied_artwork_generation) == 0;
+                  if (first_visible_artwork) {
+                    // There is no previous cover to preserve on the first
+                    // publish. Avoid creating a second 800x800 PSRAM scene
+                    // just to crossfade from the placeholder; that allocation
+                    // blocks the wave and can make the player look frozen.
+                    lv_image_set_src(img, src);
+                    lv_obj_invalidate(img);
+                    id(media_applied_artwork_generation) = artwork_generation;
+                    id(artwork_refresh_generation) = 0;
+                    id(artwork_refresh_pending) = false;
+                    id(player_artwork_presenter).cancel_transition();
+                    ESP_LOGI("artwork.ui", "first artwork published directly trace=%u generation=%u",
+                             static_cast<unsigned>(artwork_trace_id), static_cast<unsigned>(artwork_generation));
+                  } else {
+                    // Build the wave's private backdrop once per artwork
+                    // generation. Reopening the player with the same image
+                    // must not rebuild or cancel its direct-region state.
+                    id(media_wavy_progress).set_background(src, true);
+                    id(artwork_refresh_generation) = lvgl_esphome_get_direct_region_base_generation();
+                    id(artwork_refresh_pending) = true;
+                  }
+                } else {
+                  if (id(player_artwork_presenter).is_transition_prepared())
+                    id(player_artwork_presenter).cancel_transition();
+                  id(artwork_refresh_pending) = false;
+                }
             - wait_until:
                 condition:
                   lambda: |-
@@ -980,8 +1072,14 @@ script:
                 const bool background_ready = id(media_wavy_progress).is_background_ready();
                 const bool transition_started =
                     id(artwork_refresh_pending) && background_ready &&
-                    id(player_artwork_presenter).transition_to(id(album_art_background), 600);
-                if (!transition_started) {
+                    id(player_artwork_presenter).transition_to(id(album_art_background), 300);
+                ESP_LOGW("artwork.ui",
+                         "present trace=%u generation=%u pending=%s background_ready=%s started=%s",
+                         static_cast<unsigned>(id(album_art_background).get_trace_id()),
+                         static_cast<unsigned>(id(album_art_background).get_buffer_generation()),
+                         YESNO(id(artwork_refresh_pending)),
+                         YESNO(background_ready), YESNO(transition_started));
+                if (id(artwork_refresh_pending) && !transition_started) {
                   if (id(artwork_refresh_pending) && !background_ready) {
                     ESP_LOGW("artwork.ui", "wave backdrop was not ready before artwork presentation");
                   }
@@ -997,42 +1095,28 @@ script:
                   // frame while the regional compositors remain quiescent.
                   lv_obj_invalidate(id(wear_root));
                 }
-            - script.execute: media_complete_artwork_handoff
-            - script.wait: media_complete_artwork_handoff
+            - wait_until:
+                condition:
+                  lambda: 'return !id(player_artwork_presenter).is_transition_active();'
+                timeout: 2500ms
+            - lambda: |-
+                const bool transition_complete = !id(player_artwork_presenter).is_transition_active();
+                if (!transition_complete) {
+                  ESP_LOGW("artwork.ui", "artwork handoff still active for generation %u",
+                           static_cast<unsigned>(id(artwork_apply_target_generation)));
+                } else if (!id(player_artwork_presenter).transition_failed()) {
+                  id(media_applied_artwork_generation) = id(artwork_apply_target_generation);
+                }
+                id(artwork_decode_ui_guard) = false;
+                id(artwork_refresh_pending) = false;
             - script.execute: media_title_marquee_reset_and_start
             - script.execute: start_hide_track_info_timer
-
-  - id: media_complete_artwork_handoff
-    mode: restart
-    then:
-      - wait_until:
-          condition:
-            lambda: |-
-              return id(media_wavy_progress).is_background_ready() &&
-                     !id(player_artwork_presenter).is_transition_pending_or_active();
-          # Scene preparation and the PPA crossfade normally finish well below
-          # this limit, but an active wave and marquee can briefly extend the
-          # complete handoff beyond 1.2 s. Keep the decode guard until the
-          # previous generation has actually released display ownership.
-          timeout: 2000ms
-      - lambda: |-
-          const bool background_ready = id(media_wavy_progress).is_background_ready();
-          const bool transition_complete = !id(player_artwork_presenter).is_transition_pending_or_active();
-          if (!background_ready || !transition_complete) {
-            ESP_LOGW("artwork.ui", "artwork handoff timeout: transition=%s backdrop=%s",
-                     YESNO(transition_complete), YESNO(background_ready));
-          }
-          if (!transition_complete) {
-            id(player_artwork_presenter).cancel_transition();
-          }
-          id(artwork_decode_ui_guard) = false;
-          id(artwork_refresh_pending) = false;
 
   - id: media_handle_artwork_error
     mode: restart
     then:
       - lambda: |-
-          id(media_applied_artwork_trace_id) = 0;
+          id(media_applied_artwork_generation) = 0;
           id(player_artwork_presenter).cancel_transition();
           id(artwork_decode_ui_guard) = false;
           id(artwork_refresh_pending) = false;
@@ -1061,6 +1145,8 @@ text_sensor:
     sendspin_id: sendspin_hub
     type: title
     internal: true
+    filters:
+      - sanitize_html:
     on_value:
       - text_sensor.template.publish:
           id: media_title_sensor
@@ -1071,6 +1157,8 @@ text_sensor:
     sendspin_id: sendspin_hub
     type: artist
     internal: true
+    filters:
+      - sanitize_html:
     on_value:
       - text_sensor.template.publish:
           id: media_artist_sensor
@@ -1081,6 +1169,8 @@ text_sensor:
     sendspin_id: sendspin_hub
     type: album
     internal: true
+    filters:
+      - sanitize_html:
     on_value:
       - text_sensor.template.publish:
           id: media_album_sensor
@@ -1208,6 +1298,10 @@ text_sensor:
     internal: true
     on_value:
       - lambda: |-
+          const bool now_playing = x == "PLAYING" || x == "playing";
+          id(media_player_play_started) = now_playing && !id(media_player_state_was_playing);
+          id(media_player_state_was_playing) = now_playing;
+      - lambda: |-
           // SendSpin exposes a paused stream as IDLE. Capture the last visible
           // progress before the state handlers freeze the wave. This also
           // covers pauses requested outside this screen (for example from MA).
@@ -1241,9 +1335,18 @@ text_sensor:
             - script.execute: media_update_main_control
             - if:
                 condition:
-                  lambda: 'return id(boot_sequence_done) && id(ui_active_app) == 0;'
+                  lambda: |-
+                    return id(boot_sequence_done) && id(ui_active_app) == 0 &&
+                           id(media_player_play_started) &&
+                           !id(camera_paused_media) &&
+                           !id(voice_assistant_suppress_media_auto_open);
                 then:
                   - lvgl.navigation.open: player_application
+            - lambda: |-
+                if (id(media_player_play_started) && id(camera_paused_media)) {
+                  ESP_LOGI("camera.runtime", "Consumed internal camera media resume");
+                  id(camera_paused_media) = false;
+                }
             - if:
                 condition:
                   lambda: 'return id(auto_show_track_info).state;'
@@ -1425,9 +1528,8 @@ interval:
     then:
       - lambda: |-
           id(media_title_marquee).service();
-          const int voice_phase = id(voice_assistant_phase);
-          const bool voice_visible = voice_phase != ${voice_assist_idle_phase_id} &&
-                                     voice_phase != ${voice_assist_not_ready_phase_id};
+          const bool voice_visible = id(ui_active_app) == 3 ||
+                                     lv_obj_is_visible(id(voice_assistant_overlay));
           const bool player_visible = id(ui_active_app) == 1 && !voice_visible &&
                                       id(display_backlight).remote_values.is_on();
           uint16_t blocker_mask = 0;
@@ -1533,32 +1635,37 @@ interval:
       - if:
           condition:
             lambda: |-
-              const int phase = id(voice_assistant_phase);
               return id(ui_active_app) == 1
                   && id(media_duration_sensor).has_state()
                   && id(media_duration_sensor).state > 0.0f
                   && id(media_player_state_sensor).has_state()
                   && (id(media_player_state_sensor).state == "PLAYING" ||
                       id(media_player_state_sensor).state == "playing")
-                  && (phase == ${voice_assist_idle_phase_id} || phase == ${voice_assist_not_ready_phase_id});
+                  && !lv_obj_is_visible(id(voice_assistant_overlay));
           then:
             - script.execute: refresh_progress_bar_from_state
 
   - interval: 1s
     then:
+      # The visible home clock and HA link indicator live inside the resident
+      # Home snapshot. The former global clock label is intentionally inert.
+      - script.execute: ui_refresh_home_header
       - lambda: |-
-          auto now = id(ha_time).now();
-          if (now.is_valid()) {
-            char time_buf[6];
-            snprintf(time_buf, sizeof(time_buf), "%d:%02d", now.hour, now.minute);
-            const char *current = lv_label_get_text(id(global_time_label));
-            if (current == nullptr || strcmp(current, time_buf) != 0) {
-              lv_label_set_text(id(global_time_label), time_buf);
-              lvgl_esphome_snapshot_sync_clock_widget(id(global_time_label));
-            }
-          }
           if (id(media_progress_hold_until) != 0 &&
               (int32_t) (millis() - id(media_progress_hold_until)) >= 0) {
             id(media_progress_hold_until) = 0;
             id(media_update_main_control).execute();
           }
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_home_snapshot_refresh_pending) &&
+                     id(boot_sequence_done) &&
+                     lv_obj_has_flag(id(boot_overlay), LV_OBJ_FLAG_HIDDEN) &&
+                     id(ui_active_app) == 0 && id(ui_page) == 1 &&
+                     !id(ui_snapshot_io_busy) && !id(ui_touch_active) &&
+                     !id(global_volume_dragging) &&
+                     !id(global_volume_time_press_tracking) &&
+                     !lvgl_esphome_snapshot_is_active();
+          then:
+            - script.execute: ui_refresh_home_snapshot_if_pending

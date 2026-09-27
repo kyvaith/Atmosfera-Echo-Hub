@@ -115,6 +115,14 @@ globals:
     type: bool
     restore_value: false
     initial_value: 'false'
+  - id: voice_assistant_restore_app_id
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: voice_assistant_suppress_media_auto_open
+    type: bool
+    restore_value: false
+    initial_value: 'false'
 
 micro_wake_word:
   id: wake_word_engine
@@ -216,6 +224,7 @@ micro_wake_word:
                                           - lambda: |-
                                               id(voice_assistant_restore_display_off) =
                                                   !id(display_backlight).remote_values.is_on();
+                                              id(voice_assistant_restore_app_id) = id(ui_active_app);
                                               id(voice_assistant_terminal_close_pending) = false;
                                               id(voice_assistant_stop_requested) = false;
                                               id(voice_assistant_realtime_idle_pending) = false;
@@ -290,10 +299,17 @@ switch:
     entity_category: config
     icon: "mdi:microphone-off"
     on_turn_on:
-      - micro_wake_word.stop:
-      - lambda: 'id(va)->send_interrupt();'
-      - speaker.stop: assistant_speaker
-      - switch.turn_off: voice_audio_processing_switch
+      # A restored template-switch state is published during setup, before the
+      # resampler and wake-word FreeRTOS event groups necessarily exist. There
+      # is nothing to stop before the product boot sequence has completed.
+      - if:
+          condition:
+            lambda: 'return id(boot_sequence_done);'
+          then:
+            - micro_wake_word.stop:
+            - lambda: 'id(va)->send_interrupt();'
+            - speaker.stop: assistant_speaker
+            - switch.turn_off: voice_audio_processing_switch
       - lambda: |-
           id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
           id(voice_assistant_tts_active) = false;
@@ -304,9 +320,7 @@ switch:
           condition:
             lambda: 'return id(va)->is_connected();'
           then:
-            - switch.turn_off: voice_audio_processing_switch
-            - micro_wake_word.start:
-            - script.execute: voice_assistant_apply_idle_wake_word
+            - script.execute: voice_assistant_start_idle_wake_word
             - lambda: id(voice_assistant_phase) = ${voice_assist_idle_phase_id};
             - script.execute: voice_assistant_update_overlay
       - script.execute: ui_update_voice_mute_state
@@ -477,6 +491,7 @@ va_pipecat:
           - script.stop: voice_assistant_stop_word_watchdog
   on_transcript:
     - lambda: |-
+        ESP_LOGD("voice.transcript", "callback role=%s bytes=%u", role.c_str(), (unsigned) text.size());
         if (role == "user") {
           id(voice_assistant_request_text).publish_state(text);
         } else if (role == "assistant") {
@@ -490,21 +505,22 @@ va_pipecat:
     - lambda: |-
         id(voice_assistant_phase) = ${voice_assist_not_ready_phase_id};
         id(voice_assistant_tts_active) = false;
-        id(voice_assistant_response_text).publish_state("Realtime backend unavailable");
+        id(voice_assistant_response_text).publish_state("Assistant error: realtime backend unavailable. Check Home Assistant.");
     - script.execute: ui_play_va_error_sound
     - script.execute: voice_assistant_update_overlay
     - if:
         condition:
           switch.is_off: voice_assistant_mute_switch
         then:
-          - switch.turn_off: voice_audio_processing_switch
-          - micro_wake_word.start:
-          - script.execute: voice_assistant_apply_idle_wake_word
+          - script.execute: voice_assistant_start_idle_wake_word
   on_error:
     - lambda: |-
         id(voice_assistant_phase) = ${voice_assist_error_phase_id};
         id(voice_assistant_tts_active) = false;
-        id(voice_assistant_response_text).publish_state(message);
+        const std::string visible_message = message.empty()
+            ? "Assistant error: realtime backend unavailable. Check Home Assistant."
+            : "Assistant error: " + message;
+        id(voice_assistant_response_text).publish_state(visible_message);
         ESP_LOGW("voice.pipecat", "Backend error %s: %s", code.c_str(), message.c_str());
     - script.execute: ui_play_va_error_sound
     - script.execute: voice_assistant_update_overlay
@@ -526,7 +542,6 @@ voice_assistant:
     microphone: voice_microphone
     channels: 0
     gain_factor: 4
-  micro_wake_word: wake_word_engine
   speaker: assistant_speaker
   use_wake_word: false
   noise_suppression_level: 0
@@ -543,13 +558,10 @@ voice_assistant:
             - switch.is_off: voice_assistant_mute_switch
             - lambda: 'return id(boot_sequence_done);'
         then:
-          - switch.turn_off: voice_audio_processing_switch
-          - micro_wake_word.start:
-          - script.execute: voice_assistant_apply_idle_wake_word
+          - script.execute: voice_assistant_start_idle_wake_word
     - script.execute: voice_assistant_update_overlay
   on_client_disconnected:
     - voice_assistant.stop:
-    - micro_wake_word.stop:
     - switch.turn_off: voice_audio_processing_switch
     - lambda: |-
         id(voice_assistant_phase) = ${voice_assist_not_ready_phase_id};
@@ -570,7 +582,10 @@ voice_assistant:
         then:
           - lambda: |-
               id(voice_assistant_phase) = ${voice_assist_error_phase_id};
-              id(voice_assistant_response_text).publish_state(message);
+              const std::string visible_message = message.empty()
+                  ? "Assistant error: realtime backend unavailable. Check Home Assistant."
+                  : "Assistant error: " + message;
+              id(voice_assistant_response_text).publish_state(visible_message);
           - script.execute: ui_play_va_error_sound
           - script.execute: voice_assistant_update_overlay
     - mixer_speaker.apply_ducking:
@@ -582,9 +597,7 @@ voice_assistant:
           switch.is_off: voice_assistant_mute_switch
         then:
           - delay: 250ms
-          - switch.turn_off: voice_audio_processing_switch
-          - micro_wake_word.start:
-          - script.execute: voice_assistant_apply_idle_wake_word
+          - script.execute: voice_assistant_start_idle_wake_word
   on_start:
     - switch.turn_on: voice_audio_processing_switch
     - lambda: |-
@@ -764,13 +777,20 @@ voice_assistant:
                         - switch.is_off: voice_assistant_mute_switch
                     then:
                       - delay: 250ms
-                      - switch.turn_off: voice_audio_processing_switch
-                      - micro_wake_word.start:
-                      - script.execute: voice_assistant_apply_idle_wake_word
+                      - script.execute: voice_assistant_start_idle_wake_word
                 - if:
                     condition:
                       lambda: return id(voice_assistant_paused_media);
                     then:
+                      - lambda: |-
+                          const int pct = id(global_volume_renderer).clamp_pct(id(global_volume_pct));
+                          id(audio_stack).set_output_volume(pct / 100.0f);
+                          ESP_LOGI("audio.volume", "HA assistant resume volume requested=%d%% output=%.3f hot=%.3f master=%.3f",
+                                   pct, id(audio_stack).get_output_volume(), id(audio_stack).get_hot_output_volume(),
+                                   id(audio_stack).get_master_volume());
+                      # Apply the saved device volume before unpausing media.
+                      # Otherwise the first audio buffers after the assistant
+                      # return can use the announcement/ducking level.
                       - media_player.play: local_music_player
                       - globals.set:
                           id: voice_assistant_paused_media
@@ -821,6 +841,7 @@ script:
                       id(voice_assistant_stop_requested) = false;
                       id(voice_assistant_realtime_idle_pending) = false;
                       id(voice_assistant_terminal_close_pending) = false;
+                      id(voice_assistant_suppress_media_auto_open) = true;
                   - if:
                       condition:
                         media_player.is_playing: local_music_player
@@ -857,7 +878,8 @@ script:
                   - lambda: |-
                       id(voice_assistant_phase) = ${voice_assist_error_phase_id};
                       id(voice_assistant_request_text).publish_state("");
-                      id(voice_assistant_response_text).publish_state("Realtime backend unavailable");
+                      id(voice_assistant_response_text).publish_state(
+                          "Assistant error: realtime backend unavailable. Check Home Assistant.");
                   - script.execute: display_wake
                   - script.execute: voice_assistant_update_overlay
           else:
@@ -896,14 +918,67 @@ script:
               - switch.is_off: voice_assistant_mute_switch
               - lambda: 'return id(va)->is_connected();'
           then:
-            - micro_wake_word.start:
-            - script.execute: voice_assistant_apply_idle_wake_word
+            - script.execute: voice_assistant_start_idle_wake_word
       - mixer_speaker.apply_ducking:
           id: media_mixing_input
           decibel_reduction: 0
           duration: 1s
       - script.execute: voice_assistant_resume_paused_media
       - script.execute: media_resume_deferred_artwork
+
+  # Always select the idle model before starting inference. Starting the task
+  # first left an occasional zero-enabled-model window after boot/reconnect.
+  - id: voice_assistant_start_idle_wake_word
+    mode: restart
+    then:
+      - if:
+          condition:
+            and:
+              # Wake-word inference is a local, always-available front door.
+              # The realtime backend may reconnect after boot; its connection
+              # state must not decide whether the device can hear the user.
+              - lambda: 'return id(boot_sequence_done);'
+              - switch.is_off: voice_assistant_mute_switch
+          then:
+            - if:
+                condition:
+                  lambda: 'return id(wake_word_engine).is_running();'
+                then:
+                  - micro_wake_word.stop:
+                  # stop() only schedules the FreeRTOS task shutdown. Starting
+                  # again in the same automation tick is rejected as "already
+                  # running", after which the pending stop leaves MWW off.
+                  - wait_until:
+                      condition:
+                        lambda: 'return !id(wake_word_engine).is_running();'
+                      timeout: 2s
+                  - if:
+                      condition:
+                        lambda: 'return id(wake_word_engine).is_running();'
+                      then:
+                        - lambda: |-
+                            ESP_LOGW("voice.wake", "Wake-word task did not stop before model handoff");
+            - switch.turn_off: voice_audio_processing_switch
+            - script.execute: voice_assistant_apply_idle_wake_word
+            - script.wait: voice_assistant_apply_idle_wake_word
+            - if:
+                condition:
+                  lambda: 'return !id(wake_word_engine).is_running();'
+                then:
+                  - micro_wake_word.start:
+            - wait_until:
+                condition:
+                  lambda: 'return id(wake_word_engine).is_running();'
+                timeout: 2s
+            - lambda: |-
+                if (!id(wake_word_engine).is_running()) {
+                  ESP_LOGE("voice.wake", "Idle wake-word task failed to enter running state");
+                } else {
+                  ESP_LOGI("voice.wake",
+                           "Idle wake-word ready model=%s backend=%s",
+                           id(hey_jarvis).is_enabled() ? "hey_jarvis" : "okay_nabu",
+                           YESNO(id(va)->is_connected()));
+                }
 
   - id: voice_assistant_apply_idle_wake_word
     mode: restart
@@ -945,9 +1020,7 @@ script:
                     - switch.is_off: voice_assistant_mute_switch
                     - lambda: 'return id(va)->is_connected();'
                 then:
-                  - switch.turn_off: voice_audio_processing_switch
-                  - micro_wake_word.start:
-                  - script.execute: voice_assistant_apply_idle_wake_word
+                  - script.execute: voice_assistant_start_idle_wake_word
             - script.execute: voice_assistant_stop_word_watchdog
             - script.execute: voice_assistant_resume_paused_media
             - script.execute: media_resume_deferred_artwork
@@ -974,16 +1047,9 @@ script:
   - id: voice_assistant_restore_display_after_close
     mode: restart
     then:
-      - if:
-          condition:
-            lambda: 'return id(voice_assistant_restore_display_off);'
-          then:
-            - output.ledc.set_next_fade_duration:
-                id: backlight_output
-                duration: 3600ms
-            - light.turn_off:
-                id: display_backlight
-                transition_length: 0ms
+      # A physical close gesture already updates the inactivity clock in the
+      # touchscreen path. An automatic close must not count as another touch.
+      # Home's timeout policy decides when to blank from that same timestamp.
       - globals.set:
           id: voice_assistant_restore_display_off
           value: 'false'
@@ -1060,9 +1126,7 @@ script:
               - switch.is_off: voice_assistant_mute_switch
           then:
             - delay: 250ms
-            - switch.turn_off: voice_audio_processing_switch
-            - micro_wake_word.start:
-            - script.execute: voice_assistant_apply_idle_wake_word
+            - script.execute: voice_assistant_start_idle_wake_word
       - script.execute: voice_assistant_resume_paused_media
 
   - id: voice_assistant_resume_paused_media
@@ -1072,10 +1136,47 @@ script:
           condition:
             lambda: return id(voice_assistant_paused_media);
           then:
+            - lambda: |-
+                const int pct = id(global_volume_renderer).clamp_pct(id(global_volume_pct));
+                id(audio_stack).set_output_volume(pct / 100.0f);
+                ESP_LOGI("audio.volume", "assistant resume volume requested=%d%% output=%.3f hot=%.3f master=%.3f",
+                         pct, id(audio_stack).get_output_volume(), id(audio_stack).get_hot_output_volume(),
+                         id(audio_stack).get_master_volume());
             - media_player.play: local_music_player
             - globals.set:
                 id: voice_assistant_paused_media
                 value: 'false'
+
+  - id: voice_assistant_restore_previous_application
+    mode: restart
+    then:
+      # Let the Voice close compositor finish exposing Home before beginning a
+      # second application transition from the saved pre-conversation state.
+      - delay: 80ms
+      - lambda: |-
+          const int restore_app = id(voice_assistant_restore_app_id);
+          id(voice_assistant_restore_app_id) = 0;
+          if (id(ui_navigation).get_active_application() != nullptr) return;
+          switch (restore_app) {
+            case 1:
+              id(ui_navigation).open_application(id(player_application));
+              break;
+            case 2:
+              id(ui_navigation).open_application(id(settings_application));
+              break;
+            case 4:
+              id(ui_navigation).open_application(id(immich_application));
+              break;
+            case 5:
+              id(ui_navigation).open_application(id(camera_application));
+              break;
+            default:
+              break;
+          }
+      - delay: 900ms
+      - globals.set:
+          id: voice_assistant_suppress_media_auto_open
+          value: 'false'
 
   - id: voice_assistant_mark_stage
     mode: queued

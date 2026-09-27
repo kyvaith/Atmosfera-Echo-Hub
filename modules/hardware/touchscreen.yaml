@@ -118,16 +118,28 @@ touchscreen:
     id: my_touchscreen
     i2c_id: touchscreen_bus
     display: my_display
-    update_interval: 16ms
+    # Poll fast enough that the first movement reaches navigation within one
+    # display frame. Gesture routing still filters a few pixels of controller
+    # jitter before it takes ownership from a clickable widget.
+    update_interval: 8ms
     on_touch:
       then:
         - lambda: |-
+            id(ui_last_touch_activity_ms) = millis();
             id(display_touch_wake_start_ms) = millis();
             id(display_touch_wake_start_x) = touch.x;
             id(display_touch_wake_start_y) = touch.y;
             id(display_touch_wake_last_x) = touch.x;
             id(display_touch_wake_last_y) = touch.y;
             id(display_touch_wake_samples) = 1;
+
+            // A real contact is activity immediately. Waiting for the second
+            // controller sample allowed the display timeout task to run while
+            // an application transition was already being prepared.
+            if (id(boot_sequence_done) && id(display_backlight).remote_values.is_on()) {
+              id(display_last_interaction_ms) = millis();
+              id(voice_assistant_restore_display_off) = false;
+            }
 
             if (id(boot_sequence_done) && !id(display_backlight).remote_values.is_on()) {
               id(display_touch_wake_pending) = true;
@@ -155,8 +167,14 @@ touchscreen:
               id(global_volume_time_press_start_x) = touch.x;
               id(global_volume_time_press_start_y) = touch.y;
               id(ui_touch_click_block_until_ms) = millis() + 1500;
+              // Capture navigation before the long press matures. Otherwise
+              // LVGL can queue this same contact for the Home tile below the
+              // clock and activate it when the volume overlay releases.
+              id(global_volume_release_touch_capture).stop();
+              id(ui_navigation).set_external_touch_capture(true);
+              lv_indev_reset(nullptr, nullptr);
               id(global_volume_long_press_guard).execute();
-              id(global_volume_renderer).set_activation_widget_was_visible(!id(global_clock_suppressed));
+              id(global_volume_renderer).set_activation_widget_was_visible(!id(global_volume_activation_suppressed));
               id(global_volume_renderer).prepare();
               return;
             }
@@ -233,6 +251,7 @@ touchscreen:
                 id(display_touch_wake_samples) >= 2 &&
                 millis() - id(display_touch_wake_start_ms) >= 16U) {
               id(display_last_interaction_ms) = millis();
+              id(voice_assistant_restore_display_off) = false;
             }
             if (id(global_volume_dragging)) {
               const int knob_pct = id(global_volume_renderer).arc_pct_from_point(touch.x, touch.y);
@@ -268,6 +287,7 @@ touchscreen:
                 id(global_volume_time_press_tracking) = false;
                 id(global_volume_long_press_guard).stop();
                 id(global_volume_renderer).cancel_prepare();
+                id(global_volume_release_touch_capture).execute();
                 return;
               }
               if (millis() - id(global_volume_time_press_start_ms) >= 250) {
@@ -318,8 +338,10 @@ touchscreen:
                 id(display_backlight).remote_values.is_on() &&
                 ((touch_samples >= 2 && touch_held_ms >= 16U) || touch_held_ms >= 48U)) {
               id(display_last_interaction_ms) = touch_release_ms;
+              id(voice_assistant_restore_display_off) = false;
             }
             id(ui_touch_active) = false;
+            id(ui_last_touch_activity_ms) = touch_release_ms;
             if (id(ui_manual_pressed_obj) != nullptr) {
               lv_obj_clear_state(id(ui_manual_pressed_obj),
                   static_cast<lv_state_t>(LV_STATE_PRESSED | LV_STATE_FOCUSED | LV_STATE_HOVERED));
@@ -353,6 +375,7 @@ touchscreen:
               id(global_volume_long_press_guard).stop();
               id(global_volume_renderer).cancel_prepare();
               id(ui_touch_click_block_until_ms) = millis() + 500;
+              id(global_volume_release_touch_capture).execute();
               return;
             }
             if (id(media_transport_touch_tracking)) {

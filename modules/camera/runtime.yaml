@@ -6,6 +6,36 @@ globals:
     type: bool
     restore_value: no
     initial_value: 'false'
+  - id: camera_loading_active
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+interval:
+  - interval: 2s
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_active_app) == 5 && id(settings_perf_logs_switch).state;
+          then:
+            - lambda: |-
+                ESP_LOGI("camera.perf",
+                         "input=%.1ffps/%u frames accepted=%.1ffps direct=%u decoded=%u dropped=%u reconnects=%u "
+                         "decode=%uus present=%.1ffps/%u frames present=%uus jpeg=%uus mem=%uB",
+                         static_cast<double>(id(camera_stream_image).measured_input_fps()),
+                         static_cast<unsigned>(id(camera_stream_image).received_frames()),
+                         static_cast<double>(id(camera_stream_image).measured_fps()),
+                         static_cast<unsigned>(id(camera_stream_image).direct_frames()),
+                         static_cast<unsigned>(id(camera_stream_image).decoded_frames()),
+                         static_cast<unsigned>(id(camera_stream_image).dropped_frames()),
+                         static_cast<unsigned>(id(camera_stream_image).reconnects()),
+                         static_cast<unsigned>(id(camera_stream_image).last_decode_us()),
+                         static_cast<double>(id(camera_stream_presenter).measured_present_fps()),
+                         static_cast<unsigned>(id(camera_stream_presenter).presented_frames()),
+                         static_cast<unsigned>(id(camera_stream_presenter).last_present_us()),
+                         static_cast<unsigned>(id(camera_stream_presenter).last_direct_jpeg_decode_us()),
+                         static_cast<unsigned>(id(camera_stream_image).memory_usage_bytes()));
 
 network_camera:
   id: camera_stream_image
@@ -13,33 +43,50 @@ network_camera:
   # The Home Assistant integration supplies the selected camera.* entities
   # after its existing ESPHome API connection is established.
   sources: []
-  frame_interval: 34ms
+  frame_interval: 50ms
   reconnect_interval: 2s
   # A cold HLS-to-MJPEG bridge can need several seconds to start its encoder.
   # This runs in the camera task and does not block LVGL.
-  request_timeout: 10s
+  request_timeout: 15s
   max_frame_size: 768kB
   max_width: 1920
   max_height: 1080
   release_buffer_on_stop: true
-  task_core: -1
-  task_priority: 5
+  # ESPHome's loopTask runs on CPU1 on the dual-core P4. Keep blocking HTTP
+  # reads and hardware JPEG submission on CPU0 so a stalled stream cannot
+  # starve the UI/API loop.
+  task_core: 0
+  # Keep socket ingestion below the JPEG presenter. A continuously readable
+  # MJPEG socket must never starve the hardware decoder or UI handoff.
+  task_priority: 1
   task_stack_size: 8192
+  task_stack_in_psram: true
   on_first_frame:
     - if:
         condition:
           lambda: 'return id(ui_active_app) == 5;'
         then:
+          - script.execute: camera_loading_stop
           - lambda: |-
               auto *source = id(camera_stream_image).get_lv_image_dsc();
               if (source != nullptr && source->header.w != 0 && source->header.h != 0)
                 lv_image_set_src(id(camera_stream_widget), source);
               lv_obj_add_flag(id(camera_status_card), LV_OBJ_FLAG_HIDDEN);
               lv_obj_clear_flag(id(camera_stream_widget), LV_OBJ_FLAG_HIDDEN);
-          - lvgl_image_presenter.restart: camera_stream_presenter
+              lv_obj_clear_flag(id(camera_previous_touch_zone), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_clear_flag(id(camera_next_touch_zone), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_clear_flag(id(camera_source_picker_touch_zone), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(camera_root), LV_OBJ_FLAG_CLICKABLE);
+          # The encoded-frame consumer has already presented this frame. A
+          # second restart here released and reacquired the DSI scene directly
+          # after the first image, briefly exposing the native loading page.
   on_state:
     - lambda: |-
-        if (id(ui_active_app) != 5 || id(camera_stream_image).has_frame())
+        // The direct spinner owns this region until the first frame. Updating
+        // even hidden LVGL labels underneath it invalidates the loading page
+        // and makes the spinner disappear for one or more frames.
+        if (id(ui_active_app) != 5 || id(camera_stream_image).has_frame() ||
+            id(camera_loading_active))
           return;
         if (state == "connecting") {
           lv_label_set_text(id(camera_status_label), "Connecting to live view");
@@ -50,7 +97,10 @@ network_camera:
         }
   on_source:
     - lambda: |-
-        if (id(ui_active_app) == 5)
+        // Source selection can be published while the first frame is still
+        // connecting. Updating this hidden label invalidates the complete
+        // native loading scene and momentarily erases the direct spinner.
+        if (id(ui_active_app) == 5 && !id(camera_loading_active))
           lv_label_set_text(id(camera_source_label), source.c_str());
     # Keep the dynamic HA select synchronized when the source is changed on
     # the display. Authentication is provided by the existing ESPHome API.
@@ -82,13 +132,38 @@ lvgl_image_presenter:
     pan_limit: 0%
 
 script:
+  - id: camera_loading_start
+    mode: restart
+    then:
+      - lambda: |-
+          id(camera_loading_active) = true;
+          auto *ctx = static_cast<esphome::lvgl::LottieContext *>(
+              lv_obj_get_user_data(id(camera_loading_lottie)));
+          ESP_LOGI("camera.loader", "start ctx=%p task=%p pixel=%p hidden=%s", ctx,
+                   ctx == nullptr ? nullptr : ctx->task_handle,
+                   ctx == nullptr ? nullptr : ctx->pixel_buffer,
+                   ctx == nullptr ? "n/a" : YESNO(ctx->runtime_hidden));
+          if (ctx != nullptr)
+            esphome::lvgl::lottie_show(ctx, true);
+  - id: camera_loading_stop
+    mode: restart
+    then:
+      - lambda: |-
+          id(camera_loading_active) = false;
+          auto *ctx = static_cast<esphome::lvgl::LottieContext *>(
+              lv_obj_get_user_data(id(camera_loading_lottie)));
+          ESP_LOGI("camera.loader", "stop ctx=%p task=%p pixel=%p", ctx,
+                   ctx == nullptr ? nullptr : ctx->task_handle,
+                   ctx == nullptr ? nullptr : ctx->pixel_buffer);
+          if (ctx != nullptr)
+            esphome::lvgl::lottie_hide(ctx);
+
   - id: ui_prepare_camera_page
     mode: restart
     then:
       - lvgl.widget.show: camera_root
       - lvgl.widget.hide: camera_stream_widget
       - lvgl.widget.show: camera_status_card
-      - lvgl.widget.show: camera_loading_spinner
       - lvgl.label.update:
           id: camera_source_label
           text: !lambda |-
@@ -143,14 +218,28 @@ script:
             # presenter paused behind an endless spinner.
             - lvgl.widget.hide: camera_status_card
             - lvgl.widget.show: camera_stream_widget
+            - script.execute: camera_loading_stop
             - lvgl_image_presenter.resume: camera_stream_presenter
-            - lambda: 'lv_refr_now(nullptr);'
+            - lambda: |-
+                lv_obj_clear_flag(id(camera_previous_touch_zone), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_clear_flag(id(camera_next_touch_zone), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_clear_flag(id(camera_source_picker_touch_zone), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(id(camera_root), LV_OBJ_FLAG_CLICKABLE);
+                lv_refr_now(nullptr);
           else:
             - lvgl.widget.hide: camera_stream_widget
             - lvgl.widget.show: camera_status_card
             - lvgl.label.update:
                 id: camera_status_label
                 text: "Connecting to live view"
+            - lambda: |-
+                lv_obj_add_flag(id(camera_previous_touch_zone), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(id(camera_next_touch_zone), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(id(camera_source_picker_touch_zone), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_remove_flag(id(camera_root), LV_OBJ_FLAG_CLICKABLE);
+                lv_obj_invalidate(id(camera_root));
+                lv_refr_now(nullptr);
+            - script.execute: camera_loading_start
             - lvgl_image_presenter.restart: camera_stream_presenter
             - delay: 20ms
             - network_camera.select:
@@ -164,7 +253,7 @@ script:
     then:
       # Camera content owns the complete viewport. The top-layer clock remains
       # a touch activation region only and must never be painted over video.
-      - lvgl.widget.hide: global_time_button
+      - lvgl.widget.hide: global_volume_activation_surface
       # Video decode, full-screen PPA scaling and SendSpin audio otherwise
       # compete for both CPU time and PSRAM bandwidth. Resume only playback
       # that this app actually paused.
@@ -183,7 +272,20 @@ script:
                 value: 'false'
       # Arm the encoded-frame consumer now, but keep LVGL in control until the
       # first complete JPEG arrives so the native loader remains animated.
-      - lvgl.widget.show: camera_stream_widget
+      # Never reveal the previous descriptor while the new stream is still
+      # connecting. The first complete encoded frame owns the handoff below.
+      - lvgl.widget.hide: camera_stream_widget
+      # Complete every native LVGL update before the direct spinner takes the
+      # display region. No native invalidation may overwrite its first frame.
+      - lambda: |-
+          lv_obj_add_flag(id(camera_previous_touch_zone), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(camera_next_touch_zone), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(camera_source_picker_touch_zone), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_remove_flag(id(camera_root), LV_OBJ_FLAG_CLICKABLE);
+          lv_label_set_text(id(camera_status_label), "Connecting to live view");
+          lv_obj_invalidate(id(camera_root));
+          lv_refr_now(nullptr);
+      - script.execute: camera_loading_start
       - lvgl_image_presenter.restart: camera_stream_presenter
       - delay: 20ms
       - network_camera.start: camera_stream_image
@@ -191,6 +293,7 @@ script:
   - id: camera_closed
     mode: restart
     then:
+      - script.execute: camera_loading_stop
       # Drain the display-owned DSI lease before the camera task releases any
       # decoded fallback frame. The stream task then frees that RGB buffer on
       # its next stopped iteration because release_buffer_on_stop is enabled.
@@ -198,12 +301,18 @@ script:
       - network_camera.stop: camera_stream_image
       - lvgl.widget.hide: camera_source_picker_overlay
       - lvgl.widget.hide: camera_stream_widget
+      - lambda: |-
+          lv_obj_add_flag(id(camera_previous_touch_zone), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(camera_next_touch_zone), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(camera_source_picker_touch_zone), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_remove_flag(id(camera_root), LV_OBJ_FLAG_CLICKABLE);
       - if:
           condition:
             lambda: 'return id(camera_paused_media);'
           then:
             - delay: 100ms
             - media_player.play: local_music_player
-            - globals.set:
-                id: camera_paused_media
-                value: 'false'
+            # Keep camera_paused_media set until the Player state callback
+            # observes the real PLAYING edge. That edge can arrive seconds
+            # after media_player.play and must not be mistaken for a new user
+            # request that should automatically open Player.

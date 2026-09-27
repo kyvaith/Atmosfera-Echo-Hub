@@ -14,15 +14,18 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import (
     ATTR_NODE_NAME,
+    ATTR_SLOT,
     ATTR_SOURCE,
     CONF_CAMERAS,
     CONF_DEVICE_ID,
     DOMAIN,
     PLATFORMS,
     SERVICE_REPORT_CAMERA_SOURCE,
+    SERVICE_REPORT_TILE_PRESS,
 )
 from .camera_proxy import AtmosferaCameraStreamView
 from .controller import CameraBridge
+from .panel import async_setup_panel
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,7 +34,9 @@ CONFIG_SCHEMA = vol.Schema(
         DOMAIN: vol.Schema(
             {
                 vol.Required(CONF_DEVICE_ID): cv.string,
-                vol.Required(CONF_CAMERAS): vol.All(cv.ensure_list, [cv.entity_id]),
+                vol.Optional(CONF_CAMERAS, default=[]): vol.All(
+                    cv.ensure_list, [cv.entity_id]
+                ),
             }
         )
     },
@@ -43,6 +48,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register the device-to-HA source synchronization action."""
 
     hass.http.register_view(AtmosferaCameraStreamView(hass))
+    await async_setup_panel(hass)
 
     async def async_report_camera_source(call: ServiceCall) -> None:
         node_name: str = call.data[ATTR_NODE_NAME]
@@ -62,6 +68,28 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             {
                 vol.Required(ATTR_NODE_NAME): cv.string,
                 vol.Required(ATTR_SOURCE): cv.string,
+            }
+        ),
+    )
+
+    async def async_report_tile_press(call: ServiceCall) -> None:
+        node_name: str = call.data[ATTR_NODE_NAME]
+        slot: int = call.data[ATTR_SLOT]
+        for entry in hass.config_entries.async_loaded_entries(DOMAIN):
+            bridge: CameraBridge = entry.runtime_data
+            if bridge.node_name == node_name:
+                await bridge.async_press_tile(slot)
+                return
+        _LOGGER.debug("Ignored tile press from unknown node %s", node_name)
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_REPORT_TILE_PRESS,
+        async_report_tile_press,
+        schema=vol.Schema(
+            {
+                vol.Required(ATTR_NODE_NAME): cv.string,
+                vol.Required(ATTR_SLOT): vol.All(vol.Coerce(int), vol.Range(min=0, max=10)),
             }
         ),
     )

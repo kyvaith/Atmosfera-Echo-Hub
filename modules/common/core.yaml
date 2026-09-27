@@ -131,11 +131,13 @@ esphome:
     priority: 600
     then:
     - micro_wake_word.stop:
+    - script.stop: ui_play_va_error_sound
     - output.turn_off: backlight_output
     - light.turn_off:
         id: display_backlight
     - lambda: |-
         id(album_art_background).set_sendspin_paused(true);
+        id(boot_audio_ready) = false;
     - lvgl.page.show:
         id: controls_page
     - delay: 250ms
@@ -155,8 +157,6 @@ esphome:
     # label/style updates during the splash-to-home hand-off can starve DSI.
     - script.execute: ui_apply_settings_state
     - script.wait: ui_apply_settings_state
-    - script.execute: ui_build_tile_snapshots_now
-    - script.wait: ui_build_tile_snapshots_now
     # Preserve large contiguous blocks for the raw home-page cache first. The
     # encoded artwork buffers are then reserved once, while the panel is still
     # dark, and reused for every Music Assistant/Immich image.
@@ -218,13 +218,10 @@ esphome:
         lvgl_esphome_dsi_mark_stress("boot-boot-sound", 6000);
     - script.execute: boot_start_esphome_animation
     - script.wait: boot_reveal_esphome_wordmark
-    # Lottie has released its large frame cache, but the completed boot frame
-    # and wordmark still cover the display. Build the expensive application and
-    # Home snapshot caches now so they no longer extend the fully-black handoff.
-    - script.execute: ui_finish_boot_tile_snapshot_cache
-    - script.wait: ui_finish_boot_tile_snapshot_cache
-    # The wordmark and chime are now complete. Fade the panel fully to black,
-    # switch the underlying LVGL tree while it is invisible, then reveal Home.
+    # The wordmark and chime are now complete. Fade the panel fully to black
+    # before changing the overlay ownership. Snapshotting while the boot
+    # overlay was still present allowed a scanout fragment of the splash to
+    # become the first Home transition frame.
     - output.ledc.set_next_fade_duration:
         id: backlight_output
         duration: 700ms
@@ -242,6 +239,27 @@ esphome:
         lvgl_esphome_dsi_mark_stress("boot-hide-overlay", 700);
     - script.execute: boot_hide_esphome_animation
     - script.wait: boot_hide_esphome_animation
+    - script.execute: boot_finish_esphome_overlay
+    - script.wait: boot_finish_esphome_overlay
+    # Stop and hide the splash before any cache/layout work. The panel is
+    # already dark, so this does not change the visible sequence, but it keeps
+    # the boot Lottie from competing with snapshot encoding and prevents its
+    # last direct frame from leaking into Home.
+    - lambda: |-
+        if (!lvgl_esphome_direct_regions_pause(true, 500)) {
+          ESP_LOGW("boot.diag", "direct-region drain timed out before first Home refresh");
+        }
+        lvgl_esphome_snapshot_dsi_quiet_ms(180);
+        // Force one ordinary LVGL refresh after the splash is gone so both
+        // display buffers contain the covered Home tree, not a stale boot
+        // fragment.
+        lv_refr_now(nullptr);
+    # Build the application and Home caches only after the splash worker and
+    # its overlay have been fully stopped.
+    - script.execute: ui_build_tile_snapshots_now
+    - script.wait: ui_build_tile_snapshots_now
+    - script.execute: ui_finish_boot_tile_snapshot_cache
+    - script.wait: ui_finish_boot_tile_snapshot_cache
     - lambda: |-
         auto *frame = id(my_display).get_presented_frame_buffer();
         lv_area_t area{};
@@ -261,6 +279,10 @@ esphome:
     - script.execute: ui_show_home_content_after_boot
     - script.wait: ui_show_home_content_after_boot
     - lambda: |-
+        // Keep the boot-wide region lease held while the final Home frame is
+        // seeded into both LVGL/DSI buffers. Releasing first allowed a queued
+        // weather frame to race this handoff and occasionally left the next
+        // application transition with the pressed tile in front.
         lvgl_esphome_snapshot_dsi_quiet_ms(450);
         ESP_LOGW("boot.diag",
                  "boot transition: controls shown internal=%uK/%uK psram=%uK/%uK",
@@ -268,10 +290,14 @@ esphome:
                  (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
                  (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                  (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
-    - script.execute: boot_finish_esphome_overlay
-    - script.wait: boot_finish_esphome_overlay
     - lambda: |-
         lv_refr_now(nullptr);
+        if (!lvgl_esphome_direct_handoff_to_lvgl(120)) {
+          ESP_LOGW("boot.diag", "home framebuffer handoff did not seed both LVGL buffers");
+        }
+        if (!lvgl_esphome_direct_regions_pause(false, 120)) {
+          ESP_LOGW("boot.diag", "direct-region resume after Home handoff timed out");
+        }
         lvgl_esphome_snapshot_dsi_quiet_ms(450);
     - output.ledc.set_next_fade_duration:
         id: backlight_output
@@ -289,12 +315,27 @@ esphome:
         id: boot_sequence_done
         value: 'true'
     - lambda: |-
+        // A backend can report the first connection error while its socket
+        // is still settling. Do not let that delayed error chime overlap the
+        // boot chime or the final black-to-Home handoff.
+        id(boot_error_sound_allowed_after_ms) = millis() + 5000U;
+    - script.execute: home_weather_refresh
+    # The weather presenter is deliberately armed only after the boot overlay
+    # and the first Home snapshot are on screen. Otherwise its one-shot Lottie
+    # can finish underneath the splash and only the retained last frame leaks
+    # into the first visible Home frame.
+    - lvgl_material.weather.resume:
+        id: home_weather_presenter
+        value: 'true'
+    - lambda: |-
         id(display_last_interaction_ms) = millis();
         lv_display_trigger_activity(nullptr);
-    - micro_wake_word.start:
-    - script.execute: voice_assistant_apply_idle_wake_word
+    - script.execute: voice_assistant_start_idle_wake_word
     - lambda: |-
         ESP_LOGW("boot.diag", "boot transition: done");
+    - globals.set:
+        id: boot_audio_ready
+        value: 'true'
 
 ota:
 - platform: esphome
@@ -303,6 +344,36 @@ api:
   custom_services: true
   homeassistant_states: true
   actions:
+    - action: home_tiles_set_config
+      variables:
+        payload: string
+      then:
+        - lvgl_material.tiles.configure:
+            id: home_material_tiles
+            payload: !lambda 'return payload;'
+        - lambda: |-
+            const uint32_t changed = id(home_material_tiles).get_last_changed_slots();
+            if (changed != 0) {
+              id(ui_managed_tile_refresh_pending_mask) |= changed;
+              id(ui_refresh_managed_tile_snapshots).execute();
+            }
+    - action: notification_show
+      variables:
+        title: string
+        message: string
+        icon: string
+        duration_ms: int
+      then:
+        - lvgl_material.notification.show:
+            id: material_notification_overlay
+            title: !lambda 'return title;'
+            message: !lambda 'return message;'
+            icon: !lambda 'return icon;'
+            duration: !lambda 'return duration_ms;'
+    - action: notification_dismiss
+      then:
+        - lvgl_material.notification.dismiss:
+            id: material_notification_overlay
     - action: debug_restart
       then:
         - lambda: 'App.safe_reboot();'
@@ -372,6 +443,8 @@ api:
             id(ui_navigation).activate_home_view(index);
             id(ui_page) = index + 1;
             id(ui_home_page) = index + 1;
+            id(home_weather_presenter).resume_after_navigation(index == 0);
+        - script.execute: ui_apply_tile_positions
     - action: debug_navigation_touch
       variables:
         phase: int
@@ -386,6 +459,14 @@ api:
             } else {
               id(ui_navigation).touch_end();
             }
+    - action: debug_weather_press
+      variables:
+        pressed: bool
+      then:
+        - lambda: |-
+            lv_obj_send_event(id(tile_weather_button),
+                              pressed ? LV_EVENT_PRESSED : LV_EVENT_RELEASED,
+                              nullptr);
     - action: debug_navigation_trace
       variables:
         enabled: bool
@@ -404,6 +485,11 @@ api:
     - action: debug_open_player
       then:
         - lvgl.navigation.open: player_application
+    - action: debug_snapshot_app_state
+      variables:
+        phase: string
+      then:
+        - lambda: 'lvgl_esphome_snapshot_app_log_state(phase.c_str());'
     - action: debug_wake
       then:
         - script.execute: display_wake
@@ -456,21 +542,25 @@ api:
       then:
         - lambda: |-
             id(voice_assistant_restore_display_off) = false;
+            id(voice_assistant_restore_app_id) = 0;
             id(voice_assistant_terminal_close_pending) = false;
         - lvgl.navigation.open: voice_application
+    - action: debug_start_voice
+      then:
+        - script.execute: voice_assistant_start_from_ui
     - action: debug_show_voice_visual
       then:
         - script.execute: display_wake
-        - lambda: |-
-            lv_obj_remove_flag(id(voice_assistant_overlay), LV_OBJ_FLAG_HIDDEN);
-            lv_obj_move_foreground(id(voice_assistant_overlay));
-            id(voice_assistant_presenter).set_active(true);
-            lvgl_esphome_direct_regions_pause(false, 0);
+        - lvgl.navigation.open: voice_application
     - action: debug_hide_voice_visual
       then:
         - lambda: |-
             id(voice_assistant_presenter).set_active(false);
-            lv_obj_add_flag(id(voice_assistant_overlay), LV_OBJ_FLAG_HIDDEN);
+        - if:
+            condition:
+              lambda: 'return id(ui_active_app) == 3;'
+            then:
+              - lvgl.navigation.close: ui_navigation
     - action: debug_voice_visual_state
       variables:
         phase: string
@@ -480,6 +570,10 @@ api:
         output_level: float
       then:
         - lambda: |-
+            // Keep the synthetic phrase in the same state store as Pipecat;
+            // a later phase event must not overwrite it with empty sensors.
+            id(voice_assistant_request_text).publish_state(user_text);
+            id(voice_assistant_response_text).publish_state(assistant_text);
             id(voice_assistant_presenter).set_phase(phase);
             id(voice_assistant_presenter).set_transcripts(user_text, assistant_text);
             id(voice_assistant_presenter).set_audio_levels(input_level, output_level);
@@ -495,11 +589,6 @@ api:
               static constexpr size_t CHUNK_SIZE = 3000;
               if (offset <= 0) {
                 capture.clear();
-                auto *frame = id(my_display).get_presented_frame_buffer();
-                if (frame == nullptr) {
-                  root["error"] = "no presented framebuffer";
-                  return;
-                }
                 esphome::esp32_jpeg::JpegBuffer jpeg;
                 const esphome::esp32_jpeg::EncodeConfig config{
                     .width = 800,
@@ -508,13 +597,40 @@ api:
                     .down_sampling = esphome::esp32_jpeg::DownSampling::YUV420,
                     .quality = 70,
                     .pixel_reverse = false,
+                    .input_dma_owned = true,
                     .retain_output_buffer = false,
+                    .output_buffer_size = 512U * 1024U,
                     .dma2d_burst_length = 64,
                     .dma2d_descriptor_burst = 0,
                     .timeout_ms = 120,
                 };
+                auto *display = lv_display_get_default();
+                auto *component = display == nullptr
+                                      ? nullptr
+                                      : static_cast<esphome::lvgl::LvglComponent *>(lv_display_get_user_data(display));
+                if (component != nullptr)
+                  component->log_direct_buffer_state("capture-before-pause");
+                lvgl_esphome_direct_regions_pause(true, 150);
+                if (component != nullptr)
+                  component->log_direct_buffer_state("capture-paused");
+                lv_lock();
+                const auto *frame = component == nullptr
+                                      ? id(my_display).get_presented_frame_buffer()
+                                      : component->direct_get_stable_presented_frame(100);
+                if (frame == nullptr) {
+                  lv_unlock();
+                  lvgl_esphome_direct_regions_pause(false, 0);
+                  root["error"] = "no stable presented framebuffer";
+                  return;
+                }
                 const esp_err_t error =
                     esphome::esp32_jpeg::encode(config, frame, 800U * 800U * 3U, &jpeg);
+                lv_unlock();
+                if (component != nullptr)
+                  component->log_direct_buffer_state("capture-before-resume");
+                lvgl_esphome_direct_regions_pause(false, 0);
+                if (component != nullptr)
+                  component->log_direct_buffer_state("capture-resumed");
                 if (error != ESP_OK || jpeg.empty()) {
                   root["error"] = esp_err_to_name(error);
                   return;
@@ -538,6 +654,66 @@ api:
                 capture.clear();
                 capture.shrink_to_fit();
               }
+    - action: debug_capture_region_raw
+      variables:
+        x: int
+        y: int
+        width: int
+        height: int
+        scale: int
+        offset: int
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda |-
+              // Stream a downsampled RGB888 region without allocating a full
+              // screenshot or JPEG scratch buffer. This remains usable while
+              // the voice presenter owns several large PSRAM surfaces.
+              static constexpr size_t RAW_CHUNK_BYTES = 2250;
+              static uint8_t chunk[RAW_CHUNK_BYTES];
+              auto *display = lv_display_get_default();
+              if (display == nullptr) {
+                root["error"] = "no display";
+                return;
+              }
+              const int screen_width = lv_display_get_horizontal_resolution(display);
+              const int screen_height = lv_display_get_vertical_resolution(display);
+              const int step = std::max<int32_t>(scale, 1);
+              const int left = std::clamp<int32_t>(x, 0, screen_width - 1);
+              const int top = std::clamp<int32_t>(y, 0, screen_height - 1);
+              const int capture_width = std::clamp<int32_t>(width, 1, screen_width - left);
+              const int capture_height = std::clamp<int32_t>(height, 1, screen_height - top);
+              const int output_width = (capture_width + step - 1) / step;
+              const int output_height = (capture_height + step - 1) / step;
+              const size_t total_size = static_cast<size_t>(output_width) * output_height * 3U;
+              const size_t start = static_cast<size_t>(std::max<int32_t>(offset, 0));
+              if (start >= total_size) {
+                root["error"] = "capture offset out of range";
+                return;
+              }
+              const auto *frame = id(my_display).get_presented_frame_buffer();
+              if (frame == nullptr) {
+                root["error"] = "no presented framebuffer";
+                return;
+              }
+              const size_t source_stride = id(my_display).get_frame_buffer_stride();
+              const size_t count = std::min(RAW_CHUNK_BYTES, total_size - start);
+              for (size_t index = 0; index < count; index++) {
+                const size_t source_byte = start + index;
+                const size_t output_pixel = source_byte / 3U;
+                const size_t channel = source_byte % 3U;
+                const int output_x = static_cast<int>(output_pixel % output_width);
+                const int output_y = static_cast<int>(output_pixel / output_width);
+                const int source_x = std::min(left + output_x * step, left + capture_width - 1);
+                const int source_y = std::min(top + output_y * step, top + capture_height - 1);
+                chunk[index] = frame[static_cast<size_t>(source_y) * source_stride +
+                                     static_cast<size_t>(source_x) * 3U + channel];
+              }
+              root["width"] = output_width;
+              root["height"] = output_height;
+              root["total_size"] = total_size;
+              root["offset"] = start;
+              root["data_b64"] = esphome::base64_encode(chunk, count);
     - action: debug_open_queue
       then:
         - script.execute: open_queue_panel
@@ -556,6 +732,24 @@ api:
     - action: debug_previous_immich_photo
       then:
         - script.execute: immich_previous_photo
+    - action: debug_gallery_stats
+      then:
+        - lambda: |-
+            ESP_LOGW("immich.diag",
+                     "active=%s phase_complete=%s transition=%s failed=%s frames=%u reused=%u rejected=%u "
+                     "fps=%.1f render=%uus max=%uus memory=%uKiB",
+                     YESNO(id(ui_active_app) == 4), YESNO(id(immich_slideshow).is_phase_complete()),
+                     YESNO(id(immich_slideshow).is_transition_pending_or_active()),
+                     YESNO(id(immich_slideshow).transition_failed()),
+                     static_cast<unsigned>(id(immich_slideshow).presented_frames()),
+                     static_cast<unsigned>(id(immich_slideshow).reused_frames()),
+                     static_cast<unsigned>(id(immich_slideshow).rejected_frames()),
+                     static_cast<double>(id(immich_slideshow).measured_fps()),
+                     static_cast<unsigned>(id(immich_slideshow).last_render_us()),
+                     static_cast<unsigned>(id(immich_slideshow).max_render_us()),
+                     static_cast<unsigned>(id(immich_slideshow).memory_usage_bytes() / 1024U));
+            ESP_LOGI("loader.diag", "gallery_m3=%s camera_m3=%s",
+                     YESNO(id(immich_loading_active)), YESNO(id(camera_loading_active)));
     - action: debug_open_camera
       then:
         - lvgl.navigation.open: camera_application
@@ -585,10 +779,14 @@ api:
       then:
         - lambda: |-
             ESP_LOGW("camera.diag",
-                     "state=%s source=%u decoded=%u direct=%u dropped=%u decode_fps=%.1f decode=%uus "
-                     "presented=%u present_fps=%.1f present=%uus direct_decode=%uus memory=%uKiB has_frame=%s",
+                     "state=%s source=%u received=%u input_fps=%.1f decoded=%u direct=%u dropped=%u "
+                     "accepted_fps=%.1f decode=%uus "
+                     "presented=%u present_fps=%.1f present=%uus direct_decode=%uus queue_drop=%u stale_drop=%u "
+                     "source_memory=%uKiB queue_memory=%uKiB has_frame=%s",
                      id(camera_stream_image).state_name(),
                      static_cast<unsigned>(id(camera_stream_image).active_source_index()),
+                     static_cast<unsigned>(id(camera_stream_image).received_frames()),
+                     static_cast<double>(id(camera_stream_image).measured_input_fps()),
                      static_cast<unsigned>(id(camera_stream_image).decoded_frames()),
                      static_cast<unsigned>(id(camera_stream_image).direct_frames()),
                      static_cast<unsigned>(id(camera_stream_image).dropped_frames()),
@@ -598,7 +796,10 @@ api:
                      static_cast<double>(id(camera_stream_presenter).measured_present_fps()),
                      static_cast<unsigned>(id(camera_stream_presenter).last_present_us()),
                      static_cast<unsigned>(id(camera_stream_presenter).last_direct_jpeg_decode_us()),
+                     static_cast<unsigned>(id(camera_stream_presenter).direct_jpeg_queue_drops()),
+                     static_cast<unsigned>(id(camera_stream_presenter).direct_jpeg_stale_drops()),
                      static_cast<unsigned>(id(camera_stream_image).memory_usage_bytes() / 1024U),
+                     static_cast<unsigned>(id(camera_stream_presenter).memory_usage_bytes() / 1024U),
                      YESNO(id(camera_stream_image).has_frame()));
     - action: debug_reopen_current_camera
       then:
@@ -610,7 +811,7 @@ api:
         - lambda: |-
             id(global_volume_time_press_start_x) = 400;
             id(global_volume_time_press_start_y) = 40;
-            id(global_volume_renderer).set_activation_widget_was_visible(!id(global_clock_suppressed));
+            id(global_volume_renderer).set_activation_widget_was_visible(!id(global_volume_activation_suppressed));
             id(global_volume_renderer).prepare();
         - script.execute: global_volume_begin_drag
         - repeat:
@@ -674,6 +875,40 @@ api:
                          : static_cast<long>(static_cast<int32_t>(id(media_progress_hold_until) - millis())),
                      YESNO(id(media_action_pending)));
             id(media_wavy_progress).log_state("api diagnostic");
+    - action: debug_wave_trace_start
+      then:
+        - lambda: 'id(media_wavy_progress).reset_trace();'
+    - action: debug_wave_trace_stop
+      then:
+        - lambda: 'id(media_wavy_progress).log_trace("api diagnostic");'
+    - action: debug_direct_buffer_state
+      variables:
+        phase: string
+      then:
+        - lambda: |-
+            auto *display = lv_display_get_default();
+            auto *component = display == nullptr
+                                  ? nullptr
+                                  : static_cast<esphome::lvgl::LvglComponent *>(lv_display_get_user_data(display));
+            if (component != nullptr)
+              component->log_direct_buffer_state(phase.c_str());
+    - action: debug_weather_state
+      then:
+        - lambda: id(home_weather_presenter).log_state("before-update");
+        - script.execute: home_weather_update_now
+        - delay: 100ms
+        - lambda: id(home_weather_presenter).log_state("after-update");
+    - action: debug_weather_variant
+      variables:
+        condition: string
+        is_day: bool
+      then:
+        - lambda: |-
+            lvgl_esphome_set_perf_logging_enabled(true);
+            id(home_weather_presenter).update(condition, is_day, 21.0f, 21.0f, 50.0f);
+            ESP_LOGI("weather.bench", "variant=%s day=%u", condition.c_str(), is_day);
+        - delay: 250ms
+        - lambda: id(home_weather_presenter).restart_on_wake();
   on_client_connected:
   - lambda: |-
       ESP_LOGD("api.diag", "CONNECTED client=%s address=%s uptime=%lums internal_free=%uKiB psram_free=%uKiB",
@@ -687,6 +922,7 @@ api:
         id(ha_base_url) = client_address;
       }
   - script.execute: subscribe_media_after_boot
+  - script.execute: home_weather_refresh_after_connect
   on_client_disconnected:
   - lambda: |-
       ESP_LOGD("api.diag", "DISCONNECTED client=%s address=%s uptime=%lums wifi_connected=%s rssi=%.0fdBm internal_free=%uKiB psram_free=%uKiB",

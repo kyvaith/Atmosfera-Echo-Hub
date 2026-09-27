@@ -191,6 +191,21 @@ page in Home Assistant and from the picker on the display. See
 [Camera streaming](docs/architecture/camera-streaming.md) for the complete data
 path and lifecycle.
 
+### Home Assistant tile editor
+
+The same `atmosfera_echo_hub` integration registers an authenticated
+**Atmosfera** panel in Home Assistant. The panel edits the eleven preallocated
+Home tile slots: entity, title, icon, palette, optional service, and visibility.
+Changes are persisted in the integration config entry and sent to the device
+through the existing native ESPHome API connection. Entity state changes update
+the fixed LVGL object pool without rebuilding the widget tree.
+
+This is deliberately a Home Assistant panel, not a second unauthenticated web
+server hosted by the ESP32. The current editor is a bounded production
+checkpoint, not yet a complete EspControl-equivalent configurator: arbitrary
+page creation, drag-and-drop sizing, all card types, layout backup/restore, and
+language/appearance editors remain future work.
+
 ## What Else This Device Could Support
 
 Atmosfera Echo Hub has enough hardware surface area to grow into a truly ultimate Home Assistant satellite. High-value expansion areas include the following.

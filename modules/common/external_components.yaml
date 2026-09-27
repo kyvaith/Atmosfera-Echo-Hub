@@ -5,7 +5,7 @@
 external_components:
   - source:
       type: local
-      path: C:/Users/kyvai/kyvaith-esphome-productization-lvgl/esphome/components
+      path: C:/Users/kyvai/kyvaith-esphome/esphome/components
     components:
       - audio_processor
       - artwork_image
@@ -23,7 +23,8 @@ external_components:
       - network_camera
       - sendspin
       - task_runtime_profiler
-  - source: github://kyvaith/pipecat-homeassistant@dev
-    refresh: always
+  - source:
+      type: local
+      path: C:/Users/kyvai/Archive/2026-09-27-project-cleanup/pipecat-homeassistant/components
     components:
       - va_pipecat

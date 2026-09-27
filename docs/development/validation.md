@@ -163,6 +163,9 @@ For Player, Settings, Voice, and Immich:
   words. Test punctuation, a short final fragment, duplicate transcript
   sources, and a final transcript carried in the same message as the next
   phase.
+- Exercise a transcript JSON message larger than the WebSocket receive chunk.
+  Require complete device callbacks for both roles and no `WS text fragment out
+  of order` or oversized-message warning; audible TTS alone is not sufficient.
 - Verify the waveform breathes during silence, follows microphone energy while
   listening, and follows assistant PCM while replying.
 - Interrupt TTS and verify direct `replying -> listening`.
@@ -293,6 +296,139 @@ Use the visible pattern to narrow the layer:
 Do not stack speculative fallbacks. Revert unsuccessful experiments before
 testing the next hypothesis.
 
+### 2026-09-15 boot lease validation
+
+The boot snapshot preparation and application lifecycle were tested on ESP32-P4
+over COM5 with ESP-IDF 5.5.5. The tested sequence was a complete boot, Home
+idle observation, Settings open/close, and Player open/state/close. The build
+was flashed directly over serial and the written image hash was verified.
+
+The run showed `rejected=0` for the tested application transitions and no
+`DIRECT frame boundary timed out` after boot preparation. DSI stress reported
+`brg_under=0`, `host_under=0`, and `fifo_zero=0`. These checks validate DSI
+ownership and lifecycle for this sequence; they do not prove absence of visual
+artifacts in every native LVGL widget or cover long-duration media stress.
+
+### 2026-09-15 fixed chrome and weather cache validation
+
+The current COM5 image was compiled with ESP-IDF 5.5.5 and flashed directly
+over serial. The written image SHA-256 is
+`04688ED617E3A524B1E51129BB7D3770F97E8F81A54DCEDAFAAE2FC05D0E8A1A`.
+
+The Home status bar is owned by fixed chrome: Home keeps its icons outside the
+moving page roots, while Player and Settings use the global layer. The snapshot
+compositor applies the same masks only at handoff, so periodic status polling
+does not reorder objects or invalidate a full screen. Home pages 1-4, Player,
+Settings, and return from Camera, Immich, and Assistant were captured after the
+flash. The media captures show valid camera/photo frames and the assistant
+capture shows both transcript paragraphs with a visible phase label.
+
+Weather is prepared inside its page subtree before the boot snapshot. While the
+live Lottie object is running, the carousel uses the prepared frozen frame. A
+weather data update refreshes only the native temperature/condition chip as an
+in-place full-stride band (`800x114` in the tested layout), rather than making
+another full-frame snapshot. The band took approximately 75 ms in the current
+serial log; subsequent weather rendering stabilized at about 42-43 FPS.
+
+The same serial run reported `dsi_under=0` and no reset/backtrace. This is a
+bounded transition and media smoke test, not proof against every long-duration
+native LVGL stress case. Live Gemini speech/text remains a backend validation
+blocker when the provider reports depleted prepayment credits; the device
+transport and UI were verified with the local protocol test.
+
+### 2026-09-19 Home, media, and conversation regression pass
+
+Source trees are the modified product checkout based on `0cdaa2e` and the
+modified ESPHome checkout based on `85aece2b9`. These HEADs alone do not identify
+the firmware: both contain uncommitted changes. The native IDF 5.5.5 build
+`2026-09-19 17:56:43 +0200`, config `0x8a422a40`, was flashed over COM5 with
+verified image SHA-256
+`797F4F10C3FD4BB4D4F7786C0F6C4DFF4409C0BC1D2D7E6F572FFCCDA7AF8F2E`.
+
+Hardware evidence under `C:/aeh-build/20260919-*`:
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Three mixed app cycles, Voice/Settings/Player/Camera/Gallery | 15/15 completed without API loss or reboot; Player actually playing | `home-region-mixed/results.json` |
+| Held Home drag, fixed icons/dots, moving mic and weather | 9/9, including identical native/snapshot Wi-Fi bounds | `region-snapshot-chrome/results.json` |
+| Three returns Home 2 to Home 1 | Weather present in all nine captures | `region-weather-return/results.json` |
+| Home 1-4, Player/Settings and return to Home 3 | 10/10; no page-one mic on page three | `region-home-chrome/results.json` |
+| Full-size Gallery with retained Player artwork | Hardware JPEG succeeds; Home raw slots restored after close | `home-region-com.log` |
+| Pipecat protocol and transport unit tests | 29 passed | `python -m unittest discover -s tests -p 'test_va_pipecat*.py'` |
+
+The weather pixel test originally assumed a blue sun. Live HA selected a white
+cloud; visual inspection confirmed the frame was present. Its criterion now
+accepts both weather colors inside the translated weather-only region. This
+test correction is not a firmware fix. Atomic screenshot capture briefly
+pauses presentation, so these captures prove retained content and geometry,
+not absence of every single-frame glitch.
+
+Measured steady ranges in this run: Player wave about 54-55 FPS during music,
+horizontal full-size Gallery pan about 38-39 FPS, camera presentation about
+11-14 FPS. The generic cloudy ThorVG path remains around 9-10 FPS; the earlier
+42-43 FPS weather number belongs to the specialized sunny renderer and must
+not be reported as the performance of every weather condition. DSI counters
+remained zero in this bounded run, with no assert/panic or failed allocation.
+Physical finger latency and pressed-state replay were not measured by the
+synthetic navigation API.
+
+Rejected/intermediate failures and their concrete fixes:
+
+- A repeated Assistant close into cloudy Home produced `tlsf_free: block
+  already marked as free`. The decoded stack led through `lv_canvas_set_buffer`
+  on the Lottie raster worker into LVGL's event list. Native frame publication
+  now uses a one-frame pointer mailbox consumed by the ESPHome main loop;
+  worker-side `lv_lock()` alone did not serialize YAML actions.
+- A 1620x911 JPEG needed 2,976,768 bytes of contiguous decoded storage while
+  the largest free block was only 1,856 KiB. Free total alone was misleading.
+  Gallery now releases the two unused raw Home neighbours while retaining
+  current Home and all compressed backing. It restores the three raw slots
+  after close. The current 800x800 Player artwork remains resident.
+- Full Home recapture on a clock change took about 984 ms and could omit the
+  promoted weather canvas. The clock now patches only its merged region;
+  observed updates were about 119-221 ms, outside active touch/navigation.
+- The generic Gemini SDK setup error overwrote the actionable provider cause.
+  Both `message` and `error` fields are normalized before suppression. Live HA
+  now retains the depleted-prepayment explanation across a subsequent wake.
+
+The Gallery requests `fullsize` through the original-asset endpoint, not the
+smaller preview. Tests included source JPEG 1620x911 and the existing native
+RGB565/PPA display path. This is not a claim that arbitrary full-resolution
+phone originals fit the bounded P4 memory pool.
+
+The Pipecat changes are in local source and the running add-on container, not
+a published release. The configured Gemini project still returns depleted
+prepaid credits, so real cloud inference/audio/text cannot be marked passed.
+Synthetic transcript rendering is a separate check. See `audio-voice.md` for
+the hotfix lifetime and the embedded FLAC assets.
+
+#### Final timeout-policy image
+
+The final image removes the artificial interaction timestamp update on an
+automatic Assistant close. It was fully compiled, flashed over COM5, and
+verified: build `2026-09-19 18:06:47 +0200`, config `0x2e78afd4`, SHA-256
+`AF6AAA05D5973B9AA1D5E5B046B3F60EA51C3A1C89BFBFE489D50DD536F75FAA`.
+The native API reported that exact compilation time after the tests.
+
+`20260919-final-tests.log` records three additional Voice open/close cycles,
+four synthetic transcript captures, Home inactivity, both loader/first-image
+flows, all nine held-snapshot checks, and nine weather-return captures. All
+completed successfully. `20260919-final-com.log` recorded Home blanking at
+30,116 ms idle and sleeping refreshes of pages 2, 3, and 4. No panic, failed
+allocation, or nonzero DSI underrun counter was found in this run. Camera and
+Gallery captures contain decoded media, not only a loader. The actual server
+error is legible in `20260919-final-voice-error/last-open.jpg`; synthetic Polish
+user/assistant paragraphs and phase labels are visible in
+`20260919-final-transcripts/voice-answering.jpg`.
+
+Residual performance issue: after repeated app lifecycles the general cloudy
+Lottie path measured about 4.5-6 FPS, below its initial 9-10 FPS. Retained-frame
+correctness is fixed, but this path is not yet an ultra-smooth renderer. Do not
+hide that result behind the sunny renderer's FPS or reduce asset resolution to
+make the benchmark look better. The 96x96 M3 Camera/Gallery loaders separately
+measured 54-59 FPS. Physical gesture latency, audible chime quality, and
+long-duration unattended stability remain outside this bounded automated pass.
+
 ## Release gate
 
 A productization checkpoint may replace the known-good baseline only when:
@@ -304,4 +440,27 @@ A productization checkpoint may replace the known-good baseline only when:
 - no display artifacts or blue flashes are observed;
 - audio and voice remain continuous;
 - documentation matches the implemented ownership model.
+
+### 2026-09-21 fix14 COM5 pass
+
+The firmware was compiled with ESP-IDF 5.5.5 and flashed directly over COM5;
+OTA was not used. The build was the first one after moving the Player artwork
+backdrop conversion to the wavy-progress render worker and fixing its initial
+setup fallback so it never calls `xSemaphoreTake()` with a null semaphore.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Home pages, Player, Settings, return to Home | PASS | `C:/aeh-build/fix14-home-chrome` |
+| Weather return 2 -> 1, repeated captures | 9/9 with weather present | `C:/aeh-build/fix14-weather-return` |
+| Voice, Settings, Player, Camera, Immich lifecycle with music | 5/5 | `C:/aeh-build/fix14-mixed-logged2` |
+| Runtime reset/assert scan | none found | `C:/aeh-build/20260921-fix14-runtime.log` |
+| DSI underrun scan | no nonzero underrun counter | same runtime log |
+| Player waveform worker | 80-103 renders / 2 s in steady windows | same runtime log |
+| Media resume volume | requested 50% restored before play | `audio.volume` entries in same log |
+
+The run also showed hardware JPEG/RGB565 artwork adoption. The backend still
+reported `Gemini: prepaid credits exhausted`; that is an external Pipecat/
+provider condition, not a firmware display failure. Automated navigation does
+not prove latency of a real finger drag or absence of a sub-frame visual flash;
+those remain manual acceptance checks.
 

@@ -5,6 +5,14 @@ globals:
   type: bool
   restore_value: no
   initial_value: 'false'
+- id: boot_error_sound_allowed_after_ms
+  type: uint32_t
+  restore_value: no
+  initial_value: '0'
+- id: boot_audio_ready
+  type: bool
+  restore_value: no
+  initial_value: 'false'
 - id: settings_perf_overlay_enabled
   type: bool
   restore_value: true
@@ -47,6 +55,9 @@ script:
                 const float b = id(settings_display_brightness).state;
                 return (b < 28.0f ? 28.0f : b) / 100.0f;
               transition_length: 0ms
+          - lambda: |-
+              if (id(ui_active_app) == 0 && id(ui_page) == 1)
+                id(home_weather_presenter).restart_on_wake();
 
 # Use a product-level inactivity clock instead of LVGL's one-shot on_idle
 # trigger. This remains deterministic when a keep-awake application ends
@@ -69,24 +80,21 @@ interval:
 
           const int app = id(ui_active_app);
           const int voice_phase = id(voice_assistant_phase);
-          // The backend phase, not the currently selected page, owns the
-          // conversation lifetime. A wake-word session may be active before
-          // ui_active_app catches up, or while an overlay temporarily changes
-          // navigation state; neither case may let the display timeout fire.
-          const bool conversation_active =
+          // Protect a visible conversation, but do not let a stale backend
+          // phase keep Home awake after the Assistant has closed.
+          const bool conversation_active = app == 3 && (
               voice_phase == ${voice_assist_waiting_phase_id} ||
               voice_phase == ${voice_assist_listening_phase_id} ||
               voice_phase == ${voice_assist_thinking_phase_id} ||
-              voice_phase == ${voice_assist_replying_phase_id};
+              voice_phase == ${voice_assist_replying_phase_id});
           // The gallery owns the whole display while it is open. Keep it lit
           // both during motion and while its navigation HUD is visible.
           const bool slideshow_active = app == 4;
           const bool camera_preview_active = app == 5;
 
           if (conversation_active || slideshow_active || camera_preview_active) {
-            // Start a fresh timeout after the protected activity ends instead
-            // of switching the panel off immediately on app/session close.
-            id(display_last_interaction_ms) = millis();
+            // Preserve the last real interaction. Protected applications do
+            // not themselves count as a touch or keep Home awake afterwards.
             return false;
           }
 

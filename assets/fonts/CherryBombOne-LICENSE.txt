@@ -1,0 +1,7 @@
+Cherry Bomb One
+
+Copyright 2019 The Cherry Bomb Project Authors
+Source: https://github.com/satsuyako/CherryBomb
+
+The font is distributed under the SIL Open Font License, Version 1.1.
+See OFL-1.1.txt in this directory.

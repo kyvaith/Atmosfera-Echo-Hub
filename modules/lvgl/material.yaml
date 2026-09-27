@@ -3,6 +3,68 @@
 # in its own module.
 
 lvgl_material:
+  weather_presenters:
+    - id: home_weather_presenter
+      root: controls_root_1
+      temperature_label: home_weather_temperature
+      condition_label: home_weather_condition
+      detail_label: home_weather_range
+      interaction_widget: tile_weather_button
+      interaction_state_layer: weather_tile_feedback
+      animation_layer: home_weather_animation_layer
+      snapshot_page: controls_root_1
+      # Preserve the boot-prepared weather frame. Only weather text changes
+      # need a cache update; capturing the full animated page also bakes in
+      # the fixed status icons and page indicators.
+      snapshot_region: home_weather_chip
+      snapshot_refresh_delay: 120ms
+      resume_delay: 300ms
+      animations:
+        - { key: clear-day, widget: weather_clear_day }
+        - { key: clear-night, widget: weather_clear_night }
+        - { key: partly-cloudy-day, widget: weather_partly_cloudy_day }
+        - { key: partly-cloudy-night, widget: weather_partly_cloudy_night }
+        - { key: overcast, widget: weather_overcast }
+        - { key: rain, widget: weather_rain }
+        - { key: snow, widget: weather_snow }
+        - { key: thunderstorms, widget: weather_thunderstorms }
+        - { key: fog, widget: weather_fog }
+  # Fixed object pool for HA-configurable cards. Only text, icon and colors are
+  # updated at runtime; the LVGL tree is never rebuilt while the device runs.
+  tile_surfaces:
+    - id: home_material_tiles
+      tiles:
+        - { slot: 0, widget: tile_light_button, icon_label: tile_light_icon, title_label: tile_light_title, subtitle_label: tile_light_subtitle, always_hidden: true }
+        - { slot: 1, widget: tile_climate_button, icon_label: tile_climate_icon, title_label: tile_climate_title, subtitle_label: tile_climate_subtitle, always_hidden: true }
+        - { slot: 2, widget: tile_cover_button, icon_label: tile_cover_icon, title_label: tile_cover_title, subtitle_label: tile_cover_subtitle }
+        - { slot: 3, widget: tile_lock_button, icon_label: tile_lock_icon, title_label: tile_lock_title, subtitle_label: tile_lock_subtitle }
+        - { slot: 4, widget: tile_alarm_button, icon_label: tile_alarm_icon, title_label: tile_alarm_title, subtitle_label: tile_alarm_subtitle }
+        - { slot: 5, widget: tile_garage_button, icon_label: tile_garage_icon, title_label: tile_garage_title, subtitle_label: tile_garage_subtitle }
+        - { slot: 6, widget: tile_fan_button, icon_label: tile_fan_icon, title_label: tile_fan_title, subtitle_label: tile_fan_subtitle }
+        - { slot: 7, widget: tile_fan_speed_button, icon_label: tile_fan_speed_icon, title_label: tile_fan_speed_title, subtitle_label: tile_fan_speed_subtitle }
+        - { slot: 8, widget: tile_switch_button, icon_label: tile_switch_icon, title_label: tile_switch_title, subtitle_label: tile_switch_subtitle }
+        - { slot: 9, widget: tile_scene_button, icon_label: tile_scene_icon, title_label: tile_scene_title, subtitle_label: tile_scene_subtitle }
+        - { slot: 10, widget: tile_trigger_button, icon_label: tile_trigger_icon, title_label: tile_trigger_title, subtitle_label: tile_trigger_subtitle }
+      on_press:
+        - homeassistant.action:
+            action: atmosfera_echo_hub.report_tile_press
+            variables:
+              node_name: !lambda 'return App.get_name();'
+              tile_slot: !lambda 'return std::to_string(slot);'
+            data_template:
+              node_name: "{{ node_name }}"
+              slot: "{{ tile_slot }}"
+
+  notification_overlays:
+    - id: material_notification_overlay
+      root: material_notification_root
+      container: material_notification_panel
+      icon_label: material_notification_icon
+      title_label: material_notification_title
+      subtitle_label: material_notification_message
+      scrim_opacity: 68%
+      duration: 6s
+
   voice_assistants:
     - id: voice_assistant_presenter
       root: voice_assistant_overlay
@@ -26,14 +88,19 @@ lvgl_material:
       label: title_label
       viewport: title_marquee_viewport
 
+  # The camera and gallery loaders are embedded Material 3 Lottie widgets.
+  # They stay inside their bounded 96px object and do not invalidate the full
+  # 800px display on every tick.
+
   direct_volume_overlays:
     - id: global_volume_renderer
       arc: global_volume_arc
       knob: global_volume_knob
       label: global_volume_pct_label
-      activation_widget: global_time_button
+      activation_widget: global_volume_activation_surface
       scrim_opacity: 72%
       scene_controllers:
+        - home_weather_presenter
         - immich_slideshow
         - camera_stream_presenter
 
@@ -64,7 +131,6 @@ lvgl_material:
         - tile_door_window_button
         - tile_presence_button
         - tile_sensor_button
-        - tile_weather_button
         - tile_clock_button
         - tile_camera_button
         - tile_media_button
@@ -75,11 +141,17 @@ lvgl_material:
         - tile_internal_button
         - tile_settings_button
         - tile_voice_button
+        - home_mic_button
       pressed_opacity: 70%
 
   # Transport controls use a direct state layer to avoid redrawing the
   # full-screen artwork while a button is held.
   direct_state_layers:
+    - id: weather_tile_feedback
+      widgets:
+        - tile_weather_button
+      pressed_opacity: 12%
+
     - id: media_transport_feedback
       widgets:
         - prev_button

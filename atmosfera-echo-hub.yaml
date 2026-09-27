@@ -15,6 +15,85 @@ substitutions:
   firmware_manifest_beta_url: "https://kyvaith.github.io/Atmosfera-Echo-Hub/manifest-beta.json"
   dashboard_import_url: github://kyvaith/Atmosfera-Echo-Hub/atmosfera-echo-hub.yaml@main
 
+  # Home screen design tokens. Keep geometry derived from the display
+  # contract so the page can be reused on another square panel later.
+  display_width: '800'
+  display_height: '800'
+  # Keep the RGB token next to the hex form used by inline LVGL recolor
+  # markup and the generated weather assets.
+  home_accent_hex: '36BCF0'
+  home_accent_color: 0x36BCF0
+  home_outline_color: 0x0D0D0D
+  home_surface_color: 0x404040
+  home_background_color: 0x000000
+
+  # Reference layout measured from Prezentacja1.pptx at the 800 px target.
+  # Keeping these values as substitutions makes the composition portable to
+  # another square panel without burying geometry in the page definition.
+  home_clock_x: '40'
+  home_clock_y: '66'
+  home_clock_width: '380'
+  home_clock_height: '390'
+  # The reference slide used 12:58 for geometry checks; production follows HA
+  # time after the layout has been validated.
+  home_clock_preview_time: 'false'
+  # Use LVGL's native stroke around the recolored minute glyph. A second
+  # oversized text object caused a visible offset and doubled the draw area.
+  home_minute_outline_width: '8'
+  home_minute_text_x: '43'
+  home_minute_text_y: '256'
+  home_minute_text_width: '380'
+  home_minute_text_height: '390'
+  home_weather_x: '0'
+  home_weather_y: '0'
+  home_weather_width: '800'
+  home_weather_height: '800'
+  # The sunny/21 C values were only a design-review fixture. Runtime values
+  # come from the configured Home Assistant weather entity.
+  home_weather_preview: 'false'
+  home_weather_preview_temperature: '21.0'
+  # These values are the 800 px projection measured from the design slide.
+  # Keep the artwork box independent from the text chip so the live Lottie
+  # can sit in front of the clock without moving the labels. The selected
+  # sunny scene is rendered at its native display size, avoiding a second
+  # scale pass and preserving the animation's edge quality.
+  home_weather_lottie_x: '402'
+  home_weather_lottie_y: '68'
+  home_weather_lottie_size: '384'
+  # Native size avoids a 320 -> 384 PPA scale pass for the fast radial scene.
+  home_weather_lottie_render_size: '384'
+  home_weather_pill_x: '431'
+  home_weather_pill_y: '489'
+  home_weather_pill_width: '400'
+  home_weather_pill_height: '114'
+  home_weather_temperature_x: '460'
+  home_weather_temperature_y: '484'
+  home_weather_temperature_width: '84'
+  home_weather_temperature_height: '72'
+  home_weather_temperature_unit_x: '534'
+  home_weather_temperature_unit_y: '468'
+  home_weather_temperature_c_x: '549'
+  home_weather_temperature_c_y: '456'
+  home_weather_condition_x: '442'
+  home_weather_condition_y: '548'
+  home_weather_condition_width: '150'
+  home_weather_condition_height: '51'
+  home_volume_icon_x: '339'
+  home_wifi_icon_x: '391'
+  home_status_icon_y: '11'
+  home_mic_x: '356'
+  # Keep the microphone above the indicator row while it overlaps the lower
+  # part of the minute glyph, as in the product composition.
+  home_mic_y: '610'
+  home_mic_size: '90'
+  home_page_indicator_x: '352'
+  # Keep the M3 home indicators on the same baseline as every other tile
+  # page; the large clock must not move this shared navigation affordance.
+  home_page_indicator_y: '737'
+  # The Material Wi-Fi glyph has more transparent leading than the volume
+  # glyph.  A small optical lift makes their visible strokes share a baseline.
+  home_wifi_icon_y: '-8'
+
   # Voice Assistant defaults exposed through device settings
   voice_language_default: en-US
   voice_region_default: auto
@@ -33,6 +112,8 @@ substitutions:
   tile_media_entity: media_player.atmosfera_echo_hub
   tile_fan_entity: fan.living_room
   tile_alarm_entity: alarm_control_panel.home
+  tile_weather_entity: weather.tomorrow_io_karczewizna_daily
+  tile_sun_entity: sun.sun
 
 packages:
   external_components: !include modules/common/external_components.yaml
@@ -53,7 +134,7 @@ packages:
   lvgl_material: !include modules/lvgl/material.yaml
   lvgl_navigation: !include modules/lvgl/navigation.yaml
   lvgl_boot_page: !include modules/lvgl/pages/boot.yaml
-  lvgl_tiles_page: !include modules/lvgl/pages/tiles.yaml
+  lvgl_tiles_page: !include modules/lvgl/pages/tiles_m3.yaml
   lvgl_settings_page: !include modules/lvgl/pages/settings.yaml
   lvgl_player_page: !include modules/lvgl/pages/player.yaml
   lvgl_voice_assistant_overlay: !include modules/lvgl/pages/voice_assistant.yaml
@@ -69,4 +150,5 @@ packages:
   immich_settings: !include modules/immich/settings.yaml
   immich_runtime: !include modules/immich/runtime.yaml
   camera_runtime: !include modules/camera/runtime.yaml
+  weather_runtime: !include modules/weather/runtime.yaml
   voice_assistant_runtime: !include modules/voice_assistant/runtime.yaml

@@ -6,6 +6,34 @@ clock domain and must not create independent hardware owners.
 
 ## Hardware topology
 
+### Provider errors and diagnostic hooks
+
+Gemini Live can fail while entering its connection context, before its receive
+loop has installed error handling. The Pipecat adapter forwards this failure as
+an urgent `provider_connection_error`, remembers it across a satellite wake,
+and clears it only after `provider-ready`. The ESPHome receiver stops the broken
+session, cancels no-speech/follow-up timers, and publishes a readable error.
+The 2026-09-19 live server returned depleted prepaid credits; this is distinct
+from microphone ingress or transcript rendering failure.
+
+The diagnostic fix is present in the local Pipecat source and was tested in
+the running HA add-on container on 2026-09-19. It is a reversible container
+hotfix, not a new published add-on release: recreating/upgrading that container
+from its old image will remove the deployed copy until a release is built.
+
+Voice UI diagnostics must open the registered application. Revealing only its
+top-layer widget leaves `ui_active_app` and weather ownership unchanged and can
+falsely suggest missing transcripts. The text path is checked separately from
+successful cloud inference.
+
+Local chimes now use `device-startup.flac`, `confirm.flac`, and `error.flac`,
+converted from the supplied desktop WAVs and embedded through `audio_file`.
+They retain the shared decoder/mixer path; no independent I2S owner is created.
+
+The display timeout uses the last user interaction, not LVGL redraw activity.
+A physical touch cancels automatic return-to-blank after voice. Active voice,
+Gallery, and Camera temporarily inhibit blanking without moving the timestamp.
+
 | Function | Configuration |
 | --- | --- |
 | I2S sample rate | 48 kHz |
@@ -211,6 +239,14 @@ steps; the bounded dialog shifts upward in the same animation, while cumulative
 phrase continuations update in place. Streaming text therefore does not restart
 the entrance animation or create a second raster pass.
 
+The ESP-IDF WebSocket client can deliver one JSON text message in multiple data
+events. `va_pipecat` must assemble text events by `payload_offset` and
+`payload_len`, including opcode-zero continuation frames, and call the JSON
+parser only after the complete payload is present. Parsing each data event as a
+standalone message silently drops longer transcript updates while binary audio
+continues to work, producing the misleading symptom of audible answers with no
+captions.
+
 The declarative LVGL phase and transcript labels define geometry, fonts,
 colors, and wrapping only. After setup the material presenter hides them and
 owns two fixed RGB888 direct regions: one for status and one for the complete
@@ -223,6 +259,12 @@ wave worker. Live text must never be switched back to native label updates: in
 RGB888 DIRECT mode that invalidates a large native area, runs font/layout work
 in the LVGL loop, and stalls the independent wave. The presenter never
 allocates a full-screen text buffer or allocates per phrase.
+
+Animated transcript frames remain ordinary asynchronous regional updates. Once
+the paragraph animation becomes idle, the final transcript submission is a
+stable boundary: the compositor drains pending work and carries that rectangle
+to every idle DSI framebuffer. This prevents a later framebuffer rotation from
+revealing an older text state without retaining another 680x360 PSRAM copy.
 
 `va_pipecat.on_audio_level` publishes separate normalized input and output PCM
 envelopes. The presenter selects input while listening and output while
@@ -307,12 +349,12 @@ The backend owns conversational phases:
 | `thanks` | Short completion state | Drain output, then cleanup |
 | error/not ready | Error state and chime | Stop broken session, return to idle wake if possible |
 
-These phases also own display power policy. While the backend reports
-`waiting`, `listening`, `thinking`, or `replying`, the inactivity epoch is
-refreshed regardless of `ui_active_app`. Navigation can lag a wake event or
-temporarily change overlay ownership; neither is permission to turn the panel
-off during a live conversation. Once the protected phase ends, a complete new
-timeout interval starts.
+These phases also own display power policy. While Voice is active and the
+backend reports `waiting`, `listening`, `thinking`, or `replying`, sleep is
+inhibited without modifying the last-interaction timestamp. A manual closing
+gesture updates that timestamp and clears wake-from-dark restore intent. After
+closing, Home uses the normal touch-based timeout. A stale backend phase must
+not keep Home awake after the conversation view has closed.
 
 The device must not invent a `thinking` transition merely because no audio is
 currently playing. It follows the backend phase message.
@@ -351,6 +393,18 @@ Boot, listening, and error sounds are local FLAC assets exposed through
 ESPHome's `audio_file` and `media_source.audio_file` components. They use the
 same announcement pipeline as voice output; there is no separate ad hoc codec
 or I2S writer.
+
+The 2026-09-19 user-provided WAV files are encoded losslessly as mono 48 kHz,
+16-bit FLAC to match the mixer, with no runtime sample-rate conversion:
+
+| Event | Asset | Duration | Encoded bytes |
+| --- | --- | ---: | ---: |
+| Startup, during the final boot phase | `device-startup.flac` | 4.800 s | 180689 |
+| Assistant invocation | `confirm.flac` | 2.467 s | 49349 |
+| Assistant error | `error.flac` | 2.396 s | 50220 |
+
+The boot sound completes before the existing backlight fade-out. The wait is
+bounded at six seconds; a broken audio source must not trap the boot sequence.
 
 The amplifier defaults off. It may be enabled only after:
 
@@ -391,6 +445,22 @@ drop timing deadlines without audible corruption.
 
 ## Failure signatures
 
+### Repeated microphone sessions
+
+Static FreeRTOS tasks must not reuse their TCB or free their stack while the
+task is still current on either core. A stopped event, or even `eSuspended`,
+can be observed before the other core has finished its context switch. The
+shared `StaticTask::destroy()` now suspends the task and waits for it to leave
+both cores before deletion. This follows the IDF `vTaskDeleteWithCaps` lifetime
+rule and is important when microWakeWord is stopped for a conversation.
+
+The direct AFE fetch task keeps its static TCB and stack between sessions. It
+suspends after finishing a fetch and is resumed only after that suspension is
+observed. Do not self-delete and recreate it in the same static TCB: deferred
+IDLE cleanup can still reference that storage. Changing only the AFE task did
+not eliminate the observed repeated-open watchdog; keep that distinction in
+the validation record.
+
 | Symptom | First suspects |
 | --- | --- |
 | Wake word works, conversation mic is silent | AFE runtime switch, consumer ownership, stale ring, or session not committing mic |
@@ -417,3 +487,26 @@ Product configuration and policy:
 - `modules/hardware/audio.yaml`
 - `modules/voice_assistant/runtime.yaml`
 - `modules/player/runtime.yaml`
+
+## Boot chime and media-volume restoration (2026-09-21)
+
+The boot sequence owns the audio-ready gate. Assistant listening/confirmation
+and error chimes must require all of the following:
+
+- `boot_sequence_done`;
+- `boot_audio_ready`;
+- `!ui_snapshot_io_busy`;
+- the normal user-facing switch/condition.
+
+This prevents a backend/provider error received while the device is still
+building the first Home snapshots from playing an assistant error sound over
+the startup sound. It does not hide the provider error from logs.
+
+When Assistant releases the media player, restore the requested device volume
+before calling `media_player.play`. Restoring only after the first media
+buffer is queued can leave the first part of the resumed stream at the
+announcement ducking level. The fix logs requested percentage, output volume,
+hot-output volume, and master gain together so a percentage/curve problem can
+be separated from a stale mixer state. In the 2026-09-21 COM5 run a 50%
+request was restored before playback (`output=0.060`, `hot=0.060`,
+`master=1.000`).
