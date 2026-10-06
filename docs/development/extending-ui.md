@@ -223,6 +223,14 @@ Choose the cheapest representation that preserves the design:
 | Complex vector animation | Lottie/ThorVG with measured frame-cache policy |
 | Full-screen page transition | Snapshot compositor |
 
+Weather Lottie documents that participate in runtime theming may mark their
+primary fill with the `sid` value `atmosfera-accent`. Configure the reusable
+widget with `color_slot: atmosfera-accent` and update it through
+`lvgl.lottie.set_color`; the action queues the change on the Lottie worker and
+preserves the current animation phase. Do not add a per-frame YAML lambda or a
+second full-screen buffer for palette changes. Keep secondary outlines and
+semantic detail colours explicit when they must remain readable across themes.
+
 PPA moves pixels; it does not execute arbitrary vector paths. A Lottie change
 must be tested for scene complexity, raster buffer size, cache size, and boot
 phase overlap.

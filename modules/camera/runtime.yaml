@@ -89,11 +89,11 @@ network_camera:
             id(camera_loading_active))
           return;
         if (state == "connecting") {
-          lv_label_set_text(id(camera_status_label), "Connecting to live view");
+          lv_label_set_text(id(camera_status_label), id(ui_i18n).translate("camera.connecting"));
         } else if (state == "retrying") {
-          lv_label_set_text(id(camera_status_label), "Waiting for camera");
+          lv_label_set_text(id(camera_status_label), id(ui_i18n).translate("camera.waiting"));
         } else if (state == "error") {
-          lv_label_set_text(id(camera_status_label), "Camera stream unavailable");
+          lv_label_set_text(id(camera_status_label), id(ui_i18n).translate("camera.unavailable"));
         }
   on_source:
     - lambda: |-
@@ -171,7 +171,7 @@ script:
             return source.empty() ? std::string("Cameras") : source;
       - lvgl.label.update:
           id: camera_status_label
-          text: "Connecting to live view"
+          text: !lambda 'return std::string(id(ui_i18n).translate("camera.connecting"));'
 
   - id: camera_show_source_picker
     mode: single
@@ -193,7 +193,7 @@ script:
           else:
             - lvgl.label.update:
                 id: camera_status_label
-                text: "Choose cameras in Home Assistant"
+                text: !lambda 'return std::string(id(ui_i18n).translate("camera.ha_choose"));'
 
   - id: camera_hide_source_picker
     mode: restart
@@ -231,7 +231,7 @@ script:
             - lvgl.widget.show: camera_status_card
             - lvgl.label.update:
                 id: camera_status_label
-                text: "Connecting to live view"
+                text: !lambda 'return std::string(id(ui_i18n).translate("camera.connecting"));'
             - lambda: |-
                 lv_obj_add_flag(id(camera_previous_touch_zone), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_add_flag(id(camera_next_touch_zone), LV_OBJ_FLAG_HIDDEN);
@@ -282,7 +282,7 @@ script:
           lv_obj_add_flag(id(camera_next_touch_zone), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(camera_source_picker_touch_zone), LV_OBJ_FLAG_HIDDEN);
           lv_obj_remove_flag(id(camera_root), LV_OBJ_FLAG_CLICKABLE);
-          lv_label_set_text(id(camera_status_label), "Connecting to live view");
+          lv_label_set_text(id(camera_status_label), id(ui_i18n).translate("camera.connecting"));
           lv_obj_invalidate(id(camera_root));
           lv_refr_now(nullptr);
       - script.execute: camera_loading_start

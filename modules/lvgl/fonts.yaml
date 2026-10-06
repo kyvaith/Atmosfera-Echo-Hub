@@ -6,7 +6,7 @@ font:
   # to digits keeps the generated bitmap font bounded despite the large size.
   - file: "assets/fonts/CherryBombOne-Regular.ttf"
     id: cherry_bomb_420
-    size: 300
+    size: ${home_clock_font_size}
     bpp: 4
     glyphs:
       - "0"
@@ -22,7 +22,7 @@ font:
 
   - file: "assets/fonts/CherryBombOne-Regular.ttf"
     id: cherry_bomb_300_outline
-    size: 300
+    size: ${home_clock_font_size}
     outline_width: ${home_minute_outline_width}
     bpp: 4
     glyphs:

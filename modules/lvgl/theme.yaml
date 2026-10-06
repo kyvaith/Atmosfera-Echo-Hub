@@ -1,0 +1,76 @@
+# Runtime Material theme binding. The fork walks these existing LVGL trees and
+# replaces known M3 roles in place; no LVGL page or framebuffer is allocated.
+lvgl_material:
+  themes:
+    - id: ui_accent_theme
+      color: ${home_accent_color}
+      roots:
+        - controls_root_1
+        - controls_root_2
+        - controls_root_3
+        - controls_root_4
+        - settings_root
+        - wear_root
+        - voice_assistant_overlay
+        - global_status_chrome
+        - global_volume_overlay
+        - material_notification_root
+        - camera_root
+        - immich_root
+
+script:
+  - id: ui_apply_accent_theme_full
+    mode: restart
+    then:
+      # Call only after the navigation owner has paused/drained direct regions.
+      # The action mutates existing LVGL styles and is bounded by the roots above.
+      - lvgl_material.theme.apply:
+          id: ui_accent_theme
+          color: !lambda 'return id(ui_accent_color);'
+      - lambda: 'id(home_material_tiles).set_accent(id(ui_accent_color));'
+      # The clock is rendered with LVGL recolour markup. Invalidate its
+      # minute key so a palette change immediately regenerates both hour and
+      # minute strings, even when the wall clock minute did not change.
+      - lambda: 'id(ui_home_clock_last_minute) = -1;'
+      - script.execute: ui_refresh_home_header
+      # The ordinary Home refresh is intentionally a no-op when its current
+      # cache window is already ready. Accent changes must first invalidate
+      # every raw/JPEG page and rebuild the application previews, so delegate
+      # that bounded operation to the navigation owner.
+      - script.execute: ui_refresh_accent_snapshots
+      - if:
+          condition:
+            lambda: 'return id(ui_active_app) == 2;'
+          then:
+            - script.execute: ui_refresh_settings_snapshot
+      # Accent changes initiated from the picker keep a small bounded M3
+      # progress surface above the settings snapshot.  Give the snapshot
+      # worker a frame to start before polling; this also covers pages where
+      # no snapshot is resident and the refresh branch is skipped.
+      - if:
+          condition:
+            lambda: 'return id(ui_accent_picker_busy);'
+          then:
+            - delay: 120ms
+            - wait_until:
+                condition:
+                  lambda: 'return !id(ui_snapshot_io_busy);'
+                timeout: 4s
+            - delay: 80ms
+            - lvgl.widget.hide: accent_refresh_overlay
+            # The in-flight capture may contain the spinner itself.  Refresh
+            # once after hiding it so the resident Settings bitmap ends on the
+            # normal list surface instead of retaining a stale loader card.
+            - if:
+                condition:
+                  lambda: 'return id(ui_active_app) == 2 && !id(ui_snapshot_io_busy);'
+                then:
+                  # The first refresh can capture the temporary spinner. Once
+                  # it is hidden, force one final capture of the ordinary
+                  # Settings surface even when the scroll controller has
+                  # already transitioned out of direct-render mode.
+                  - script.execute: ui_refresh_settings_snapshot
+                  - script.wait: ui_refresh_settings_snapshot
+            - globals.set:
+                id: ui_accent_picker_busy
+                value: 'false'

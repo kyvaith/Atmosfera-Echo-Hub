@@ -351,6 +351,10 @@ api:
         - lvgl_material.tiles.configure:
             id: home_material_tiles
             payload: !lambda 'return payload;'
+        # Home Assistant can deliver one retained card payload after the user
+        # changes the accent locally.  Keep the device preference authoritative
+        # while retaining the palette role and text changes from that payload.
+        - lambda: 'id(home_material_tiles).set_accent(id(ui_accent_color));'
         - lambda: |-
             const uint32_t changed = id(home_material_tiles).get_last_changed_slots();
             if (changed != 0) {
@@ -509,6 +513,16 @@ api:
     - action: debug_open_settings
       then:
         - lvgl.navigation.open: settings_application
+    - action: debug_show_accent_picker
+      then:
+        # Diagnostics only: invoke the same picker script as the Settings row
+        # after a test has opened Settings and prepared its scroll snapshot.
+        - script.execute: ui_show_accent_picker
+    - action: debug_select_accent_amber
+      then:
+        # Diagnostics only: dispatch the real swatch click so QA covers the
+        # refresh spinner and snapshot rebuild path used by the UI.
+        - lambda: 'lv_obj_send_event(id(accent_swatch_amber), LV_EVENT_CLICKED, nullptr);'
     - action: debug_benchmark_settings_scroll
       then:
         - lambda: |-

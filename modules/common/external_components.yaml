@@ -23,8 +23,4 @@ external_components:
       - network_camera
       - sendspin
       - task_runtime_profiler
-  - source:
-      type: local
-      path: C:/Users/kyvai/Archive/2026-09-27-project-cleanup/pipecat-homeassistant/components
-    components:
       - va_pipecat

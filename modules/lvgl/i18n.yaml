@@ -1,0 +1,69 @@
+# Product-owned runtime language refresh. Include this package after common/i18n.yaml.
+# Labels listed here are product strings; HA-provided entity titles and media metadata
+# are intentionally left untouched. The script is idempotent and may be called after
+# changing the UI locale or when a page is made visible.
+script:
+  - id: ui_i18n_refresh_full
+    mode: restart
+    then:
+      - lambda: |-
+          // Keep this list explicit: it is the ownership boundary for product copy.
+          lv_label_set_text(id(settings_title_label), id(ui_i18n).translate("settings.title"));
+          lv_label_set_text(id(settings_device_label), id(ui_i18n).translate("settings.device"));
+          lv_label_set_text(id(settings_true_colour_label), id(ui_i18n).translate("settings.true_colour"));
+          lv_label_set_text(id(settings_true_colour_note), id(ui_i18n).translate("settings.true_colour_active"));
+          lv_label_set_text(id(settings_screen_tone_label), id(ui_i18n).translate("settings.screen_tone"));
+          lv_label_set_text(id(settings_perf_overlay_label), id(ui_i18n).translate("settings.performance_hud"));
+          lv_label_set_text(id(settings_system_logs_label), id(ui_i18n).translate("settings.system_logs"));
+          lv_label_set_text(id(settings_perf_logs_label), id(ui_i18n).translate("settings.performance_logs"));
+          lv_label_set_text(id(settings_swipe_logs_label), id(ui_i18n).translate("settings.swipe_logs"));
+          lv_label_set_text(id(settings_beta_firmware_label), id(ui_i18n).translate("settings.beta_firmware"));
+          lv_label_set_text(id(settings_display_brightness_label), id(ui_i18n).translate("settings.display_brightness"));
+          lv_label_set_text(id(settings_display_timeout_label), id(ui_i18n).translate("settings.display_timeout"));
+          lv_label_set_text(id(settings_voice_mute_label), id(ui_i18n).translate("settings.voice_mute"));
+          lv_label_set_text(id(settings_wake_sound_label), id(ui_i18n).translate("settings.wake_sound"));
+          lv_label_set_text(id(settings_wake_sensitivity_label), id(ui_i18n).translate("settings.wake_sensitivity"));
+          lv_label_set_text(id(settings_immich_fade_label), id(ui_i18n).translate("settings.photo_fade"));
+          lv_label_set_text(id(settings_ui_language_label), id(ui_i18n).translate("settings.ui_language"));
+          lv_label_set_text(id(settings_accent_color_label), id(ui_i18n).translate("settings.accent_color"));
+          lv_label_set_text(id(accent_picker_title), id(ui_i18n).translate("settings.accent_picker_title"));
+          lv_label_set_text(id(accent_picker_hint), id(ui_i18n).translate("settings.accent_picker_hint"));
+          lv_label_set_text(id(accent_picker_cancel_label), id(ui_i18n).translate("settings.accent_picker_cancel"));
+          lv_label_set_text(id(accent_picker_custom_label), id(ui_i18n).translate("settings.accent_picker_custom"));
+          lv_label_set_text(id(accent_picker_apply_label), id(ui_i18n).translate("settings.accent_picker_apply"));
+          lv_label_set_text(id(accent_refresh_label), id(ui_i18n).translate("settings.accent_applying"));
+
+          lv_label_set_text(id(home_page1_title), id(ui_i18n).translate("home.home"));
+          lv_label_set_text(id(home_page2_title), id(ui_i18n).translate("home.security"));
+          lv_label_set_text(id(home_page3_title), id(ui_i18n).translate("home.apps"));
+          lv_label_set_text(id(home_controls_title), id(ui_i18n).translate("home.controls"));
+          lv_label_set_text(id(home_brightness_label), id(ui_i18n).translate("home.brightness"));
+          if (id(home_weather_condition_sensor).has_state()) {
+            lv_label_set_text(id(home_weather_condition), id(ui_i18n).translate_existing(id(home_weather_condition_sensor).state.c_str()));
+          }
+          lv_label_set_text(id(home_windows_title), id(ui_i18n).translate("home.windows"));
+          lv_label_set_text(id(home_presence_title), id(ui_i18n).translate("home.home_occupied"));
+          lv_label_set_text(id(home_cameras_title), id(ui_i18n).translate("home.cameras"));
+          lv_label_set_text(id(home_player_title), id(ui_i18n).translate("home.player"));
+          lv_label_set_text(id(home_photos_title), id(ui_i18n).translate("home.photos"));
+          lv_label_set_text(id(home_settings_title), id(ui_i18n).translate("home.settings"));
+          lv_label_set_text(id(home_device_title), id(ui_i18n).translate("home.device"));
+          lv_label_set_text(id(home_assistant_title), id(ui_i18n).translate("home.assistant"));
+          lv_label_set_text(id(home_talk_title), id(ui_i18n).translate("home.talk"));
+          lv_label_set_text(id(home_more_title), id(ui_i18n).translate("home.more"));
+
+          lv_label_set_text(id(artwork_error_label), id(ui_i18n).translate("player.artwork_unavailable"));
+          lv_label_set_text(id(camera_choose_title), id(ui_i18n).translate("camera.choose"));
+          lv_label_set_text(id(camera_cancel_label), id(ui_i18n).translate("camera.cancel"));
+          lv_label_set_text(id(camera_open_label), id(ui_i18n).translate("camera.open"));
+          lv_label_set_text(id(immich_photos_label), id(ui_i18n).translate("immich.photos"));
+          lv_label_set_text(id(immich_help_label), id(ui_i18n).translate("immich.help"));
+          lv_label_set_text(id(queue_panel_title), id(ui_i18n).translate("player.queue"));
+          lv_label_set_text(id(speaker_panel_title), id(ui_i18n).translate("player.speakers"));
+          lv_label_set_text(id(group_volume_title), id(ui_i18n).translate("player.group_volume"));
+          lv_label_set_text(id(volume_title_label), id(ui_i18n).translate("player.volume"));
+
+          // Keep dynamic status/metadata labels untouched. They are translated at
+          // their update sites with the current state, while HA names remain raw.
+          id(ui_refresh_settings_snapshot).execute();
+          id(ui_refresh_tile_snapshots).execute();

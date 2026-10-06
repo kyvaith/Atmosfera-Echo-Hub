@@ -789,6 +789,14 @@ and per-frame `lv_canvas_set_buffer()` calls. Rebinding the canvas every frame
 invalidates LVGL's image cache and can eventually double-free its static canvas
 descriptor.
 
+An opaque direct animation may extend beyond a display edge. Its publisher
+intersects the destination rectangle with the display before submitting it.
+The XRGB region request retains the original source pointer, full source
+dimensions, and crop offsets; the PPA row pitch must not be replaced by the
+clipped width. This path accepts tightly packed XRGB rows. Completion and
+buffer reuse still belong to the existing direct-region callback, and release
+uses the visible destination rectangle. No additional raster buffer is needed.
+
 An opaque direct Lottie object remains hidden until its first prepared PPA
 frame is ready. Revealing it must not invalidate the native LVGL canvas: that
 canvas still contains the cleared black allocation and can be flushed before
@@ -814,6 +822,14 @@ with its own affinity in `esp32/core.cpp`. Only the selected weather condition
 runs; the other parsed animations remain hidden. The current 270x270 condition
 retains about 633 KiB and measured roughly 33-35 FPS with an 8.9-9.6 ms average
 ThorVG render cost.
+
+Weather artwork exposes the optional ThorVG slot `atmosfera-accent` for its
+primary fill. The product queues a slot update on the Lottie worker after an
+accent change; it does not restart the animation or recolour a full-screen
+snapshot. Cloud, rain, snow, and outline details remain semantic light colours
+so contrast survives both dark and light accents. The clear-day fast radial
+renderer consumes the same queued colour at its worker boundary. A Lottie
+without the slot remains valid and the reusable action is a no-op for it.
 
 Full-screen overlays must pause and drain this path before becoming visible.
 Otherwise a late weather frame can be submitted after LVGL drew the overlay and

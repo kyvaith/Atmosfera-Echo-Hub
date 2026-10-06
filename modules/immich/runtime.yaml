@@ -214,7 +214,7 @@ artwork_image:
                    id(immich_current_url).c_str(), id(immich_consecutive_failures));
           if (id(immich_active_image_slot) < 0) {
             id(immich_image_loaded) = false;
-            lv_label_set_text(id(immich_status_label), "Image download failed");
+            lv_label_set_text(id(immich_status_label), id(ui_i18n).translate("immich.download_failed"));
             id(immich_loading_stop).execute();
             lv_obj_clear_flag(id(immich_empty_icon), LV_OBJ_FLAG_HIDDEN);
             lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
@@ -313,7 +313,7 @@ script:
             id(immich_fetch_in_flight) = false;
             if (id(ui_active_app) == 4 && !id(immich_closing))
               id(immich_slideshow).resume_direct();
-            lv_label_set_text(id(immich_status_label), "Image decoded without LVGL source");
+            lv_label_set_text(id(immich_status_label), id(ui_i18n).translate("immich.decode_failed"));
             if (id(immich_active_image_slot) < 0)
               lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
             return;
@@ -535,9 +535,9 @@ script:
           id(immich_displayed_url) = "";
           id(immich_retry_same_asset) = false;
           id(immich_current_asset_retry_count) = 0;
-          lv_label_set_text(id(immich_title_label), "Immich");
-          lv_label_set_text(id(immich_meta_label), "Waiting for photos");
-          lv_label_set_text(id(immich_status_label), "Configure Immich URL and API key");
+          lv_label_set_text(id(immich_title_label), id(ui_i18n).translate("immich.title"));
+          lv_label_set_text(id(immich_meta_label), id(ui_i18n).translate("immich.waiting"));
+          lv_label_set_text(id(immich_status_label), id(ui_i18n).translate("immich.configure"));
           id(immich_loading_stop).execute();
           lv_obj_clear_flag(id(immich_empty_icon), LV_OBJ_FLAG_HIDDEN);
           lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
@@ -589,7 +589,7 @@ script:
                 lv_obj_remove_flag(id(immich_root), LV_OBJ_FLAG_CLICKABLE);
                 lv_obj_add_flag(id(immich_photo_widget), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_clear_flag(id(immich_background), LV_OBJ_FLAG_HIDDEN);
-                lv_label_set_text(id(immich_status_label), "Loading first photo...");
+                lv_label_set_text(id(immich_status_label), id(ui_i18n).translate("immich.loading_first"));
                 lv_obj_add_flag(id(immich_empty_icon), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
                 // Commit the complete native loading scene first. Starting the
@@ -699,7 +699,7 @@ script:
                   !esphome::wifi::global_wifi_component->is_connected()) return false;
               if (!id(immich_gallery_client).valid_base_url(id(immich_url).state) ||
                   id(immich_api_key_text).state.empty()) {
-                lv_label_set_text(id(immich_status_label), "Configure Immich URL and API key");
+                lv_label_set_text(id(immich_status_label), id(ui_i18n).translate("immich.configure"));
                 id(immich_loading_stop).execute();
                 lv_obj_clear_flag(id(immich_empty_icon), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
@@ -709,7 +709,7 @@ script:
                                                           id(immich_album_ids).state,
                                                           id(immich_person_ids).state,
                                                           id(immich_tag_ids).state)) {
-                lv_label_set_text(id(immich_status_label), "Select IDs for this photo source");
+                lv_label_set_text(id(immich_status_label), id(ui_i18n).translate("immich.select_ids"));
                 id(immich_loading_stop).execute();
                 lv_obj_clear_flag(id(immich_empty_icon), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
@@ -729,7 +729,7 @@ script:
                   // before starting the direct spinner. Do not invalidate the
                   // same pixels underneath an active direct-region owner.
                   if (!id(immich_loading_active)) {
-                    lv_label_set_text(id(immich_status_label), "Loading Immich photo...");
+                    lv_label_set_text(id(immich_status_label), id(ui_i18n).translate("immich.loading"));
                     lv_obj_add_flag(id(immich_empty_icon), LV_OBJ_FLAG_HIDDEN);
                     lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
                     lv_obj_invalidate(id(immich_root));
@@ -838,7 +838,7 @@ script:
                     if (id(ui_active_app) == 4)
                       id(immich_slideshow).resume_direct();
                     id(immich_consecutive_failures)++;
-                    lv_label_set_text(id(immich_status_label), "No matching image found");
+                    lv_label_set_text(id(immich_status_label), id(ui_i18n).translate("immich.no_match"));
                     id(immich_loading_stop).execute();
                     lv_obj_clear_flag(id(immich_empty_icon), LV_OBJ_FLAG_HIDDEN);
                     lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
@@ -875,7 +875,7 @@ script:
                   if (id(ui_active_app) == 4)
                     id(immich_slideshow).resume_direct();
                   id(immich_consecutive_failures)++;
-                  lv_label_set_text(id(immich_status_label), "Immich request failed");
+                  lv_label_set_text(id(immich_status_label), id(ui_i18n).translate("immich.request_failed"));
                   id(immich_loading_stop).execute();
                   lv_obj_clear_flag(id(immich_empty_icon), LV_OBJ_FLAG_HIDDEN);
                   lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
@@ -909,7 +909,7 @@ script:
                     id(immich_fetch_in_flight) = false;
                     if (id(ui_active_app) == 4)
                       id(immich_slideshow).resume_direct();
-                    lv_label_set_text(id(immich_status_label), "No memories today");
+                    lv_label_set_text(id(immich_status_label), id(ui_i18n).translate("immich.no_memories"));
                     id(immich_loading_stop).execute();
                     lv_obj_clear_flag(id(immich_empty_icon), LV_OBJ_FLAG_HIDDEN);
                     lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
@@ -921,7 +921,7 @@ script:
                     id(immich_fetch_in_flight) = false;
                     if (id(ui_active_app) == 4)
                       id(immich_slideshow).resume_direct();
-                    lv_label_set_text(id(immich_status_label), "No memories today");
+                    lv_label_set_text(id(immich_status_label), id(ui_i18n).translate("immich.no_memories"));
                     id(immich_loading_stop).execute();
                     lv_obj_clear_flag(id(immich_empty_icon), LV_OBJ_FLAG_HIDDEN);
                     lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
@@ -945,7 +945,7 @@ script:
                   id(immich_fetch_in_flight) = false;
                   if (id(ui_active_app) == 4)
                     id(immich_slideshow).resume_direct();
-                  lv_label_set_text(id(immich_status_label), "Immich memories request failed");
+                  lv_label_set_text(id(immich_status_label), id(ui_i18n).translate("immich.memories_failed"));
                   id(immich_loading_stop).execute();
                   lv_obj_clear_flag(id(immich_empty_icon), LV_OBJ_FLAG_HIDDEN);
                   lv_obj_clear_flag(id(immich_empty_state), LV_OBJ_FLAG_HIDDEN);
@@ -964,7 +964,7 @@ script:
                 id(immich_force_transition) = true;
                 id(immich_prefetch_ready) = false;
                 std::swap(id(immich_current_url), id(immich_previous_url));
-                lv_label_set_text(id(immich_status_label), "Previous photo");
+                lv_label_set_text(id(immich_status_label), id(ui_i18n).translate("immich.previous"));
             - script.execute: immich_load_current_url
 
 interval:

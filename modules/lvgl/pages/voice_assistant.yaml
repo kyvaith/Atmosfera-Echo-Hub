@@ -36,7 +36,7 @@ lvgl:
 
             - label:
                 id: voice_assistant_status_label
-                text: "Assistant"
+                text: !lambda 'return std::string(id(ui_i18n).translate("voice.assistant"));'
                 align: TOP_MID
                 y: 28
                 width: 520

@@ -57,21 +57,23 @@ lvgl:
                     - lottie:
                         id: camera_loading_lottie
                         file: "assets/animations/m3_loading_contained_small_blue.json"
+                        color_slot: atmosfera-accent
                         align: CENTER
                         width: 96
                         height: 96
+                        bg_opa: 0%
+                        border_width: 0
+                        radius: 0
                         # This compact loader stays on the native LVGL path.
-                        # The black status card already owns the backdrop; an
-                        # opaque direct region would reserve a DSI/PPA surface
-                        # and can leave its last arc fragment behind when the
-                        # camera frame takes over.
+                        # The JSON contains only the transparent animated shape;
+                        # the black status card owns the backdrop.
                         loop: true
                         auto_start: false
                         hidden: true
                     - label:
                         id: camera_source_label
                         hidden: true
-                        text: "Cameras"
+                        text: !lambda 'return std::string(id(ui_i18n).translate("camera.title"));'
                         align: TOP_MID
                         y: 112
                         width: 400
@@ -161,7 +163,8 @@ lvgl:
                   hidden: true
                   widgets:
                     - label:
-                        text: "Choose camera"
+                        id: camera_choose_title
+                        text: !lambda 'return std::string(id(ui_i18n).translate("camera.choose"));'
                         align: TOP_MID
                         y: 108
                         width: 500
@@ -204,7 +207,8 @@ lvgl:
                           - script.execute: camera_hide_source_picker
                         widgets:
                           - label:
-                              text: "Cancel"
+                              id: camera_cancel_label
+                              text: !lambda 'return std::string(id(ui_i18n).translate("camera.cancel"));'
                               align: CENTER
                               text_color: 0xF2F2F2
                               text_font: roboto_20
@@ -223,7 +227,8 @@ lvgl:
                           - script.execute: camera_confirm_source
                         widgets:
                           - label:
-                              text: "Open"
+                              id: camera_open_label
+                              text: !lambda 'return std::string(id(ui_i18n).translate("camera.open"));'
                               align: CENTER
                               text_color: 0x35105C
                               text_font: roboto_20

@@ -161,7 +161,7 @@ lvgl:
                   widgets:
                     - label:
                         id: immich_title_label
-                        text: "Immich"
+                        text: !lambda 'return std::string(id(ui_i18n).translate("immich.title"));'
                         align: TOP_MID
                         y: 20
                         width: 440
@@ -171,7 +171,7 @@ lvgl:
                         text_font: roboto_24
                     - label:
                         id: immich_meta_label
-                        text: "Photo Browser"
+                        text: !lambda 'return std::string(id(ui_i18n).translate("immich.photo_browser"));'
                         align: TOP_MID
                         y: 58
                         width: 440
@@ -202,10 +202,15 @@ lvgl:
                     - lottie:
                         id: immich_loading_lottie
                         file: "assets/animations/m3_loading_contained_small_blue.json"
+                        color_slot: atmosfera-accent
                         align: CENTER
                         width: 96
                         height: 96
-                        # The black empty-state card is the backdrop. Keep the
+                        bg_opa: 0%
+                        border_width: 0
+                        radius: 0
+                        # The JSON contains only the transparent animated shape;
+                        # the black empty-state card is the backdrop. Keep the
                         # small Material loader in native LVGL so it cannot
                         # leave a stale direct-region fragment at handoff.
                         loop: true
@@ -213,7 +218,8 @@ lvgl:
                         hidden: true
                     - label:
                         hidden: true
-                        text: "Immich Photos"
+                        id: immich_photos_label
+                        text: !lambda 'return std::string(id(ui_i18n).translate("immich.photos"));'
                         align: TOP_MID
                         y: 105
                         width: 420
@@ -223,7 +229,7 @@ lvgl:
                     - label:
                         id: immich_status_label
                         hidden: true
-                        text: "Configure server URL and API key"
+                        text: !lambda 'return std::string(id(ui_i18n).translate("immich.configure"));'
                         align: TOP_MID
                         y: 154
                         width: 420
@@ -233,7 +239,8 @@ lvgl:
                         text_font: roboto_16
                     - label:
                         hidden: true
-                        text: "Swipe or tap the screen edges"
+                        id: immich_help_label
+                        text: !lambda 'return std::string(id(ui_i18n).translate("immich.help"));'
                         align: BOTTOM_MID
                         y: -18
                         width: 420

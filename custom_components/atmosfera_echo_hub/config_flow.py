@@ -18,6 +18,8 @@ from .const import (
     CONF_STREAM_HEIGHT,
     CONF_STREAM_WIDTH,
     CONF_TILES,
+    CONF_ACCENT_COLOR,
+    DEFAULT_ACCENT_COLOR,
     DEFAULT_STREAM_FPS,
     DEFAULT_STREAM_HEIGHT,
     DEFAULT_STREAM_WIDTH,
@@ -34,6 +36,7 @@ def _schema(
     stream_width: int = DEFAULT_STREAM_WIDTH,
     stream_height: int = DEFAULT_STREAM_HEIGHT,
     stream_fps: int = DEFAULT_STREAM_FPS,
+    accent_color: str = DEFAULT_ACCENT_COLOR,
 ):
     fields: dict[Any, Any] = {}
     if device_id is None:
@@ -71,6 +74,9 @@ def _schema(
             mode=selector.NumberSelectorMode.SLIDER,
         )
     )
+    fields[vol.Required(CONF_ACCENT_COLOR, default=accent_color)] = selector.TextSelector(
+        selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
+    )
     return vol.Schema(fields)
 
 
@@ -102,6 +108,7 @@ class AtmosferaEchoHubConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         CONF_STREAM_WIDTH: int(user_input[CONF_STREAM_WIDTH]),
                         CONF_STREAM_HEIGHT: int(user_input[CONF_STREAM_HEIGHT]),
                         CONF_STREAM_FPS: int(user_input[CONF_STREAM_FPS]),
+                        CONF_ACCENT_COLOR: user_input[CONF_ACCENT_COLOR],
                     },
                 )
 
@@ -134,6 +141,7 @@ class AtmosferaEchoHubOptionsFlow(config_entries.OptionsFlow):
                     CONF_STREAM_WIDTH: int(user_input[CONF_STREAM_WIDTH]),
                     CONF_STREAM_HEIGHT: int(user_input[CONF_STREAM_HEIGHT]),
                     CONF_STREAM_FPS: int(user_input[CONF_STREAM_FPS]),
+                    CONF_ACCENT_COLOR: user_input[CONF_ACCENT_COLOR],
                     CONF_TILES: normalize_cards(
                         self.config_entry.options.get(
                             CONF_TILES, self.config_entry.data.get(CONF_TILES)
@@ -166,6 +174,10 @@ class AtmosferaEchoHubOptionsFlow(config_entries.OptionsFlow):
                 self.config_entry.data.get(CONF_STREAM_FPS, DEFAULT_STREAM_FPS),
             )
         )
+        accent_color = self.config_entry.options.get(
+            CONF_ACCENT_COLOR,
+            self.config_entry.data.get(CONF_ACCENT_COLOR, DEFAULT_ACCENT_COLOR),
+        )
         return self.async_show_form(
             step_id="init",
             data_schema=_schema(
@@ -174,6 +186,7 @@ class AtmosferaEchoHubOptionsFlow(config_entries.OptionsFlow):
                 stream_width=stream_width,
                 stream_height=stream_height,
                 stream_fps=stream_fps,
+                accent_color=accent_color,
             ),
             errors=errors,
         )

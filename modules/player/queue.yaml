@@ -67,7 +67,7 @@ script:
               return !id(ma_api_url).state.empty() && !id(ma_api_token).state.empty();
           then:
             - lambda: |-
-                lv_label_set_text(id(queue_empty_label), "Loading queue...");
+                lv_label_set_text(id(queue_empty_label), id(ui_i18n).translate("player.loading_queue"));
                 lv_obj_clear_flag(id(queue_empty_label), LV_OBJ_FLAG_HIDDEN);
             - http_request.post:
                 id: http_req
@@ -136,7 +136,7 @@ script:
 
           const std::string raw = id(media_queue_sensor).state;
           if (raw.empty() || raw == "None" || raw == "unknown" || raw == "unavailable") {
-            lv_label_set_text(id(queue_empty_label), "Waiting for Music Assistant queue");
+            lv_label_set_text(id(queue_empty_label), id(ui_i18n).translate("player.waiting_queue"));
             id(update_media_queue_panel).execute();
             return;
           }
@@ -337,14 +337,14 @@ script:
               lv_label_set_text(id(queue_current_artist_label),
                                 id(media_artist_sensor).has_state() && !id(media_artist_sensor).state.empty()
                                     ? id(media_artist_sensor).state.c_str() : "-");
-              lv_label_set_text(id(queue_meta_0), "Now playing");
+              lv_label_set_text(id(queue_meta_0), id(ui_i18n).translate("player.now_playing"));
               lv_label_set_text(id(queue_marker_0), "\U0000e037");
               lv_obj_clear_flag(id(queue_current_row), LV_OBJ_FLAG_HIDDEN);
             } else {
               lv_obj_add_flag(id(queue_current_row), LV_OBJ_FLAG_HIDDEN);
             }
             for (int i = 1; i < 7; i++) lv_obj_add_flag(rows[i], LV_OBJ_FLAG_HIDDEN);
-            lv_label_set_text(id(queue_empty_label), "Queue data unavailable");
+            lv_label_set_text(id(queue_empty_label), id(ui_i18n).translate("player.queue_unavailable"));
             lv_obj_clear_flag(id(queue_empty_label), LV_OBJ_FLAG_HIDDEN);
             return;
           }
@@ -361,7 +361,7 @@ script:
             lv_label_set_text(titles[i], id(media_queue_titles)[i].c_str());
             lv_label_set_text(artists[i], id(media_queue_artists)[i].empty() ? "-" : id(media_queue_artists)[i].c_str());
             if (current) {
-              lv_label_set_text(meta[i], "Now");
+              lv_label_set_text(meta[i], id(ui_i18n).translate("player.now"));
               lv_label_set_text(markers[i], "\U0000e037");
               lv_obj_set_style_bg_color(rows[i], lv_color_hex(0x332E3C), 0);
               lv_obj_set_style_bg_opa(rows[i], LV_OPA_COVER, 0);

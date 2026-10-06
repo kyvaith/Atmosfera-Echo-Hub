@@ -1,6 +1,14 @@
 # Device-level runtime settings.
 # These entities are exposed in Home Assistant and mirrored where practical on the round settings page.
 globals:
+- id: ui_accent_color
+  type: uint32_t
+  restore_value: true
+  initial_value: '0x${ui_accent_default}'
+- id: ui_accent_dark_color
+  type: uint32_t
+  restore_value: no
+  initial_value: '0x071018'
 - id: boot_sequence_done
   type: bool
   restore_value: no
@@ -270,7 +278,52 @@ number:
   on_value:
   - script.execute: ui_update_display_timeout_state
 
+select:
+- platform: template
+  name: "Interface Language"
+  id: settings_ui_language
+  entity_category: config
+  icon: "mdi:translate"
+  optimistic: true
+  restore_value: true
+  initial_option: "${ui_language_default}"
+  options:
+    - "en-US"
+    - "pl-PL"
+  on_value:
+  - lambda: 'id(ui_i18n).set_locale(x);'
+  - script.execute: ui_i18n_refresh
+  - script.execute: ui_update_i18n_state
+
 text:
+- platform: template
+  name: "Interface Accent Color"
+  id: settings_accent_color
+  entity_category: config
+  icon: "mdi:palette"
+  mode: text
+  optimistic: true
+  restore_value: true
+  initial_value: "${ui_accent_default}"
+  min_length: 6
+  max_length: 7
+  on_value:
+  - lambda: |-
+      std::string value = x;
+      if (!value.empty() && value[0] == '#') value.erase(0, 1);
+      if (value.size() != 6) return;
+      char *end = nullptr;
+      const uint32_t parsed = strtoul(value.c_str(), &end, 16);
+      if (end == nullptr || *end != '\0' || parsed > 0xFFFFFFU) return;
+      id(ui_accent_color) = parsed;
+      const uint8_t r = (parsed >> 16) & 0xFF;
+      const uint8_t g = (parsed >> 8) & 0xFF;
+      const uint8_t b = parsed & 0xFF;
+      id(ui_accent_dark_color) = ((uint32_t)(r / 5) << 16) |
+                                 ((uint32_t)(g / 5) << 8) | (b / 5);
+      id(home_material_tiles).set_accent(parsed);
+  - script.execute: ui_update_accent_state
+
 - platform: template
   name: "Tile: Light Entity"
   id: tile_light_entity_text

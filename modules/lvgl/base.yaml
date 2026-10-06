@@ -38,50 +38,50 @@ lvgl:
   # archetype, while surfaces, typography colors and radii stay centralized.
   style_definitions:
     - id: m3_tile_surface
-      bg_color: 0x332E3C
+      bg_color: 0x071018
       bg_opa: 100%
       border_width: 0
       outline_width: 0
       shadow_width: 0
       radius: 200
       pad_all: 0
-      text_color: 0xF5EEFB
+      text_color: 0xF5F7FA
     - id: m3_tile_primary
-      bg_color: 0xE9DDFF
+      bg_color: ${home_accent_color}
       bg_opa: 100%
       border_width: 0
       outline_width: 0
       shadow_width: 0
       radius: 200
       pad_all: 0
-      text_color: 0x210F48
+      text_color: 0x071018
     - id: m3_tile_secondary
-      bg_color: 0xBAC3FF
+      bg_color: 0x4FC3F7
       bg_opa: 100%
       border_width: 0
       outline_width: 0
       shadow_width: 0
       radius: 200
       pad_all: 0
-      text_color: 0x0C1649
+      text_color: 0x071018
     - id: m3_tile_tertiary
-      bg_color: 0xB7EDE2
+      bg_color: 0x26A69A
       bg_opa: 100%
       border_width: 0
       outline_width: 0
       shadow_width: 0
       radius: 200
       pad_all: 0
-      text_color: 0x08201C
+      text_color: 0x071018
     - id: m3_tile_primary_container
-      bg_color: 0x633F1C
+      bg_color: 0x8AD8F8
       bg_opa: 100%
       border_width: 0
       outline_width: 0
       shadow_width: 0
       radius: 200
       pad_all: 0
-      text_color: 0xFFDABC
+      text_color: 0x071018
   use_ppa: true
   use_ppa_draw: true
   use_ppa_blend: true
@@ -160,6 +160,17 @@ lvgl:
       # after the handoff so a completed weather frame cannot cover it.
       - delay: 20ms
       - script.execute: ui_refresh_global_status_icons
+      # A Home Assistant tile update can arrive while another carousel page is
+      # visible.  The touch-end callback may then run the refresh worker while
+      # ui_page still names the source page, so page 2's pending slots are
+      # intentionally left queued.  Retry after the navigation owner commits
+      # the destination page; otherwise the security snapshot keeps its old
+      # palette until a later state update happens to hit page 2 again.
+      - if:
+          condition:
+            lambda: 'return id(ui_managed_tile_refresh_pending_mask) != 0;'
+          then:
+            - script.execute: ui_refresh_managed_tile_snapshots
     applications:
       - id: player_application
         page: music_page
@@ -212,23 +223,35 @@ lvgl:
               lv_obj_add_flag(id(queue_panel), LV_OBJ_FLAG_HIDDEN);
               lv_obj_add_flag(id(speaker_group_panel), LV_OBJ_FLAG_HIDDEN);
               auto *live_artwork = id(album_art_background).get_lv_image_dsc();
+              auto *placeholder_artwork = id(album_art_placeholder).get_lv_image_dsc();
+              const bool artwork_is_placeholder =
+                  live_artwork != nullptr && placeholder_artwork != nullptr &&
+                  (live_artwork == placeholder_artwork ||
+                   live_artwork->data == placeholder_artwork->data);
               const bool has_live_artwork =
                   id(album_art_background).get_buffer_generation() != 0 &&
-                  live_artwork != nullptr && live_artwork->header.w > 0 && live_artwork->header.h > 0;
+                  live_artwork != nullptr && live_artwork->header.w > 0 && live_artwork->header.h > 0 &&
+                  !artwork_is_placeholder;
               if (has_live_artwork) {
                 lv_image_set_src(id(album_art_background_widget), live_artwork);
                 lv_obj_add_flag(id(figma_media_artwork_widget), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_clear_flag(id(album_art_background_widget), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_clear_flag(id(artwork_primary_overlay), LV_OBJ_FLAG_HIDDEN);
-                lv_obj_clear_flag(id(artwork_scrim), LV_OBJ_FLAG_HIDDEN);
+                // Keep the direct crop and the full artwork surface on the
+                // same pixels. A separate full-screen scrim can be hidden by
+                // the artwork error path after the crop was prepared.
+                lv_obj_add_flag(id(artwork_scrim), LV_OBJ_FLAG_HIDDEN);
                 id(media_wavy_progress).set_background(live_artwork, false);
               } else {
-                lv_obj_clear_flag(id(figma_media_artwork_widget), LV_OBJ_FLAG_HIDDEN);
+                // Missing artwork is rendered by artwork_bg_panel's generated
+                // accent gradient. Keep the legacy bitmap hidden so its
+                // purple placeholder never becomes part of the player scene.
+                lv_obj_add_flag(id(figma_media_artwork_widget), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_add_flag(id(album_art_background_widget), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_clear_flag(id(artwork_primary_overlay), LV_OBJ_FLAG_HIDDEN);
-                lv_obj_clear_flag(id(artwork_scrim), LV_OBJ_FLAG_HIDDEN);
-                id(media_wavy_progress).set_background(
-                    id(album_art_placeholder).get_lv_image_dsc(), false);
+                lv_obj_add_flag(id(artwork_scrim), LV_OBJ_FLAG_HIDDEN);
+                id(media_wavy_progress).set_background_gradient(
+                    id(ui_accent_dark_color), id(ui_accent_color), false);
               }
         on_before_reveal:
           # Prepare the live Player while the compositor still presents the
@@ -319,6 +342,7 @@ lvgl:
         on_prepare_open:
           - script.execute: ui_clear_interaction_press
           - script.wait: ui_clear_interaction_press
+          - script.execute: ui_cancel_accent_picker
           - script.stop: ui_refresh_tile_snapshots
           - lambda: 'lvgl_esphome_snapshot_set_status_icons_visible(true);'
           - lambda: 'id(home_weather_presenter).release_for_application();'
@@ -374,12 +398,38 @@ lvgl:
               id: ui_snapshot_io_busy
               value: 'true'
           - script.execute: ui_quiesce_player_direct_regions
+          # A colour change may still be waiting for the Settings application
+          # to release its scroll snapshot.  The close compositor samples the
+          # retained Home page immediately after this callback, so refresh the
+          # current Home source now that the Settings snapshot is no longer
+          # needed.  The full four-page rebuild is resumed after the close.
+          - if:
+              condition:
+                lambda: 'return id(ui_accent_home_refresh_pending);'
+              then:
+                - script.stop: ui_refresh_accent_snapshots
+                - lvgl.snapshot_scroll.release: settings_scroll_snapshot
+                - lambda: |-
+                    lv_obj_t *home = nullptr;
+                    switch (id(ui_home_page)) {
+                      case 2: home = id(controls_root_2); break;
+                      case 3: home = id(controls_root_3); break;
+                      case 4: home = id(controls_root_4); break;
+                      default: home = id(controls_root_1); break;
+                    }
+                    auto *display = home == nullptr ? nullptr : lv_obj_get_display(home);
+                    const int width = display == nullptr ? 0 : lv_display_get_horizontal_resolution(display);
+                    const bool refreshed = home != nullptr && width > 0 &&
+                        lvgl_esphome_snapshot_refresh_tile_page(home, width);
+                    ESP_LOGI("snapshot.refresh", "Settings close Home source page=%d refreshed=%s",
+                             id(ui_home_page), YESNO(refreshed));
         on_close_cancelled:
           - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'false'
         on_closed:
+          - script.execute: ui_cancel_accent_picker
           - lvgl.snapshot_scroll.release: settings_scroll_snapshot
           - lambda: |-
               size_t returned_capacity = 0;
@@ -408,6 +458,14 @@ lvgl:
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'false'
+          # Finish the deferred all-page rebuild after the close transition has
+          # committed.  Its current-page source was refreshed above so the
+          # animation itself already uses the new accent.
+          - if:
+              condition:
+                lambda: 'return id(ui_accent_home_refresh_pending);'
+              then:
+                - script.execute: ui_refresh_accent_snapshots
       - id: voice_application
         page: controls_page
         widget: voice_assistant_overlay

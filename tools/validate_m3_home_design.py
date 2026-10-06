@@ -12,14 +12,13 @@ from typing import Any
 
 
 REFERENCE = {
-    "home_clock_x": 40,
-    "home_clock_y": 66,
-    "home_clock_width": 380,
-    "home_clock_height": 390,
-    "home_minute_text_x": 43,
-    "home_minute_text_y": 256,
-    "home_minute_text_width": 380,
-    "home_minute_text_height": 390,
+    "home_clock_x": 18,
+    "home_clock_digit2_x": 180,
+    "home_clock_digit_width": 232,
+    "home_clock_y": -5,
+    "home_clock_height": 410,
+    "home_minute_text_y": 209,
+    "home_minute_text_height": 410,
     "home_weather_x": 0,
     "home_weather_y": 0,
     "home_weather_width": 800,
@@ -150,7 +149,19 @@ def validate_source_contract(source_root: Path) -> list[str]:
     if "id: home_minute_shadow" in page:
         errors.append(f"{page_path}: the obsolete duplicate minute shadow is still declared")
     if "text_font: cherry_bomb_300_outline" not in page:
-        errors.append(f"{page_path}: minute text has no registered bitmap contour")
+        errors.append(f"{page_path}: clock text has no registered bitmap contour")
+    for widget_id in (
+        "home_clock_hour_tens_outline",
+        "home_clock_hour_units_outline",
+        "home_clock_hour_tens",
+        "home_clock_hour_units",
+        "home_clock_minute_tens_outline",
+        "home_clock_minute_units_outline",
+        "home_clock_minute_tens",
+        "home_clock_minute_units",
+    ):
+        if not re.search(rf"id: {re.escape(widget_id)}[\s\S]*?long_mode: CLIP", page):
+            errors.append(f"{page_path}: {widget_id} must use one-line CLIP mode")
     if not re.search(r"id: home_weather_condition[\s\S]*?long_mode: CLIP", page):
         errors.append(f"{page_path}: weather condition must use one-line CLIP mode")
     if not re.search(r"id: home_weather_condition[\s\S]*?text_align: LEFT", page):

@@ -21,7 +21,9 @@ lvgl:
                   width: 800
                   height: 800
                   align: CENTER
-                  bg_color: 0x2D2136
+                  bg_color: 0x071018
+                  bg_grad_color: ${home_accent_color}
+                  bg_grad_dir: VER
                   border_width: 0
                   radius: 0
                   pad_all: 0
@@ -35,7 +37,10 @@ lvgl:
                   width: 800
                   height: 800
                   src: album_art_placeholder
-                  opa: 100%
+                  # The missing-art state uses the generated LVGL gradient on
+                  # artwork_bg_panel. Keep the legacy bitmap resource only for
+                  # the optional wave backdrop; do not draw the purple mockup.
+                  opa: 0%
 
               - image:
                   id: album_art_background_widget
@@ -54,7 +59,7 @@ lvgl:
                   y: 0
                   width: 800
                   height: 800
-                  bg_color: 0x4D3D76
+                  bg_color: ${home_accent_color}
                   # Keep one artwork scrim only. A second full-frame blend
                   # here was intermittently visible below the play control.
                   bg_opa: 0%
@@ -71,7 +76,7 @@ lvgl:
                   y: 0
                   width: 800
                   height: 800
-                  bg_color: 0x210F48
+                  bg_color: 0x071018
                   bg_opa: 60%
                   border_width: 0
                   radius: 0
@@ -82,7 +87,7 @@ lvgl:
 
               - label:
                   id: artwork_error_label
-                  text: "Artwork unavailable"
+                  text: !lambda 'return std::string(id(ui_i18n).translate("player.artwork_unavailable"));'
                   align: CENTER
                   y: -24
                   width: 420
@@ -168,7 +173,7 @@ lvgl:
                         y: 0
                         width: 456
                         height: 66
-                        bg_color: 0x210F48
+                        bg_color: 0x071018
                         bg_opa: 60%
                         border_width: 0
                         radius: 0
@@ -178,7 +183,7 @@ lvgl:
                         hidden: true
                     - label:
                         id: title_label
-                        text: "No Track"
+                        text: !lambda 'return std::string(id(ui_i18n).translate("player.no_track"));'
                         x: 0
                         y: 0
                         width: 456
@@ -310,7 +315,7 @@ lvgl:
                   width: 104
                   height: 137
                   radius: 52
-                  bg_color: 0xD9C2FF
+                  bg_color: ${home_accent_color}
                   bg_opa: 100%
                   border_width: 0
                   outline_width: 0
@@ -323,7 +328,7 @@ lvgl:
                     - label:
                         text: "\uE045"
                         align: CENTER
-                        text_color: 0x3F006B
+                        text_color: 0x071018
                         text_font: material_symbols_36
 
               - button:
@@ -334,7 +339,7 @@ lvgl:
                   width: 104
                   height: 137
                   radius: 52
-                  bg_color: 0xD9C2FF
+                  bg_color: ${home_accent_color}
                   bg_opa: 100%
                   border_width: 0
                   outline_width: 0
@@ -347,7 +352,7 @@ lvgl:
                     - label:
                         text: "\uE044"
                         align: CENTER
-                        text_color: 0x3F006B
+                        text_color: 0x071018
                         text_font: material_symbols_36
 
               # This opaque render island lets LVGL stop at the animated control
@@ -422,7 +427,7 @@ lvgl:
                         height: 2
                         radius: 1
                         ext_click_area: 88
-                        bg_color: 0xE4C2FF
+                        bg_color: ${home_accent_color}
                         bg_opa: 0%
                         border_width: 0
                         outline_width: 0
@@ -449,7 +454,7 @@ lvgl:
                               id: media_main_icon_label
                               text: "\uE037"
                               align: CENTER
-                              text_color: 0x400060
+                              text_color: 0x071018
                               text_font: material_symbols_86
                               hidden: true
                         on_click:
@@ -480,7 +485,8 @@ lvgl:
                   hidden: true
                   widgets:
                     - label:
-                        text: "Queue"
+                        id: queue_panel_title
+                        text: !lambda 'return std::string(id(ui_i18n).translate("player.queue"));'
                         align: TOP_MID
                         y: 62
                         width: 420
@@ -532,7 +538,7 @@ lvgl:
                               text_font: material_symbols_24
                           - label:
                               id: queue_current_title_label
-                              text: "No Track"
+                              text: !lambda 'return std::string(id(ui_i18n).translate("player.no_track"));'
                               x: 72
                               y: 10
                               width: 300
@@ -668,7 +674,7 @@ lvgl:
                           - label: { id: queue_meta_6, text: "", x: 390, y: 24, width: 82, text_align: RIGHT, long_mode: DOT, text_color: 0xC4C7C5, text_font: roboto_16 }
                     - label:
                         id: queue_empty_label
-                        text: "Queue source not configured"
+                        text: !lambda 'return std::string(id(ui_i18n).translate("player.queue_source_missing"));'
                         align: TOP_MID
                         y: 256
                         width: 520
@@ -704,7 +710,7 @@ lvgl:
                         arc_width: 30
                         arc_rounded: true
                         indicator:
-                          arc_color: 0xE4C2FF
+                          arc_color: ${home_accent_color}
                           arc_width: 30
                           arc_rounded: true
                         knob:
@@ -733,7 +739,7 @@ lvgl:
                                 - script.execute: show_volume_overlay
                     - label:
                         id: volume_title_label
-                        text: "Volume"
+                        text: !lambda 'return std::string(id(ui_i18n).translate("player.volume"));'
                         align: CENTER
                         y: -86
                         width: 260
@@ -869,7 +875,8 @@ lvgl:
                   hidden: true
                   widgets:
                     - label:
-                        text: "Speakers"
+                        id: speaker_panel_title
+                        text: !lambda 'return std::string(id(ui_i18n).translate("player.speakers"));'
                         align: TOP_MID
                         y: 54
                         width: 420
@@ -878,7 +885,10 @@ lvgl:
                         text_font: roboto_24
                     - label:
                         id: speaker_group_count_label
-                        text: "0 speakers"
+                        text: !lambda |-
+                          char buf[24];
+                          snprintf(buf, sizeof(buf), id(ui_i18n).translate("player.speaker_count"), 0);
+                          return std::string(buf);
                         align: TOP_MID
                         y: 90
                         width: 180
@@ -918,14 +928,15 @@ lvgl:
                         width: 592
                         height: 78
                         radius: 39
-                        bg_color: 0x4D3D76
+                        bg_color: ${home_accent_color}
                         border_width: 1
                         border_color: 0x735E9A
                         pad_all: 0
                         scrollable: false
                         widgets:
                           - label:
-                              text: "Group Volume"
+                              id: group_volume_title
+                              text: !lambda 'return std::string(id(ui_i18n).translate("player.group_volume"));'
                               x: 28
                               y: 22
                               text_color: 0xF2F2F2

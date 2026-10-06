@@ -1,0 +1,8 @@
+i18n:
+  id: ui_i18n
+  default_locale: en-US
+  translations:
+    - locale: en-US
+      values: !include ../../translations/en-US.yaml
+    - locale: pl-PL
+      values: !include ../../translations/pl-PL.yaml

@@ -9,7 +9,7 @@ import json
 import logging
 from urllib.parse import quote, urlencode
 
-from aioesphomeapi import APIConnectionError, UserService
+from aioesphomeapi import APIConnectionError, EntityState, UserService
 
 from homeassistant.components.camera.helper import get_camera_from_entity_id
 from homeassistant.components.network import async_get_source_ip
@@ -24,6 +24,7 @@ from homeassistant.helpers.event import (
     async_track_time_interval,
 )
 from homeassistant.helpers.network import NoURLAvailableError, get_url
+from homeassistant.helpers.translation import async_get_translations
 
 from .cards import (
     card_entity_ids,
@@ -43,6 +44,8 @@ from .const import (
     CONF_STREAM_HEIGHT,
     CONF_STREAM_WIDTH,
     CONF_TILES,
+    CONF_ACCENT_COLOR,
+    DEFAULT_ACCENT_COLOR,
     DEFAULT_STREAM_FPS,
     DEFAULT_STREAM_HEIGHT,
     DEFAULT_STREAM_WIDTH,
@@ -95,6 +98,9 @@ class CameraBridge:
         self.tile_cards = normalize_cards(
             entry.options.get(CONF_TILES, entry.data.get(CONF_TILES))
         )
+        self.accent_color = entry.options.get(
+            CONF_ACCENT_COLOR, entry.data.get(CONF_ACCENT_COLOR, DEFAULT_ACCENT_COLOR)
+        )
         self.tile_entity_ids = card_entity_ids(self.tile_cards)
 
         device = dr.async_get(hass).async_get(self.device_id)
@@ -117,6 +123,9 @@ class CameraBridge:
         self._tile_push_lock = asyncio.Lock()
         self._last_tile_payload = ""
         self._missing_camera_entity_ids: tuple[str, ...] = ()
+        self.device_locale: str | None = None
+        self._device_preference_client = None
+        self._device_preference_keys: dict[int, str] = {}
 
     @property
     def options(self) -> list[str]:
@@ -164,6 +173,7 @@ class CameraBridge:
                 self.hass, self._periodic_refresh, TOKEN_REFRESH_INTERVAL
             )
         )
+        await self._async_subscribe_device_preferences()
         self.async_schedule_push(delay=0)
         self.async_schedule_tile_push(delay=0.5)
 
@@ -175,6 +185,8 @@ class CameraBridge:
             self.available = False
             self._notify_listeners()
             return
+
+        self.hass.async_create_task(self._async_subscribe_device_preferences())
 
         # ESPHome announces availability immediately before replacing its
         # retained user-service catalog. Delay the first attempt slightly;
@@ -193,6 +205,66 @@ class CameraBridge:
         for unsubscribe in self._unsubscribers:
             unsubscribe()
         self._unsubscribers.clear()
+
+    async def _async_subscribe_device_preferences(self) -> None:
+        """Mirror the device's locale and accent before publishing card state."""
+        runtime_data = self.esphome_entry.runtime_data
+        if runtime_data is None or not runtime_data.available:
+            return
+        client = runtime_data.client
+        if client is self._device_preference_client:
+            return
+        try:
+            entities, _services = await client.list_entities_services()
+        except (APIConnectionError, TimeoutError):
+            return
+        keys: dict[int, str] = {}
+        for entity in entities:
+            object_id = str(getattr(entity, "object_id", "")).lower()
+            name = str(getattr(entity, "name", "")).lower().replace(" ", "_")
+            candidate = f"{object_id} {name}"
+            if "accent_color" in candidate:
+                keys[entity.key] = "accent"
+            elif "interface_language" in candidate or "ui_language" in candidate:
+                keys[entity.key] = "locale"
+        self._device_preference_keys = keys
+        self._device_preference_client = client
+        client.subscribe_states(self._device_preference_state_changed)
+
+    @callback
+    def _device_preference_state_changed(self, state: EntityState) -> None:
+        """Accept user changes made on the device before the next HA refresh."""
+        kind = self._device_preference_keys.get(state.key)
+        if kind == "accent":
+            value = str(state.state).strip().lstrip("#")
+            try:
+                parsed = int(value, 16) if len(value) == 6 else -1
+            except ValueError:
+                parsed = -1
+            if 0 <= parsed <= 0xFFFFFF:
+                normalized = f"{parsed:06X}"
+                if normalized != str(self.accent_color).strip().lstrip("#").upper():
+                    self.accent_color = normalized
+                    self._last_tile_payload = ""
+                    self.async_schedule_tile_push(delay=0.1)
+        elif kind == "locale":
+            locale = str(state.state).strip()
+            if locale and locale != self.device_locale:
+                self.device_locale = locale
+                self._last_tile_payload = ""
+                self.hass.async_create_task(self._async_load_device_locale(locale))
+                self.async_schedule_tile_push(delay=0.1)
+
+    async def _async_load_device_locale(self, locale: str) -> None:
+        """Warm HA's translation cache for a locale selected on the display."""
+        language = locale.replace("_", "-").split("-", 1)[0].lower()
+        try:
+            await async_get_translations(self.hass, language, "entity")
+            await async_get_translations(self.hass, language, "entity_component")
+            self._last_tile_payload = ""
+            self.async_schedule_tile_push(delay=0)
+        except (HomeAssistantError, ValueError):
+            _LOGGER.debug("Unable to load Home Assistant translations for %s", locale)
 
     @callback
     def add_listener(self, listener: Callable[[], None]) -> CALLBACK_TYPE:
@@ -416,9 +488,15 @@ class CameraBridge:
         """Push changed card presentation without rebuilding the LVGL tree."""
         async with self._tile_push_lock:
             runtime_data = self.esphome_entry.runtime_data
+            await self._async_subscribe_device_preferences()
             action = self._find_api_action(API_ACTION_SET_TILES)
             payload = json.dumps(
-                presentation_payload(self.hass, self.tile_cards),
+                presentation_payload(
+                    self.hass,
+                    self.tile_cards,
+                    self.accent_color,
+                    self.device_locale,
+                ),
                 ensure_ascii=False,
                 separators=(",", ":"),
             )

@@ -69,6 +69,11 @@ script:
           apparent_temperature: !lambda 'return id(home_weather_apparent_temperature_sensor).state;'
           humidity: !lambda 'return id(home_weather_humidity_sensor).state;'
       - lambda: |-
+          // Keep animation selection on the raw HA condition while presenting a
+          // locale-aware descriptor in the weather chip.
+          std::string condition = ${home_weather_preview} ? "sunny" : id(home_weather_condition_sensor).state;
+          lv_label_set_text(id(home_weather_condition), id(ui_i18n).translate_existing(condition.c_str()));
+      - lambda: |-
           // The degree/unit labels are separate so the Cherry Bomb number can
           // remain a compact digit-only subset. Keep them attached to the
           // rendered value for both one- and two-digit temperatures.

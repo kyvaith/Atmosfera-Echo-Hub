@@ -19,6 +19,7 @@ lvgl:
             scrollbar_mode: "off"
             widgets:
               - label:
+                  id: settings_title_label
                   text: "Settings"
                   hidden: true
                   align: TOP_MID
@@ -28,6 +29,7 @@ lvgl:
                   text_color: 0xF2F2F2
                   text_font: roboto_24
               - label:
+                  id: settings_device_label
                   text: "Device"
                   hidden: true
                   align: TOP_MID
@@ -66,6 +68,7 @@ lvgl:
                         text_color: 0xC3EDCF
                         text_font: material_symbols_24
                     - label:
+                        id: settings_true_colour_label
                         text: "True Colour"
                         x: 84
                         width: 360
@@ -115,6 +118,7 @@ lvgl:
                         text_color: 0xD3E3FD
                         text_font: material_symbols_24
                     - label:
+                        id: settings_screen_tone_label
                         text: "Screen Tone"
                         x: 84
                         width: 360
@@ -156,6 +160,7 @@ lvgl:
                         text_color: 0xD3E3FD
                         text_font: material_symbols_24
                     - label:
+                        id: settings_perf_overlay_label
                         text: "Performance HUD"
                         x: 84
                         width: 360
@@ -197,6 +202,7 @@ lvgl:
                         text_color: 0xC2E7FF
                         text_font: material_symbols_24
                     - label:
+                        id: settings_system_logs_label
                         text: "System Logs"
                         x: 84
                         width: 360
@@ -238,6 +244,7 @@ lvgl:
                         text_color: 0xC2E7FF
                         text_font: material_symbols_24
                     - label:
+                        id: settings_perf_logs_label
                         text: "Performance Logs"
                         x: 84
                         width: 360
@@ -279,6 +286,7 @@ lvgl:
                         text_color: 0xC2E7FF
                         text_font: material_symbols_24
                     - label:
+                        id: settings_swipe_logs_label
                         text: "Swipe Debug"
                         x: 84
                         width: 360
@@ -320,6 +328,7 @@ lvgl:
                         text_color: 0xD3E3FD
                         text_font: material_symbols_24
                     - label:
+                        id: settings_beta_firmware_label
                         text: "Beta Firmware"
                         x: 84
                         width: 360
@@ -361,6 +370,7 @@ lvgl:
                         text_color: 0xD3E3FD
                         text_font: material_symbols_24
                     - label:
+                        id: settings_display_brightness_label
                         text: "Brightness"
                         x: 84
                         width: 360
@@ -404,6 +414,7 @@ lvgl:
                         text_color: 0xD3E3FD
                         text_font: material_symbols_24
                     - label:
+                        id: settings_display_timeout_label
                         text: "Display Timeout"
                         x: 84
                         width: 360
@@ -454,6 +465,7 @@ lvgl:
                         text_color: 0xC3EDCF
                         text_font: material_symbols_24
                     - label:
+                        id: settings_voice_mute_label
                         text: "Voice Assistant Mute"
                         x: 84
                         width: 360
@@ -495,6 +507,7 @@ lvgl:
                         text_color: 0xC3EDCF
                         text_font: material_symbols_24
                     - label:
+                        id: settings_wake_sound_label
                         text: "Wake Sound"
                         x: 84
                         width: 360
@@ -536,6 +549,7 @@ lvgl:
                         text_color: 0xC3EDCF
                         text_font: material_symbols_24
                     - label:
+                        id: settings_wake_sensitivity_label
                         text: "Wake Sensitivity"
                         x: 84
                         width: 360
@@ -580,6 +594,7 @@ lvgl:
                         text_color: 0xD3E3FD
                         text_font: material_symbols_24
                     - label:
+                        id: settings_immich_fade_label
                         text: "Photo Fade Transition"
                         x: 84
                         width: 360
@@ -596,6 +611,89 @@ lvgl:
                   on_click:
                     then:
                       - switch.toggle: immich_fade_through_black
+              - button:
+                  id: settings_ui_language_button
+                  x: 112
+                  y: 1270
+                  width: 576
+                  height: 78
+                  radius: 39
+                  bg_color: 0x332E3C
+                  bg_opa: 100%
+                  border_width: 0
+                  shadow_width: 0
+                  shadow_opa: 0%
+                  outline_width: 0
+                  outline_opa: 0%
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        text: "\uE8B6"
+                        x: 28
+                        y: 24
+                        text_color: 0x36BCF0
+                        text_font: material_symbols_24
+                    - label:
+                        id: settings_ui_language_label
+                        text: "Interface language"
+                        x: 84
+                        width: 360
+                        y: 24
+                        text_color: 0xF2F2F2
+                        text_font: roboto_20
+                    - label:
+                        id: settings_ui_language_value
+                        text: "English"
+                        align: RIGHT_MID
+                        x: -26
+                        text_color: 0x36BCF0
+                        text_font: roboto_20
+                  on_click:
+                    then:
+                      - select.next: settings_ui_language
+              - button:
+                  id: settings_accent_color_button
+                  x: 112
+                  y: 1358
+                  width: 576
+                  height: 78
+                  radius: 39
+                  bg_color: 0x332E3C
+                  bg_opa: 100%
+                  border_width: 0
+                  shadow_width: 0
+                  shadow_opa: 0%
+                  outline_width: 0
+                  outline_opa: 0%
+                  scrollable: false
+                  gesture_bubble: true
+                  widgets:
+                    - label:
+                        text: "\uE3B7"
+                        x: 28
+                        y: 24
+                        text_color: 0x36BCF0
+                        text_font: material_symbols_24
+                    - label:
+                        id: settings_accent_color_label
+                        text: "Accent colour"
+                        x: 84
+                        width: 360
+                        y: 16
+                        text_color: 0xF2F2F2
+                        text_font: roboto_20
+                    - label:
+                        id: settings_accent_color_value
+                        text: "36BCF0"
+                        x: 84
+                        width: 360
+                        y: 50
+                        text_color: 0xC4C7C5
+                        text_font: roboto_16
+                  on_click:
+                    then:
+                      - script.execute: ui_show_accent_picker
               - label:
                   text: ""
                   align: BOTTOM_MID
@@ -608,7 +706,7 @@ lvgl:
               - obj:
                   id: settings_scroll_spacer
                   x: 0
-                  y: 1338
+                  y: 1430
                   width: 1
                   height: 1
                   bg_opa: 0%
@@ -628,3 +726,503 @@ lvgl:
             scrollable: false
             clickable: false
             hidden: true
+        # M3 accent selection is a separate modal rather than a cycling
+        # preference row.  It lives beside settings_root so a settings
+        # snapshot refresh cannot capture or hide the dialog.
+        - obj:
+            id: accent_picker_overlay
+            x: 0
+            y: 0
+            width: 800
+            height: 800
+            bg_color: 0x000000
+            bg_opa: 82%
+            border_width: 0
+            radius: 0
+            pad_all: 0
+            scrollable: false
+            clickable: true
+            hidden: true
+            widgets:
+              - obj:
+                  id: accent_picker_dialog
+                  width: 680
+                  height: 520
+                  align: CENTER
+                  bg_color: 0x1B1B1F
+                  bg_opa: 100%
+                  border_width: 1
+                  border_color: 0x45464F
+                  radius: 36
+                  pad_all: 0
+                  scrollable: false
+                  clickable: true
+                  widgets:
+                    - label:
+                        id: accent_picker_title
+                        text: "Accent colour"
+                        align: TOP_MID
+                        y: 30
+                        width: 560
+                        text_align: CENTER
+                        text_color: 0xF2F2F2
+                        text_font: roboto_24
+                    - label:
+                        id: accent_picker_hint
+                        text: "Choose a colour"
+                        align: TOP_MID
+                        y: 70
+                        width: 560
+                        text_align: CENTER
+                        text_color: 0xC4C7C5
+                        text_font: roboto_16
+                    # Six swatches per row keeps every option reachable with
+                    # a round display and leaves a clear M3 cancel action.
+                    - button:
+                        id: accent_swatch_esphome
+                        x: 46
+                        y: 122
+                        width: 84
+                        height: 84
+                        radius: 42
+                        bg_color: 0x36BCF0
+                        border_width: 0
+                        shadow_width: 0
+                        on_click:
+                          then:
+                            - script.execute: ui_begin_accent_picker_refresh
+                            - script.wait: ui_begin_accent_picker_refresh
+                            - text.set:
+                                id: settings_accent_color
+                                value: "36BCF0"
+                        widgets:
+                          - label:
+                              text: ""
+                              align: CENTER
+                    - button:
+                        id: accent_swatch_cyan
+                        x: 146
+                        y: 122
+                        width: 84
+                        height: 84
+                        radius: 42
+                        bg_color: 0x4FC3F7
+                        border_width: 0
+                        shadow_width: 0
+                        on_click:
+                          then:
+                            - script.execute: ui_begin_accent_picker_refresh
+                            - script.wait: ui_begin_accent_picker_refresh
+                            - text.set:
+                                id: settings_accent_color
+                                value: "4FC3F7"
+                        widgets:
+                          - label:
+                              text: ""
+                              align: CENTER
+                    - button:
+                        id: accent_swatch_teal
+                        x: 246
+                        y: 122
+                        width: 84
+                        height: 84
+                        radius: 42
+                        bg_color: 0x26A69A
+                        border_width: 0
+                        shadow_width: 0
+                        on_click:
+                          then:
+                            - script.execute: ui_begin_accent_picker_refresh
+                            - script.wait: ui_begin_accent_picker_refresh
+                            - text.set:
+                                id: settings_accent_color
+                                value: "26A69A"
+                        widgets:
+                          - label:
+                              text: ""
+                              align: CENTER
+                    - button:
+                        id: accent_swatch_green
+                        x: 346
+                        y: 122
+                        width: 84
+                        height: 84
+                        radius: 42
+                        bg_color: 0x66BB6A
+                        border_width: 0
+                        shadow_width: 0
+                        on_click:
+                          then:
+                            - script.execute: ui_begin_accent_picker_refresh
+                            - script.wait: ui_begin_accent_picker_refresh
+                            - text.set:
+                                id: settings_accent_color
+                                value: "66BB6A"
+                        widgets:
+                          - label:
+                              text: ""
+                              align: CENTER
+                    - button:
+                        id: accent_swatch_amber
+                        x: 446
+                        y: 122
+                        width: 84
+                        height: 84
+                        radius: 42
+                        bg_color: 0xFFB74D
+                        border_width: 0
+                        shadow_width: 0
+                        on_click:
+                          then:
+                            - script.execute: ui_begin_accent_picker_refresh
+                            - script.wait: ui_begin_accent_picker_refresh
+                            - text.set:
+                                id: settings_accent_color
+                                value: "FFB74D"
+                        widgets:
+                          - label:
+                              text: ""
+                              align: CENTER
+                    - button:
+                        id: accent_swatch_orange
+                        x: 546
+                        y: 122
+                        width: 84
+                        height: 84
+                        radius: 42
+                        bg_color: 0xFF7043
+                        border_width: 0
+                        shadow_width: 0
+                        on_click:
+                          then:
+                            - script.execute: ui_begin_accent_picker_refresh
+                            - script.wait: ui_begin_accent_picker_refresh
+                            - text.set:
+                                id: settings_accent_color
+                                value: "FF7043"
+                        widgets:
+                          - label:
+                              text: ""
+                              align: CENTER
+                    - button:
+                        id: accent_swatch_red
+                        x: 96
+                        y: 226
+                        width: 84
+                        height: 84
+                        radius: 42
+                        bg_color: 0xEF5350
+                        border_width: 0
+                        shadow_width: 0
+                        on_click:
+                          then:
+                            - script.execute: ui_begin_accent_picker_refresh
+                            - script.wait: ui_begin_accent_picker_refresh
+                            - text.set:
+                                id: settings_accent_color
+                                value: "EF5350"
+                        widgets:
+                          - label:
+                              text: ""
+                              align: CENTER
+                    - button:
+                        id: accent_swatch_pink
+                        x: 196
+                        y: 226
+                        width: 84
+                        height: 84
+                        radius: 42
+                        bg_color: 0xEC407A
+                        border_width: 0
+                        shadow_width: 0
+                        on_click:
+                          then:
+                            - script.execute: ui_begin_accent_picker_refresh
+                            - script.wait: ui_begin_accent_picker_refresh
+                            - text.set:
+                                id: settings_accent_color
+                                value: "EC407A"
+                        widgets:
+                          - label:
+                              text: ""
+                              align: CENTER
+                    - button:
+                        id: accent_swatch_purple
+                        x: 296
+                        y: 226
+                        width: 84
+                        height: 84
+                        radius: 42
+                        bg_color: 0xAB47BC
+                        border_width: 0
+                        shadow_width: 0
+                        on_click:
+                          then:
+                            - script.execute: ui_begin_accent_picker_refresh
+                            - script.wait: ui_begin_accent_picker_refresh
+                            - text.set:
+                                id: settings_accent_color
+                                value: "AB47BC"
+                        widgets:
+                          - label:
+                              text: ""
+                              align: CENTER
+                    - button:
+                        id: accent_swatch_slate
+                        x: 396
+                        y: 226
+                        width: 84
+                        height: 84
+                        radius: 42
+                        bg_color: 0x78909C
+                        border_width: 0
+                        shadow_width: 0
+                        on_click:
+                          then:
+                            - script.execute: ui_begin_accent_picker_refresh
+                            - script.wait: ui_begin_accent_picker_refresh
+                            - text.set:
+                                id: settings_accent_color
+                                value: "78909C"
+                        widgets:
+                          - label:
+                              text: ""
+                              align: CENTER
+                    - button:
+                        id: accent_picker_custom_button
+                        x: 200
+                        y: 326
+                        width: 280
+                        height: 62
+                        radius: 31
+                        bg_color: 0x34343A
+                        border_width: 0
+                        shadow_width: 0
+                        on_click:
+                          then:
+                            - script.execute: ui_show_accent_custom
+                        widgets:
+                          - label:
+                              id: accent_picker_custom_label
+                              text: "Custom RGB"
+                              align: CENTER
+                              text_color: 0xF2F2F2
+                              text_font: roboto_18
+                    - obj:
+                        id: accent_custom_content
+                        x: 36
+                        y: 108
+                        width: 608
+                        height: 270
+                        bg_opa: 0%
+                        border_width: 0
+                        pad_all: 0
+                        scrollable: false
+                        clickable: false
+                        hidden: true
+                        widgets:
+                          - label:
+                              text: "R"
+                              x: 0
+                              y: 10
+                              width: 28
+                              text_color: 0xF2F2F2
+                              text_font: roboto_18
+                          - slider:
+                              id: accent_rgb_red_slider
+                              x: 42
+                              y: 14
+                              width: 438
+                              height: 18
+                              min_value: 0
+                              max_value: 255
+                              value: 79
+                              bg_color: 0x49363A
+                              radius: 9
+                              indicator:
+                                bg_color: 0xEF5350
+                                radius: 9
+                              on_value:
+                                then:
+                                  - lambda: 'id(ui_accent_rgb_r) = static_cast<uint8_t>(x);'
+                                  - script.execute: ui_refresh_accent_rgb
+                          - label:
+                              text: "G"
+                              x: 0
+                              y: 82
+                              width: 28
+                              text_color: 0xF2F2F2
+                              text_font: roboto_18
+                          - slider:
+                              id: accent_rgb_green_slider
+                              x: 42
+                              y: 86
+                              width: 438
+                              height: 18
+                              min_value: 0
+                              max_value: 255
+                              value: 195
+                              bg_color: 0x36493A
+                              radius: 9
+                              indicator:
+                                bg_color: 0x66BB6A
+                                radius: 9
+                              on_value:
+                                then:
+                                  - lambda: 'id(ui_accent_rgb_g) = static_cast<uint8_t>(x);'
+                                  - script.execute: ui_refresh_accent_rgb
+                          - label:
+                              text: "B"
+                              x: 0
+                              y: 154
+                              width: 28
+                              text_color: 0xF2F2F2
+                              text_font: roboto_18
+                          - slider:
+                              id: accent_rgb_blue_slider
+                              x: 42
+                              y: 158
+                              width: 438
+                              height: 18
+                              min_value: 0
+                              max_value: 255
+                              value: 247
+                              bg_color: 0x363C49
+                              radius: 9
+                              indicator:
+                                bg_color: 0x4FC3F7
+                                radius: 9
+                              on_value:
+                                then:
+                                  - lambda: 'id(ui_accent_rgb_b) = static_cast<uint8_t>(x);'
+                                  - script.execute: ui_refresh_accent_rgb
+                          - obj:
+                              id: accent_rgb_preview
+                              x: 500
+                              y: 36
+                              width: 88
+                              height: 88
+                              radius: 44
+                              bg_color: 0x4FC3F7
+                              border_width: 0
+                              clickable: false
+                          - label:
+                              id: accent_rgb_value
+                              text: "#4FC3F7"
+                              x: 474
+                              y: 140
+                              width: 134
+                              text_align: CENTER
+                              text_color: 0xF2F2F2
+                              text_font: roboto_16
+                    - button:
+                        id: accent_picker_apply_button
+                        x: 248
+                        y: 326
+                        width: 184
+                        height: 62
+                        radius: 31
+                        bg_color: 0x4FC3F7
+                        border_width: 0
+                        shadow_width: 0
+                        hidden: true
+                        on_click:
+                          then:
+                            - script.execute: ui_apply_accent_custom
+                        widgets:
+                          - label:
+                              id: accent_picker_apply_label
+                              text: "Apply"
+                              align: CENTER
+                              text_color: 0x071018
+                              text_font: roboto_18
+                    - button:
+                        id: accent_picker_cancel_button
+                        x: 252
+                        y: 402
+                        width: 176
+                        height: 76
+                        radius: 38
+                        bg_color: 0x34343A
+                        border_width: 0
+                        shadow_width: 0
+                        on_click:
+                          then:
+                            - script.execute: ui_cancel_accent_picker
+                        widgets:
+                          - label:
+                              id: accent_picker_cancel_label
+                              text: "Cancel"
+                              align: CENTER
+                              text_color: 0xF2F2F2
+                              text_font: roboto_18
+        # A bounded native LVGL arc is used while the resident snapshots are
+        # refreshed.  Its indicator is recoloured by the accent theme script.
+        - obj:
+            id: accent_refresh_overlay
+            x: 0
+            y: 0
+            width: 800
+            height: 800
+            bg_color: 0x000000
+            bg_opa: 72%
+            border_width: 0
+            radius: 0
+            pad_all: 0
+            scrollable: false
+            clickable: true
+            hidden: true
+            widgets:
+              - obj:
+                  id: accent_refresh_card
+                  width: 300
+                  height: 220
+                  align: CENTER
+                  bg_color: 0x1B1B1F
+                  bg_opa: 100%
+                  border_width: 1
+                  border_color: 0x45464F
+                  radius: 32
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+                  widgets:
+                    - arc:
+                        id: accent_refresh_spinner_arc
+                        width: 74
+                        height: 74
+                        align: TOP_MID
+                        y: 30
+                        min_value: 0
+                        max_value: 100
+                        value: 28
+                        start_angle: 0
+                        end_angle: 300
+                        rotation: 270
+                        adjustable: false
+                        mode: NORMAL
+                        bg_opa: 0%
+                        border_width: 0
+                        pad_all: 0
+                        scrollable: false
+                        clickable: false
+                        arc_color: 0x3A3B42
+                        arc_width: 8
+                        arc_opa: 100%
+                        arc_rounded: true
+                        indicator:
+                          arc_color: 0x4FC3F7
+                          arc_width: 8
+                          arc_opa: 100%
+                          arc_rounded: true
+                        knob:
+                          bg_opa: 0%
+                    - label:
+                        id: accent_refresh_label
+                        text: "Applying colour..."
+                        align: BOTTOM_MID
+                        y: -34
+                        width: 260
+                        text_align: CENTER
+                        text_color: 0xF2F2F2
+                        text_font: roboto_16

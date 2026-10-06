@@ -227,19 +227,21 @@ script:
           id(subscription_gen) += 1;
           id(subscribed_media_player_entity) = entity;
 
-          lv_label_set_text(id(title_label), "No Track");
+          lv_label_set_text(id(title_label), id(ui_i18n).translate("player.no_track"));
           lv_label_set_text(id(artist_label), "-");
           lv_label_set_text(id(album_label), "");
-          lv_label_set_text(id(queue_current_title_label), "No Track");
+          lv_label_set_text(id(queue_current_title_label), id(ui_i18n).translate("player.no_track"));
           lv_label_set_text(id(queue_current_artist_label), "-");
           lv_label_set_text(id(media_time_label), "0:00 / 0:00");
-          lv_obj_clear_flag(id(figma_media_artwork_widget), LV_OBJ_FLAG_HIDDEN);
+          // The generated accent gradient is the missing-art surface. The
+          // old purple bitmap remains a resource for compatibility only.
+          lv_obj_add_flag(id(figma_media_artwork_widget), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(album_art_background_widget), LV_OBJ_FLAG_HIDDEN);
                 lv_obj_clear_flag(id(artwork_primary_overlay), LV_OBJ_FLAG_HIDDEN);
-                lv_obj_clear_flag(id(artwork_scrim), LV_OBJ_FLAG_HIDDEN);
+          lv_obj_add_flag(id(artwork_scrim), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(title_marquee_scrim), LV_OBJ_FLAG_HIDDEN);
-          id(media_wavy_progress).set_background(
-              id(album_art_placeholder).get_lv_image_dsc(), false);
+          id(media_wavy_progress).set_background_gradient(
+              id(ui_accent_dark_color), id(ui_accent_color), false);
           id(last_media_progress_percent) = 0;
           id(last_media_progress_permille) = 0;
           id(last_media_progress_basis_points) = 0;
@@ -1028,10 +1030,11 @@ script:
                 if (lv_obj_has_flag(img, LV_OBJ_FLAG_HIDDEN)) {
                   lv_obj_clear_flag(img, LV_OBJ_FLAG_HIDDEN);
                 }
-                // Keep the purple artwork scrim above every decoded cover;
-                // the private wave backdrop must never become visible itself.
+                // Keep the decoded cover and the private wave backdrop on the
+                // same un-scrimmed pixels. This avoids a transient rectangle
+                // if the cover/error path changes while a frame is in flight.
                 lv_obj_clear_flag(id(artwork_primary_overlay), LV_OBJ_FLAG_HIDDEN);
-                lv_obj_clear_flag(id(artwork_scrim), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(id(artwork_scrim), LV_OBJ_FLAG_HIDDEN);
                 if (!lv_obj_has_flag(id(artwork_error_label), LV_OBJ_FLAG_HIDDEN)) {
                   lv_obj_add_flag(id(artwork_error_label), LV_OBJ_FLAG_HIDDEN);
                 }
@@ -1122,13 +1125,13 @@ script:
           id(artwork_refresh_pending) = false;
           id(media_title_marquee).end(true);
           lv_obj_add_flag(id(title_marquee_scrim), LV_OBJ_FLAG_HIDDEN);
-          id(media_wavy_progress).set_background(
-              id(album_art_placeholder).get_lv_image_dsc(), false);
+          id(media_wavy_progress).set_background_gradient(
+              id(ui_accent_dark_color), id(ui_accent_color), false);
       - if:
           condition:
             lambda: 'return lv_obj_has_flag(id(album_art_background_widget), LV_OBJ_FLAG_HIDDEN);'
           then:
-            - lvgl.widget.show: figma_media_artwork_widget
+            - lvgl.widget.hide: figma_media_artwork_widget
             - lvgl.widget.hide:
                 - artwork_primary_overlay
                 - artwork_scrim
@@ -1238,11 +1241,11 @@ text_sensor:
             - script.execute: media_title_marquee_pause_direct
             - lvgl.label.update:
                 id: title_label
-                text: "No Track"
+                text: !lambda 'return std::string(id(ui_i18n).translate("player.no_track"));'
             - script.execute: media_title_marquee_reset
             - lvgl.label.update:
                 id: queue_current_title_label
-                text: "No Track"
+                text: !lambda 'return std::string(id(ui_i18n).translate("player.no_track"));'
 
   - platform: template
     id: media_artist_sensor

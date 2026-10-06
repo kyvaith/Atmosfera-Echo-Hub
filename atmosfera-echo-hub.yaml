@@ -30,20 +30,22 @@ substitutions:
   # Reference layout measured from Prezentacja1.pptx at the 800 px target.
   # Keeping these values as substitutions makes the composition portable to
   # another square panel without burying geometry in the page definition.
-  home_clock_x: '40'
-  home_clock_y: '66'
-  home_clock_width: '380'
-  home_clock_height: '390'
+  home_clock_x: '18'
+  # The enlarged 340 px glyphs remain anchored at the lower-left while their
+  # right and top edges extend by roughly 50 px.
+  home_clock_digit2_x: '180'
+  home_clock_digit_width: '232'
+  home_clock_y: '-5'
+  home_clock_height: '410'
+  home_clock_font_size: '340'
   # The reference slide used 12:58 for geometry checks; production follows HA
   # time after the layout has been validated.
   home_clock_preview_time: 'false'
   # Use LVGL's native stroke around the recolored minute glyph. A second
   # oversized text object caused a visible offset and doubled the draw area.
   home_minute_outline_width: '8'
-  home_minute_text_x: '43'
-  home_minute_text_y: '256'
-  home_minute_text_width: '380'
-  home_minute_text_height: '390'
+  home_minute_text_y: '209'
+  home_minute_text_height: '410'
   home_weather_x: '0'
   home_weather_y: '0'
   home_weather_width: '800'
@@ -104,6 +106,8 @@ substitutions:
   voice_region_default: auto
   wake_word_default: okay_nabu
   voice_assistant_default: realtime
+  ui_language_default: en-US
+  ui_accent_default: '36BCF0'
 
   # Home Assistant entities used as initial values for runtime-configurable tiles
   tile_light_entity: light.living_room
@@ -122,6 +126,7 @@ substitutions:
 
 packages:
   external_components: !include modules/common/external_components.yaml
+  ui_i18n: !include modules/common/i18n.yaml
   core: !include modules/common/core.yaml
   managed_updates: !include modules/common/managed_updates.yaml
   system_settings: !include modules/common/system_settings.yaml
@@ -137,6 +142,7 @@ packages:
   lvgl_runtime: !include modules/lvgl/base.yaml
   lvgl_fonts: !include modules/lvgl/fonts.yaml
   lvgl_material: !include modules/lvgl/material.yaml
+  lvgl_theme: !include modules/lvgl/theme.yaml
   lvgl_navigation: !include modules/lvgl/navigation.yaml
   lvgl_boot_page: !include modules/lvgl/pages/boot.yaml
   lvgl_tiles_page: !include modules/lvgl/pages/tiles_m3.yaml
@@ -146,6 +152,7 @@ packages:
   lvgl_immich_page: !include modules/lvgl/pages/immich.yaml
   lvgl_camera_page: !include modules/lvgl/pages/camera.yaml
   lvgl_global_overlay: !include modules/lvgl/pages/global_overlay.yaml
+  lvgl_i18n: !include modules/lvgl/i18n.yaml
 
   player_settings: !include modules/player/settings.yaml
   player_artwork: !include modules/player/artwork.yaml

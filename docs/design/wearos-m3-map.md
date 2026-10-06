@@ -56,12 +56,18 @@ display edge exactly as in the product composition. It uses the following
 structure:
 
 - two large Cherry Bomb One clock rows, with per-digit white/accent color.
-  The minute contour uses a second font compiled at the SAME size, with
-  `outline_width: 6`. FreeType expands glyph contours during code generation
-  while preserving advances and baselines. Both labels have identical x/y,
-  letter spacing and text-box dimensions. A larger font is not an outline:
-  it displaces the second digit. LVGL's native outline only handles vector
-  glyphs in the current draw backend, not ESPHome's bitmap fonts;
+  Each digit has its own centered 232px label at x=18 or x=180, using the
+  enlarged 340px Cherry Bomb glyphs while keeping the columns fixed despite
+  proportional advances. The 162px column step makes the second digit
+  overlap the first. Both rows use a
+  matching contour font at the same size with `outline_width: 8`; the extra
+  2px padding preserves even the widest outlined `7`. Contour and foreground
+  labels share position, dimensions, and baseline. Each digit's contour and
+  foreground are consecutive layers, so the second digit's contour covers
+  the first digit at the overlap. The minute contours cover
+  the overlapping lower edge of the hour row. A larger font is not an outline:
+  it changes glyph metrics. LVGL's native outline only handles vector glyphs
+  in the current draw backend, not ESPHome's bitmap fonts;
 - a static volume icon plus an API-aware Wi-Fi icon at the top: Wi-Fi strength
   is shown only while Home Assistant state subscriptions are active, otherwise
   the disconnected icon is shown;

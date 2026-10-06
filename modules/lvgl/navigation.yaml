@@ -57,6 +57,33 @@ globals:
     type: bool
     restore_value: no
     initial_value: 'false'
+  # True only while the user has selected a swatch in the M3 accent picker.
+  # The flag keeps the transient refresh surface out of normal settings/state
+  # updates while allowing the snapshot worker to finish before it is hidden.
+  - id: ui_accent_picker_busy
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  # Accent changes invalidate the hidden Home transition source as well as the
+  # visible Settings snapshot.  Keep this set until the Home cache has been
+  # rebuilt so a Settings close can refresh its source before the close
+  # animation samples it.
+  - id: ui_accent_home_refresh_pending
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: ui_accent_rgb_r
+    type: uint8_t
+    restore_value: no
+    initial_value: '79'
+  - id: ui_accent_rgb_g
+    type: uint8_t
+    restore_value: no
+    initial_value: '195'
+  - id: ui_accent_rgb_b
+    type: uint8_t
+    restore_value: no
+    initial_value: '247'
   - id: ui_touch_click_block_until_ms
     type: uint32_t
     restore_value: no
@@ -99,6 +126,295 @@ globals:
     initial_value: '0'
 
 script:
+  - id: ui_apply_accent_theme
+    mode: restart
+    then:
+      - globals.set:
+          id: ui_accent_home_refresh_pending
+          value: 'true'
+      # Theme changes happen as a single LVGL-task batch. The tile component
+      # updates its fixed object pool without allocating another frame buffer.
+      - lvgl.widget.update:
+          id: artwork_bg_panel
+          bg_color: !lambda 'return lv_color_hex(id(ui_accent_dark_color));'
+          bg_grad_color: !lambda 'return lv_color_hex(id(ui_accent_color));'
+          bg_grad_dir: VER
+      - lvgl.widget.update:
+          id: artwork_primary_overlay
+          bg_color: !lambda 'return lv_color_hex(id(ui_accent_color));'
+      - lvgl.widget.update:
+          id: voice_assistant_bottom_gradient
+          bg_grad_color: !lambda 'return lv_color_hex(id(ui_accent_dark_color));'
+      # Arc indicators are LVGL part styles and are not visited by the
+      # generic MaterialTheme object walk. Keep the transient player and
+      # volume spinners on the selected accent as well.
+      - lvgl.widget.update:
+          id: media_action_spinner_arc
+          indicator:
+            arc_color: !lambda 'return lv_color_hex(id(ui_accent_color));'
+      - lvgl.widget.update:
+          id: global_volume_arc
+          indicator:
+            arc_color: !lambda 'return lv_color_hex(id(ui_accent_color));'
+      - lvgl.widget.update:
+          id: accent_refresh_spinner_arc
+          indicator:
+            arc_color: !lambda 'return lv_color_hex(id(ui_accent_color));'
+      # Lottie loaders expose the same reusable ThorVG color slot as weather.
+      # Apply the accent in the worker so only the animated shape is recolored;
+      # the loader document intentionally has no opaque circular backing.
+      - lvgl.lottie.set_color:
+          id: camera_loading_lottie
+          color: !lambda 'return lv_color_hex(id(ui_accent_color));'
+      - lvgl.lottie.set_color:
+          id: immich_loading_lottie
+          color: !lambda 'return lv_color_hex(id(ui_accent_color));'
+      # ThorVG weather documents expose their primary shape fill through the
+      # reusable color slot. Apply the selected accent in the raster worker so
+      # retained weather frames keep their animation phase and direct-region
+      # ownership instead of being recolored by a full-frame LVGL pass.
+      - lvgl.lottie.set_color:
+          id: weather_clear_day
+          color: !lambda 'return lv_color_hex(id(ui_accent_color));'
+      - lvgl.lottie.set_color:
+          id: weather_clear_night
+          color: !lambda 'return lv_color_hex(id(ui_accent_color));'
+      - lvgl.lottie.set_color:
+          id: weather_partly_cloudy_day
+          color: !lambda 'return lv_color_hex(id(ui_accent_color));'
+      - lvgl.lottie.set_color:
+          id: weather_partly_cloudy_night
+          color: !lambda 'return lv_color_hex(id(ui_accent_color));'
+      - lvgl.lottie.set_color:
+          id: weather_overcast
+          color: !lambda 'return lv_color_hex(id(ui_accent_color));'
+      - lvgl.lottie.set_color:
+          id: weather_rain
+          color: !lambda 'return lv_color_hex(id(ui_accent_color));'
+      - lvgl.lottie.set_color:
+          id: weather_snow
+          color: !lambda 'return lv_color_hex(id(ui_accent_color));'
+      - lvgl.lottie.set_color:
+          id: weather_thunderstorms
+          color: !lambda 'return lv_color_hex(id(ui_accent_color));'
+      - lvgl.lottie.set_color:
+          id: weather_fog
+          color: !lambda 'return lv_color_hex(id(ui_accent_color));'
+      - lambda: 'id(media_wavy_progress).set_accent(id(ui_accent_color));'
+      - lambda: 'id(voice_assistant_presenter).set_accent(id(ui_accent_color));'
+      - script.execute: ui_apply_accent_theme_full
+
+  - id: ui_show_accent_picker
+    mode: restart
+    then:
+      - script.execute: ui_restore_accent_picker_colors
+      - script.wait: ui_restore_accent_picker_colors
+      - lvgl.widget.hide:
+          - accent_custom_content
+          - accent_picker_apply_button
+      - lvgl.widget.show:
+          - accent_swatch_esphome
+          - accent_swatch_cyan
+          - accent_swatch_teal
+          - accent_swatch_green
+          - accent_swatch_amber
+          - accent_swatch_orange
+          - accent_swatch_red
+          - accent_swatch_pink
+          - accent_swatch_purple
+          - accent_swatch_slate
+          - accent_picker_custom_button
+      - lvgl.widget.update:
+          id: accent_picker_cancel_button
+          x: 252
+      - lvgl.label.update:
+          id: accent_picker_hint
+          text: !lambda 'return std::string(id(ui_i18n).translate("settings.accent_picker_hint"));'
+      - lvgl.widget.hide: accent_refresh_overlay
+      - lvgl.widget.show: accent_picker_overlay
+      - lambda: |-
+          // Make the modal part of the same bounded tree as the Settings
+          // snapshot. Its y position follows the retained scroll offset so
+          // it stays fixed on the physical display while the source tree is
+          // still hit-testable underneath.
+          lv_obj_set_parent(id(accent_picker_overlay), id(settings_root));
+          lv_obj_set_pos(id(accent_picker_overlay), 0, lv_obj_get_scroll_y(id(settings_root)));
+          lv_obj_move_foreground(id(accent_picker_overlay));
+      - if:
+          condition:
+            lambda: 'return id(ui_active_app) == 2 && lvgl_esphome_snapshot_is_active();'
+          then:
+            - lvgl.snapshot_scroll.refresh: settings_scroll_snapshot
+
+  # The picker is a child of settings_root while Settings is open. Keep its
+  # swatches explicitly outside semantic M3 role matching so a prior accent
+  # cannot turn all sample buttons into the currently selected colour.
+  - id: ui_restore_accent_picker_colors
+    mode: restart
+    then:
+      - lvgl.widget.update:
+          id: accent_swatch_esphome
+          bg_color: 0x36BCF0
+      - lvgl.widget.update:
+          id: accent_swatch_cyan
+          bg_color: 0x4FC3F7
+      - lvgl.widget.update:
+          id: accent_swatch_teal
+          bg_color: 0x26A69A
+      - lvgl.widget.update:
+          id: accent_swatch_green
+          bg_color: 0x66BB6A
+      - lvgl.widget.update:
+          id: accent_swatch_amber
+          bg_color: 0xFFB74D
+      - lvgl.widget.update:
+          id: accent_swatch_orange
+          bg_color: 0xFF7043
+      - lvgl.widget.update:
+          id: accent_swatch_red
+          bg_color: 0xEF5350
+      - lvgl.widget.update:
+          id: accent_swatch_pink
+          bg_color: 0xEC407A
+      - lvgl.widget.update:
+          id: accent_swatch_purple
+          bg_color: 0xAB47BC
+      - lvgl.widget.update:
+          id: accent_swatch_slate
+          bg_color: 0x78909C
+
+  # Called before the text entity is changed. The refresh surface is included
+  # in the same bounded Settings snapshot as the picker, so it remains visible
+  # while the existing tile/list snapshots are rebuilt.
+  - id: ui_begin_accent_picker_refresh
+    mode: restart
+    then:
+      - globals.set:
+          id: ui_accent_picker_busy
+          value: 'true'
+      - lvgl.label.update:
+          id: accent_refresh_label
+          text: !lambda 'return std::string(id(ui_i18n).translate("settings.accent_applying"));'
+      - lvgl.widget.hide: accent_picker_overlay
+      - lvgl.widget.show: accent_refresh_overlay
+      - lambda: |-
+          lv_obj_set_parent(id(accent_refresh_overlay), id(settings_root));
+          lv_obj_set_pos(id(accent_refresh_overlay), 0, lv_obj_get_scroll_y(id(settings_root)));
+          lv_obj_move_foreground(id(accent_refresh_overlay));
+      - if:
+          condition:
+            lambda: 'return id(ui_active_app) == 2 && lvgl_esphome_snapshot_is_active();'
+          then:
+            - lvgl.snapshot_scroll.refresh: settings_scroll_snapshot
+
+  - id: ui_cancel_accent_picker
+    mode: restart
+    then:
+      - globals.set:
+          id: ui_accent_picker_busy
+          value: 'false'
+      - lvgl.widget.hide: accent_picker_overlay
+      - lvgl.widget.hide: accent_refresh_overlay
+      - if:
+          condition:
+            lambda: 'return id(ui_active_app) == 2 && !id(ui_snapshot_io_busy) && lvgl_esphome_snapshot_is_active();'
+          then:
+            - lvgl.snapshot_scroll.refresh: settings_scroll_snapshot
+
+  # A bounded RGB editor stays in this modal. The snapshot is rebuilt only
+  # after Apply; while editing, the modal preview is a normal LVGL region and
+  # does not force a full Settings capture for every slider step.
+  - id: ui_show_accent_custom
+    mode: restart
+    then:
+      - lambda: |-
+          const uint32_t accent = id(ui_accent_color);
+          id(ui_accent_rgb_r) = (accent >> 16) & 0xFF;
+          id(ui_accent_rgb_g) = (accent >> 8) & 0xFF;
+          id(ui_accent_rgb_b) = accent & 0xFF;
+      - lvgl.widget.hide:
+          - accent_swatch_esphome
+          - accent_swatch_cyan
+          - accent_swatch_teal
+          - accent_swatch_green
+          - accent_swatch_amber
+          - accent_swatch_orange
+          - accent_swatch_red
+          - accent_swatch_pink
+          - accent_swatch_purple
+          - accent_swatch_slate
+          - accent_picker_custom_button
+      - lvgl.widget.show:
+          - accent_custom_content
+          - accent_picker_apply_button
+      - lvgl.widget.update:
+          id: accent_picker_cancel_button
+          x: 128
+      - lvgl.label.update:
+          id: accent_picker_hint
+          text: !lambda 'return std::string(id(ui_i18n).translate("settings.accent_rgb_hint"));'
+      - lambda: |-
+          lv_slider_set_value(id(accent_rgb_red_slider), id(ui_accent_rgb_r), LV_ANIM_OFF);
+          lv_slider_set_value(id(accent_rgb_green_slider), id(ui_accent_rgb_g), LV_ANIM_OFF);
+          lv_slider_set_value(id(accent_rgb_blue_slider), id(ui_accent_rgb_b), LV_ANIM_OFF);
+      - script.execute: ui_refresh_accent_rgb
+
+  - id: ui_refresh_accent_rgb
+    mode: restart
+    then:
+      - lvgl.widget.update:
+          id: accent_rgb_preview
+          bg_color: !lambda |-
+            return lv_color_hex((static_cast<uint32_t>(id(ui_accent_rgb_r)) << 16) |
+                                (static_cast<uint32_t>(id(ui_accent_rgb_g)) << 8) |
+                                id(ui_accent_rgb_b));
+      - lvgl.label.update:
+          id: accent_rgb_value
+          text: !lambda |-
+            char value[8];
+            snprintf(value, sizeof(value), "#%02X%02X%02X", id(ui_accent_rgb_r),
+                     id(ui_accent_rgb_g), id(ui_accent_rgb_b));
+            return std::string(value);
+
+  - id: ui_apply_accent_custom
+    then:
+      - script.execute: ui_begin_accent_picker_refresh
+      - script.wait: ui_begin_accent_picker_refresh
+      - text.set:
+          id: settings_accent_color
+          value: !lambda |-
+            char value[7];
+            snprintf(value, sizeof(value), "%02X%02X%02X", id(ui_accent_rgb_r),
+                     id(ui_accent_rgb_g), id(ui_accent_rgb_b));
+            return std::string(value);
+
+  - id: ui_i18n_refresh
+    mode: restart
+    then:
+      - lvgl.label.update:
+          id: settings_title_label
+          text: !lambda 'return std::string(id(ui_i18n).translate("settings.title"));'
+      - lvgl.label.update:
+          id: settings_device_label
+          text: !lambda 'return std::string(id(ui_i18n).translate("settings.device"));'
+      - lvgl.label.update:
+          id: settings_true_colour_label
+          text: !lambda 'return std::string(id(ui_i18n).translate("settings.true_colour"));'
+      - lvgl.label.update:
+          id: settings_screen_tone_label
+          text: !lambda 'return std::string(id(ui_i18n).translate("settings.screen_tone"));'
+      - lvgl.label.update:
+          id: settings_perf_overlay_label
+          text: !lambda 'return std::string(id(ui_i18n).translate("settings.performance_hud"));'
+      - lvgl.label.update:
+          id: settings_ui_language_label
+          text: !lambda 'return std::string(id(ui_i18n).translate("settings.ui_language"));'
+      - lvgl.label.update:
+          id: settings_accent_color_label
+          text: !lambda 'return std::string(id(ui_i18n).translate("settings.accent_color"));'
+      - script.execute: ui_i18n_refresh_full
+      - script.execute: ui_refresh_settings_snapshot
+
   - id: ui_quiesce_player_direct_regions
     mode: restart
     then:
@@ -234,23 +550,48 @@ script:
             if (minute > 59) minute = 59;
             const int minute_key = hour * 60 + minute;
             if (minute_key != id(ui_home_clock_last_minute)) {
-              char hour_text[32];
-              char minute_text[32];
-              char minute_outline[3];
-              std::snprintf(minute_outline, sizeof(minute_outline), "%02d", minute);
-               std::snprintf(hour_text, sizeof(hour_text), "#FFFFFF %c##${home_accent_hex} %c#",
-                            static_cast<char>('0' + hour / 10), static_cast<char>('0' + hour % 10));
-              std::snprintf(minute_text, sizeof(minute_text), "#${home_accent_hex} %c##FFFFFF %c#",
-                            static_cast<char>('0' + minute / 10), static_cast<char>('0' + minute % 10));
-              if (strcmp(lv_label_get_text(id(home_clock_text)), hour_text) != 0) {
-                lv_label_set_text(id(home_clock_text), hour_text);
-                changed = true;
-              }
-              if (strcmp(lv_label_get_text(id(home_minute_text)), minute_text) != 0) {
-                lv_label_set_text(id(home_minute_text), minute_text);
-                lv_label_set_text(id(home_minute_outline), minute_outline);
-                changed = true;
-              }
+              char hour_tens_markup[20];
+              char hour_units_markup[20];
+              char minute_tens_markup[20];
+              char minute_units_markup[20];
+              char hour_tens_outline[2];
+              char hour_units_outline[2];
+              char minute_tens_outline[2];
+              char minute_units_outline[2];
+              // `${home_accent_hex}` is a compile-time substitution and was
+              // left behind after a runtime accent change. Build the markup
+              // from the current colour so each fixed clock column follows
+              // the selected palette without rebuilding its LVGL objects.
+              char accent_hex[7];
+              std::snprintf(accent_hex, sizeof(accent_hex), "%06lX",
+                            static_cast<unsigned long>(id(ui_accent_color) & 0xFFFFFFU));
+              const char hour_tens = static_cast<char>('0' + hour / 10);
+              const char hour_units = static_cast<char>('0' + hour % 10);
+              const char minute_tens = static_cast<char>('0' + minute / 10);
+              const char minute_units = static_cast<char>('0' + minute % 10);
+              std::snprintf(hour_tens_markup, sizeof(hour_tens_markup), "#FFFFFF %c#", hour_tens);
+              std::snprintf(hour_units_markup, sizeof(hour_units_markup), "#%s %c#", accent_hex, hour_units);
+              std::snprintf(minute_tens_markup, sizeof(minute_tens_markup), "#%s %c#", accent_hex, minute_tens);
+              std::snprintf(minute_units_markup, sizeof(minute_units_markup), "#FFFFFF %c#", minute_units);
+              hour_tens_outline[0] = hour_tens;
+              hour_units_outline[0] = hour_units;
+              minute_tens_outline[0] = minute_tens;
+              minute_units_outline[0] = minute_units;
+              hour_tens_outline[1] = hour_units_outline[1] = minute_tens_outline[1] = minute_units_outline[1] = '\0';
+              auto set_clock_label = [&](lv_obj_t *label, const char *value) {
+                if (strcmp(lv_label_get_text(label), value) != 0) {
+                  lv_label_set_text(label, value);
+                  changed = true;
+                }
+              };
+              set_clock_label(id(home_clock_hour_tens_outline), hour_tens_outline);
+              set_clock_label(id(home_clock_hour_units_outline), hour_units_outline);
+              set_clock_label(id(home_clock_hour_tens), hour_tens_markup);
+              set_clock_label(id(home_clock_hour_units), hour_units_markup);
+              set_clock_label(id(home_clock_minute_tens_outline), minute_tens_outline);
+              set_clock_label(id(home_clock_minute_units_outline), minute_units_outline);
+              set_clock_label(id(home_clock_minute_tens), minute_tens_markup);
+              set_clock_label(id(home_clock_minute_units), minute_units_markup);
               id(ui_home_clock_last_minute) = minute_key;
             }
           }
@@ -326,11 +667,15 @@ script:
                     id(ui_active_app) != 0 || id(ui_page) != 1 || id(ui_snapshot_io_busy) ||
                     id(ui_touch_active) || id(global_volume_dragging) ||
                     id(global_volume_time_press_tracking) || lvgl_esphome_snapshot_is_active()) return;
-                lv_obj_t *regions[] = {id(home_clock_text), id(home_minute_outline), id(home_minute_text)};
+                lv_obj_t *regions[] = {
+                  id(home_clock_hour_tens_outline), id(home_clock_hour_tens),
+                  id(home_clock_hour_units_outline), id(home_clock_hour_units),
+                  id(home_clock_minute_tens_outline), id(home_clock_minute_tens),
+                  id(home_clock_minute_units_outline), id(home_clock_minute_units)};
                 auto *display = lv_obj_get_display(id(controls_root_1));
                 const int width = lv_display_get_horizontal_resolution(display);
                 id(ui_home_snapshot_refresh_pending) = !lvgl_esphome_snapshot_refresh_tile_regions(
-                    id(controls_root_1), regions, 3, width, true);
+                    id(controls_root_1), regions, 8, width, true);
 
   - id: ui_clear_interaction_press
     then:
@@ -621,6 +966,78 @@ script:
           }
           id(ui_snapshot_io_busy) = false;
 
+  # Accent changes alter every pixel in the product-owned page trees.  A
+  # normal tile refresh deliberately exits when the current three-page window
+  # is already marked ready, so it cannot be used as an accent invalidation
+  # signal.  Invalidate the raw/JPEG entries first, then rebuild the Home
+  # window and the compressed application previews while all direct producers
+  # are paused.  Settings is handled separately while it owns its scroll
+  # buffer; this script waits until that application has released the buffer.
+  - id: ui_refresh_accent_snapshots
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_active_app) != 0 || id(ui_snapshot_io_busy) || id(ui_touch_active) ||
+                     id(global_volume_dragging) || id(global_volume_time_press_tracking) ||
+                     lvgl_esphome_snapshot_is_active();
+          then:
+            - delay: 240ms
+            - script.execute: ui_refresh_accent_snapshots
+          else:
+            - lambda: |-
+                if (!lvgl_esphome_direct_regions_pause(true, 150)) {
+                  ESP_LOGW("snapshot.refresh", "accent refresh: direct regions did not quiesce");
+                }
+            - globals.set:
+                id: ui_snapshot_io_busy
+                value: 'true'
+            - lambda: |-
+                auto *display = lv_obj_get_display(id(controls_root_1));
+                const int width = display != nullptr
+                                      ? lv_display_get_horizontal_resolution(display)
+                                      : lv_obj_get_width(lv_screen_active());
+                lv_obj_t *pages[] = {
+                  id(controls_root_1), id(controls_root_2),
+                  id(controls_root_3), id(controls_root_4),
+                };
+                if (width > 0) {
+                  for (auto *page : pages) {
+                    if (page == nullptr || !lvgl_esphome_snapshot_invalidate_tile_page(page, width)) {
+                      ESP_LOGW("snapshot.refresh", "accent refresh: failed to invalidate Home page");
+                    }
+                  }
+                }
+                // Force ui_refresh_tile_snapshots through its cache-window
+                // preparation path even when the page range was previously
+                // resident. The invalidation call clears off-window JPEGs and
+                // marks resident raw slots dirty.
+                id(ui_tile_snapshots_ready) = false;
+                id(ui_tile_snapshot_prepared_page) = 0;
+                id(ui_tile_snapshot_cached_first) = 0;
+                id(ui_tile_snapshot_cached_last) = 0;
+                id(ui_home_snapshot_refresh_pending) = false;
+            - globals.set:
+                id: ui_snapshot_io_busy
+                value: 'false'
+            - script.execute: ui_refresh_tile_snapshots
+            - script.wait: ui_refresh_tile_snapshots
+            # Player and Voice use compressed application previews. Camera and
+            # Gallery use the black opening source, but preparing the complete
+            # registry here keeps their non-black/close sources coherent too.
+            - globals.set:
+                id: ui_snapshot_io_busy
+                value: 'true'
+            - lvgl.navigation.prepare_applications: ui_navigation
+            - globals.set:
+                id: ui_snapshot_io_busy
+                value: 'false'
+            - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
+            - globals.set:
+                id: ui_accent_home_refresh_pending
+                value: 'false'
+
   # A control changed on the live Home page. Refresh its current raw slot in
   # place. The compressed copy is updated only when that slot is recycled.
   - id: ui_refresh_current_tile_snapshot
@@ -747,8 +1164,7 @@ script:
                 condition:
                   lambda: |-
                     return id(ui_snapshot_io_busy) || id(ui_touch_active) ||
-                           id(ui_manual_pressed_obj) != nullptr ||
-                           lvgl_esphome_snapshot_is_active();
+                           id(ui_manual_pressed_obj) != nullptr;
                 then:
                   - delay: 80ms
                   - script.execute: ui_apply_settings_snapshot_refresh
@@ -783,8 +1199,8 @@ script:
                          (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
                 id(album_art_background).set_sendspin_paused(true);
                 id(media_wavy_progress).initialize();
-                id(media_wavy_progress).set_background(
-                    id(album_art_placeholder).get_lv_image_dsc(), false);
+                id(media_wavy_progress).set_background_gradient(
+                    id(ui_accent_dark_color), id(ui_accent_color), false);
                 id(media_wavy_progress).set_value(id(last_media_progress_percent));
                 lv_obj_update_layout(lv_screen_active());
             # Seed the first Home page while the splash is still opaque. This
@@ -875,6 +1291,11 @@ script:
           y: 0
       - lambda: |-
           id(album_art_background).set_sendspin_paused(false);
+          // The wave renderer keeps its three raster buffers while Player is
+          // closed. Re-apply the live preference at the handoff boundary so a
+          // frame rendered before the last accent change cannot become the
+          // first visible play button frame after reopening Player.
+          id(media_wavy_progress).set_accent(id(ui_accent_color));
           id(media_wavy_progress).initialize();
           id(media_wavy_progress).set_value(id(last_media_progress_percent));
       - script.execute: media_title_marquee_reset_and_start
@@ -1152,6 +1573,33 @@ script:
                 text_color: 0xC4C7C5
       - script.execute: ui_refresh_settings_snapshot
 
+  - id: ui_update_i18n_state
+    then:
+      - if:
+          condition:
+            select.is:
+              id: settings_ui_language
+              options: ["pl-PL"]
+          then:
+            - lvgl.label.update:
+                id: settings_ui_language_value
+                text: "Polski"
+          else:
+            - lvgl.label.update:
+                id: settings_ui_language_value
+                text: "English"
+      - script.execute: ui_refresh_settings_snapshot
+
+  - id: ui_update_accent_state
+    then:
+      - lvgl.label.update:
+          id: settings_accent_color_value
+          text: !lambda |-
+            static char value[7];
+            snprintf(value, sizeof(value), "%06lX", (unsigned long) id(ui_accent_color));
+            return std::string(value);
+      - script.execute: ui_apply_accent_theme
+
   - id: ui_apply_settings_state
     then:
       - script.execute: ui_apply_diagnostics_logging_state
@@ -1182,3 +1630,9 @@ script:
       - script.wait: ui_update_wake_sensitivity_state
       - script.execute: ui_update_immich_fade_state
       - script.wait: ui_update_immich_fade_state
+      - script.execute: ui_update_i18n_state
+      - script.wait: ui_update_i18n_state
+      - script.execute: ui_i18n_refresh
+      - script.wait: ui_i18n_refresh
+      - script.execute: ui_update_accent_state
+      - script.wait: ui_update_accent_state
