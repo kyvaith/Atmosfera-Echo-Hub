@@ -71,7 +71,7 @@ lvgl:
                         fast_radial: true
                         fast_radial_fill_color: ${home_accent_color}
                         fast_radial_outline_color: ${home_outline_color}
-                        loop: false
+                        loop: true
                         play_count: 1
                         auto_start: false
                         retain_on_unload: false
@@ -87,7 +87,7 @@ lvgl:
                         height: ${home_weather_lottie_size}
                         render_width: ${home_weather_lottie_render_size}
                         render_height: ${home_weather_lottie_render_size}
-                        loop: false
+                        loop: true
                         play_count: 1
                         auto_start: false
                         retain_on_unload: false
@@ -103,7 +103,7 @@ lvgl:
                         height: ${home_weather_lottie_size}
                         render_width: ${home_weather_lottie_render_size}
                         render_height: ${home_weather_lottie_render_size}
-                        loop: false
+                        loop: true
                         play_count: 1
                         auto_start: false
                         retain_on_unload: false
@@ -119,7 +119,7 @@ lvgl:
                         height: ${home_weather_lottie_size}
                         render_width: ${home_weather_lottie_render_size}
                         render_height: ${home_weather_lottie_render_size}
-                        loop: false
+                        loop: true
                         play_count: 1
                         auto_start: false
                         retain_on_unload: false
@@ -135,7 +135,7 @@ lvgl:
                         height: ${home_weather_lottie_size}
                         render_width: ${home_weather_lottie_render_size}
                         render_height: ${home_weather_lottie_render_size}
-                        loop: false
+                        loop: true
                         play_count: 1
                         auto_start: false
                         retain_on_unload: false
@@ -151,7 +151,7 @@ lvgl:
                         height: ${home_weather_lottie_size}
                         render_width: ${home_weather_lottie_render_size}
                         render_height: ${home_weather_lottie_render_size}
-                        loop: false
+                        loop: true
                         play_count: 1
                         auto_start: false
                         retain_on_unload: false
@@ -167,7 +167,7 @@ lvgl:
                         height: ${home_weather_lottie_size}
                         render_width: ${home_weather_lottie_render_size}
                         render_height: ${home_weather_lottie_render_size}
-                        loop: false
+                        loop: true
                         play_count: 1
                         auto_start: false
                         retain_on_unload: false
@@ -183,7 +183,7 @@ lvgl:
                         height: ${home_weather_lottie_size}
                         render_width: ${home_weather_lottie_render_size}
                         render_height: ${home_weather_lottie_render_size}
-                        loop: false
+                        loop: true
                         play_count: 1
                         auto_start: false
                         retain_on_unload: false
@@ -198,7 +198,7 @@ lvgl:
                         height: ${home_weather_lottie_size}
                         render_width: ${home_weather_lottie_render_size}
                         render_height: ${home_weather_lottie_render_size}
-                        loop: false
+                        loop: true
                         play_count: 1
                         auto_start: false
                         retain_on_unload: false
@@ -292,102 +292,123 @@ lvgl:
                         height: 1
                         hidden: true
 
-              # Fixed-width labels keep both clock columns aligned despite
-              # proportional glyph advances. The 140 px column step overlaps
-              # each second digit with the first. Paint each contour directly
-              # before its foreground so the next digit keeps its black frame.
-              - label:
-                  id: home_clock_hour_tens_outline
-                  text: "1"
-                  x: ${home_clock_x}
-                  y: ${home_clock_y}
-                  width: ${home_clock_digit_width}
-                  height: ${home_clock_height}
-                  text_align: CENTER
-                  long_mode: CLIP
-                  text_color: ${home_outline_color}
-                  text_font: cherry_bomb_300_outline
-              - label:
-                  id: home_clock_hour_tens
-                  text: "#FFFFFF 1#"
-                  x: ${home_clock_x}
-                  y: ${home_clock_y}
-                  width: ${home_clock_digit_width}
-                  height: ${home_clock_height}
-                  text_align: CENTER
-                  long_mode: CLIP
-                  text_color: 0xFFFFFF
-                  text_font: cherry_bomb_420
-                  recolor: true
-              - label:
-                  id: home_clock_hour_units_outline
-                  text: "2"
-                  x: ${home_clock_digit2_x}
-                  y: ${home_clock_y}
-                  width: ${home_clock_digit_width}
-                  height: ${home_clock_height}
-                  text_align: CENTER
-                  long_mode: CLIP
-                  text_color: ${home_outline_color}
-                  text_font: cherry_bomb_300_outline
-              - label:
-                  id: home_clock_hour_units
-                  text: "#${home_accent_hex} 2#"
-                  x: ${home_clock_digit2_x}
-                  y: ${home_clock_y}
-                  width: ${home_clock_digit_width}
-                  height: ${home_clock_height}
-                  text_align: CENTER
-                  long_mode: CLIP
-                  text_color: 0xFFFFFF
-                  text_font: cherry_bomb_420
-                  recolor: true
-              - label:
-                  id: home_clock_minute_tens_outline
-                  text: "5"
-                  x: ${home_clock_x}
-                  y: ${home_minute_text_y}
-                  width: ${home_clock_digit_width}
-                  height: ${home_minute_text_height}
-                  text_align: CENTER
-                  long_mode: CLIP
-                  text_color: ${home_outline_color}
-                  text_font: cherry_bomb_300_outline
-              - label:
-                  id: home_clock_minute_tens
-                  text: "#${home_accent_hex} 5#"
-                  x: ${home_clock_x}
-                  y: ${home_minute_text_y}
-                  width: ${home_clock_digit_width}
-                  height: ${home_minute_text_height}
-                  text_align: CENTER
-                  long_mode: CLIP
-                  text_color: 0xFFFFFF
-                  text_font: cherry_bomb_420
-                  recolor: true
-              - label:
-                  id: home_clock_minute_units_outline
-                  text: "8"
-                  x: ${home_clock_digit2_x}
-                  y: ${home_minute_text_y}
-                  width: ${home_clock_digit_width}
-                  height: ${home_minute_text_height}
-                  text_align: CENTER
-                  long_mode: CLIP
-                  text_color: ${home_outline_color}
-                  text_font: cherry_bomb_300_outline
-              - label:
-                  id: home_clock_minute_units
-                  text: "#FFFFFF 8#"
-                  x: ${home_clock_digit2_x}
-                  y: ${home_minute_text_y}
-                  width: ${home_clock_digit_width}
-                  height: ${home_minute_text_height}
-                  text_align: CENTER
-                  long_mode: CLIP
-                  text_color: 0xFFFFFF
-                  text_font: cherry_bomb_420
-                  recolor: true
+              # Keep the moving clock cache below the fixed 60px status label.
+              # Child coordinates remain absolute-equivalent; only empty font-box
+              # padding is clipped. Refresh this region without capturing chrome.
+              - obj:
+                  id: home_clock_refresh_region
+                  x: 0
+                  y: ${ (home_status_icon_y | int) + 60 }
+                  width: ${ (home_clock_digit2_x | int) + (home_clock_digit_width | int) }
+                  height: ${ (home_minute_text_y | int) + (home_minute_text_height | int) - (home_status_icon_y | int) - 60 }
+                  bg_color: ${home_background_color}
+                  bg_opa: TRANSP
+                  border_width: 0
+                  outline_width: 0
+                  shadow_width: 0
+                  radius: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: false
+                  gesture_bubble: true
+                  overflow_visible: false
+                  widgets:
+                    # Fixed-width labels keep both clock columns aligned despite
+                    # proportional glyph advances. The 162 px column step overlaps
+                    # each second digit with the first. Paint each contour directly
+                    # before its foreground so the next digit keeps its black frame.
+                    - label:
+                        id: home_clock_hour_tens_outline
+                        text: "1"
+                        x: ${home_clock_x}
+                        y: ${ (home_clock_y | int) - (home_status_icon_y | int) - 60 }
+                        width: ${home_clock_digit_width}
+                        height: ${home_clock_height}
+                        text_align: CENTER
+                        long_mode: CLIP
+                        text_color: ${home_outline_color}
+                        text_font: cherry_bomb_300_outline
+                    - label:
+                        id: home_clock_hour_tens
+                        text: "#FFFFFF 1#"
+                        x: ${home_clock_x}
+                        y: ${ (home_clock_y | int) - (home_status_icon_y | int) - 60 }
+                        width: ${home_clock_digit_width}
+                        height: ${home_clock_height}
+                        text_align: CENTER
+                        long_mode: CLIP
+                        text_color: 0xFFFFFF
+                        text_font: cherry_bomb_420
+                        recolor: true
+                    - label:
+                        id: home_clock_hour_units_outline
+                        text: "2"
+                        x: ${home_clock_digit2_x}
+                        y: ${ (home_clock_y | int) - (home_status_icon_y | int) - 60 }
+                        width: ${home_clock_digit_width}
+                        height: ${home_clock_height}
+                        text_align: CENTER
+                        long_mode: CLIP
+                        text_color: ${home_outline_color}
+                        text_font: cherry_bomb_300_outline
+                    - label:
+                        id: home_clock_hour_units
+                        text: "#${home_accent_hex} 2#"
+                        x: ${home_clock_digit2_x}
+                        y: ${ (home_clock_y | int) - (home_status_icon_y | int) - 60 }
+                        width: ${home_clock_digit_width}
+                        height: ${home_clock_height}
+                        text_align: CENTER
+                        long_mode: CLIP
+                        text_color: 0xFFFFFF
+                        text_font: cherry_bomb_420
+                        recolor: true
+                    - label:
+                        id: home_clock_minute_tens_outline
+                        text: "5"
+                        x: ${home_clock_x}
+                        y: ${ (home_minute_text_y | int) - (home_status_icon_y | int) - 60 }
+                        width: ${home_clock_digit_width}
+                        height: ${home_minute_text_height}
+                        text_align: CENTER
+                        long_mode: CLIP
+                        text_color: ${home_outline_color}
+                        text_font: cherry_bomb_300_outline
+                    - label:
+                        id: home_clock_minute_tens
+                        text: "#${home_accent_hex} 5#"
+                        x: ${home_clock_x}
+                        y: ${ (home_minute_text_y | int) - (home_status_icon_y | int) - 60 }
+                        width: ${home_clock_digit_width}
+                        height: ${home_minute_text_height}
+                        text_align: CENTER
+                        long_mode: CLIP
+                        text_color: 0xFFFFFF
+                        text_font: cherry_bomb_420
+                        recolor: true
+                    - label:
+                        id: home_clock_minute_units_outline
+                        text: "8"
+                        x: ${home_clock_digit2_x}
+                        y: ${ (home_minute_text_y | int) - (home_status_icon_y | int) - 60 }
+                        width: ${home_clock_digit_width}
+                        height: ${home_minute_text_height}
+                        text_align: CENTER
+                        long_mode: CLIP
+                        text_color: ${home_outline_color}
+                        text_font: cherry_bomb_300_outline
+                    - label:
+                        id: home_clock_minute_units
+                        text: "#FFFFFF 8#"
+                        x: ${home_clock_digit2_x}
+                        y: ${ (home_minute_text_y | int) - (home_status_icon_y | int) - 60 }
+                        width: ${home_clock_digit_width}
+                        height: ${home_minute_text_height}
+                        text_align: CENTER
+                        long_mode: CLIP
+                        text_color: 0xFFFFFF
+                        text_font: cherry_bomb_420
+                        recolor: true
 
               # These two labels replace the former top clock. The transparent
               # global activation button remains above this area for volume.

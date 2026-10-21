@@ -464,3 +464,404 @@ provider condition, not a firmware display failure. Automated navigation does
 not prove latency of a real finger drag or absence of a sub-frame visual flash;
 those remain manual acceptance checks.
 
+### 2026-10-20 boot, weather and application stability
+
+Evidence is retained in `C:/aeh-build/stability-20261020`. Rejected candidates
+and their logs remain separate from the final firmware and source hashes.
+No commit or push is part of this validation.
+
+The original persisted store-access fault resolved to `lv_anim_set_duration`
+through `lv_lottie_set_src_data`. Buffer/task cleanup had discarded the timing
+metadata while retaining the parsed ThorVG scene. Resource lifetime now keeps
+those states together and recreates the timing descriptor defensively.
+
+A rapid-close run then exposed a separate pause-lease leak: an application
+closed during opening skipped its `on_opened` release. Navigation now finishes
+that lifecycle and defers the coalesced close until the next tick. Worker job
+start/completion publication and direct-region callback barriers preserve the
+same ownership boundary.
+
+The R5 color test deliberately caught another failure. A worker-side native
+refresh overlapped a main-loop theme snapshot. `lv_inv_area` asserted because
+`rendering_in_progress` was already set; the default assertion loop eventually
+triggered the task watchdog. This was not evidence of an allocation failure.
+Both finite-completion helpers and retained-color repaint now lend their
+private raster source through the existing one-frame mailbox. Conversion,
+canvas mutation, handoff, and native refresh belong to the main loop.
+
+The selected RGB is reapplied after scene reload. A completed animation is
+repainted at its retained phase; its clock is not restarted. The sunny renderer
+also invalidates its static center. A color publication schedules a regional
+cache refresh from the committed canvas. Weather swipe capture separately
+copies the visible artwork from scanout into the existing Home raw slot.
+
+R6 compiles with ESP-IDF 5.5.5, build `2026-10-20 20:27:17 +0200`, config
+`0xae34800c`. Static RAM is 281,184 bytes; application flash is 7,551,400 bytes.
+The factory image SHA-256 is
+`e5c04b7e000199e6ae4aa4146b145e9cb511ccaaf4c6c3b8b52661071f36ce31`.
+Generated component sources match the active fork; the source manifest and
+recoverable source copies are retained with the evidence. Five navigation
+schema tests and the 28-token/nine-asset geometry check pass. The authored C++
+lifecycle tests were not executed on a host compiler.
+
+After physical USB reconnection, R6 flashed successfully with hash verification.
+Its six retained-color checks, three theme reload checks, and repeated
+application/navigation stress completed. Matched cloudy rendering measured
+26.28 FPS over 24.35 seconds, compared with 22.90 FPS for R4; raster cost was
+17.38 ms versus 17.25 ms. These are bounded candidate-to-candidate measurements,
+not the performance of every weather condition. R6 was rejected because sunny
+rendering slept almost an entire six-second cycle between frames.
+
+R7 calculates its next deadline from the current animation timeline, rather
+than a previously published frame. An offline boundary sweep checked 12,001
+positions, including wraparound and retained phase. Its product changes also
+bind the Action tile title to its actual object and place the generated dark
+rain/fog outlines behind their bright strokes, matching ThorVG paint order.
+R7 boot capture contains 18 distinct pixel states and a completed trace retained
+unchanged for 3.86 seconds on the selected `#AEE2FF` background. That establishes
+progress and final-frame retention, not a 60 FPS playback measurement.
+
+**R7 is not an accepted release.** Its first Gallery lifecycle stopped physical
+display progress while the native API remained responsive. The slideshow
+accepted 43 frames before rejecting subsequent submissions. All three
+framebuffers remained active, queued, or staged; close correctly refused to
+release those owned buffers. The artwork timeout's `fifo_min=832` is its
+configured required threshold, not a measured FIFO depth. A later DSI stress
+sample reports an actual minimum of zero and repeated zero-depth samples.
+CPU was approximately
+96.5% idle, with no reboot or DSI bridge-underrun report. The absence of those
+reports does not exclude a DW-GDMA invalid-descriptor interrupt. Additional
+read-only ring/channel diagnostics are required before choosing a repair.
+
+R8 diagnostics compiled and flashed successfully. Four 32-second Gallery
+lifecycles, the six-assertion palette/Assistant/Gallery sequence, and nine
+weather variants completed without an invalid-LLI event. Sunny measured
+46.07 FPS. These normal runs did not reproduce the R7 freeze. R8i then tested
+bounded interrupt-signal masking at 25 and 30 ms on idle Home; rendering and
+block counters continued, with zero invalid events. These results reject the
+assumption that delayed IRQ service automatically invalidates this ring's
+memory descriptors. Channel CTL VALID and descriptor-memory VALID are separate
+states. No speculative invalid-LLI recovery is part of this candidate.
+
+R8i later failed the mixed lifecycle stress. After the second Gallery close,
+opening Player stopped the main loop before its normal handoff/preparation
+messages. The 30-second watchdog reset `loopTask` while CPU 1 ran `IDLE1`.
+The printed registers/stack therefore describe the idle task, not the blocked
+loop task. The persisted generic "instruction address misaligned" label must
+not be used as the cause of this watchdog event.
+
+R8e is a diagnostic candidate with UART ELF core dumps for up to 64 tasks and
+a dedicated 2 KiB panic stack. First/last DMA fatal status is also retained
+before SDK interrupt clearing for explicit runtime state queries. The SDK's
+generated dual-DRAM linker script resolves the annotated-global dump bounds
+to an empty high region, despite placing those 32 bytes in low DRAM. Therefore
+the fatal globals are not available as runtime evidence in these dumps; the
+executable's initialized zeros are not a substitute. Task contexts and stacks
+are captured independently and remain usable. Full dumps and their exact ELF
+must stay local and separate from an accepted release.
+
+R5 remains rejected for the reproduced rendering assertion. Results from R4
+or R6 must not be reported as final R7 hardware validation. The current voice
+backend also reports depleted Gemini prepaid credits, so UI lifecycle tests
+do not establish successful cloud conversation or audio continuity.
+
+#### R9-R11 recovery evidence and remaining release blockers
+
+The immutable packages, ELF files, source backups and source/SDK hashes are in
+`C:/aeh-build/stability-20261020/diagnostic-r9`, `diagnostic-r10` and
+`diagnostic-r11`. Each directory contains its matching
+`validated-source-hashes-rN.json`; a manifest's initial `hardware_validation:
+pending` field is not the later test result. Runtime results are recorded in
+`r9-final-stability-evidence.json`, `r10-final-stability-evidence.json` and
+`r11-interim-blocker-evidence.json` under the same evidence root.
+
+| Candidate | Factory image SHA-256 | Bounded result |
+| --- | --- | --- |
+| R9 | `cec30d82996b3c5f628b854988459471ebb309772c7464ae2e5de57f1267b0cb` | Diagnostic fault tests and three normal lifecycle batches completed. |
+| R10 | `202baccf3f81d703a9cd5c95c4e2f2ad3287306b093c92a634fb8e18d6a2f730` | All ten scripted suites, including persisted boot, completed. |
+| R11 | `625a75d8ac88ac0d3ac464d36930db826f33f3e1fb33251d6292e7e6ce37e05e` | First nine suites completed; persisted boot is blocked by unexpected resets. |
+
+Natural R8e evidence finally captured the stopped ring: fatal status `0x2011`,
+both descriptor-memory VALID bits clear, the channel still enabled and no AXI
+error. The existing generic ISR then treated the coincident BLOCK_DONE as an
+ordinary completion without resuming the invalid ring. The production repair
+validates the halted phase, descriptor links and framebuffer sources, preserves
+active/staged/pending ownership, publishes the coherent descriptor pair and
+issues explicit hardware resume. It suppresses that same IRQ's stale ordinary
+completion; it does not allocate or copy a replacement full-screen buffer.
+
+R9's eight forced faults and four additional phase probes each recovered once,
+with zero rejected repairs. Those first-event latches sampled slot 1 only.
+The independent contract model covered 12 accepted phase permutations and 20
+rejection cases; it is not execution of the production C on a host. Three
+normal R9 batches then completed 96 application launches, with pause/depth
+`0/0` at every endpoint and no persistent display halt or watchdog reset.
+They included two natural repairs and one bridge underrun coincident with the
+first invalid latch. The first latch already had FIFO zero and bridge RAW one
+before repair. Their order or causal direction within the same millisecond is
+not established.
+
+Both repair phases now have physical evidence. R9/R10 captured slot 1 with a
+staged top half from B, old active bottom half from A and pending work still
+owned. R11 later captured natural slot 0 with a coherent active pair at tick
+463417. Its subsequent block count advanced from 55174 to 55396 by tick
+465281, with recovered/rejected `1/0`. That event had no bridge-underrun IRQ.
+See `r9-natural-recovery-522624`, `r10-natural-recovery-465622` and
+`r11-natural-recovery-463417` for exact source geometry, register windows and
+hashes. The earlier negative interrupt-delay experiment must not be used to
+exclude this naturally observed invalid-ring state.
+
+The durable framework patch also backports four official Espressif PPA fixes:
+`c1cec26bbd1e36ceb19143257ecac65e0a67bbcf`,
+`7339ee882f779d40d4e01ca40a089178b8505351`,
+`e87e0b31d96c24d20f3b6e8167b7e5ae811c89c0` and
+`54a57a735192c4733b62dacf20cc74030ef39d30`. They cover engine queue
+serialization, blocking transaction reuse, enqueue-failure lifetime and
+blocking callback behavior. The offline oracle reproduced the four upstream
+diffs exactly and checked idempotence and rejection before partial writes;
+see `ppa-upstream-backport/validation-after-root-sdk-apply.json`. These are
+concrete upstream races, but no captured blocked-loop stack proves that they
+caused the original R8i watchdog.
+
+R10's ten completed suites cover boot trace, palette, retained weather theme,
+sunny playback, nine variants, 32 normal/rapid application launches, weather
+return, raw motion, matched performance and persisted accent boot. This is
+not a zero-physical-error claim: that boot recorded two bridge IRQs, one during
+boot validation and one coincident with a successfully repaired natural ring
+halt. The later planned persisted reboot had no additional event in its
+validation window. JPEG screenshot pause began 1232 ms after the first boot
+IRQ; earlier raw diagnostic reads existed, but their causation is unproven.
+The two exact windows are retained separately. R10 removes both temporary DMA
+fault actions, component wrappers and SDK injection helpers, including their
+removal when reapplying to an older patched SDK. Normal UART core capture is
+disabled; read-only ring diagnostics and production recovery remain.
+
+R9 endpoint memory is quantified in `r9-memory-endpoint-comparison.json`.
+Across the three batches, PSRAM occupancy grew 80 KiB, of which 73 KiB was
+accounted retained JPEG capacity; residual occupancy changed 7 KiB. Internal
+occupancy had zero net change, while the largest PSRAM block increased from
+1856 to 2016 KiB. Raw/application-work/scroll/close buffers were zero at every
+endpoint. This excludes an extra retained full-screen buffer in those states,
+not every possible long-duration leak or content-dependent cache increase.
+
+**R11 is not an accepted release.** Nine scripted suites, including its
+32-launch stress, completed before the persisted-boot test. That epoch recorded
+one successful natural slot-0 repair and five later bridge IRQs; the bridge
+events were not coincident with the invalid latch. After one planned restart,
+unrequested `SW_CPU_RESET` boots repeated, including safe-mode boots. The ROM
+SavedPC resolves to `esp_restart_noos_inner` and interrupted GPIO functions;
+it is not a caller stack and does not identify the initiating component.
+No initiating panic/watchdog text was captured. SDK log forwarding/filtering
+can hide original SDK errors, so their absence does not exclude a transport
+reset. Cause remains unproven. Exact ELF decoding and local serial prefixes
+are in `r11-persisted-double-reset`; no full-matrix or reboot-success claim may
+be inferred from the preceding nine PASS entries.
+
+The warmed performance issue also remains open. Matched cloudy Lottie counters
+measured 22.71 FPS in R10 and 22.61 FPS in R11 versus 26.28 FPS in R6; weighted
+raster costs were approximately 17.39, 17.31 and 17.38 ms respectively. These
+are summed rendered-frame/elapsed-time counters, not independent VSYNC
+presentation measurements. Workload history and the earlier natural repair
+were not isolated by a completed fresh-boot R11 comparison. See
+`performance-analysis-r10.txt` and `performance-analysis-r11.json`. Neither
+successful sunny playback nor the nine-variant sweep establishes absence of
+this warmed regression.
+
+## Current stability checkpoint: R25, 2026-10-21
+
+This is a bounded source/build and hardware checkpoint, not final release acceptance.
+The listed software campaigns and human-confirmed cold five are closed.
+Keep source/build, exact ELF, flash identity, scripted checks, selected visual
+review and physical power evidence as separate claims.
+
+### Source and build identity
+
+R25 marker: `2026-10-21 15:12:37 +0200`; final ELF SHA256:
+`98caff20d55fa0efee77f1bb2336fc9d8fd4bc9c844ead0f6b399eb69710bc91`.
+The immutable source manifest SHA256 is
+`e5d555ec0dfcd3ea2385e6e2992b5d52ae7cc15d18fc8c2bca41b3fd8cf9d3e1`.
+Configuration/full native compilation passed; RAM is 291946 bytes (+8 versus
+R24). Reported Flash usage is 7,630,788 bytes (+352); the actual OTA/application
+image is 7,631,232 bytes (+352). The extra 8-byte heap-start marker in section
+sums is not another runtime payload allocation.
+
+Only two product files change from R24: `modules/lvgl/pages/tiles_m3.yaml`
+and `modules/lvgl/navigation.yaml`. Eight existing clock labels share
+`home_clock_refresh_region` at x0/y71/412×548; IDs, absolute glyph positions
+and painter order are preserved. The existing multi-region refresh receives
+one container/count 1 and preserves hidden/pending/wait 40 ms/dirty behavior.
+No new raw surface, copy, worker, fork/SDK code or SDK configuration change is added.
+
+The actual generated main diff was root reviewed against the frozen proposal;
+source scope verifies 184 preserved R24/R25 paths. SDK, fork, SDK configuration,
+generated defines and non-application image bytes are unchanged from R24.
+The independent package inventory verified 92 current source/build paths,
+45 helpers, two external helpers and preserved firmware/compiler artifacts.
+
+### Rejected predecessor and restart mechanism
+
+R23 passed its bounded main/addon checks but was rejected after its second
+warmed shutdown raised a real core1 Store access fault. Exact final-ELF/SDK
+analysis localized the failure to the orderly P4 restart/cache path. Its earlier
+rendering passes do not clear that restart failure.
+
+R24 adds a default-off, exact-IDF5.5.5 P4 SDK patch, explicitly enabled by the
+product. It stalls the other core without the earlier reset, then waits for
+four cache-sync ENA bits to clear, with fences, before writeback. Disabled
+behavior is preserved; there is no timeout/RTC-reset fallback or new buffer/task.
+This is a local implementation of the mechanism described in
+[Espressif issue19171](https://github.com/espressif/esp-idf/issues/19171), not a
+verified released-fix backport. R24 configuration/build/ELF, initial boot,
+main 12 and six bounded normal software restarts passed; its long warm and
+physical cold campaigns were not run. R25 keeps this SDK path unchanged.
+
+Detailed R13–R22 iteration chronology and numbers stay in frozen evidence,
+rather than this mandatory guide. Keep the reusable runtime contracts in the
+architecture documents; do not turn old successful intervals into acceptance
+of an image that later failed.
+
+### Completed R25 main checks
+
+Initial app-only OTA from the exact retained R24 image passed. A captured
+changing Sky boot trace and initial Home passed; root viewed partial 007 and
+completed 025. First-five controlled restarts and the main persisted-accent
+restart each have exact retained hash/UART evidence: normal caller 0x400c81e6,
+six normal requests across those earlier checks. Persisted tick 860441 has one ROM and no
+extra Hosted request. Its late identical completed boot JPEGs are not motion
+proof; initial OTA's changing trace is the separate drawing evidence.
+
+All twelve main steps passed at 13:37:28.346880 UTC. Stress covered 32 application
+launches, 24 page changes and ten rapid cycles. Weather after stress and 45 sparse
+motion captures in 15.256 seconds completed (ten distinct raw hashes, not physical
+FPS). Intermediate slot counts were unavailable for weather-theme and variants;
+their other native ownership fields were idle. Missing counts are not zero or
+an orphan diagnosis. Later stress/warm/persisted endpoints explicitly show 0/4.
+Fresh through warm share one normal API epoch; persisted restart splits it.
+
+The header regression observed a natural fresh merged scanout at 13:25:00.092294
+UTC after 50.716 seconds: regions 1/area 0,71 412x548, took 5605 us. Existing Swipe
+logs were enabled/restored; no forced clock update or UI recovery was sent.
+All 12 before/return JPEG cases preserve 658 fixed white pixels (Jaccard 1.0)
+and have 0 old moving-header pixels. The actual R24 negative retains 389 moved
+pixels and is rejected. Root viewed outgoing-held-1 and return-1-2 with visible
+Sun artwork, preserved clock overlap and one fixed header.
+
+### Rendering and memory evidence
+
+Clear-day fresh/warm rendered FPS is 47.40156/48.05216; warm is 1.373% above fresh
+and 0.577% above R24's same-scene warm. Fresh frame/time totals 1152/24303 ms use
+11 complete API rows plus one actual partial UART row 96 frames/2096 ms. Raster/
+render and publish-miss fields cover 11 only; all 12 publish total is UNKNOWN.
+Warm totals 1157/24078 ms have 12 complete rows and publish-miss 0. No missing field
+is invented. Regional samples have independent coverage; raw records retain it.
+
+Fresh 10/warm 3 timing warnings remain. Neither measurement interval adds a
+DMA/bridge/allocation/restart event; warm's endpoint invalid/recovered/rejected
+is 0/0/0. Whole-UART/transport auditing is separate from this bounded observation.
+Nine weather variants passed one-cycle perf2s checks. Clear-day is about 47 FPS,
+snow 20.978 FPS versus R24's 20.685; do not compare different assets or use 47 FPS as
+a universal weather rate. Clear-night and fog have different 2/3 sample coverage;
+their descriptive comparisons are not equal-count pairs.
+
+R25 warm free PSRAM 4947→4950 KiB/largest 2944 differs from R24's 5455/largest2496.
+Retained snapshot/JPEG totals are 7069/1444 KiB versus 6512/887 KiB. The displayed
+JPEG difference 557 KiB is aggregate exact-size encoded payload capacity, not a
+retained 1→1.5 MiB scratch bucket. Per-entry Home/app/Gallery attribution is not
+logged at INFO and remains unknown. Shared raw app work/scroll/close are 0;
+weather 1792 KiB is visible and other Lottie 0. Stability is within the saved
+window, not equal memory across histories or a leak test.
+
+### Application and accent addons
+
+Camera/Volume passed an initial 3-case preflight and a separate full 3-cycle
+7-case run (four Camera, three Volume, including Camera after Volume retirement).
+Actual presented-counter rates were 12.034–12.685 FPS initially and 9.921–10.423 FPS
+later; live input/network cadence was not controlled, so these are not an
+identical-rate or regression claim. Joint exclusive-session/INFO-worker/native-
+invalidation-off/no-fallback/retirement checks passed.
+
+Targeted Volume accent passed Sky/Lavender/restored Sky; active and inactive
+core median maximum error is 1 RGB value each (v2 threshold 4). Natural warm
+accent passed 35 state scenarios/56 captures on one connection. Both actual
+changes recorded `attempt=1/3 invalidate=1 home=1 apps=1 pending=0`, then idle
+endpoints; unchanged initial Sky is not a new refresh. That run has no recorded
+cache warning, hard fault, transport event or reconnect.
+
+Root viewed selected Lavender Player, Apps, Security and Controls, restored
+Sky Player, real Camera water/rocks, and the Lavender Volume arc/dark track.
+These selected views show refreshed Play colors, correct Controls page and
+contrasting selected tile text. They do not claim all captured images were
+visually reviewed or unavailable HA entities functionally tested.
+
+### Preserved matched-overcast tool failure
+
+The later helper **FAILED its host 12-complete-row assertion**; original
+`result.passed=false` is retained. Workload/exact-marker checks completed and
+current HA sunny weather/Performance Logs=false were restored. This was not a
+firmware assertion or reboot. Protocol device.log lines 97–300 exclude three
+warmup rows and contain 11 complete rows 592/22281 ms=26.56972 FPS.
+
+UART preserves one actual additional partial row 55 frames/2129 ms, cut after
+`publish_missed`; all 11 complete tuples match in order. Frame/time recovery
+is 647/24410 ms=26.50553 FPS across 12 actual windows; raster/render/publish remain
+11 complete only. All 12 publish total is UNKNOWN. This rate is 0.0134% below
+R23's exact same-scene 26.5090894 FPS, with different warmed histories. It is
+separate offline counter evidence, not a retroactive helper PASS or physical FPS.
+No benchmark rerun replaced the failed result. The saved interval has three
+timing warnings and no disconnect/fatal/restart/DMA/bridge/allocation event.
+
+### Remaining acceptance gates
+
+The additional 45 controlled restarts completed 45/45. Independent frozen UART/API
+proof verifies 50 controlled restarts (first 5 plus 45) and the separate persisted
+restart: 51 R25 requests and 51 ROM boots, exact retained full hash/caller each,
+with no extra/Hosted/panic/watchdog/SDIO fault. The old R24 OTA shutdown is
+separately excluded. All 50 Home JPEGs were structurally recomputed; the minimum
+post-reconnect healthy interval was 28.157 seconds. These are repeated planned
+boots, not one uninterrupted uptime or 45 repetitions of the full app workload.
+
+Final health passed: exact marker, Sky restored, original Gallery URL restored,
+fault actions absent, native ownership/retirement idle. Root viewed home-final
+clock 16:23/Sky/Sun 16C with correct geometry/weather. Raw header 658/indicators 268
+were separately checked; viewer icon omission is not missing-chrome evidence.
+Selected direct views and structural masks remain different claims.
+
+Five physical cycles are confirmed by two direct user replies to the all-power,
+including USB, off >=10s procedure. Off time was human reported, not measured.
+Two bounded UART sessions captured five distinct R25 POWERON startups; early USB
+enumeration prefixes were missed, so five complete ROM windows are NOT PROVED.
+Four paired API reconnect observations (01..04) each have >=30s stable health and
+a Home JPEG. The fifth startup preceded the second monitor's deadline; a separate
+late-only probe then passed 30.009s with reset1, idle Home/slots0 and a fifth JPEG,
+viewed by root (17:56/Moon14C/Sky). It adds no physical cycle or API edge pair.
+Both 900s API monitors retain FAILED_OR_INCOMPLETE/TimeoutError, not firmware
+assertions. Their deadlines do not erase the captured startup/health evidence.
+All collectors closed before this editorial update. This update changes no
+firmware or diagnostic helper.
+The original postdocs admission scope stays immutable historical evidence; this
+four-document factual reconciliation has separate before/after hashes.
+
+### Evidence map
+
+All local frozen evidence is under `C:\aeh-build\stability-20261021`.
+
+- `diagnostic-r25`, `r25-build-identity.json`, `r25-source-scope-proof`,
+  `r25-generated-main-review.json`, `r25-package-independent-review`.
+- `r25-controlled-restarts`, `r25-warm45-independent-uart-audit`,
+  `r25-restart-aggregate-independent-proof`, `final-health-r25`,
+  `r25-persisted-independent-uart-audit`,
+  `r25-main-complete-evidence`, `r25-completed.json`.
+- `r25-performance-evidence`, `r25-memory-cache-evidence`,
+  `r25-variant-performance-evidence`, `r25-matched-overcast-evidence`.
+- `r25-camera-volume-accent-evidence`, `r25-warm-accent-evidence`,
+  `weather-r25-before-stress/header-wrapper-result.json`.
+- Rejected R23: `r23-candidate-rejection-stop`, `r23-warm-attempt2-panic-transport`,
+  `r23-matched-overcast-evidence`. Bounded R24: `diagnostic-r24`,
+  `r24-completed.json`, `r24-persisted-independent-uart-audit`.
+- Cold power: `cold-power-r25-20261021-1519-utc-api` and paired `-uart`,
+  `cold-power-r25-20261021-1539-utc-api` and paired `-uart`,
+  `cold-power-r25-late-health-05`, `r25-cold-five-direct-user-confirmation.json`,
+  `r25-cold-five-cross-window-independent-proof/proof.json`,
+  `r25-cold-five-root-assessment.json`.
+- Earlier detailed iterations remain in `documentation-overlay-r25-main-addons`
+  and their underlying frozen evidence; no rejected checkpoint is discarded.

@@ -785,7 +785,7 @@ lvgl:
                         width: 84
                         height: 84
                         radius: 42
-                        bg_color: 0x36BCF0
+                        bg_color: 0xAEE2FF
                         border_width: 0
                         shadow_width: 0
                         on_click:
@@ -794,7 +794,7 @@ lvgl:
                             - script.wait: ui_begin_accent_picker_refresh
                             - text.set:
                                 id: settings_accent_color
-                                value: "36BCF0"
+                                value: "AEE2FF"
                         widgets:
                           - label:
                               text: ""
@@ -806,7 +806,7 @@ lvgl:
                         width: 84
                         height: 84
                         radius: 42
-                        bg_color: 0x4FC3F7
+                        bg_color: 0xA8D3DA
                         border_width: 0
                         shadow_width: 0
                         on_click:
@@ -815,7 +815,7 @@ lvgl:
                             - script.wait: ui_begin_accent_picker_refresh
                             - text.set:
                                 id: settings_accent_color
-                                value: "4FC3F7"
+                                value: "A8D3DA"
                         widgets:
                           - label:
                               text: ""
@@ -827,7 +827,7 @@ lvgl:
                         width: 84
                         height: 84
                         radius: 42
-                        bg_color: 0x26A69A
+                        bg_color: 0xA7D0CD
                         border_width: 0
                         shadow_width: 0
                         on_click:
@@ -836,7 +836,7 @@ lvgl:
                             - script.wait: ui_begin_accent_picker_refresh
                             - text.set:
                                 id: settings_accent_color
-                                value: "26A69A"
+                                value: "A7D0CD"
                         widgets:
                           - label:
                               text: ""
@@ -848,7 +848,7 @@ lvgl:
                         width: 84
                         height: 84
                         radius: 42
-                        bg_color: 0x66BB6A
+                        bg_color: 0xBAD8B6
                         border_width: 0
                         shadow_width: 0
                         on_click:
@@ -857,7 +857,7 @@ lvgl:
                             - script.wait: ui_begin_accent_picker_refresh
                             - text.set:
                                 id: settings_accent_color
-                                value: "66BB6A"
+                                value: "BAD8B6"
                         widgets:
                           - label:
                               text: ""
@@ -869,7 +869,7 @@ lvgl:
                         width: 84
                         height: 84
                         radius: 42
-                        bg_color: 0xFFB74D
+                        bg_color: 0xF0E9B6
                         border_width: 0
                         shadow_width: 0
                         on_click:
@@ -878,7 +878,7 @@ lvgl:
                             - script.wait: ui_begin_accent_picker_refresh
                             - text.set:
                                 id: settings_accent_color
-                                value: "FFB74D"
+                                value: "F0E9B6"
                         widgets:
                           - label:
                               text: ""
@@ -890,7 +890,7 @@ lvgl:
                         width: 84
                         height: 84
                         radius: 42
-                        bg_color: 0xFF7043
+                        bg_color: 0xF5CAB3
                         border_width: 0
                         shadow_width: 0
                         on_click:
@@ -899,7 +899,7 @@ lvgl:
                             - script.wait: ui_begin_accent_picker_refresh
                             - text.set:
                                 id: settings_accent_color
-                                value: "FF7043"
+                                value: "F5CAB3"
                         widgets:
                           - label:
                               text: ""
@@ -911,7 +911,7 @@ lvgl:
                         width: 84
                         height: 84
                         radius: 42
-                        bg_color: 0xEF5350
+                        bg_color: 0xFCB1B1
                         border_width: 0
                         shadow_width: 0
                         on_click:
@@ -920,7 +920,7 @@ lvgl:
                             - script.wait: ui_begin_accent_picker_refresh
                             - text.set:
                                 id: settings_accent_color
-                                value: "EF5350"
+                                value: "FCB1B1"
                         widgets:
                           - label:
                               text: ""
@@ -932,7 +932,7 @@ lvgl:
                         width: 84
                         height: 84
                         radius: 42
-                        bg_color: 0xEC407A
+                        bg_color: 0xEEC2C2
                         border_width: 0
                         shadow_width: 0
                         on_click:
@@ -941,7 +941,7 @@ lvgl:
                             - script.wait: ui_begin_accent_picker_refresh
                             - text.set:
                                 id: settings_accent_color
-                                value: "EC407A"
+                                value: "EEC2C2"
                         widgets:
                           - label:
                               text: ""
@@ -953,7 +953,7 @@ lvgl:
                         width: 84
                         height: 84
                         radius: 42
-                        bg_color: 0xAB47BC
+                        bg_color: 0xD7ACD4
                         border_width: 0
                         shadow_width: 0
                         on_click:
@@ -962,7 +962,7 @@ lvgl:
                             - script.wait: ui_begin_accent_picker_refresh
                             - text.set:
                                 id: settings_accent_color
-                                value: "AB47BC"
+                                value: "D7ACD4"
                         widgets:
                           - label:
                               text: ""
@@ -974,7 +974,7 @@ lvgl:
                         width: 84
                         height: 84
                         radius: 42
-                        bg_color: 0x78909C
+                        bg_color: 0xC3DBD9
                         border_width: 0
                         shadow_width: 0
                         on_click:
@@ -983,7 +983,7 @@ lvgl:
                             - script.wait: ui_begin_accent_picker_refresh
                             - text.set:
                                 id: settings_accent_color
-                                value: "78909C"
+                                value: "C3DBD9"
                         widgets:
                           - label:
                               text: ""

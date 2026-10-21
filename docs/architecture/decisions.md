@@ -107,6 +107,21 @@ application's external side effects.
 **Migration target:** Move stable repeated policy into focused application
 controllers and continue reducing YAML lambdas.
 
+### ADR-N05: Release drained sources before destination admission
+
+**Decision:** Return the retired application transition's external source lease
+before native destination preparation or lifecycle callbacks admit another
+framebuffer owner. Keep the final frame and regional pause through destination
+preparation; display leases still forbid writes to queued/scanned buffers.
+
+**Why:** Camera's native refresh/direct-session callbacks must not compete
+with a source pinned by an animation worker that has already finished.
+
+**Status:** R23's source order, main12/12 and bounded Camera/Volume/accent
+scenarios passed. The later warm restart attempt2 failed in SDK shutdown, so
+R23 is not accepted. One natural DMA repair remains recorded separately. This
+source-order contract adds no task, allocation or SDK policy.
+
 ## Audio and voice
 
 ### ADR-A01: One physical duplex audio owner
@@ -182,6 +197,67 @@ and produced machine-dependent firmware.
 upstreamable components. The product enables validated options explicitly.
 
 **Why:** Hardware, formats, alignment, and cache behavior differ across boards.
+
+## Restart and coprocessor lifecycle
+
+### ADR-R01: Explicit reset callback at orderly shutdown
+
+**Status:** Bounded R21/R22/R23 software-restart/boot checks passed, with
+R22's extra old-image Hosted shutdown request preserved separately. R22 remains
+partial/unaccepted; R23 main/addons passed but the later second warm restart
+failed, so R23 is unaccepted and physical cold checks were not requested.
+
+**Decision:** A default-off reusable SDIO component owns one IDF shutdown
+callback using SDK reset-pin/polarity metadata. Product configuration enables
+it explicitly. Setup registers and validates the callback without changing
+GPIO. The shutdown callback changes only the native reset control and requests
+a nominal 1 ms ROM delay; it performs no RPC, Hosted teardown or SDIO draining.
+
+**Why:** A normal App shutdown and a direct Hosted `esp_restart` do not share
+all higher-level WiFi cleanup, while both can reach IDF shutdown handlers.
+The bounded local callback keeps this experiment out of YAML state machines
+and avoids adding an RPC dependency during transport/peripheral teardown.
+
+**Boundary:** No GPIO hold or continuity through ROM is promised. Once-only
+execution is not cross-core restart serialization; current-boot getters are
+not persistent shutdown history. Hardware watchdog/panic resets may bypass
+the callback. This does not accept R21 or explain R20's separate watchdog.
+Keep the IRAM panic placement diagnostic and SDK error-preservation contract
+independent; validate each exact final image on hardware.
+
+
+### ADR-R02: Default-off, guarded SDK cache-safe restart patch
+
+**Decision:** Keep the P4 orderly-restart change behind
+`enable_cache_safe_restart: false` by default. Permit the product to opt in only
+with native ESP-IDF5.5.5. Gate the owning SDK source through a generated global
+Kconfig option, preserve the disabled code path and reject unknown source hashes.
+
+**Why:** The R23 warm restart campaign exposed a real shutdown Store access fault.
+The opt-in change targets the owning P4 shutdown path while preserving
+display/application ownership and Hosted/C6 policy. It stalls the other core,
+waits on the four cache-sync ENA bits with fences before writeback, and adds no
+RTC reset fallback, task or buffer. Source, compiler-object/final-ELF, image,
+runtime and physical-power evidence must remain distinct.
+
+This is a local implementation of the stall/cache-idle mechanism described by
+Espressif in issue19171. No verified released upstream fix commit has been
+identified for a backport claim; source-level similarity is not release provenance.
+The patch changes the shared low-level SDK restart/cache path, also reached by
+IDF5.5.5 panic_restart. Local hardware evidence exercises orderly software
+requests; panic recovery is untested and direct hardware reset is unaffected.
+
+**Status:** R24 exact source/native/ELF checks, initial boot, six bounded
+normal software restarts and the twelve-step main suite passed. Its long warm
+and physical cold campaigns were not run. R25 keeps this SDK path unchanged;
+its initial OTA/boot, first five plus separate persisted restart, main twelve
+and specified app/accent addons passed. All fifty controlled software
+restarts plus the separate persisted restart and final health passed. The user
+confirmed five physical all-power/USB-off cycles. Five distinct captured POWERON
+startups have four paired API health checks and a separate late fifth check;
+five complete ROM windows are not proved. Both cold monitor deadlines and the
+matched-overcast host cardinality failure remain preserved. See validation.md
+for this bounded R25 checkpoint; R24 remains a precursor and R23 remains rejected.
 
 ## UI implementation
 

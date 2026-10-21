@@ -1,5 +1,13 @@
 # Core ESPHome runtime and network integration.
 # This file intentionally holds boot behavior, API, logging, Wi-Fi and the lightweight web server.
+# Keep normal firmware free of serial core-dump allocations.
+# Diagnostic builds can explicitly select UART capture with a matching ELF.
+esp32:
+  framework:
+    sdkconfig_options:
+      CONFIG_ESP_COREDUMP_ENABLE_TO_NONE: "y"
+      CONFIG_ESP_COREDUMP_ENABLE_TO_UART: "n"
+
 esphome:
   name: ${name}
   friendly_name: ${friendly_name}
@@ -49,30 +57,6 @@ esphome:
       # can approve several adjacent writes while the display still has data,
       # then all of them reach the shared bus before DSI can recover.
       - -DCONFIG_ESPHOME_ARTWORK_LOCAL_HTTP_COPY_DELAY_TICKS=1
-      # Bound each physical C6 read so its measured DMA occupancy, including
-      # arbitration overhead, fits inside vertical blanking. HTTP still drains
-      # 4 KiB at a time; only the underlying CMD53 transactions are split.
-      - -DCONFIG_ESPHOME_ESP_HOSTED_SDIO_RX_CHUNK_SIZE=1024
-      # The measured idle FIFO floor is 894-895 words. Keep the guard below
-      # that floor so a safe vblank slot is actually attainable; the SDIO
-      # helper now waits for one instead of eventually transferring anyway.
-      - -DCONFIG_ESPHOME_ESP_HOSTED_SDIO_DSI_FIFO_MIN=832
-      - -DCONFIG_ESPHOME_ESP_HOSTED_SDIO_DSI_FIFO_WAIT_US=3000
-      # Parse the C6 stream incrementally from one 1 KiB internal DMA buffer.
-      # This removes the two growing 20-28 KiB stream buffers whose fallback to
-      # PSRAM could contend with the continuously scanned DSI framebuffer.
-      - -DCONFIG_ESPHOME_ESP_HOSTED_SDIO_INCREMENTAL_RX=1
-      # Keep MTU-sized lwIP payloads in internal RAM while capacity is
-      # available. This avoids a second PSRAM write for every Wi-Fi packet;
-      # the patched driver falls back safely and vblank-guards only that rare
-      # external-memory copy.
-      - -DCONFIG_ESPHOME_ESP_HOSTED_SDIO_RX_NETWORK_INTERNAL=1
-      # Allocate the latency-critical 48 KiB raw SDIO RX pool before ESP-Hosted
-      # creates its queues, while internal RAM is still contiguous. Keep the
-      # generic 40 KiB transport pool on the normal allocator so audio/LVGL
-      # retain enough internal RAM after boot.
-      - -DCONFIG_ESPHOME_ESP_HOSTED_SDIO_RX_INTERNAL_MEMPOOL=1
-      - -DCONFIG_ESPHOME_ESP_HOSTED_COMMON_INTERNAL_MEMPOOL=0
       - -DCONFIG_ESPHOME_DSI_MSYNC_CHUNK=32768
       - -DCONFIG_ESPHOME_DSI_CACHE_WRITE_QOS=0
       - -DCONFIG_ESPHOME_DSI_CACHE_READ_QOS=1
@@ -245,10 +229,17 @@ esphome:
     # already dark, so this does not change the visible sequence, but it keeps
     # the boot Lottie from competing with snapshot encoding and prevents its
     # last direct frame from leaking into Home.
+    # Each unsuccessful attempt returns its own pause lease. Continue only
+    # after the barrier succeeds; retain that one lease for the final handoff.
+    # No timeout: expiration would let wait_until continue without ownership.
+    - wait_until:
+        condition:
+          lambda: |-
+            if (lvgl_esphome_direct_regions_pause(true, 500)) return true;
+            lvgl_esphome_direct_regions_pause(false, 0);
+            ESP_LOGW("boot.diag", "waiting for direct-region drain before first Home refresh");
+            return false;
     - lambda: |-
-        if (!lvgl_esphome_direct_regions_pause(true, 500)) {
-          ESP_LOGW("boot.diag", "direct-region drain timed out before first Home refresh");
-        }
         lvgl_esphome_snapshot_dsi_quiet_ms(180);
         // Force one ordinary LVGL refresh after the splash is gone so both
         // display buffers contain the covered Home tree, not a stale boot
@@ -261,20 +252,6 @@ esphome:
     - script.execute: ui_finish_boot_tile_snapshot_cache
     - script.wait: ui_finish_boot_tile_snapshot_cache
     - lambda: |-
-        auto *frame = id(my_display).get_presented_frame_buffer();
-        lv_area_t area{};
-        uint32_t white_pixels = 0;
-        if (frame != nullptr && id(boot_esphome_animation) != nullptr) {
-          lv_obj_get_coords(id(boot_esphome_animation), &area);
-          for (int y = area.y1; y <= area.y2; y++) {
-            const uint8_t *row = frame + (static_cast<size_t>(y) * 800U + area.x1) * 3U;
-            for (int x = area.x1; x <= area.x2; x++, row += 3U) {
-              white_pixels += row[0] > 210U && row[1] > 210U && row[2] > 210U;
-            }
-          }
-        }
-        ESP_LOGW("boot.diag", "final trace before home: white=%u fb=%p",
-                 (unsigned) white_pixels, frame);
         lvgl_esphome_dsi_mark_stress("boot-show-home-apply", 1500);
     - script.execute: ui_show_home_content_after_boot
     - script.wait: ui_show_home_content_after_boot
@@ -292,11 +269,11 @@ esphome:
                  (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
     - lambda: |-
         lv_refr_now(nullptr);
-        if (!lvgl_esphome_direct_handoff_to_lvgl(120)) {
-          ESP_LOGW("boot.diag", "home framebuffer handoff did not seed both LVGL buffers");
-        }
-        if (!lvgl_esphome_direct_regions_pause(false, 120)) {
-          ESP_LOGW("boot.diag", "direct-region resume after Home handoff timed out");
+        // The handoff adopts this single boot pause on every exit. It stamps
+        // the seeded pool before resuming, so the first weather update does
+        // not copy the same full-screen base again.
+        if (!lvgl_esphome_direct_handoff_to_lvgl_and_resume(120)) {
+          ESP_LOGW("boot.diag", "home framebuffer handoff could not complete coherent resume");
         }
         lvgl_esphome_snapshot_dsi_quiet_ms(450);
     - output.ledc.set_next_fade_duration:
@@ -493,7 +470,13 @@ api:
       variables:
         phase: string
       then:
-        - lambda: 'lvgl_esphome_snapshot_app_log_state(phase.c_str());'
+        - lambda: |-
+            lvgl_esphome_snapshot_app_log_state(phase.c_str());
+            ESP_LOGW("ui.lifecycle", "%s app=%d nav_app=%u home_page=%d gallery_loading=%u camera_loading=%u",
+                     phase.c_str(), id(ui_active_app),
+                     static_cast<unsigned>(id(ui_navigation).get_active_application() != nullptr),
+                     id(ui_home_page), static_cast<unsigned>(id(immich_loading_active)),
+                     static_cast<unsigned>(id(camera_loading_active)));
     - action: debug_wake
       then:
         - script.execute: display_wake
@@ -963,7 +946,9 @@ logger:
     wifi_esp32: WARN
     api.connection: WARN
     esp32_hosted: WARN
-    esp-idf: WARN
+    # The SDK bridge forwards messages at ESPHome's compiled INFO level,
+    # including real SDK errors. SDK compilation itself remains ERROR-only.
+    esp-idf: INFO
 
 wifi:
   ssid: !secret wifi_ssid

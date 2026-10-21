@@ -9,8 +9,19 @@ script:
           lv_obj_clear_flag(id(boot_overlay), LV_OBJ_FLAG_HIDDEN);
           lv_obj_move_foreground(id(boot_overlay));
           lv_obj_set_style_opa(id(boot_esphome_wordmark), LV_OPA_TRANSP, LV_PART_MAIN);
+          const lv_color_t accent = lv_color_hex(id(ui_accent_color));
+          lv_obj_set_style_image_recolor(id(boot_esphome_house), accent, LV_PART_MAIN);
+          lv_obj_set_style_image_recolor_opa(id(boot_esphome_house), LV_OPA_COVER, LV_PART_MAIN);
           if (id(boot_esphome_animation) != nullptr) {
             auto *ctx = static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(id(boot_esphome_animation)));
+            // The first prepared frame and every cached frame must use the
+            // same persisted accent as the house underneath the trace.
+            ctx->opaque_background = accent;
+            const uint32_t luminance = static_cast<uint32_t>(accent.red) * 299U +
+                                       static_cast<uint32_t>(accent.green) * 587U +
+                                       static_cast<uint32_t>(accent.blue) * 114U;
+            esphome::lvgl::lottie_set_color(id(boot_esphome_animation),
+                                          lv_color_hex(luminance > 145000U ? 0x071018 : 0xFFFFFF));
             esphome::lvgl::lottie_prepare(ctx);
           }
           ESP_LOGW("boot.diag", "lottie prepare requested in %uus",
@@ -79,18 +90,23 @@ script:
       - lambda: |-
           auto *frame = id(my_display).get_presented_frame_buffer();
           lv_area_t area{};
-          uint32_t white_pixels = 0;
+          const lv_color_t accent = lv_color_hex(id(ui_accent_color));
+          const bool dark_trace = static_cast<uint32_t>(accent.red) * 299U +
+                                  static_cast<uint32_t>(accent.green) * 587U +
+                                  static_cast<uint32_t>(accent.blue) * 114U > 145000U;
+          uint32_t trace_pixels = 0;
           if (frame != nullptr && id(boot_esphome_animation) != nullptr) {
             lv_obj_get_coords(id(boot_esphome_animation), &area);
             for (int y = area.y1; y <= area.y2; y++) {
               const uint8_t *row = frame + (static_cast<size_t>(y) * 800U + area.x1) * 3U;
               for (int x = area.x1; x <= area.x2; x++, row += 3U) {
-                white_pixels += row[0] > 210U && row[1] > 210U && row[2] > 210U;
+                const uint16_t brightness = static_cast<uint16_t>(row[0]) + row[1] + row[2];
+                trace_pixels += dark_trace ? brightness < 100U : brightness > 630U;
               }
             }
           }
-          ESP_LOGW("boot.diag", "final trace after fade: white=%u area=%d,%d-%d,%d fb=%p",
-                   (unsigned) white_pixels, static_cast<int>(area.x1), static_cast<int>(area.y1),
+          ESP_LOGW("boot.diag", "final trace after fade: contrast=%u dark=%u area=%d,%d-%d,%d fb=%p",
+                   (unsigned) trace_pixels, (unsigned) dark_trace, static_cast<int>(area.x1), static_cast<int>(area.y1),
                    static_cast<int>(area.x2), static_cast<int>(area.y2), frame);
 
   - id: boot_hide_esphome_animation

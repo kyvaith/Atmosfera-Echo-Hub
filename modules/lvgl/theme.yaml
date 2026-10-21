@@ -37,7 +37,13 @@ script:
       # cache window is already ready. Accent changes must first invalidate
       # every raw/JPEG page and rebuild the application previews, so delegate
       # that bounded operation to the navigation owner.
-      - script.execute: ui_refresh_accent_snapshots
+      # Restored settings also trigger this script during setup. Keep the
+      # splash frame-cache allocation ahead of every Home/application snapshot.
+      - if:
+          condition:
+            lambda: 'return id(boot_sequence_done);'
+          then:
+            - script.execute: ui_refresh_accent_snapshots
       - if:
           condition:
             lambda: 'return id(ui_active_app) == 2;'

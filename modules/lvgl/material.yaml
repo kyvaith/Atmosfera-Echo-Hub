@@ -13,9 +13,9 @@ lvgl_material:
       interaction_state_layer: weather_tile_feedback
       animation_layer: home_weather_animation_layer
       snapshot_page: controls_root_1
-      # Preserve the boot-prepared weather frame. Only weather text changes
-      # need a cache update; capturing the full animated page also bakes in
-      # the fixed status icons and page indicators.
+      # Refresh weather text separately. The presenter also freezes the
+      # compact visible artwork rectangle into this page before a swipe;
+      # neither operation captures the fixed status chrome or page dots.
       snapshot_region: home_weather_chip
       snapshot_refresh_delay: 120ms
       resume_delay: 300ms
@@ -44,7 +44,7 @@ lvgl_material:
         - { slot: 7, widget: tile_fan_speed_button, icon_label: tile_fan_speed_icon, title_label: tile_fan_speed_title, subtitle_label: tile_fan_speed_subtitle }
         - { slot: 8, widget: tile_switch_button, icon_label: tile_switch_icon, title_label: tile_switch_title, subtitle_label: tile_switch_subtitle }
         - { slot: 9, widget: tile_scene_button, icon_label: tile_scene_icon, title_label: tile_scene_title, subtitle_label: tile_scene_subtitle }
-        - { slot: 10, widget: tile_trigger_button, icon_label: tile_trigger_icon, title_label: tile_trigger_title, subtitle_label: tile_trigger_subtitle }
+        - { slot: 10, widget: tile_trigger_button, icon_label: tile_trigger_icon, title_label: tile_action_title, subtitle_label: tile_trigger_subtitle }
       on_press:
         - homeassistant.action:
             action: atmosfera_echo_hub.report_tile_press

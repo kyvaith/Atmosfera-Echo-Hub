@@ -270,25 +270,37 @@ script:
             - globals.set:
                 id: camera_paused_media
                 value: 'false'
-      # Arm the encoded-frame consumer now, but keep LVGL in control until the
-      # first complete JPEG arrives so the native loader remains animated.
-      # Never reveal the previous descriptor while the new stream is still
-      # connecting. The first complete encoded frame owns the handoff below.
-      - lvgl.widget.hide: camera_stream_widget
-      # Complete every native LVGL update before the direct spinner takes the
-      # display region. No native invalidation may overwrite its first frame.
-      - lambda: |-
-          lv_obj_add_flag(id(camera_previous_touch_zone), LV_OBJ_FLAG_HIDDEN);
-          lv_obj_add_flag(id(camera_next_touch_zone), LV_OBJ_FLAG_HIDDEN);
-          lv_obj_add_flag(id(camera_source_picker_touch_zone), LV_OBJ_FLAG_HIDDEN);
-          lv_obj_remove_flag(id(camera_root), LV_OBJ_FLAG_CLICKABLE);
-          lv_label_set_text(id(camera_status_label), id(ui_i18n).translate("camera.connecting"));
-          lv_obj_invalidate(id(camera_root));
-          lv_refr_now(nullptr);
-      - script.execute: camera_loading_start
-      - lvgl_image_presenter.restart: camera_stream_presenter
-      - delay: 20ms
-      - network_camera.start: camera_stream_image
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_active_app) == 5 &&
+                     id(ui_navigation).is_application_open(id(camera_application));
+          then:
+            # Arm the encoded-frame consumer now, but keep LVGL in control until the
+            # first complete JPEG arrives so the native loader remains animated.
+            # Never reveal the previous descriptor while the new stream is still
+            # connecting. The first complete encoded frame owns the handoff below.
+            - lvgl.widget.hide: camera_stream_widget
+            # Complete every native LVGL update before the direct spinner takes the
+            # display region. No native invalidation may overwrite its first frame.
+            - lambda: |-
+                lv_obj_add_flag(id(camera_previous_touch_zone), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(id(camera_next_touch_zone), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(id(camera_source_picker_touch_zone), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_remove_flag(id(camera_root), LV_OBJ_FLAG_CLICKABLE);
+                lv_label_set_text(id(camera_status_label), id(ui_i18n).translate("camera.connecting"));
+                lv_obj_invalidate(id(camera_root));
+                lv_refr_now(nullptr);
+            - script.execute: camera_loading_start
+            - lvgl_image_presenter.restart: camera_stream_presenter
+            - delay: 20ms
+            - if:
+                condition:
+                  lambda: |-
+                    return id(ui_active_app) == 5 &&
+                           id(ui_navigation).is_application_open(id(camera_application));
+                then:
+                  - network_camera.start: camera_stream_image
 
   - id: camera_closed
     mode: restart

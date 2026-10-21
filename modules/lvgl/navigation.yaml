@@ -72,6 +72,12 @@ globals:
     type: bool
     restore_value: no
     initial_value: 'false'
+  # A failed batch retries preparation without repeatedly invalidating pages
+  # that already hold the selected accent. A new selection starts a new batch.
+  - id: ui_accent_snapshot_invalidation_pending
+    type: bool
+    restore_value: no
+    initial_value: 'false'
   - id: ui_accent_rgb_r
     type: uint8_t
     restore_value: no
@@ -131,7 +137,10 @@ script:
     then:
       - globals.set:
           id: ui_accent_home_refresh_pending
-          value: 'true'
+          value: !lambda 'return id(boot_sequence_done);'
+      - globals.set:
+          id: ui_accent_snapshot_invalidation_pending
+          value: !lambda 'return id(boot_sequence_done);'
       # Theme changes happen as a single LVGL-task batch. The tile component
       # updates its fixed object pool without allocating another frame buffer.
       - lvgl.widget.update:
@@ -154,6 +163,7 @@ script:
             arc_color: !lambda 'return lv_color_hex(id(ui_accent_color));'
       - lvgl.widget.update:
           id: global_volume_arc
+          arc_color: !lambda 'return lv_color_hex(id(ui_accent_dark_color));'
           indicator:
             arc_color: !lambda 'return lv_color_hex(id(ui_accent_color));'
       - lvgl.widget.update:
@@ -254,34 +264,34 @@ script:
     then:
       - lvgl.widget.update:
           id: accent_swatch_esphome
-          bg_color: 0x36BCF0
+          bg_color: 0xAEE2FF
       - lvgl.widget.update:
           id: accent_swatch_cyan
-          bg_color: 0x4FC3F7
+          bg_color: 0xA8D3DA
       - lvgl.widget.update:
           id: accent_swatch_teal
-          bg_color: 0x26A69A
+          bg_color: 0xA7D0CD
       - lvgl.widget.update:
           id: accent_swatch_green
-          bg_color: 0x66BB6A
+          bg_color: 0xBAD8B6
       - lvgl.widget.update:
           id: accent_swatch_amber
-          bg_color: 0xFFB74D
+          bg_color: 0xF0E9B6
       - lvgl.widget.update:
           id: accent_swatch_orange
-          bg_color: 0xFF7043
+          bg_color: 0xF5CAB3
       - lvgl.widget.update:
           id: accent_swatch_red
-          bg_color: 0xEF5350
+          bg_color: 0xFCB1B1
       - lvgl.widget.update:
           id: accent_swatch_pink
-          bg_color: 0xEC407A
+          bg_color: 0xEEC2C2
       - lvgl.widget.update:
           id: accent_swatch_purple
-          bg_color: 0xAB47BC
+          bg_color: 0xD7ACD4
       - lvgl.widget.update:
           id: accent_swatch_slate
-          bg_color: 0x78909C
+          bg_color: 0xC3DBD9
 
   # Called before the text entity is changed. The refresh surface is included
   # in the same bounded Settings snapshot as the picker, so it remains visible
@@ -667,15 +677,11 @@ script:
                     id(ui_active_app) != 0 || id(ui_page) != 1 || id(ui_snapshot_io_busy) ||
                     id(ui_touch_active) || id(global_volume_dragging) ||
                     id(global_volume_time_press_tracking) || lvgl_esphome_snapshot_is_active()) return;
-                lv_obj_t *regions[] = {
-                  id(home_clock_hour_tens_outline), id(home_clock_hour_tens),
-                  id(home_clock_hour_units_outline), id(home_clock_hour_units),
-                  id(home_clock_minute_tens_outline), id(home_clock_minute_tens),
-                  id(home_clock_minute_units_outline), id(home_clock_minute_units)};
+                lv_obj_t *regions[] = {id(home_clock_refresh_region)};
                 auto *display = lv_obj_get_display(id(controls_root_1));
                 const int width = lv_display_get_horizontal_resolution(display);
                 id(ui_home_snapshot_refresh_pending) = !lvgl_esphome_snapshot_refresh_tile_regions(
-                    id(controls_root_1), regions, 8, width, true);
+                    id(controls_root_1), regions, 1, width, true);
 
   - id: ui_clear_interaction_press
     then:
@@ -905,8 +911,20 @@ script:
       # Keep only previous/current/next decoded. Retry just after a compositor
       # frame instead of allocating a fourth raw page during a fast gesture.
       - delay: 24ms
+      - script.execute:
+          id: ui_prepare_tile_snapshots
+          owns_snapshot_io: false
+
+  # No delay or asynchronous action: callers may hold one balanced regional
+  # pause around this policy batch. The normal refresh wrapper owns its delay.
+  - id: ui_prepare_tile_snapshots
+    mode: single
+    parameters:
+      owns_snapshot_io: bool
+    then:
       - lambda: |-
-          if (id(ui_active_app) != 0 || id(ui_page) < 1 || id(ui_page) > 4) return;
+          // Boot owns snapshot allocation order until the splash cache is freed.
+          if (!id(boot_sequence_done) || id(ui_active_app) != 0 || id(ui_page) < 1 || id(ui_page) > 4) return;
           lv_obj_t *pages[] = {
             id(controls_root_1), id(controls_root_2),
             id(controls_root_3), id(controls_root_4),
@@ -923,7 +941,7 @@ script:
               id(ui_tile_snapshot_cached_last) >= required_last) {
             return;
           }
-          if (id(ui_snapshot_io_busy)) {
+          if (id(ui_snapshot_io_busy) && !owns_snapshot_io) {
             id(ui_refresh_tile_snapshots).execute();
             return;
           }
@@ -931,7 +949,7 @@ script:
             id(ui_refresh_tile_snapshots).execute();
             return;
           }
-          id(ui_snapshot_io_busy) = true;
+          if (!owns_snapshot_io) id(ui_snapshot_io_busy) = true;
           static uint32_t boot_snapshot_diag_budget = 4;
           const bool log_boot_snapshot = boot_snapshot_diag_budget > 0;
           if (log_boot_snapshot) {
@@ -964,7 +982,7 @@ script:
                      (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                      (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
           }
-          id(ui_snapshot_io_busy) = false;
+          if (!owns_snapshot_io) id(ui_snapshot_io_busy) = false;
 
   # Accent changes alter every pixel in the product-owned page trees.  A
   # normal tile refresh deliberately exits when the current three-page window
@@ -986,57 +1004,77 @@ script:
             - delay: 240ms
             - script.execute: ui_refresh_accent_snapshots
           else:
-            - lambda: |-
-                if (!lvgl_esphome_direct_regions_pause(true, 150)) {
-                  ESP_LOGW("snapshot.refresh", "accent refresh: direct regions did not quiesce");
-                }
-            - globals.set:
-                id: ui_snapshot_io_busy
-                value: 'true'
-            - lambda: |-
-                auto *display = lv_obj_get_display(id(controls_root_1));
-                const int width = display != nullptr
-                                      ? lv_display_get_horizontal_resolution(display)
-                                      : lv_obj_get_width(lv_screen_active());
-                lv_obj_t *pages[] = {
-                  id(controls_root_1), id(controls_root_2),
-                  id(controls_root_3), id(controls_root_4),
-                };
-                if (width > 0) {
-                  for (auto *page : pages) {
-                    if (page == nullptr || !lvgl_esphome_snapshot_invalidate_tile_page(page, width)) {
-                      ESP_LOGW("snapshot.refresh", "accent refresh: failed to invalidate Home page");
-                    }
-                  }
-                }
-                // Force ui_refresh_tile_snapshots through its cache-window
-                // preparation path even when the page range was previously
-                // resident. The invalidation call clears off-window JPEGs and
-                // marks resident raw slots dirty.
-                id(ui_tile_snapshots_ready) = false;
-                id(ui_tile_snapshot_prepared_page) = 0;
-                id(ui_tile_snapshot_cached_first) = 0;
-                id(ui_tile_snapshot_cached_last) = 0;
-                id(ui_home_snapshot_refresh_pending) = false;
-            - globals.set:
-                id: ui_snapshot_io_busy
-                value: 'false'
-            - script.execute: ui_refresh_tile_snapshots
-            - script.wait: ui_refresh_tile_snapshots
-            # Player and Voice use compressed application previews. Camera and
-            # Gallery use the black opening source, but preparing the complete
-            # registry here keeps their non-black/close sources coherent too.
-            - globals.set:
-                id: ui_snapshot_io_busy
-                value: 'true'
-            - lvgl.navigation.prepare_applications: ui_navigation
-            - globals.set:
-                id: ui_snapshot_io_busy
-                value: 'false'
-            - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
-            - globals.set:
-                id: ui_accent_home_refresh_pending
-                value: 'false'
+            # Every attempt releases its regional pause and IO flag before the
+            # script can yield or be restarted by another accent selection.
+            - repeat:
+                count: 3
+                then:
+                  - lambda: |-
+                      if (!id(ui_accent_home_refresh_pending)) return;
+                      if (!id(boot_sequence_done) || id(ui_active_app) != 0 || id(ui_snapshot_io_busy) ||
+                          id(ui_touch_active) || id(global_volume_dragging) ||
+                          id(global_volume_time_press_tracking) || lvgl_esphome_snapshot_is_active()) {
+                        ESP_LOGW("snapshot.refresh",
+                                 "accent batch attempt=%u/3 deferred=lifecycle invalidate=0 home=0 apps=0 pending=1",
+                                 (unsigned) (iteration + 1));
+                        return;
+                      }
+                      const bool quiesced = lvgl_esphome_direct_regions_pause(true, 150);
+                      if (!quiesced) {
+                        // pause_start acquired one depth even when its barrier failed.
+                        lvgl_esphome_direct_regions_pause(false, 0);
+                        ESP_LOGW("snapshot.refresh",
+                                 "accent batch attempt=%u/3 deferred=pause invalidate=0 home=0 apps=0 pending=1",
+                                 (unsigned) (iteration + 1));
+                        return;
+                      }
+                      id(ui_snapshot_io_busy) = true;
+                      bool invalidated = !id(ui_accent_snapshot_invalidation_pending);
+                      if (!invalidated) {
+                        auto *display = lv_obj_get_display(id(controls_root_1));
+                        const int width = display == nullptr ? 0 : lv_display_get_horizontal_resolution(display);
+                        lv_obj_t *pages[] = {id(controls_root_1), id(controls_root_2),
+                                             id(controls_root_3), id(controls_root_4)};
+                        invalidated = width > 0;
+                        for (auto *page : pages) {
+                          const bool changed = page != nullptr && width > 0 &&
+                              lvgl_esphome_snapshot_invalidate_tile_page(page, width);
+                          invalidated = changed && invalidated;
+                        }
+                        id(ui_accent_snapshot_invalidation_pending) = !invalidated;
+                        id(ui_tile_snapshots_ready) = false;
+                      }
+                      // This synchronous helper can also restore a previously
+                      // interrupted raw slot before the next invalidation retry.
+                      id(ui_prepare_tile_snapshots).execute(true);
+                      const bool tiles_prepared = id(ui_tile_snapshots_ready) && invalidated;
+                      bool applications_prepared = false;
+                      if (tiles_prepared) {
+                        id(ui_navigation).prepare_application_snapshots();
+                        applications_prepared =
+                            id(ui_navigation).last_application_snapshot_preparation_succeeded();
+                      }
+                      id(ui_tile_snapshots_ready) = tiles_prepared;
+                      if (!tiles_prepared) {
+                        id(ui_tile_snapshot_prepared_page) = 0;
+                        id(ui_tile_snapshot_cached_first) = 0;
+                        id(ui_tile_snapshot_cached_last) = 0;
+                      }
+                      id(ui_snapshot_io_busy) = false;
+                      lvgl_esphome_direct_regions_pause(false, 0);
+                      const bool prepared = invalidated && tiles_prepared && applications_prepared;
+                      id(ui_accent_home_refresh_pending) = !prepared;
+                      ESP_LOGW("snapshot.refresh",
+                               "accent batch attempt=%u/3 invalidate=%u home=%u apps=%u pending=%u",
+                               (unsigned) (iteration + 1), (unsigned) invalidated, (unsigned) tiles_prepared,
+                               (unsigned) applications_prepared, (unsigned) !prepared);
+                  - if:
+                      condition:
+                        lambda: 'return id(ui_accent_home_refresh_pending);'
+                      then:
+                        - delay: 400ms
+            # Keep pending after the bounded batch. Home-presented and Settings
+            # close provide later lifecycle boundaries for another attempt.
 
   # A control changed on the live Home page. Refresh its current raw slot in
   # place. The compressed copy is updated only when that slot is recycled.
@@ -1283,6 +1321,45 @@ script:
           value: '4'
       - script.execute: ui_set_tile_visibility_4
       - script.execute: ui_refresh_tile_snapshots
+  # Delayed post-open work must be cancellable before close preparation. A
+  # restartable script also replaces an older run when the same app reopens.
+  - id: ui_finish_player_open
+    mode: restart
+    then:
+      - delay: 40ms
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_active_app) == 1 &&
+                     id(ui_navigation).is_application_open(id(player_application));
+          then:
+            - globals.set:
+                id: ui_snapshot_io_busy
+                value: 'false'
+            - lambda: |-
+                // Wake the player renderer immediately after the app becomes visible.
+                // Waiting for the next 16 ms interval made the first player frame look frozen.
+                id(media_wavy_progress).set_direct_present(true);
+                id(media_wavy_progress).service_present();
+            - script.execute: media_update_main_control
+            - script.execute: media_resume_artwork_after_player_open
+
+  - id: ui_finish_immich_open
+    mode: restart
+    then:
+      - delay: 20ms
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_active_app) == 4 && !id(immich_closing) &&
+                     id(ui_navigation).is_application_open(id(immich_application));
+          then:
+            - globals.set:
+                id: ui_snapshot_io_busy
+                value: 'false'
+            - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
+            - script.execute: immich_opened
+
   - id: ui_prepare_player_page
     then:
       - lvgl.widget.show: wear_root

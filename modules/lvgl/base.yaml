@@ -171,6 +171,14 @@ lvgl:
             lambda: 'return id(ui_managed_tile_refresh_pending_mask) != 0;'
           then:
             - script.execute: ui_refresh_managed_tile_snapshots
+      - if:
+          condition:
+            and:
+              - lambda: 'return id(ui_accent_home_refresh_pending);'
+              - not:
+                  script.is_running: ui_refresh_accent_snapshots
+          then:
+            - script.execute: ui_refresh_accent_snapshots
     applications:
       - id: player_application
         page: music_page
@@ -264,18 +272,9 @@ lvgl:
           - script.execute: ui_refresh_global_status_icons
           - lvgl.widget.show: app_close_gesture_zone
           - lambda: 'lv_obj_move_foreground(id(app_close_gesture_zone));'
-          - delay: 40ms
-          - globals.set:
-              id: ui_snapshot_io_busy
-              value: 'false'
-          - lambda: |-
-              // Wake the player renderer immediately after the app becomes visible.
-              // Waiting for the next 16 ms interval made the first player frame look frozen.
-              id(media_wavy_progress).set_direct_present(true);
-              id(media_wavy_progress).service_present();
-          - script.execute: media_update_main_control
-          - script.execute: media_resume_artwork_after_player_open
+          - script.execute: ui_finish_player_open
         on_prepare_close:
+          - script.stop: ui_finish_player_open
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'true'
@@ -507,6 +506,7 @@ lvgl:
               lvgl_esphome_direct_regions_pause(false, 0);
           - script.execute: voice_assistant_start_from_ui
         on_prepare_close:
+          - script.stop: voice_assistant_start_from_ui
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'true'
@@ -574,13 +574,9 @@ lvgl:
           - lambda: |-
               lv_obj_update_layout(id(immich_root));
               lv_obj_move_foreground(id(app_close_gesture_zone));
-          - delay: 20ms
-          - globals.set:
-              id: ui_snapshot_io_busy
-              value: 'false'
-          - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
-          - script.execute: immich_opened
+          - script.execute: ui_finish_immich_open
         on_prepare_close:
+          - script.stop: ui_finish_immich_open
           - lambda: 'id(immich_closing) = true;'
           - globals.set:
               id: ui_snapshot_io_busy
@@ -657,6 +653,7 @@ lvgl:
           - lambda: 'lvgl_esphome_direct_regions_pause(false, 0);'
           - script.execute: camera_opened
         on_prepare_close:
+          - script.stop: camera_opened
           - globals.set:
               id: ui_snapshot_io_busy
               value: 'true'
@@ -697,7 +694,12 @@ lvgl:
     id: ui_snapshot_store
     backend: direct
     preload: false
+    # Reuse an exclusively leased DSI framebuffer while encoding previews.
+    use_display_buffers_for_preparation: true
     compression: none
+    # Native tile/application JPEG cache: keep quality 100 while avoiding a
+    # full raw-frame output allocation for every encode. Retry stays bounded.
+    jpeg_initial_output_buffer_size: 1048576  # 1 MiB
     # Entry records are lightweight metadata. Full-screen pixel storage is
     # still allocated on demand and bounded by decoded_slots.
     max_entries: 5
@@ -813,11 +815,13 @@ lvgl:
                       height: 148
                       bg_color: 0x000000
                       bg_opa: 0%
-                      # The trace is fully contained by the blue house asset.
-                      # Flattening it to that same color keeps boot on the
+                      # The trace is fully contained by the themed house.
+                      # Boot updates this fallback before preparation so
+                      # flattening to the same color keeps boot on the
                       # direct XRGB/PPA path instead of waiting for a native
                       # LVGL canvas publication on every frame.
                       opaque_background: 0x18BCF2
+                      color_slot: boot-trace
                       border_width: 0
                       radius: 0
                       pad_all: 0

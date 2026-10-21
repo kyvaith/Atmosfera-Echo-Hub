@@ -107,7 +107,7 @@ substitutions:
   wake_word_default: okay_nabu
   voice_assistant_default: realtime
   ui_language_default: en-US
-  ui_accent_default: '36BCF0'
+  ui_accent_default: 'AEE2FF'
 
   # Home Assistant entities used as initial values for runtime-configurable tiles
   tile_light_entity: light.living_room

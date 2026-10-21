@@ -194,6 +194,40 @@ For a new reusable direct control:
 If the control has a pressed state, use a style/state layer rather than
 repeatedly changing several widget properties from YAML.
 
+## Return a manual frame to LVGL
+
+Perform the handoff on the LVGL owner task after the manual producer has
+finished its frame. Keep its framebuffer lease and regional pause balanced;
+do not infer ownership from an old generation number or add buffer copies in
+product YAML.
+
+| Entry point | Pause ownership |
+| --- | --- |
+| `lvgl_esphome_direct_handoff_to_lvgl(timeout_ms)` | Legacy C ABI; leaves an existing caller pause held, or balances the pause it acquires itself |
+| `LvglComponent::direct_handoff_to_lvgl(timeout_ms, false)` | Same default behavior |
+| `lvgl_esphome_direct_handoff_to_lvgl_and_resume(timeout_ms)` | Explicitly adopts and consumes one existing caller pause |
+| `LvglComponent::direct_handoff_to_lvgl(timeout_ms, true)` | Same consuming behavior |
+
+Use the consuming form only at the final release point of your own pause.
+It consumes that one lease on failure too: never follow it with another
+`direct_regions_pause(false, ...)`. At depth zero it returns false without
+decrementing; at nested depth it consumes one level, returns false and does
+not seed buffers. A sole lease must pass the worker barrier and DSI queue wait
+before seeding. Barrier, queue and alignment failures use conservative cleanup
+and cannot release another owner's remaining pause.
+
+The component keeps the LVGL lock through seeding and resume. Only explicit
+proof that all three DSI buffers were seeded permits coherent resume: under
+the regional mutex it advances the base generation and writes all stamps
+before publishing unpaused. Generic resume still invalidates the cached bases.
+The return value means that LVGL alignment succeeded; it can remain true when
+the full-pool optimization is unavailable and conservative resume was used.
+Do not treat true as proof that every subsequent regional rebase was avoided.
+
+This removes a source-proven redundant-copy path. It is not proof of the
+initiating cause of a particular DSI underrun; retain separate runtime evidence
+as described in the [graphics architecture](../architecture/graphics.md#coherent-handoff-and-pause-adoption).
+
 ## Add an image source
 
 For JPEG artwork or photos:

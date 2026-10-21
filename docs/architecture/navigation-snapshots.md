@@ -153,6 +153,14 @@ transition.
 At the first and last page, the same compositor renders edge resistance and
 bounce using the current snapshot rather than a nonexistent neighbor.
 
+Stable activation of a registered full-screen Home widget restores its
+parent-relative centered origin before revealing it. Navigation does not keep
+a separate original x/y position. The same restoration applies when direct
+snapshot preparation and its widget fallback both fail: merely clearing the
+hidden flag can otherwise reveal a page still positioned one screen offscreen.
+This uses the compositor's existing centered settle geometry and adds no
+framebuffer or forced refresh.
+
 ## Clock and page indicator
 
 The clock and page indicator must look stable while page content moves. They
@@ -173,7 +181,55 @@ same pixels during handoff.
 Registered applications use the same controller. The reusable mechanism owns
 transition timing and display handoff; YAML callbacks own application policy.
 
+The application compositor worker holds its snapshot sources continuously
+from queued work through the last render. It publishes `running` before
+consuming `pending`; cancellation waits until both are clear before releasing
+the source buffers or resetting transition state. There must be no apparent
+idle gap while a queued job moves onto the other core.
+The direct-region pause barrier also completes after every frame source
+callback in its batch, including frames dropped during the pause. A pause
+waiter may release producer resources as soon as the barrier returns.
+When a handoff seeds the idle framebuffer pool with DMA2D, transfer completion
+and destination cache invalidation establish the copied base. The production
+path does not re-read both full frames on the CPU to compare them: that would
+add 7.68 MB of PSRAM reads when seeding two 800x800 RGB888 buffers.
+A close or Home request received during application opening is coalesced into
+one deferred close. It runs after opening has completed its `on_opened`
+callbacks, so opening and closing resource leases stay paired. Repeated close
+requests during the committed closing transition are ignored. Closing-frame
+capture must never compete with the still-running opening compositor.
+
+### Return the drained transition source before native callbacks
+
+The application animation worker must finish before its external DSI source
+lease is returned. On completion, `complete_direct_application_()` releases
+that source before `prepare_application_transition()` or lifecycle callbacks
+can refresh native LVGL or admit another full-screen owner. The final
+presented frame and regional pause remain held while the destination is
+prepared. Only then are the open hold/work buffer released and the transition
+completed/reset. Releasing this drained source is not permission to write a
+queued or scanned framebuffer; the display ownership API still controls that.
+
+Camera opening can call native refresh and then acquire its own direct
+session. Keeping the old transition source pinned across those callbacks
+violated that handoff contract. R23 changes this release order in the reusable
+compositor, with no new buffer, task, timeout or product-specific branch.
+The R23 main stress and Camera/Volume addon passed their bounded
+application/direct-session state scenarios. These passes do not eliminate the
+separately observed natural DMA fault or replace remaining warm/cold gates.
+Cancellation and prepared-close paths retain their existing worker-drain/release
+discipline.
+
 ### Boot preparation
+
+At the splash-to-Home boundary, cache preparation is admitted only after
+the regional barrier succeeds. Product boot's declarative wait balances each
+failed pause immediately and retains one successful lease through the final
+coherent handoff. It has no timeout that could continue into refresh with a
+failed drain. The consuming handoff releases that lease on failure too; never
+release it again afterward. This gate changes product sequencing, not snapshot
+buffers or compositor ownership. See [boot drain admission](runtime-memory.md#boot-drain-admission)
+for framework evaluation, blocking-time and persistent-failure limits.
 
 `lvgl.navigation.prepare_applications` renders each registered application and
 stores compressed backing. Application previews do not remain as independent
@@ -301,6 +357,17 @@ These callbacks are intentionally explicit. The goal is to move stable policy
 into application controllers, not to hide unrelated cleanup inside the generic
 navigation component.
 
+An `on_opened` callback may return while a delayed automation is still pending.
+Navigation's deferred close preserves callback order, but does not wait for
+those product delays. Player and Gallery therefore run delayed post-open work
+in restartable scripts cancelled by `on_prepare_close`; they recheck the actual
+active application before enabling renderers or loaders. Camera and Voice
+cancel their existing startup scripts at the same boundary and recheck
+application identity before starting a stream or voice session. Restart mode
+replaces an older pending run when the same application reopens, without a
+second lifecycle state machine or generation counter. Settings currently has
+no delayed startup in its synchronous preparation chain.
+
 Voice has one additional ownership invariant: wake words and tile taps must
 both enter through `lvgl.navigation.open: voice_application`. Backend phases
 describe the contents of the open application; they are not navigation events
@@ -397,6 +464,60 @@ widget. Coalesce updates, wait for transient pressed state to clear, then
 refresh the smallest affected owner. Rebuilding while DSI, artwork decode, or
 another snapshot operation is active increases PSRAM contention.
 
+### Accent refresh completion
+
+`LvglNavigation::last_application_snapshot_preparation_succeeded()` reports
+only the most recent synchronous `prepare_application_snapshots()` call. The
+value is reset to false before each call, stays false without an available
+compositor or required snapshot/image support, and otherwise receives the
+compositor's aggregate result. It is not a live cache-validity query or a
+record of every later widget change. Read it immediately after the call whose
+outcome is needed.
+
+The product's accent batch is complete only when invalidating all four Home
+pages succeeds, the current three-slot Home window is prepared, and application
+preview preparation succeeds. `ui_accent_home_refresh_pending` stays true if
+any part fails. A separate invalidation-pending flag avoids invalidating
+already updated pages on every preparation retry; a new accent selection
+marks both pending again.
+
+Each admitted attempt performs its direct-region pause, cache work and
+balanced release synchronously in one lambda. A failed pause barrier also
+releases its acquired pause depth. The snapshot IO flag and pause are cleared
+before any script delay or restart boundary; no yielding action may retain
+that scope. The existing synchronous tile helper may first restore an
+interrupted raw slot before preparation is retried.
+
+An admitted batch tries at most three times and delays 400 ms while still
+pending. Lifecycle admission may separately defer by 240 ms while an
+application, touch, volume interaction, snapshot or another IO owner is busy;
+the three-attempt limit is not an overall wall-clock deadline. Exhausting a
+batch leaves pending true. Settings close and `on_home_presented` provide
+later retry boundaries; the Home hook starts a batch only if none is running.
+The `snapshot.refresh: accent batch` record exposes attempt, invalidation,
+Home, application and pending results. A visually updated current page alone
+must not be treated as a successful all-cache refresh.
+
+### Bounded clock partial refresh owner
+
+The product groups the eight layered clock labels under
+`home_clock_refresh_region` below the fixed header (x0/y71/412×548). Relative
+child positions preserve their previous absolute glyph geometry and draw order.
+The existing multi-region refresh receives the one container and count 1,
+retaining its hidden-source, pending, 40 ms admission wait and dirty behavior.
+The cached region must contain the changing clock pixels and exclude fixed
+header siblings; LVGL label bounds can extend above the visible glyph ink.
+This uses existing slot storage and ownership, without an extra raw copy.
+
+The expected diagnostic is `refreshed merged scanout` with `regions=1` and
+`area=0,71 412x548`. Fast partial refreshes log only with existing swipe logging
+enabled. A diagnostic test must enable/restore that switch before waiting for
+the natural policy event; absence of a disabled log is not absence of refresh.
+R25's source geometry/codegen, actual native build and twelve recorded header
+transition pixel checks passed. Root viewed two selected before/return frames
+with one fixed header and preserved clock overlap. Physical cold-power startup
+and health evidence is recorded separately in validation.md.
+
 ## Extension boundary
 
 The following are automatic after registration:
@@ -435,3 +556,8 @@ Product configuration:
 - `modules/lvgl/navigation.yaml`
 - `modules/lvgl/pages/`
 
+
+R24's enabled SDK shutdown option changes no navigation/session ownership.
+R23's main and addon owner checks passed within their recorded intervals, but
+the later warmed shutdown panic rejected the complete candidate. Keep that
+restart acceptance failure separate from navigation source-order validation.

@@ -218,7 +218,9 @@ def style_group(group: dict[str, Any], accent: list[float], outline: list[float]
         visual = strokes[0]
         visual_width = scalar_value(visual.get("w"), 1.0)
         visual_index = items.index(visual)
-        items.insert(visual_index, make_outline(visual_width + 2.0 * outline_width, outline, visual))
+        # ThorVG traverses these paint operators in reverse array order.
+        # Placing the wide outline after the thin stroke paints it first.
+        items.insert(visual_index + 1, make_outline(visual_width + 2.0 * outline_width, outline, visual))
     elif fills:
         # Filled shapes use the same source-space outline thickness as the SVG
         # in the reference slide. Round joins avoid sharp corners after scale.

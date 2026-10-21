@@ -260,3 +260,15 @@ is still scaled to 384px. Higher-fidelity rendering and its performance remain
 open work; a correct layout does not establish that those requests are resolved.
 The shared Gallery/Settings pool also still failed its boot reservation, so
 Settings scrolling is not validated by this layout change.
+
+### Pastel accent presets
+
+The color picker offers ten soft presets inspired by Color Hunt's pastel
+collection: sky `AEE2FF`, powder blue `A8D3DA`, mint `A7D0CD`, sage `BAD8B6`,
+cream `F0E9B6`, peach `F5CAB3`, coral `FCB1B1`, rose `EEC2C2`, lavender
+`D7ACD4`, and mist `C3DBD9`. The custom RGB editor remains available. Preset
+swatches are restored independently of semantic theme roles on every opening.
+The default for a new installation is sky; an existing chosen accent is retained.
+
+Sources: https://colorhunt.co/palettes/pastel and
+https://colorhunt.co/palettes/pastel-retro.

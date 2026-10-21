@@ -873,7 +873,13 @@ script:
                         - delay: !lambda 'return id(va)->get_wake_open_delay_ms();'
                       else:
                         - delay: 250ms
-                  - lambda: 'id(va)->start_session();'
+                  - if:
+                      condition:
+                        lambda: |-
+                          return !id(voice_assistant_stop_requested) &&
+                                 id(ui_navigation).is_application_open(id(voice_application));
+                      then:
+                        - lambda: 'id(va)->start_session();'
                 else:
                   - lambda: |-
                       id(voice_assistant_phase) = ${voice_assist_error_phase_id};
@@ -899,6 +905,7 @@ script:
   - id: voice_assistant_stop_from_ui
     mode: single
     then:
+      - script.stop: voice_assistant_start_from_ui
       - lambda: |-
           // Suppress delayed backend phase callbacks while the navigation
           // compositor finishes returning to Home.

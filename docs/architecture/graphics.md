@@ -23,6 +23,40 @@ they do not regenerate the whole page or replace its frozen weather frame.
 Home weather retains its prepared canvas across a carousel handoff. Returning
 to the page reveals that canvas synchronously before starting a new one-shot
 clock; boot snapshot preparation time must not count as visible animation time.
+The raster worker owns the visible animation clock. Hidden preparation, a
+pressed-state pause, and full-screen snapshot ownership do not advance it.
+Each weather visibility epoch plays one complete finite cycle from the last
+published phase, and its first accepted frame starts the new cadence so cold
+rendering cannot cause a burst of skipped frames. Pixel/task release preserves
+the parsed scene and captured timing; releasing the scene clears the load
+state. Native source setters always require a valid LVGL timing descriptor.
+
+The selected paint-slot RGB survives parsed-scene release; a new scene must
+reapply that override. If a finite animation has already stopped, a palette
+change repaints its retained phase once on the raster worker using the existing
+buffers. It does not start another cycle. The worker lends its private raster
+through the existing one-frame mailbox. The main loop owns retained canvas
+conversion, descriptor publication, direct handoff, and native refresh. This
+includes ordinary finite completion: a worker-side native refresh can otherwise
+overlap a synchronous YAML snapshot and trigger LVGL's rendering assertion.
+A color-frame revision schedules a bounded refresh of the registered artwork
+cache from the committed canvas, without waiting for a newer scanout. The compact radial
+renderer invalidates both cached source generations so its static center and
+moving rays receive the same new color.
+
+A direct source callback and retained-region removal are separate ownership
+boundaries. Lottie keeps its old region geometry and borrowed clean background
+until the compositor acknowledges removal through the non-blocking
+`lvgl_esphome_direct_blit_rgb888_try_release()` API. A busy mutex leaves that
+state intact for retry; it must not permit a new ROI to replace the old identity,
+a retained-frame mailbox to acknowledge handoff, or resource cleanup to free
+the background. The legacy void release entry point retains its 25 ms behavior.
+Stopped and unloaded scenes finish cleanup from the main loop, outside the
+LVGL lock, even when their application is hidden. Cached boot frames retain
+their source allocation until every submitted or coalesced callback completes;
+a busy final-cache release remains pending for a later bounded attempt. Contexts
+remain registered for the product's static widget pool throughout these retries.
+
 The Home microphone is a child of page one and is captured/scrolled normally.
 Only status icons and page indicators are fixed display chrome. Snapshot icon
 rasterization uses the native label's content origin and font baseline, without
@@ -31,7 +65,12 @@ vertical centering or per-icon pixel offsets.
 Inactive Home data pages 2-4 refresh one at a time every 15 seconds while the
 screen is off and no input/transition/volume overlay owns the display. Page one
 retains its prepared weather snapshot rather than rasterizing at swipe start.
-Camera/Gallery loaders use the blue `m3_loading_contained_small` Lottie asset
+Before a swipe takes ownership, the presenter drains the last weather request
+and copies only the visible artwork rectangle from scanout into the resident
+Home slot. This updates the frozen artwork without an LVGL tree redraw, a new
+raw allocation, or synchronous JPEG encoding. The text chip remains a separate
+cache region; refreshing that band alone cannot retain the artwork above it.
+Camera/Gallery loaders use the accent-colored `m3_loading_contained_small` Lottie asset
 and release its resources when loading ends or the application closes.
 
 | Property | Value |
@@ -167,6 +206,48 @@ guarantees a complete redraw of the screen and every active overlay before
 either LVGL buffer can be scanned. Invalidating only the active screen is not
 enough when top-layer widgets or direct regions remain visible.
 
+### Coherent handoff and pause adoption
+
+`direct_handoff_to_lvgl()` runs on the LVGL owner task. It waits for the
+regional worker barrier and the outstanding DSI queue, then keeps the LVGL
+lock through buffer seeding and resume. Synchronizing realignment reports
+`full_pool_seeded` explicitly, initially false; success aligning the two LVGL
+buffers alone is not proof that the complete DSI pool is coherent.
+
+After proving all three display-owned buffers were seeded, the handoff can
+commit resume under the regional PPA mutex: advance the base generation, stamp
+the verified pool with that generation, clear pause readiness, and publish
+unpaused last.
+No regional worker can observe an unpaused pool before those stamps are ready.
+This uses the existing transition-boundary copies and adds no frame allocation.
+
+The legacy C entry point `lvgl_esphome_direct_handoff_to_lvgl(timeout_ms)` and
+its ABI are unchanged. The C++ method defaults `release_existing_pause` to
+false: it balances a pause acquired internally, but leaves an existing caller
+pause in place. The explicit C entry point
+`lvgl_esphome_direct_handoff_to_lvgl_and_resume(timeout_ms)` passes true and
+adopts exactly one caller-owned pause, including failure cleanup. At depth
+zero it returns false without decrementing. A nested adoption consumes one
+level conservatively, returns false and does not seed the pool. A sole lease
+must drain before seeding; a failed barrier, queue wait or handoff releases
+only that adopted lease. The caller must not resume separately after this call.
+
+Generic resume remains conservative because another owner may have changed
+pixels while paused. If complete-pool proof or the coherent commit is
+unavailable, handoff uses that conservative resume instead of stamping old
+generation information. Its return value still reports LVGL alignment: valid
+LVGL seeding remains successful even if the full-pool optimization could not
+be used. See the [extension contract](../development/extending-ui.md#return-a-manual-frame-to-lvgl)
+before adding another caller.
+
+The old boot sequence seeded the full pool, then separately resumed regions,
+which invalidated those fresh stamps and forced later full-frame rebases.
+The internally paused handoff also published unpaused before restoring stamps,
+allowing the worker to begin the same redundant work. Both costs follow from
+the source control flow. They do not establish the cause of the standalone R10
+boot underrun at tick 31306; that event occurred before the first full-screen
+capture and without a DMA-invalid event or recovery.
+
 ### Native `DIRECT` dirty-region handoff
 
 Native LVGL rendering also has a frame-boundary ownership rule. LVGL can issue
@@ -189,6 +270,89 @@ On a frame-boundary timeout, synchronization is skipped rather than risking a
 write into the active scanout buffer. The warning
 `DIRECT frame boundary timed out` must be treated as a display ownership
 failure, not hidden by copying earlier.
+
+### Strict recovery of a halted DSI descriptor ring
+
+The ESP32-P4 DSI scanout uses DW-GDMA with two cyclic descriptors, one for each
+half-frame. Their source ledger is distinct from public active, queued and
+staged framebuffer ownership. A normal top-half completion stages the next
+source; a normal bottom-half completion reconciles the active frame and releases
+only the matching queue/staged lease.
+
+The natural R8e freeze captured IRQ status `0x2011`, LLP pointing at slot 0,
+both descriptor VALID bits clear, and the channel still enabled. The FIFO was
+empty, the block counter stopped and no AXI/common error was recorded, while
+the CPU/API remained responsive. Dispatching the coalesced BLOCK_DONE bit as an
+ordinary completion modified one descriptor but could not restart the channel.
+The initiating invalidation race remains unproven; the captured state proves
+the halted ring and the missing resume, not which earlier write caused it.
+
+The [ESP32-P4 TRM](https://documentation.espressif.com/esp32-p4_technical_reference_manual_en.pdf)
+(physical PDF pages 785 and 793) specifies that invalid linked-list transfer
+waits for `BLK_TFR_RESUMEREQ=1` before re-fetching the descriptor. Descriptor
+writeback clears VALID. Peripheral-status writeback controls are not a verified
+way to disable that VALID update.
+
+The reusable SDK integration therefore handles INVALID before any ordinary
+completion callback. A saved IRQ containing INVALID must not replay its
+BLOCK_DONE callback, whether recovery succeeds or rejects the state. Under the
+descriptor-switch ISR lock, recovery accepts only a known two-item ring with:
+
+- matching invalid-LLI/current-LLP addresses and cyclic links;
+- both VALID bits clear, expected source addresses, and valid frame geometry;
+- an enabled, unsuspended channel without another fatal or common DMA error;
+- a bottom-half source matching the active ledger, and a coherent top/bottom
+  pair when slot 0 is blocked.
+
+The recovery source depends on the halted phase:
+
+| Blocked descriptor | Protected sources before recovery | Rearmed pair | Ownership retained during resume |
+| --- | --- | --- | --- |
+| Slot 0 | top A / bottom A; A active, C queued | A / A | A active; C queued |
+| Slot 1 | top B / bottom A; A active, B staged, C queued | B / B | A active; B staged; C queued |
+
+At slot 1 the top B has already executed, so the resumed bottom must use B too.
+Recovery rewrites both descriptor sources and their ledgers, publishes VALID
+after the source writes, executes memory barriers, and uses the inline HAL
+resume request. It does not allocate/copy a frame, reset the channel, change
+active/current/pending ownership or emit an active/completion hook. Only a real
+later bottom-half completion promotes B; C then follows the ordinary staging
+path. Every source stays protected by an active, staged or queued lease.
+Unrecognized states are rejected without changing ownership.
+
+This production recovery does not depend on stress diagnostics. Temporary
+fault-injection APIs and SDK test hooks are absent from the production path.
+The validation boundary is explicit: the ownership model covers both slots;
+the two hardware injection series passed 8/8 and 4/4, all observed at blocked
+slot 1. Natural recovery has now been observed in both phases as described
+below; forced slot-0 recovery has not been demonstrated. A recovered fault
+must remain distinguishable from a run without faults; recovery alone does
+not prove the initiating race is gone.
+
+The subsequent three-batch R9 normal-workload run completed without a watchdog
+or persistent freeze, but recorded two natural `0x2011` errors: both recovered,
+with zero rejected recoveries. The first pre-repair latch at tick 522624 showed
+slot 1 with mixed top B / bottom A ownership, both VALID bits clear, FIFO zero
+and bridge RAW=1. Forty milliseconds later the sampled block counter had
+advanced by four, the descriptor pair was coherent and FIFO depth was 1024;
+the second recovery added no further underrun. This supplies natural hardware
+evidence for the mixed-phase recovery. The bridge underrun IRQ shared the same
+1 ms tick as the first invalid latch; task log order cannot establish ISR or
+causal order within that tick. The capture `r9-natural-recovery-522624` therefore
+demonstrates resumed progress, not an error-free run or a proven initiating
+race.
+
+R11 supplied natural slot-0 coverage in `r11-natural-recovery-463417`: at tick
+463417, block count 55174, both VALID bits were clear and the descriptors held
+the coherent active pair, with no pending frame, FIFO zero and bridge RAW=0.
+The `0x2011` event recovered once with zero rejected recoveries. Eight
+milliseconds later both VALID bits were set and FIFO depth was 1024; the block
+counter had not yet advanced. By tick 465281 it reached 55396 (+222 blocks in
+1864 ms), then 55462 at tick 465840, with invalid count still one. The captured
+window recorded no bridge underrun IRQ, and the ten rapid normal-stress cycles
+continued successfully. Together with the earlier mixed slot-1 recovery this
+confirms natural hardware recovery in both production phases, without proving
+the initiating race eliminated or adding forced slot-0 test coverage.
 
 ## Accelerator responsibilities
 
@@ -235,6 +399,58 @@ is routed through hardware.
 
 Masked, rounded, unsupported, or small operations may still fall back to the
 LVGL software renderer. This is intentional.
+
+### PPA transaction ownership and reproducible SDK backports
+
+The source and destination of a PPA operation remain owned until its real
+completion: return from a blocking operation, or the completion callback for a
+non-blocking operation. Do not free or reuse either allocation when submission
+merely succeeds. Dedicated image/snapshot workers keep their own PPA clients;
+the shared regional helpers also serialize the complete cache-marker,
+submission and completion interval with `s_region_srm_mutex`, so another caller
+cannot replace the source/target ranges of an in-flight operation.
+
+The pinned ESP-IDF 5.5.5 integration backports four official PPA fixes together:
+
+| Upstream commit | Ownership correction |
+| --- | --- |
+| [c1cec26bbd1e](https://github.com/espressif/esp-idf/commit/c1cec26bbd1e36ceb19143257ecac65e0a67bbcf) | Decide queue insertion and engine idle/busy state under the same spinlock; avoid stranded cross-core submissions |
+| [7339ee882f77](https://github.com/espressif/esp-idf/commit/7339ee882f779d40d4e01ca40a089178b8505351) | Recycle a blocking transaction only after its waiter consumes completion |
+| [e87e0b31d96c](https://github.com/espressif/esp-idf/commit/e87e0b31d96c24d20f3b6e8167b7e5ae811c89c0) | Correct queue/error lifetime handling and check enqueue results |
+| [54a57a735192](https://github.com/espressif/esp-idf/commit/54a57a735192c4733b62dacf20cc74030ef39d30) | Suppress `on_trans_done` for blocking operations and require their `user_data` to be NULL |
+
+`mipi_dsi/patch_espidf_dsi_dma2d.py::_patch_ppa_transaction_races` owns this
+consolidated delta in `ppa_core.c`, `ppa_priv.h`, `ppa_srm.c`, `ppa_fill.c`,
+`ppa_blend.c` and `driver/ppa.h`. It classifies every hunk before writing any
+file: original sources are patched, a complete existing backport is left
+unchanged, and partial or unsupported source combinations fail before writes.
+The existing native-IDF framework-patch component and PlatformIO pre-script
+invoke the same durable SDK patcher; editing only an installed SDK cache is not
+the implementation.
+
+The related DMA2D backport provides the
+[dequeue mechanism](https://github.com/espressif/esp-idf/commit/92024d98b621)
+and [single-owner force-end/ISR teardown](https://github.com/espressif/esp-idf/commit/3d8fd22e1407).
+It prevents two completion paths from freeing the same transaction channels and
+stopping the next transaction. DMA2D/PPA transaction ownership is separate from
+the DW-GDMA DSI descriptor-ring recovery above.
+
+The changed blocking contract also needs an LVGL caller adaptation. The active
+LVGL dependency's `src/draw/espressif/ppa/lv_draw_ppa_img.c` previously supplied
+its draw-unit pointer as unused blocking `user_data`. The shared
+`lvgl_build_filter.py::patch_ppa_blocking_user_data_source` changes that field
+to NULL, accepts an already compatible source and fails on an unsupported
+layout. PlatformIO uses its existing filter/middleware hooks. Native ESP-IDF
+does not execute those extra scripts, so `lvgl_source_patch/CMakeLists.txt` is
+registered when PPA is enabled, resolves the actual LVGL component directory,
+and invokes the same helper during CMake configure. Its `runpy` entry point
+avoids the component's local `types.py` shadowing Python's standard module.
+The fork's three equivalent fallback image call sites use NULL directly.
+Non-blocking completion payloads remain intact; this compatibility hook does
+not enable another PPA renderer or change image completion into success.
+
+These are confirmed upstream race fixes, not stack evidence for the separate
+R8i watchdog: no captured stack proved that watchdog was waiting in PPA.
 
 ### Selection table
 
@@ -637,6 +853,68 @@ is meeting its frame budget. On the 800x800 panel the validated portrait path
 uses one reusable 512 KiB band workspace and renders in about 31 ms per frame;
 the landscape path remains around 19-21 ms per frame.
 
+### Opaque Lottie conversion buffers
+
+Opaque Lottie canvas conversion passes its allocated output capacity separately
+from packed RGB geometry. PPA requires a cache-line-aligned output extent;
+rounding the logical RGB byte count is valid only inside the caller's real
+allocation. Lottie keeps its original padded four-byte-per-pixel allocation
+after changing the canvas descriptor to RGB888. The conversion uses checked
+source writeback and destination invalidation before and after the blocking
+hardware operation. It does not change dimensions, stride or allocate another
+buffer. Legacy callers without a capacity contract keep their original path.
+
+### Snapshot cache writes and failure recovery
+
+`snapshot_compositor.jpeg_initial_output_buffer_size` defaults to zero, which
+keeps the encoder's original output allocation and single-attempt behavior.
+The product selects 1 MiB. This changes temporary encoded output capacity,
+not JPEG quality (100/YUV444), raw storage, or displayed resolution. All native
+snapshot encoder paths use the same policy. An ambiguous SDK
+`ESP_ERR_INVALID_STATE` permits at most three attempts, increasing capacity
+up to the source's raw byte count. `ESP_ERR_NO_MEM` stops immediately; a larger
+allocation cannot repair it. Failure logs report the actual error and capacity
+without identifying the ambiguous result as proven output overflow.
+
+The source remains owned and immutable through every encode attempt. A new
+application JPEG is staged before the old complete entry is released, and a
+failed encode returns false while preserving the previous preview. A supplied
+raw draw buffer is only a synchronous input: the compressed cache never keeps
+its raw pointer or frees its pixels. Its caller owns LVGL locking, balanced
+pause/drain, display lease lifetime, and restoration of the coherent display
+base even when capture or compression fails.
+
+With the direct backend, the product also enables
+`snapshot_compositor.use_display_buffers_for_preparation` (upstream default
+false). Application preview preparation borrows one idle RGB888 framebuffer
+from the existing display pool for the whole serial capture batch. It does
+not allocate another raw application work buffer. Black transition sources
+remain lazy. The framebuffer lease lasts until the last synchronous capture
+and JPEG encode has returned; the compressed cache retains no borrowed raw
+pointer.
+
+This is an exclusive full-screen session. Regional workers are paused and
+drained, and LVGL's active draw target is withheld so an explicit refresh
+cannot render into a borrowed display buffer. Returning the scratch lease
+does not end exclusivity. The manager first closes new lease acquisition,
+waits for outstanding work, then seeds the native buffers from actual scanout
+using the existing hardware copy path and checked cache fences. Only a
+successful coherent handoff restores the draw target and refresh timer and
+releases the owned regional pause. A failed end remains pending and is retried
+before native work in the main loop. Session generations prevent an old
+presenter's late acquire or end retry from borrowing or ending a newer session.
+
+Home still owns exactly three raw slots. JPEG invalidation marks the backing
+stale while retaining its complete bytes until replacement succeeds. Before a
+resident slot becomes scratch, its outgoing generation must have usable JPEG
+backing. Capture/decode failure does not publish an old page label over partial
+new pixels: it restores that page immediately, or retains one pending restore
+identity for the next explicit preparation. This bounded metadata does not
+allocate another raw buffer or schedule decoding from a per-frame lookup.
+Scratch is restored on every exit, so successful preparation no longer
+re-decodes all resident pages from older JPEG generations. A nonpersistent
+weather-region update also cannot clear an earlier pending dirty generation.
+
 ## Gesture velocity and snapshot lifecycle
 
 The shared gesture router owns axis capture and release velocity. It measures
@@ -911,6 +1189,7 @@ DSI scanout.
 | Shifted image | DSI timing/mode mismatch, wrong stride, or source crop coordinates |
 | Correct first image, corrupt replacements | Old/new buffer lifetime overlap or incomplete invalidation |
 | Animation good until artwork update | Competing PSRAM transfer or direct-region base generation mismatch |
+| Frozen scanout while CPU/API responds | Halted DW-GDMA ring, invalid LLI, or missing real presentation completion; inspect DMA/ownership counters |
 
 Do not hide these faults with a slower global burst setting until ownership and
 coherency have been proven correct.
@@ -944,7 +1223,10 @@ Reusable implementation lives in the ESPHome integration tree:
 
 - `esphome/components/mipi_dsi/mipi_dsi.cpp`
 - `esphome/components/mipi_dsi/mipi_dsi.h`
+- `esphome/components/mipi_dsi/patch_espidf_dsi_dma2d.py`
 - `esphome/components/lvgl/lvgl_esphome.cpp`
+- `esphome/components/lvgl/lvgl_build_filter.py`
+- `esphome/components/lvgl/lvgl_source_patch/CMakeLists.txt`
 - `esphome/components/lvgl/dma2d_m2m_copy.cpp`
 - `esphome/components/lvgl/ppa/`
 - `esphome/components/lvgl/lottie_loader.h`
@@ -958,6 +1240,16 @@ Product configuration lives in:
 - `modules/lvgl/material.yaml`
 - `modules/player/artwork.yaml`
 - `modules/immich/`
+
+## Boot cache and selected accent
+
+Restored UI settings apply their styles before boot, but cannot allocate Home
+or application snapshots until the splash cache has been released. The small
+boot trace reserves its bounded frame cache while PSRAM is still contiguous.
+Both its opaque background and the house image use the persisted accent before
+preparation. The trace uses a contrasting dark or white paint slot.
+A prepared hidden canvas is revealed before its direct producer is notified;
+waiting for publication while rejecting hidden widgets is a readiness deadlock.
 
 ## Boot handoff and artwork worker (2026-09-21)
 

@@ -45,6 +45,201 @@ permanently pinned. The display scanout and accelerators run in hardware.
 Auxiliary composition is moved off the LVGL loop where practical. Some workers
 are deliberately unpinned so FreeRTOS can avoid a temporarily busy core.
 
+## Software restart diagnostics
+
+The optional ESPHome `esp32_hosted.restart_diagnostics` feature defaults to
+disabled. When enabled on a target with RTC memory, it retains one 60-byte
+record of the first intercepted restart request: return PC, core, tick,
+full 32-byte ELF SHA256, version and checksum. It allocates no heap, NVS,
+task or framebuffer. A concurrent requester waits at most one millisecond for
+the first writer; an incomplete record has no valid commit marker.
+
+Hosted transport requests are intercepted at its public mutable OS callback
+before its generic `esp_restart` call. This preserves the SDIO caller rather
+than only the shared Hosted restart function. The early hook replaces the
+callback only if it still points to the original SDK implementation and emits
+`ESPHOME_HOSTED_RESTART_DIAG installed=1` directly through ROM UART. It leaves
+custom callbacks intact. The port configuration header must precede the OS
+abstraction header: the table layout depends on the configured transport and
+mempool. Revalidate the callback ABI against the actual SDK object after an
+SDK update. A linker wrap alone cannot redirect the SDK's same-object table
+initializer. Both interception paths share the original first-writer record;
+the nested generic restart cannot overwrite the earlier Hosted caller.
+
+The product keeps `esp-idf: INFO` because ESPHome's SDK log bridge forwards
+even SDK errors at its compiled INFO level. With transport diagnostics disabled,
+the SDK logging maximum remains ERROR. Worker logs can still be queued at
+reset, so immediate ROM markers and the retained request are restart evidence.
+
+### Targeted transport logging
+
+`esp32_hosted.transport_diagnostics` defaults to false and requires
+`restart_diagnostics: true`. The R18 diagnostic product explicitly enables it.
+It reuses the existing diagnostic component; it adds no task, timer or display
+buffer and does not change transport failure/restart policy, reset timing,
+SDIO clock or firmware versions.
+
+The opt-in generates `USE_ESP32_HOSTED_TRANSPORT_DIAGNOSTICS` and applies its
+SDK settings at code-generation priority `FINAL`, after ESP32's ordinary
+logging defaults: compiled maximum INFO, maximum-equals-default disabled,
+dynamic level control enabled, tag-level NONE disabled, and
+CACHE_AND_LINKED_LIST enabled. The product's default runtime level stays
+ERROR. Enabling `restart_diagnostics` alone does not raise the SDK maximum.
+
+At setup priority HARDWARE (800), the component enables INFO for six tags:
+`H_SDIO_DRV`, `sdio_wrapper`, `transport`, `H_API`, `os_wrapper_esp` and
+`RPC_WRAP`. It preserves the existing RPC core/response/event tag policy.
+`ESPHOME_HOSTED_TRANSPORT_DIAG enabled=1 tags=6 max_level=3 sdio_level=3`
+confirms filter installation, not successful C6 communication.
+
+The Hosted SDK's C constructor calls `esp_hosted_init` before `app_main` and
+component setup. INFO enabled at setup800 cannot recover earlier constructor
+messages filtered at runtime. Missing early INFO therefore does not prove
+that initialization was skipped. Mutable-callback interception also starts at
+setup800; an earlier request can therefore lack its outer Hosted caller even
+when the generic restart wrapper records it. Logging changes timing and memory;
+R18 diagnostic throughput must be identified separately from R17's baseline.
+
+The diagnostic component is registered before Safe Mode's early return and
+reads the record before Wi-Fi initialization. It accepts a record only after a
+software reset with valid metadata and checksum, then consumes the RTC marker
+and retains an immutable DRAM copy for read-only getters and repeated
+`dump_config` reports over the normal ESPHome log API. A previous image's
+record remains reportable with `same_firmware=no`; resolve that PC against the
+recorded ELF hash, not the running image. RTC retention across an image change
+is best effort because linker layout can change. Missing or rejected data does
+not establish a reset cause. This records an intercepted restart request, not
+a panic, no-OS restart or hardware reset, and does not change restart policy.
+
+### SDMMC transaction error preservation
+
+`esp32_hosted.preserve_sdio_transaction_errors` defaults to false, is exposed
+only for SDIO, and accepts true only with the reviewed ESP-IDF 5.5.5 source.
+R20 enables it and restores R18's 1500 ms post-reset settle; the failed R19
+5000 ms experiment is removed. Relative to R18, this changes SDK error
+preservation, not transport clock, pins, reset pulse, protocol or restart policy.
+
+On opt-in, code generation registers the local native IDF component
+`sdmmc_framework_patch`, matching its directory basename. Its
+`Kconfig.projbuild` owns `CONFIG_ESPHOME_SDMMC_PRESERVE_TRANSACTION_ERROR`,
+default n. This is an SDK driver option, not an application-only define.
+CMake invokes the versioned patcher with IDF_PATH during configure and fails
+closed if the reviewed owning function/cache block is unknown, duplicated or
+mixed. The patcher recognizes its exact guarded form idempotently and leaves
+the recognized upstream-fixed body unchanged. It preserves line endings and
+uses no SCons-only hook.
+
+At final M2C cleanup, synchronization still runs after a transaction error.
+An earlier transaction error wins; an otherwise successful transaction adopts
+the final sync result. If both fail, the original error is retained and the
+secondary sync error is logged. This backports official error precedence
+from Espressif commit `5038e2ad53422c144db832ab65130956ec7e23de`. It does not
+add a buffer, copy, cache fence, task or transport recovery mechanism and
+preserves the existing request mutex and DMA ownership.
+
+The SDK cache is shared between builds, so the installed source is guarded
+by the SDK symbol. The OFF branch retains the exact original body, including
+when an earlier ON build installed the source guard. Without the local
+component the symbol is undefined and the original branch compiles. A
+framework already containing the recognized upstream fix naturally retains
+its upstream behavior. The option affects the owning SDMMC data-transaction
+driver, rather than only Hosted packets.
+
+The current Hosted retry still reuses its running SDIO reader, card context
+and cumulative receive count without a cooperative stop/ACK before card
+reset/reinitialization. A failed payload also advances the announced receive
+count. Error preservation makes a failure report honest; it does not repair
+that lifecycle or prove that the peer is ready. Full-image and physical R20
+acceptance are separate from the source/configuration checks below.
+
+### Orderly coprocessor shutdown reset
+
+`esp32_hosted.reset_coprocessor_on_shutdown` defaults to false, is SDIO-only
+and accepts true only for the reviewed IDF 5.5.5 lifecycle. R21 enables it.
+Code generation registers `ShutdownResetComponent` before Safe Mode's early
+return and emits `USE_ESP32_HOSTED_SHUTDOWN_RESET`. At setup priority HARDWARE
+(800), the component validates the SDK native reset-pin metadata/polarity and
+registers one IDF shutdown callback. Setup performs no GPIO writes. The SDK
+constructor already initialized host metadata before component setup; this is
+not a replacement startup initializer. Duplicate/invalid registration fails
+the component and is an invalid experiment, not a prevention success.
+
+During orderly IDF shutdown, the callback restores native GPIO function,
+sets the configured inactive latch before enabling output and requests a
+nominal 1000 us ROM delay. It uses no GPIO hold, allocation, task, RTOS wait,
+RPC, Hosted deinit, SDIO drain or new recovery policy. Its once flag avoids
+repeating/lengthening a sequential assertion; it does not serialize concurrent
+restart callers. It cannot guarantee electrical pulse duration or continuity
+through subsequent ROM startup. Hardware watchdog, panic/no-OS or earlier
+resets need not pass through this orderly callback.
+
+`is_registered()`, `is_shutdown_assertion_complete()` and
+`get_shutdown_result()` describe current-boot registration/assertion only.
+Initial ESP_OK with completion false is not evidence of GPIO execution.
+Completion follows successful GPIO operations and the nominal delay. State
+is not RTC/NVS history and does not prove that the previous boot asserted
+reset. Restart-request RTC diagnostics remain a separate mechanism.
+
+### IRAM panic diagnostic
+
+R21 separately enables `CONFIG_ESP_PANIC_HANDLER_IRAM=y`. It changes panic/
+required-UART code placement, retaining print-and-reboot, zero reboot delay,
+no GDB stub or coredump, UART 115200, interrupt watchdog 800 ms and task
+watchdog 30 s. The six affected objects total 6504 bytes in the static bound;
+this is not measured incremental linkage cost or final headroom. The complete
+new ELF/map and internal RAM must be checked before flash.
+
+IDF's flash-app panic entry still attempts `panic_enable_cache()`. Placement
+does not guarantee a trace for hardware reset, an invalid stack, a blocked
+cache enable, a fault before panic entry or an unavailable serial path. It
+does not locate R20's watchdog or make the shutdown GPIO callback panic-safe.
+R21's bounded five-restart and captured-boot checks passed; its full matrix
+was not run. R22 remains a partial, unaccepted campaign. R23 initial boot, first five
+software restarts, 12 original main steps including warm/persisted, Camera/Volume
+state checks and targeted Volume accent pixels passed. One natural DMA INVALID
+was repaired. Warm accent and matched overcast passed in their recorded
+intervals. The later warm restart campaign passed its first request but failed
+on the second with a real core1 Store access fault, rejecting R23. Final health
+and physical cold five were not run after that failure.
+Diagnostics are not a performance baseline.
+
+### Boot drain admission
+
+After the splash is stopped/hidden with the panel dark, product boot waits for
+`lvgl_esphome_direct_regions_pause(true, 500)` before the first quiet period,
+ordinary LVGL refresh or snapshot preparation. Every failed attempt returns
+exactly its one pause level with `pause(false, 0)` and yields false. Success
+retains one boot-owned level until the existing final
+`lvgl_esphome_direct_handoff_to_lvgl_and_resume(120)`, which consumes it on
+every exit. It must not be followed by another release. Other owners' levels
+are preserved; this does not grant exclusive ownership over a nested owner.
+
+The declarative `wait_until` has no timeout: its ordinary timeout semantics
+would continue without satisfying the barrier. Persistent failure leaves boot
+in a fail-closed dark state rather than refreshing unsafely or requesting an
+automatic restart. This gate is an invariant correction, not an established
+cause or cure of the separate R20 watchdog failure.
+
+The existing framework `WaitUntilAction` checks a new invocation immediately
+and, after an initial false, once again while enqueuing. The first failed
+activation can therefore spend two 500 ms waits, plus each failed release's
+existing mutex wait of up to 50 ms. Later evaluations use one 500 ms wait plus
+that release cost. The generic Condition contract requests instant checks;
+this boot policy deliberately retains the bounded blocking tradeoff. Network
+and OTA responsiveness during persistent drain failure has not been validated.
+
+A successful condition is removed from the pending queue before its
+continuation runs, so downstream yielding does not acquire another boot pause.
+The boot trigger runs once. Cancelling a still-false wait leaves no boot lease;
+aborting downstream after success still requires its existing final release
+discipline. One additional standard framework action/component and at most one
+queued list node represent this wait. Retries reuse the node; no custom task,
+full-screen buffer, extra raw copy, or heavy state machine is introduced.
+The complete R22 link reports 291926 bytes internal RAM, 56 more than R21's
+291870; these static totals do not include the transient heap node as a new
+framebuffer allocation. Exact drain timing and physical behavior require the
+final-image hardware checks.
+
 ## Priority policy
 
 Priority expresses deadline sensitivity:
@@ -505,3 +700,61 @@ worker already used this policy. Audio/I2S and driver allocations are unchanged.
 - `modules/immich/`
 - `modules/camera/`
 
+
+### Drained application source admission
+
+R23 retains the boot drain gate above. A finished application animation returns
+its external DSI source before destination native preparation/callbacks can
+request another owner; final-frame and regional-pause holds span destination
+preparation. This changes release order, not buffers/tasks or SDK policy; static
+internal RAM remains 291926 bytes. See [the source handoff contract](navigation-snapshots.md#return-the-drained-transition-source-before-native-callbacks).
+
+## Opt-in P4 cache-safe SDK restart path
+
+The reusable option `esp32.framework.advanced.enable_cache_safe_restart`
+defaults to `false`. Enabling it is restricted to ESP32-P4 with the native
+ESP-IDF5.5.5 toolchain; unsupported framework/target/version combinations are
+rejected. The product candidate enables it in its hardware configuration.
+It registers a native framework patch component and sets
+`CONFIG_ESPHOME_ESP32P4_CACHE_SAFE_RESTART=y`; this is a global SDK configuration
+guard, not an application-only `defines.h` macro.
+
+When enabled, the reviewed P4 restart source stalls the other core without the
+earlier reset, then, with SPIRAM enabled, polls the four symbolic cache-sync ENA
+bits until they clear before the existing writeback. I/O fences surround the
+poll. There is no timeout, RTC reset fallback, ROM `Cache_Wait_Idle()` substitute
+or new runtime task/buffer in this candidate. The disabled branch preserves the
+old reset-before-stall/writeback behavior, including when the shared SDK cache
+contains the guarded source. The patcher is idempotent only for the exact
+reviewed original/guarded file hashes and rejects unrelated source versions.
+
+The guarded SDK restart patch locally implements the mechanism described in
+Espressif issue19171. It is not identified as a backport of a verified released
+upstream fix commit.
+
+This changes the shared low-level P4 SDK restart/cache path. IDF5.5.5
+`panic_restart()` also reaches `esp_restart_noos()` (port/panic_handler.c:320);
+other callers reaching this path are affected too. Hardware checks here exercise
+orderly software restarts; panic recovery remains untested and direct hardware
+reset is unaffected. The C6 GPIO callback remains an orderly shutdown-handler
+contract, which panic entry may bypass. This patch does not replace display
+draining, application source retirement or retained restart diagnostics.
+If the guarded SPIRAM cache-sync wait sees ENA bits that never clear, this shared
+path waits indefinitely; there is no deadline or RTC-reset fallback.
+R23's later warm shutdown panic rejected that candidate despite earlier passes.
+R24 configuration/native build, exact source/ELF checks, initial boot, six
+bounded normal software restarts and all twelve main steps passed. Long warm
+and physical cold campaigns were not performed for R24. R25 preserves this SDK
+path and changes only the clock's product cache bounds, adding no framebuffer
+or worker. Its initial OTA/boot, first five controlled restarts, main twelve/persisted
+restart and specified app/accent addons passed. All fifty controlled software
+restarts plus the separate persisted restart and final health passed. The user
+confirmed five all-power/USB-off cold cycles; five distinct POWERON startups have
+four paired API health checks and a separate late fifth health check. Off time
+was human reported, and five complete ROM windows are not proved. A host
+matched-overcast row-count failure and offline partial-row recovery are retained
+separately. R25 warm JPEG 1444 KiB differs from R24's 887 KiB; successful retained
+JPEG buffers store encoded payload size, not scratch retry capacity. Per-entry
+attribution is unknown. Within-window stability is not equal memory across
+candidates or a leak test. See validation.md; no bounded pass proves every
+restart safe.
