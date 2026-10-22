@@ -182,7 +182,7 @@ script:
           then:
             - lvgl_image_presenter.pause: camera_stream_presenter
             - lambda: |-
-                id(camera_source_roller)->set_options(
+                id(camera_source_roller)->set_options_dynamic(
                     id(camera_stream_image).source_names());
                 id(camera_source_roller)->set_selected_index(
                     id(camera_stream_image).active_source_index(), LV_ANIM_OFF);

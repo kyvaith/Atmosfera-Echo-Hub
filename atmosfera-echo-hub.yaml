@@ -8,7 +8,11 @@ substitutions:
   friendly_name: "Atmosfera Echo Hub"
   project_namespace: kyvaith
   firmware_version: dev
-  esphome_min_version: 2026.8.0-dev
+  esphome_min_version: 2026.11.0-dev
+  # Keep the product and companion fork in sibling directories. Isolated
+  # validation may override these two paths through ESPHome substitutions.
+  esphome_components_path: ../kyvaith-esphome/esphome/components
+  firmware_build_path: C:/aeh-build/${name}-productization-idf556
 
   # Firmware update and dashboard import endpoints
   firmware_manifest_url: "https://kyvaith.github.io/Atmosfera-Echo-Hub/manifest.json"

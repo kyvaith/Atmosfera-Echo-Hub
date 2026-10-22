@@ -9,7 +9,8 @@ esp32:
   engineering_sample: true
   framework:
     type: esp-idf
-    version: recommended
+    # SDK source guards are reviewed for this exact upstream-recommended release.
+    version: 5.5.6
     advanced:
       enable_idf_experimental_features: true
       enable_cache_safe_restart: true
@@ -19,7 +20,8 @@ esp32:
       CONFIG_ESP_TASK_WDT_TIMEOUT_S: "30"
       CONFIG_ESP_PANIC_HANDLER_IRAM: "y"
       CONFIG_LWIP_MAX_SOCKETS: "20"
-      CONFIG_ESP_MAIN_TASK_STACK_SIZE: "4096"
+      # Preserve the official ESP32-P4 main-task stack fix (ESPHome #20181).
+      CONFIG_ESP_MAIN_TASK_STACK_SIZE: "8192"
       CONFIG_ESP_TIMER_TASK_STACK_SIZE: "2048"
       CONFIG_FREERTOS_TIMER_TASK_STACK_DEPTH: "2048"
       CONFIG_SPIRAM_SPEED_200M: "y"
