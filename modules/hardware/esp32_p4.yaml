@@ -14,6 +14,8 @@ esp32:
     advanced:
       enable_idf_experimental_features: true
       enable_cache_safe_restart: true
+      # Backport Espressif b25cb290: preserve every PIE register across DSP tasks.
+      enable_pie_context_fix: true
       enable_lwip_assert: false
       compiler_optimization: PERF
     sdkconfig_options:
