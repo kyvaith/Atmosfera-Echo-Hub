@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  ESPHOME_PIP_SPEC: git+https://github.com/esphome/esphome.git@dev
+  ESPHOME_FORK_REF: d0b129d9002cea38083549fbbbf197e8819cc49b
   DEVICE_NAME: atmosfera-echo-hub
   YAML_FILE: atmosfera-echo-hub.factory.yaml
 
@@ -32,6 +32,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Checkout ESPHome fork
+        uses: actions/checkout@v4
+        with:
+          repository: kyvaith/esphome
+          ref: ${{ env.ESPHOME_FORK_REF }}
+          path: .ci/esphome
 
       - name: Resolve release version
         id: version
@@ -48,40 +55,47 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
           cache: pip
+          cache-dependency-path: .ci/esphome/requirements.txt
 
-      - name: Cache PlatformIO and ESPHome
+      - name: Cache native ESP-IDF tools and ESPHome
         uses: actions/cache@v4
         with:
           path: |
-            ~/.platformio
+            ~/.cache/esphome/idf
             .esphome
-          key: ${{ runner.os }}-pio-${{ hashFiles('**/*.yaml', '**/*.yml') }}
+          key: ${{ runner.os }}-idf-${{ env.ESPHOME_FORK_REF }}-${{ hashFiles('**/*.yaml', '**/*.yml') }}
           restore-keys: |
-            ${{ runner.os }}-pio-
+            ${{ runner.os }}-idf-${{ env.ESPHOME_FORK_REF }}-
 
-      - name: Install ESPHome
-        run: pip install "${ESPHOME_PIP_SPEC}"
+      - name: Install ESPHome fork
+        run: python -m pip install -e .ci/esphome
 
       - name: Provide CI-only secrets
         run: |
           cat > secrets.yaml <<'EOF'
           wifi_ssid: ci
           wifi_password: ci-password
+          immich_url: ""
+          immich_auth_token: ""
+          immich_album_ids: ""
           EOF
 
       - name: Compile factory firmware
         run: |
           esphome \
+            --toolchain esp-idf \
             -s firmware_version "${{ steps.version.outputs.plain }}" \
+            -s esphome_components_path .ci/esphome/esphome/components \
+            -s firmware_build_path ".esphome/build/${DEVICE_NAME}" \
             compile "${YAML_FILE}"
 
       - name: Collect firmware artifacts
         id: collect
         shell: bash
         run: |
-          build_dir=".esphome/build/${DEVICE_NAME}/.pioenvs/${DEVICE_NAME}"
+          build_dir=".esphome/build/${DEVICE_NAME}/build"
           mkdir -p dist
           cp "${build_dir}/firmware.factory.bin" dist/firmware.factory.bin
           cp "${build_dir}/firmware.ota.bin" dist/firmware.ota.bin

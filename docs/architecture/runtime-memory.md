@@ -114,7 +114,8 @@ a panic, no-OS restart or hardware reset, and does not change restart policy.
 ### SDMMC transaction error preservation
 
 `esp32_hosted.preserve_sdio_transaction_errors` defaults to false, is exposed
-only for SDIO, and accepts true only with the reviewed ESP-IDF 5.5.5 source.
+only for SDIO, and accepts true only with the reviewed ESP-IDF 5.5.5 or 5.5.6
+sources. The exact recognized upstream-fixed body is retained unchanged.
 R20 enables it and restores R18's 1500 ms post-reset settle; the failed R19
 5000 ms experiment is removed. Relative to R18, this changes SDK error
 preservation, not transport clock, pins, reset pulse, protocol or restart policy.
@@ -155,7 +156,7 @@ acceptance are separate from the source/configuration checks below.
 ### Orderly coprocessor shutdown reset
 
 `esp32_hosted.reset_coprocessor_on_shutdown` defaults to false, is SDIO-only
-and accepts true only for the reviewed IDF 5.5.5 lifecycle. R21 enables it.
+and accepts true only for the reviewed IDF 5.5.5 or 5.5.6 lifecycle. R21 enables it.
 Code generation registers `ShutdownResetComponent` before Safe Mode's early
 return and emits `USE_ESP32_HOSTED_SHUTDOWN_RESET`. At setup priority HARDWARE
 (800), the component validates the SDK native reset-pin metadata/polarity and
@@ -285,7 +286,7 @@ not add another raw slot; it adds compressed backing and cache work.
 | --- | ---: | --- |
 | Shared application RGB888 work buffer | 1,920,000 bytes | Decode/open/close work; reused across apps |
 | Player decoded RGB565 artwork | 1,280,000 bytes at 800x800 | Retained across Player closes and reused by the next open |
-| Gallery/Settings contiguous work allocation | About 3 MiB, or the exact current Settings snapshot requirement | Allocated on application entry, exclusively leased while needed, released on close; not reserved during boot |
+| Gallery decoded destination / Settings raw snapshot | About 3 MiB for the current Gallery source; 2,297,600 RGB565 pixel bytes for Settings | Allocated on entry and released on close; Settings accepts an external loan or uses bounded row segments if a contiguous block is unavailable |
 | Gallery encoded JPEG buffer | 786,432 bytes configured | Gallery app/download lifetime |
 | Camera encoded JPEG buffer | 786,432 bytes configured | Component lifetime |
 | Camera decoded RGB888 frame | Source dimensions x 3; 1,920,000 bytes at 800x800 | Camera app lifetime |
@@ -293,7 +294,7 @@ not add another raw slot; it adds compressed backing and cache work.
 | Wavy progress ARGB buffers | About 714 KiB for three 244x244 buffers | Player direct widget lifetime |
 | Wavy progress RGB565 backdrops | About 349 KiB for three 244x244 crops | Player direct widget lifetime; active/in-flight/next ownership |
 | Realtime voice playback and uplink rings | Bounded PSRAM buffers | Component lifetime |
-| SendSpin source buffer | 600,000 bytes | Component lifetime |
+| Sendspin receive ring and artwork assembly | 1,331,472 + 262,144 bytes with the current configuration and Sendspin 0.9.3 | Component lifetime; shared audio/artwork/JSON/time receive budgets plus bounded artwork assembly |
 
 Sizes are architectural budgets, not a complete heap report. ESP-IDF, WiFi,
 LVGL objects, fonts, image descriptors, stacks, queues, and codec libraries
@@ -309,7 +310,7 @@ The same large features must not all peak simultaneously.
 | Boot cache preparation | DSI buffers, Lottie final frame, Home slots, JPEG encoder work |
 | Home idle | DSI buffers, Home slots, compressed app/Home backing, selected weather canvas; no idle application arena reservation |
 | Music playback | Home/DSI buffers, current artwork, direct media buffers, SendSpin/audio rings |
-| Settings | Home/DSI buffers, shared arena lent as the Settings raw scroll bitmap; app preview work released after handoff |
+| Settings | Home/DSI buffers, an optional shared loan or bounded RGB565 scroll segments; app preview work released after handoff |
 | Voice session | Home/DSI buffers, voice rings, AFE buffers, Assistant UI direct regions |
 | Gallery | Home/DSI buffers, shared arena used as the full-resolution RGB565 photo destination, encoded download/prefetch buffer, transition scratch when needed |
 | Camera | Home/DSI buffers, encoded MJPEG input, one current decoded frame; no frame queue |
@@ -317,6 +318,56 @@ The same large features must not all peak simultaneously.
 The boot sequence releases the Lottie frame cache before normal application
 caches and network artwork can create their own peak. Changing this order can
 produce allocation failures even when total free PSRAM appears sufficient.
+
+### 2026-10-22 fragmentation handling
+
+Official Sendspin 0.9.3 adds 993,616 bytes (970.33 KiB) of persistent receive and
+artwork storage relative to R25. This is a bounded protocol cost, not evidence
+of a leak. Its lower contiguous headroom exposed two assumptions in the older
+snapshot code during actual Gallery/Camera/theme testing: two Settings halves
+still needed approximately 1.15 MB each, and JPEG scratch always requested its
+full configured upper budget.
+
+The integration uses row-aligned Settings pieces with a 256 KiB target when
+the full surface cannot fit. Total pixel storage and its application lifetime
+are unchanged. The hardware JPEG encoder keeps the existing codec lock and
+output ownership: it can borrow shared scratch, or allocate a smaller aligned
+scratch within the caller's budget and the available contiguous block. Quality,
+dimensions and subsampling are unchanged. An SDK error publishes no new image;
+the final encoded payload remains independently owned. Existing release points
+still free local scratch or explicitly release shared scratch.
+
+If encoding and DMA/cache synchronization have completed but both compact-copy
+allocations fail, only scratch owned by that call may be shrunk to the encoded
+payload size and transferred to the output owner. Borrowed reusable scratch is
+never adopted. A failed shrink keeps the valid old pointer for its existing
+single release and leaves the caller's previous output unchanged. This recovery
+adds no second raw surface, quality reduction or extra permanent allocation.
+
+Gallery's full native-size decoder destination is a separate contiguous
+allocation. Its existing bounded same-photo retry and later backoff remain;
+these snapshot changes do not guarantee every Gallery destination allocation.
+The integration validation report records actual outcomes and remaining gaps.
+
+Full-media tests also exposed a different admission failure: after Gallery
+trimmed Home to one raw slot, compressed app previews fragmented the space
+needed by the two missing slots. Repeated allocation/rollback could leave Home
+at one slot indefinitely. The mandatory raw window now takes priority over idle
+app JPEGs. After a failed, rolled-back reservation, only unreferenced compressed
+app previews may be evicted, then one complete retry is allowed. This changes
+cache retention under pressure, not pixel quality or the number of raw buffers.
+The log reports reclaimed bytes and the actual retry result. Acceptance requires
+three restored slots, rather than merely a higher free-memory reading.
+
+An independent JPEG pressure case can occur while those three raw slots are
+already present. Synchronous Home preparation now carries one local recovery
+budget for a real encoder `ESP_ERR_NO_MEM`: release only eligible idle app JPEGs
+and retry the same source once if bytes were freed. An active navigation app
+blocks this reclamation. No budget reaches background refresh or codec workers,
+and a failed replacement retains the old JPEG. This adds no framebuffer or
+permanent scratch allocation. Stage-specific error diagnostics report where an
+allocation or SDK processing request failed; generic historical NO_MEM logs
+cannot identify an owned-copy failure by themselves.
 
 ### Historical boot-arena policy (superseded 2026-09-19)
 
@@ -457,6 +508,17 @@ scan JSON or vector paths. Runtime stages include:
 The optional frame cache dominates memory because it trades PSRAM for stable
 playback. This is why a small JSON can consume megabytes at runtime.
 
+The compact unscaled direct opaque path owns three distinct surfaces: an
+immutable native canvas and two private XRGB raster targets. The raster worker
+prepares the next target while the regional PPA presenter consumes the other.
+Initial preparation and finite-frame retention use the existing hardware
+conversion into the native canvas. They do not need a fourth legacy display
+back buffer. General/scaled paths retain their existing allocation contract.
+The 384x384 weather canvas therefore avoids one 589,824-byte allocation without
+aliasing its three owners or changing pixel quality. Hidden workers must still
+drain the direct-region lease before sleeping, and unload releases all three
+surfaces only after presentation has retired.
+
 ## Gallery and Settings shared-arena rules
 
 The Immich path uses hardware JPEG and one boot-reserved decoded allocation:
@@ -570,6 +632,16 @@ Free bytes alone are insufficient. A 1.92 MiB image allocation fails when the
 largest contiguous block is smaller even if the sum of free fragments is
 larger.
 
+The optional ESP32 `preferences.sync_diagnostics` setting defaults to false.
+When enabled, it records one INFO line after a nonempty sync finishes: begin/end
+RTOS ticks and 64-bit microsecond times, unchanged (`cached`), written and failed
+entry counts, and the commit result. The clocks bracket the existing reads,
+writes and commit; logging follows the returned SDK cache guards. No keys or
+values are exposed, and the persistence interval and result remain unchanged.
+Use the exact tick window when comparing flash activity with a DSI IRQ; adjacent
+host receive timestamps alone do not establish causality. This adds bounded
+stack-local measurements, not another task or image buffer.
+
 ## Known performance checkpoint
 
 The validated integration checkpoint has demonstrated:
@@ -655,8 +727,24 @@ opening transition completes. The other two pages keep JPEG backing, returning
 raw Home page remains the closing animation's background. After the Gallery
 close callback releases the photo buffers, the compositor refills the two
 missing slots before returning to ordinary navigation. Refilling must preserve
-the retained slot, including on allocation failure. Other applications keep
-the allocation-free, three-slot close path.
+the retained slot, including on allocation failure.
+
+Settings applies the same raw-window priority before reserving its contiguous
+scroll loan. After the existing application pause, one additional balanced
+regional drain protects the trim. A successful trim retains the current raw
+Home background, preserves the neighbours' JPEG backing, and clears all product
+window-ready metadata. A refused drain or trim leaves that metadata unchanged;
+the bounded row-segment fallback remains available. Releasing two slots improves
+contiguous admission but does not guarantee adjacent free space.
+
+The Settings loan and scroll surface remain owned until close. Theme changes
+refresh that surface in place and the retained Home source for the close
+animation; the full Home/app preview rebuild still waits until Settings closes.
+Only after the close callback releases the scroll, returns the Gallery loan,
+and releases its idle decode capacity may the compositor restore the three raw
+Home slots. A deferred normal refresh synchronizes product window metadata when
+no accent rebuild is pending. No permanent arena or additional raw screen is
+introduced. The other application close paths keep their existing policy.
 
 Earlier boot-arena measurements above are historical checkpoints, not the
 current allocation policy.
@@ -669,6 +757,10 @@ valid. It renders and encodes the requested page, then decodes the original
 resident page back into the same slot. The busy flag prevents concurrent
 reuse. A failed restore clears the slot's page identity rather than exposing
 the temporary page as the original. No fourth raw Home bitmap is allocated.
+The component holds and drains one nested direct-region pause for this complete
+synchronous maintenance operation, including JPEG work and borrowed-slot restore.
+A failed pause barrier leaves the source slots untouched; all exits balance only
+the helper's own lease. This applies even when the backlight is off.
 
 Camera's HTTP read scratch prefers PSRAM: `esp_http_client_read()` copies into
 it, so this memory does not require internal/DMA capabilities. The bounded
@@ -683,6 +775,23 @@ The Voice waveform, Player waveform and marquee worker stacks prefer PSRAM
 ISR/DMA storage. This releases 20 KiB of internal SRAM without changing their
 stack sizes, priorities, image geometry or animation cadence. The volume
 worker already used this policy. Audio/I2S and driver allocations are unchanged.
+
+## DSP processor context preservation
+
+`esp32.framework.advanced.enable_pie_context_fix` defaults to false in the
+companion fork.
+The product enables it on native ESP32-P4/ESP-IDF 5.5.6. The native framework
+component validates both reviewed SDK owners before installing guarded changes:
+the PIE save/restore macros in `portasm.S` and the matching field description in
+`rvruntime-frames.h`. Unknown targets, versions or source images are refused.
+The exact disabled regions remain unchanged, including in a shared SDK cache.
+
+The enabled code is Espressif's b25cb290 correction: preserve all eight vector
+registers, the complete 40-bit XACC and correctly packed SAR, SAR_BYTES and FFT
+bit width. The existing 216-byte PIE area and 24-byte general coprocessor area
+are unchanged. No framebuffer, task, raw surface or new persistent allocation is
+introduced. Both schema/source replay and linked-instruction checks are required;
+these do not substitute for real DSP/Voice, graphics and restart testing.
 
 ## Source map
 
@@ -713,8 +822,9 @@ internal RAM remains 291926 bytes. See [the source handoff contract](navigation-
 
 The reusable option `esp32.framework.advanced.enable_cache_safe_restart`
 defaults to `false`. Enabling it is restricted to ESP32-P4 with the native
-ESP-IDF5.5.5 toolchain; unsupported framework/target/version combinations are
-rejected. The product candidate enables it in its hardware configuration.
+reviewed native ESP-IDF 5.5.5 or 5.5.6 toolchains; unsupported framework, target
+or version combinations are rejected. The product candidate enables it in its
+hardware configuration.
 It registers a native framework patch component and sets
 `CONFIG_ESPHOME_ESP32P4_CACHE_SAFE_RESTART=y`; this is a global SDK configuration
 guard, not an application-only `defines.h` macro.

@@ -2,8 +2,11 @@
 
 This directory is the source of truth for how Atmosfera Echo Hub runs. It
 describes the validated architecture, not every historical experiment. The
-current checkpoint targets ESPHome `2026.8.0-dev`, ESP-IDF `5.5.5`, an
-ESP32-P4, and an 800x800 RGB888 MIPI DSI panel.
+R25 checkpoint targets ESPHome `2026.8.0-dev`, ESP-IDF `5.5.5`, an ESP32-P4,
+and an 800x800 RGB888 MIPI DSI panel. The
+[2026-10-22 upstream integration](../development/esphome-upstream-2026-10-22.md)
+moves the same ownership architecture to ESPHome `2026.11.0-dev` and ESP-IDF
+`5.5.6`; its current validation state is recorded separately.
 
 Read this document first, then continue with:
 

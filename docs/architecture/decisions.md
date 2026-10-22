@@ -87,6 +87,12 @@ app into one reusable raw full-screen buffer.
 **Constraint:** App preview preparation and artwork/gallery decode must be
 serialized when they compete for the same PSRAM transfer budget.
 
+The three Home raw slots have priority over idle compressed app previews. If
+refilling the complete window fails, roll back that attempt, evict only
+unreferenced app JPEGs and retry once. Protect Home backing, raw readers,
+in-flight jobs and the current close background. A later app cache miss uses
+the existing fresh render into a leased DSI buffer.
+
 ### ADR-N03: Settings bitmap exists only while Settings is open
 
 **Decision:** Preload a bounded raw list snapshot on entry, move it directly
@@ -121,6 +127,19 @@ with a source pinned by an animation worker that has already finished.
 scenarios passed. The later warm restart attempt2 failed in SDK shutdown, so
 R23 is not accepted. One natural DMA repair remains recorded separately. This
 source-order contract adds no task, allocation or SDK policy.
+
+### ADR-N06: Fragmented scroll storage preserves the hardware path
+
+**Decision:** When a contiguous Settings snapshot is unavailable, partition the
+same bounded RGB565 surface into row-aligned pieces. Compose viewport spans
+through PPA; do not add another full-screen surface or lower image quality.
+Capture commits a complete partition, refresh drains its worker, and release
+preserves storage if that worker has not stopped.
+
+**Why:** The current upstream audio transport has a larger bounded memory
+footprint. Actual media/theme tests exposed heaps with enough total free PSRAM
+but no block large enough for either of the old two snapshot halves. The
+256 KiB fallback target removes that unnecessary contiguous-block requirement.
 
 ## Audio and voice
 
@@ -164,6 +183,23 @@ meets audio, UI, and wake-word budgets.
 
 **Why:** Inferring phase from audio activity ended conversations early,
 resumed music during follow-up, and broke barge-in.
+
+### ADR-A06: Preserve complete DSP processor context
+
+**Decision:** Enable the companion's default-off `enable_pie_context_fix` for
+the product's reviewed native ESP-IDF 5.5.6 build. The guarded SDK backport uses
+the exact PIE save/restore correction from
+[Espressif b25cb290](https://github.com/espressif/esp-idf/commit/b25cb2906c7db70a86332dffbe77df64345d8a73).
+The reusable option accepts only native ESP32-P4 with reviewed IDF 5.5.5/5.5.6
+source identities and preserves the original disabled path.
+
+**Why:** The reviewed SDK omits Q3 and incorrectly packs/restores part of PIE
+state. Multiple DSP tasks must preserve that state across context switches.
+The backport keeps the existing save-area sizes, tasks and physical audio owner;
+it does not disable acceleration or change notification slots. A watchdog reset
+in build13 motivated this review, but its missing panic frame and two successful
+unchanged-image repetitions do not establish the initiating fault. Source,
+linked instructions and new-image hardware evidence remain separate gates.
 
 ## Memory and build
 
@@ -230,8 +266,9 @@ independent; validate each exact final image on hardware.
 
 **Decision:** Keep the P4 orderly-restart change behind
 `enable_cache_safe_restart: false` by default. Permit the product to opt in only
-with native ESP-IDF5.5.5. Gate the owning SDK source through a generated global
-Kconfig option, preserve the disabled code path and reject unknown source hashes.
+with the exact reviewed native ESP-IDF 5.5.5 or 5.5.6 sources. Gate the owning SDK
+source through a generated global Kconfig option, preserve the disabled code path
+and reject unknown source hashes.
 
 **Why:** The R23 warm restart campaign exposed a real shutdown Store access fault.
 The opt-in change targets the owning P4 shutdown path while preserving

@@ -21,6 +21,11 @@ that branch until the complete device build and hardware regression suite pass.
 
 ## Current checkpoint
 
+The [2026-10-22 upstream integration](development/esphome-upstream-2026-10-22.md)
+records the move to current official ESPHome `dev` with preserved fork history,
+ESP-IDF `5.5.6`, the retained product ownership contracts and separate hardware
+acceptance evidence. The earlier checkpoints below remain historical records.
+
 The first native ESP-IDF checkpoint compiles successfully against ESPHome
 `2026.8.0-dev` and ESP-IDF `5.5.5`. It produces factory, OTA, and ELF artifacts
 without relying on PlatformIO to pass compile definitions or flash settings.
@@ -211,7 +216,8 @@ tracks which components must be reconciled or replaced before release.
 ## External component inventory
 
 The product currently imports 16 components from one consolidated ESPHome
-integration tree:
+integration tree. `micro_wake_word` now uses the current official implementation
+and its capture-buffer option directly, so it is no longer an external override:
 
 | Component | Target |
 | --- | --- |
@@ -226,7 +232,6 @@ integration tree:
 | `lvgl_material` | Keep independent reusable widgets, fixed tile surfaces, weather and notification presenters, direct state layers, marquees, volume overlays, and wavy progress controls |
 | `lvgl_image_presenter` | Keep the generic image ownership/crossfade/direct-presentation state machine |
 | `lvgl` | Rebase accelerators; extract navigation and snapshots |
-| `micro_wake_word` | Keep only the configurable buffering changes missing upstream |
 | `mipi_dsi` | Rebase local DSI changes and upstream them in scoped PRs |
 | `network_camera` | Keep the generic authenticated camera/MJPEG source and frame-drop policy |
 | `sendspin` | Keep only fixes missing from current upstream |

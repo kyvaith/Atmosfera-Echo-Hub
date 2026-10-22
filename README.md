@@ -277,6 +277,7 @@ runtime and extension documentation is split by subsystem:
 - [Architecture decision log](docs/architecture/decisions.md)
 - [Adding pages, applications, lists, and direct widgets](docs/development/extending-ui.md)
 - [Build, hardware validation, and regression checklist](docs/development/validation.md)
+- [Current ESPHome upstream integration and validation record](docs/development/esphome-upstream-2026-10-22.md)
 - [Productionization and upstream migration roadmap](docs/productization.md)
 
 The architecture guide explicitly distinguishes reusable behavior from
@@ -286,22 +287,32 @@ it snapshot-aware.
 
 ### Build and upload
 
-The firmware is built with ESPHome:
+Use the companion [ESPHome fork](https://github.com/kyvaith/esphome), checked out
+as `kyvaith-esphome` next to this repository. The current integration uses
+ESPHome `2026.11.0-dev`, ESP-IDF `5.5.6` and the native ESP-IDF toolchain.
+Install the fork into its own environment; the tested Windows checkpoint uses
+Python 3.13. Run these commands from the product directory:
 
 ```powershell
-.\venv\Scripts\esphome.exe compile atmosfera-echo-hub.yaml
+py -3.13 -m venv ..\kyvaith-esphome\.venv
+..\kyvaith-esphome\.venv\Scripts\python.exe -m pip install -e ..\kyvaith-esphome
+..\kyvaith-esphome\.venv\Scripts\python.exe -m esphome --toolchain esp-idf compile atmosfera-echo-hub.yaml
 ```
+
+The component source and short build directory are configurable through
+`esphome_components_path` and `firmware_build_path`. See the integration guide
+for isolated build overrides and the precise hardware validation limits.
 
 Upload over USB:
 
 ```powershell
-.\venv\Scripts\esphome.exe upload atmosfera-echo-hub.yaml --device COM5
+..\kyvaith-esphome\.venv\Scripts\python.exe -m esphome --toolchain esp-idf upload atmosfera-echo-hub.yaml --device COM5
 ```
 
 Upload over OTA:
 
 ```powershell
-.\venv\Scripts\esphome.exe upload atmosfera-echo-hub.yaml --device atmosfera-echo-hub.local
+..\kyvaith-esphome\.venv\Scripts\python.exe -m esphome --toolchain esp-idf upload atmosfera-echo-hub.yaml --device atmosfera-echo-hub.local
 ```
 
 The project is intentionally ESPHome-native. The best parts of it should remain easy to inspect, fork, flash, extend, and repair.

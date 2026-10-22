@@ -23,25 +23,25 @@ Run from the product checkout with the intended ESPHome environment active.
 Configuration validation:
 
 ```powershell
-python -m esphome config atmosfera-echo-hub.yaml
+python -m esphome --toolchain esp-idf config atmosfera-echo-hub.yaml
 ```
 
 Complete compile:
 
 ```powershell
-python -m esphome compile atmosfera-echo-hub.yaml
+python -m esphome --toolchain esp-idf compile atmosfera-echo-hub.yaml
 ```
 
 USB upload:
 
 ```powershell
-python -m esphome upload atmosfera-echo-hub.yaml --device COM5
+python -m esphome --toolchain esp-idf upload atmosfera-echo-hub.yaml --device COM5
 ```
 
 Serial logs:
 
 ```powershell
-python -m esphome logs atmosfera-echo-hub.yaml --device COM5
+python -m esphome --toolchain esp-idf logs atmosfera-echo-hub.yaml --device COM5
 ```
 
 Use a factory image when bootloader, partition table, flash mode, or
@@ -865,3 +865,20 @@ All local frozen evidence is under `C:\aeh-build\stability-20261021`.
   `r25-cold-five-root-assessment.json`.
 - Earlier detailed iterations remain in `documentation-overlay-r25-main-addons`
   and their underlying frozen evidence; no rejected checkpoint is discarded.
+
+### 2026-10-22 official ESPHome integration
+
+The current automated checkpoint uses ESPHome `2026.11.0-dev`, ESP-IDF `5.5.6`
+and candidate18, marker `2026-10-22 14:08:01 +0200`. Its exact source, ELF/OTA
+hashes, normal-merge history, component checks, 12-case device matrix, reviewed
+screenshots, supplemental ownership/media tests, paired R25 measurements and
+five software-start/real-Voice cycles are recorded in the
+[upstream integration report](esphome-upstream-2026-10-22.md).
+
+This is validation in the recorded automated scope. Current-image physical
+power-removal cycles were not performed because the user was unavailable;
+R25's earlier five cycles do not cover this image. Gemini credits prevent a
+successful acoustic conversation. Lower memory headroom and the unexplained
+increase in accumulated LVGL-handler wall time remain explicit limitations.
+Rejected earlier images and the unknown initiating causes of their historical
+watchdog/DSI events remain preserved rather than cleared by later tests.

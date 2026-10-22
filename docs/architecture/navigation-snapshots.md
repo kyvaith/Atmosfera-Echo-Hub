@@ -107,6 +107,20 @@ This is a bounded cache, not a growing panorama. Adding more Home pages does
 not allocate another raw frame per page, but it increases compressed storage
 and page preparation work.
 
+The complete three-slot window is mandatory before normal Home paging resumes.
+Gallery and Settings may temporarily trim the window while retaining their
+current Home close background. Settings attempts its contiguous scroll loan
+only after a counted regional drain and successful trim; refusal keeps the
+bounded segmented fallback available. Its close releases the scroll surface
+and shared loan before navigation refills three slots. Product window metadata
+is refreshed after that close, or through the pending accent batch.
+If refilling three slots fails after that handoff, the failed allocation attempt
+first rolls back. The cache then releases eligible idle app JPEG previews and
+retries once. Home JPEG/raw data, the close background and all worker-owned
+inputs remain protected. Optional previews can be regenerated through the
+existing fresh DSI capture path when an app next opens. A failed second attempt
+remains a failure; extra free heap caused by missing Home slots is not recovery.
+
 ## Home swipe lifecycle
 
 ```mermaid
@@ -420,9 +434,18 @@ Current policy:
 - refresh in place after a setting change;
 - release on app close.
 
-If the list exceeds the configured cap, content may be split into bounded head
-and tail segments. The controller must not allocate an unbounded full-page
-surface.
+The total raw content must fit the configured cap; splitting never bypasses
+that limit. The 2026-10-22 integration retains an external loan or one contiguous
+surface when available. On a fragmented heap it partitions the same RGB565
+pixels into row-aligned pieces with a 256 KiB target. When that fallback is
+selected, the 800x1436 list uses nine pieces and 2,297,600 pixel bytes. A viewport
+can cross several pieces; PPA composes each intersection directly into an idle
+display framebuffer.
+
+Capture publishes only a complete partition. Refresh drains the worker before
+writing the existing pieces; a partial refresh is discarded rather than shown.
+A worker-drain timeout preserves its source buffers. Closing Settings releases
+owned pieces and returns borrowed storage only after the worker has stopped.
 
 The refreshed snapshot is delayed until pressed/hover state is gone. Capturing
 earlier would bake a temporary state layer into the scroll bitmap.
@@ -498,6 +521,17 @@ The `snapshot.refresh: accent batch` record exposes attempt, invalidation,
 Home, application and pending results. A visually updated current page alone
 must not be treated as a successful all-cache refresh.
 
+### Background backing refresh ownership
+
+The synchronous `snapshot_refresh_tile_backing` helper owns one nested regional
+pause lease while maintaining a resident or borrowed Home slot. It resolves the
+LVGL component from the page display and drains regional presentation before any
+slot encoding or snapshot drawing. A 120 ms barrier timeout refuses the refresh
+without changing a slot and releases only that attempt's lease. The lease spans
+JPEG work and borrowed-slot restoration, including every failure return. Existing
+pauses owned by another caller remain held. This does not acquire a DSI frame or
+allocate another raw page; the existing slot ownership and busy flags still apply.
+
 ### Bounded clock partial refresh owner
 
 The product groups the eight layered clock labels under
@@ -517,6 +551,21 @@ R25's source geometry/codegen, actual native build and twelve recorded header
 transition pixel checks passed. Root viewed two selected before/return frames
 with one fixed header and preserved clock overlap. Physical cold-power startup
 and health evidence is recorded separately in validation.md.
+
+## Bounded JPEG preparation under preview pressure
+
+A synchronous Home window preparation carries one local recovery budget through
+its slot encode/restore helpers. Only a real JPEG `ESP_ERR_NO_MEM` can consume
+that budget. Eligible idle application JPEG previews may then be released, and
+the same source is encoded once more only if reclamation actually freed bytes.
+Home backing, active close sources and current worker readers remain protected.
+Any active navigation application refuses this preview reclamation entirely.
+
+The context is local to the public synchronous preparation call; background
+refreshes and compression/prefetch workers receive no reclamation authority.
+Failure preserves the previous encoded entry and generation. A successful
+replacement advances its generation once. This JPEG recovery budget is separate
+from the existing single retry for reserving the complete three-slot raw window.
 
 ## Extension boundary
 
