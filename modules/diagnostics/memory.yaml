@@ -6,6 +6,11 @@ esphome:
     - <esp_psram.h>
     - <sdkconfig.h>
 
+preferences:
+  # Correlate completed flash work with the display's IRQ tick diagnostics.
+  # Reports timing and aggregate counts only, after the normal sync returns.
+  sync_diagnostics: true
+
 task_runtime_profiler:
   id: runtime_profiler
 
