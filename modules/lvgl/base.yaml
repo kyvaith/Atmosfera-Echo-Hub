@@ -355,6 +355,25 @@ lvgl:
               // quiesced the direct renderers. It is kept alive for the whole
               // Settings session and returned on close.
               id(immich_photo_image).release(true, true);
+              // Keep the current Home source for both app transitions, but
+              // give its idle neighbours back before the contiguous loan.
+              if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
+              lv_obj_t *home_pages[] = {id(controls_root_1), id(controls_root_2),
+                                        id(controls_root_3), id(controls_root_4)};
+              const bool trim_drained = lvgl_esphome_direct_regions_pause(true, 150);
+              const bool trimmed = trim_drained && lvgl_esphome_snapshot_trim_tile_window(
+                  home_pages[std::clamp(id(ui_home_page), 1, 4) - 1]);
+              // Balance this extra barrier even when its drain timed out.
+              // The existing application preparation pause stays held.
+              lvgl_esphome_direct_regions_pause(false, 0);
+              if (trimmed) {
+                id(ui_tile_snapshots_ready) = false;
+                id(ui_tile_snapshot_prepared_page) = 0;
+                id(ui_tile_snapshot_cached_first) = 0;
+                id(ui_tile_snapshot_cached_last) = 0;
+              }
+              ESP_LOGI("ui.memory", "Settings Home trim=%s drained=%s retained_page=%d",
+                       YESNO(trimmed), YESNO(trim_drained), id(ui_home_page));
               const size_t settings_snapshot_capacity =
                   lvgl_esphome_snapshot_scroll_required_bytes(id(settings_root));
               const bool pool_ready = id(immich_photo_image).reserve_decode_buffer_capacity(
@@ -465,6 +484,10 @@ lvgl:
                 lambda: 'return id(ui_accent_home_refresh_pending);'
               then:
                 - script.execute: ui_refresh_accent_snapshots
+              else:
+                # The scroll and Gallery loan have both been released above.
+                # Defer the product window metadata refresh past this close.
+                - script.execute: ui_refresh_tile_snapshots
       - id: voice_application
         page: controls_page
         widget: voice_assistant_overlay
