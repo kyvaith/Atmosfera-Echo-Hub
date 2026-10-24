@@ -69,6 +69,8 @@ lvgl:
                         # lifecycle but use the native anti-aliased primitive
                         # renderer for smooth native-resolution frames.
                         fast_radial: true
+                        # Keep CPU-bound weather rasterizers fair to the UI loop.
+                        task_priority: 1
                         fast_radial_fill_color: ${home_accent_color}
                         fast_radial_outline_color: ${home_outline_color}
                         loop: true
@@ -78,6 +80,7 @@ lvgl:
                         hidden: true
                     - lottie:
                         id: weather_clear_night
+                        task_priority: 1
                         opaque_background: ${home_background_color}
                         file: "assets/animations/weather/clear-night.json"
                         color_slot: atmosfera-accent
@@ -94,6 +97,7 @@ lvgl:
                         hidden: true
                     - lottie:
                         id: weather_partly_cloudy_day
+                        task_priority: 1
                         opaque_background: ${home_background_color}
                         file: "assets/animations/weather/partly-cloudy-day.json"
                         color_slot: atmosfera-accent
@@ -110,6 +114,7 @@ lvgl:
                         hidden: true
                     - lottie:
                         id: weather_partly_cloudy_night
+                        task_priority: 1
                         opaque_background: ${home_background_color}
                         file: "assets/animations/weather/partly-cloudy-night.json"
                         color_slot: atmosfera-accent
@@ -126,6 +131,7 @@ lvgl:
                         hidden: true
                     - lottie:
                         id: weather_overcast
+                        task_priority: 1
                         opaque_background: ${home_background_color}
                         file: "assets/animations/weather/overcast.json"
                         color_slot: atmosfera-accent
@@ -142,6 +148,7 @@ lvgl:
                         hidden: true
                     - lottie:
                         id: weather_rain
+                        task_priority: 1
                         opaque_background: ${home_background_color}
                         file: "assets/animations/weather/rain.json"
                         color_slot: atmosfera-accent
@@ -158,6 +165,7 @@ lvgl:
                         hidden: true
                     - lottie:
                         id: weather_snow
+                        task_priority: 1
                         opaque_background: ${home_background_color}
                         file: "assets/animations/weather/snow.json"
                         color_slot: atmosfera-accent
@@ -174,6 +182,7 @@ lvgl:
                         hidden: true
                     - lottie:
                         id: weather_thunderstorms
+                        task_priority: 1
                         opaque_background: ${home_background_color}
                         file: "assets/animations/weather/thunderstorms.json"
                         color_slot: atmosfera-accent
@@ -190,6 +199,7 @@ lvgl:
                         hidden: true
                     - lottie:
                         id: weather_fog
+                        task_priority: 1
                         opaque_background: ${home_background_color}
                         file: "assets/animations/weather/fog.json"
                         x: ${home_weather_lottie_x}

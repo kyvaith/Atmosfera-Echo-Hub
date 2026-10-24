@@ -52,6 +52,9 @@ network_camera:
   max_width: 1920
   max_height: 1080
   release_buffer_on_stop: true
+  # The stream worker acquires input buffers on open and releases them only
+  # after its blocking read/decoder has returned and HTTP/parser are closed.
+  release_input_buffers_on_stop: true
   # ESPHome's loopTask runs on CPU1 on the dual-core P4. Keep blocking HTTP
   # reads and hardware JPEG submission on CPU0 so a stalled stream cannot
   # starve the UI/API loop.

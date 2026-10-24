@@ -377,8 +377,35 @@ The mixer has two sources:
 - `assistant_mixing_input`, with a 1000 ms source buffer.
 
 SendSpin requests lossless mono PCM at 48 kHz. This avoids decoding stereo FLAC
-on the P4 only to downmix it later. The SendSpin source owns a bounded 600,000
-byte PSRAM buffer and an adjustable initial synchronization delay.
+on the P4 only to downmix it later. Its audio receive quota remains 600,000
+bytes and its initial synchronization delay remains adjustable. Sendspin 0.9.3
+stores audio, artwork, and protocol messages in one ordered receive ring, so
+the quota is no longer the size of its complete allocation.
+
+The product opts into `sendspin.optimize_memory` in the companion fork. For
+PCM-only formats, the receive budget uses the lowest configured PCM payload
+rate; compressed codecs retain the library's conservative rate. At 48 kHz mono
+16-bit, the unchanged audio quota can hold at most seven whole seconds, rather
+than the 52 seconds assumed for compressed audio. Keeping the artwork quota,
+maximum message sizes, time-sync allowance, and original advertised audio
+capacity gives a 1,006,864-byte ring instead of 1,331,472 bytes. The reusable
+option defaults off and accepts only the reviewed native 0.9.3 dependency.
+
+The same opt-in gives each artwork transfer one assembly buffer sized to its
+announced encoded payload, up to the unchanged 262,144-byte cap. The artwork
+thread owns it while assembling or waiting behind an acknowledgement gate. It
+releases it after the synchronous decode callback returns, or when the pending
+image is discarded. The later display deadline retains only a timestamp and
+epoch. Allocation failure drops the new image and leaves the current cover
+valid; it does not change the audio quota or disconnect the transport. This
+removes the library's additional permanent 262,144-byte encoded assembly while
+retaining the product's separate latest-cover cache.
+
+Protocol, HTTP, and artwork worker stacks keep their original sizes and move
+15,872 bytes from internal memory to PSRAM through the existing hub option.
+The timing-sensitive media sync task remains in internal memory with its
+unchanged 6,192-byte stack. The physical TDM, mixer, AFE, resampler and realtime
+voice buffers retain their existing owners and capacities.
 
 Announcements and assistant audio use the assistant source and duck media by
 20 dB. Media is unducked only after:

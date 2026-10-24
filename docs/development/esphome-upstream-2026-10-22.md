@@ -569,3 +569,11 @@ Raw local evidence for this work is under
 `C:/aeh-build/upstream-sync-20261022` and
 `D:/aeh-build/upstream-sync-20261022`; the untouched R25 build remains under
 `C:/aeh-build/atmosfera-echo-hub-productization-idf555-late-hs`.
+
+## Subsequent local runtime recovery
+
+The checkpoint and limitations above remain historical evidence for this
+integration. The [LVGL and memory follow-up](lvgl-memory-recovery-2026-10-22.md)
+isolates weather-worker preemption and excess idle buffer reservations,
+preserves official history and protocol capacities, and records the new exact
+firmware, measurements and device validation separately.

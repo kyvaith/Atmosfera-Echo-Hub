@@ -234,6 +234,23 @@ upstreamable components. The product enables validated options explicitly.
 
 **Why:** Hardware, formats, alignment, and cache behavior differ across boards.
 
+### ADR-M05: Encoded transfer storage follows its owner
+
+**Decision:** Enable the default-off Sendspin memory policy and Camera input
+release policy in the product. Derive PCM receive overhead from the configured
+formats without reducing the audio quota or advertised item capacity. Keep an
+encoded artwork assembly only while its transfer, acknowledgement gate or
+synchronous decode callback owns it. Keep Camera input buffers only while the
+stream worker can use them, and release after disconnect and parser reset.
+
+**Why:** Component-lifetime reservations consumed idle PSRAM even when no image
+was being received. The new policies preserve active capacity and image quality.
+Camera stop remains a signal; the main loop never frees a worker's input.
+Sendspin's main-thread acknowledgement changes the gate, not assembly storage.
+
+**Constraint:** Allocation failure rejects or retries the new transfer while
+retaining the displayed image. It must not steal a live buffer or lower quality.
+
 ## Restart and coprocessor lifecycle
 
 ### ADR-R01: Explicit reset callback at orderly shutdown

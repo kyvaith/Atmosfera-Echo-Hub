@@ -6,7 +6,11 @@ R25 checkpoint targets ESPHome `2026.8.0-dev`, ESP-IDF `5.5.5`, an ESP32-P4,
 and an 800x800 RGB888 MIPI DSI panel. The
 [2026-10-22 upstream integration](../development/esphome-upstream-2026-10-22.md)
 moves the same ownership architecture to ESPHome `2026.11.0-dev` and ESP-IDF
-`5.5.6`; its current validation state is recorded separately.
+`5.5.6`; its validation state is recorded separately. The subsequent local
+[LVGL and memory recovery](../development/lvgl-memory-recovery-2026-10-22.md)
+records the runtime fixes, exact image and device evidence. The validated
+checkpoint is published as described in the
+[2026-10-24 publication record](../development/publication-2026-10-24.md).
 
 Read this document first, then continue with:
 
@@ -174,7 +178,8 @@ the underlying UI.
 
 When documentation and code differ, use the following precedence:
 
-1. The currently flashed and hardware-validated integration commit.
+1. The currently flashed, hardware-validated source state and its exact image
+   evidence, including a source manifest for uncommitted integration changes.
 2. Reusable component source and its schema.
 3. Product YAML.
 4. This architecture guide.

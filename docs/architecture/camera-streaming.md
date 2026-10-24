@@ -164,11 +164,13 @@ another camera allocation:
 
 | Buffer | Product limit | Owner | Lifetime |
 | --- | ---: | --- | --- |
-| Encoded JPEG input | 768 KiB | `network_camera` worker | Component lifetime |
+| Encoded JPEG input | 768,000 bytes (750 KiB) | `network_camera` worker | Active stream with input-release option |
+| HTTP read buffer | 8 KiB | `network_camera` worker | Same as encoded input |
 | Decoded RGB888 fallback | source dimensions x 3 | `network_camera` | Active stream, only when direct output is unsupported |
 | Direct RGB888 output | display frame size | DSI driver lease | One frame decode/present operation |
 
-The HTTP read buffer is internal RAM. When JPEG geometry, stride, color depth,
+Both input buffers prefer PSRAM and fall back to general byte-addressable RAM.
+When JPEG geometry, stride, color depth,
 and order match the display, `network_camera` offers the complete encoded frame
 to `lvgl_image_presenter`. The presenter leases an idle DSI frame and the
 ESP32-P4 JPEG peripheral writes RGB888 directly into it. There is no decoded
@@ -183,15 +185,34 @@ the component generic without charging native 800x800 streams for an
 unnecessary 1.92 MiB copy per frame.
 
 `release_buffer_on_stop: true` releases the decoded RGB888 allocation when the
-Camera application closes. The encoded buffer remains allocated to avoid PSRAM
-fragmentation on every reconnect.
+Camera application closes. The separate `release_input_buffers_on_stop` option
+defaults to false upstream, preserving component-lifetime encoded/read input
+reservation and setup-time allocation failures. Atmosfera enables it: setup no
+longer reserves idle input storage, and the stream task acquires the unchanged
+input capacities before connecting. The worker releases both inputs only after
+its read/parser/JPEG consumer has returned and HTTP is disconnected and the
+parser reset. The main-thread stop action only signals the worker. Reconnects
+while the stream remains requested reuse the inputs; a failed input allocation
+rolls back the partial allocation, warns, and retries at the configured interval
+without permanently failing the component. Memory diagnostics read an atomic
+live input footprint rather than racing the worker's pointer mutation.
 
-The normal native 800x800 path therefore reports about 750 KiB both while
-streaming and after close: that is the bounded encoded JPEG input allocation,
-not a leaked display bitmap. After close, `has_frame` must be false and no
+The normal native 800x800 path now accounts for 758 KiB while streaming, including
+the previously unreported 8 KiB read buffer. Both inputs return to zero after
+the worker completes stop; this saves 776,192 idle bytes without reducing active
+JPEG capacity or image quality. With the upstream default disabled, those input
+bytes remain reserved after close. After close, `has_frame` must be false and no
 component-owned 1.92 MiB RGB888 frame may remain. A non-native source can
 temporarily add its reusable decoded fallback; that allocation must disappear
 on stop.
+
+The asynchronous presenter owns a separate bounded encoded-frame slot. It
+copies admitted input before the camera callback returns, so later input
+release cannot invalidate an in-flight hardware decode. Its reusable capacity
+is reported as `queue_memory`, separately from camera `source_memory`, and may
+remain after close. The 2026-10-22 repeated-stream check measured 134 KiB after
+warming this slot, with no further growth. Zero camera input bytes therefore
+does not mean every presenter allocation is zero.
 
 ## Scheduling and presentation
 

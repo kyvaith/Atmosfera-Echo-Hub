@@ -27,6 +27,7 @@ lvgl:
   draw_rounding: 32
   direct_mode: true
   full_refresh: true
+  direct_region_full_refresh_barrier: true
   byte_order: little_endian
   bg_color: 0x000000
   fps_benchmark: true

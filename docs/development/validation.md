@@ -868,7 +868,7 @@ All local frozen evidence is under `C:\aeh-build\stability-20261021`.
 
 ### 2026-10-22 official ESPHome integration
 
-The current automated checkpoint uses ESPHome `2026.11.0-dev`, ESP-IDF `5.5.6`
+The upstream-integration automated checkpoint uses ESPHome `2026.11.0-dev`, ESP-IDF `5.5.6`
 and candidate18, marker `2026-10-22 14:08:01 +0200`. Its exact source, ELF/OTA
 hashes, normal-merge history, component checks, 12-case device matrix, reviewed
 screenshots, supplemental ownership/media tests, paired R25 measurements and
@@ -882,3 +882,23 @@ successful acoustic conversation. Lower memory headroom and the unexplained
 increase in accumulated LVGL-handler wall time remain explicit limitations.
 Rejected earlier images and the unknown initiating causes of their historical
 watchdog/DSI events remain preserved rather than cleared by later tests.
+
+### 2026-10-22 local LVGL and memory recovery
+
+The subsequent recovery uses the same ESPHome/ESP-IDF integration.
+Normal11, marker `2026-10-22 20:32:14 +0200`, completes the bounded regression
+suite: 55 boot captures, 12-case/33-image matrix, natural Gallery hold, Camera and
+Settings lifecycle checks, local audio/Voice startup, five software restarts,
+weather measurements, 18 Home returns and a final health check. Its exact image,
+reviewed screenshots, measured memory recovery and residual performance
+differences are recorded in the report below. This is scoped automated hardware
+validation, not an unrestricted release or physical-power/audio-provider pass.
+Final4, candidate5 and final9 remain rejected checkpoints;
+diagnostic6 through diagnostic8 are observation images, and diagnostic10 retains
+a failed Gallery matrix with incident-correlated heap critical-section timing.
+Those earlier images are not accepted production firmware. The
+[recovery report](lvgl-memory-recovery-2026-10-22.md) records exact
+source/image identities, improved weather timing and memory, the later hardware
+failures, and the current acceptance status. Read its explicit coverage limits,
+including unavailable physical power cycles, real Sendspin playback and
+provider/acoustic dialogue, separately from completed automated checks.

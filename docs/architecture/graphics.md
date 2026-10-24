@@ -271,6 +271,24 @@ write into the active scanout buffer. The warning
 `DIRECT frame boundary timed out` must be treated as a display ownership
 failure, not hidden by copying earlier.
 
+The default-off `direct_region_full_refresh_barrier` option additionally keeps
+the existing regional SRM mutex during a native refresh that contains an actual
+full-display invalidation. Atmosfera enables it. `full_refresh: true` alone is
+not the test: the configured DIRECT path still uses its pending dirty areas.
+The component checks those areas at `REFR_START` and again before releasing
+the mutex at `RENDER_START`, because layout can promote a refresh to full-screen.
+For that refresh, it retains the target reservation and SRM exclusion until
+`REFR_READY`; the display-delete path performs the same cleanup. Partial
+refreshes retain the existing concurrency with regional presentation.
+
+This adds no task, frame buffer or CPU copy. It serializes the existing regional
+PPA work against full native drawing on other buffers to limit simultaneous
+memory traffic. The bounded `full_barrier` performance counter records uses of
+the barrier; it does not clear or replace DSI error counters. The
+[2026-10-22 recovery report](../development/lvgl-memory-recovery-2026-10-22.md)
+separately retains the preceding image's real underrun, this mitigation's
+hardware checks and the remaining limits on causal attribution.
+
 ### Strict recovery of a halted DSI descriptor ring
 
 The ESP32-P4 DSI scanout uses DW-GDMA with two cyclic descriptors, one for each

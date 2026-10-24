@@ -254,6 +254,13 @@ Priority expresses deadline sensitivity:
 Visual animation frames may be coalesced or dropped. Audio frames, DSI
 ownership transitions, and cache barriers may not.
 
+The nine CPU-bound weather rasterizers use Lottie's explicit `task_priority: 1`
+so they cannot monopolize the UI core above the ESPHome loop. Other Lottie
+widgets retain their default priority 2. This changes scheduling, not buffer
+ownership, task affinity, frame phase, or image quality. The optional
+`lvgl.handler_diagnostics` counters separate global-lock waiting from handler
+body wall time; they do not reinterpret either as FreeRTOS CPU consumption.
+
 Do not increase a visual worker priority to make an animation look smoother
 without measuring audio, WiFi, and DSI effects. A lower reported CPU
 percentage does not imply unused capacity if the workload is blocked on PSRAM,
@@ -288,13 +295,14 @@ not add another raw slot; it adds compressed backing and cache work.
 | Player decoded RGB565 artwork | 1,280,000 bytes at 800x800 | Retained across Player closes and reused by the next open |
 | Gallery decoded destination / Settings raw snapshot | About 3 MiB for the current Gallery source; 2,297,600 RGB565 pixel bytes for Settings | Allocated on entry and released on close; Settings accepts an external loan or uses bounded row segments if a contiguous block is unavailable |
 | Gallery encoded JPEG buffer | 786,432 bytes configured | Gallery app/download lifetime |
-| Camera encoded JPEG buffer | 786,432 bytes configured | Component lifetime |
+| Camera encoded JPEG and HTTP read buffers | 768,000 + 8,192 bytes configured | Stream lifetime with the product's `release_input_buffers_on_stop`; the worker releases them only after HTTP, parsing and synchronous frame consumption have returned |
 | Camera decoded RGB888 frame | Source dimensions x 3; 1,920,000 bytes at 800x800 | Camera app lifetime |
 | Boot Lottie raster frame cache | About 11 MiB for current asset | Boot animation only; released before normal UI |
 | Wavy progress ARGB buffers | About 714 KiB for three 244x244 buffers | Player direct widget lifetime |
 | Wavy progress RGB565 backdrops | About 349 KiB for three 244x244 crops | Player direct widget lifetime; active/in-flight/next ownership |
 | Realtime voice playback and uplink rings | Bounded PSRAM buffers | Component lifetime |
-| Sendspin receive ring and artwork assembly | 1,331,472 + 262,144 bytes with the current configuration and Sendspin 0.9.3 | Component lifetime; shared audio/artwork/JSON/time receive budgets plus bounded artwork assembly |
+| Sendspin receive ring | 1,006,864 bytes with the current PCM configuration and `optimize_memory` | Component lifetime; preserves the 600,000-byte audio quota, advertised item capacity and artwork/JSON/time receive budgets |
+| Sendspin artwork assembly | Up to 262,144 bytes per configured slot | Allocated for an announced transfer; retained while READY waits for acknowledgement, then released after the synchronous decode callback or discard |
 
 Sizes are architectural budgets, not a complete heap report. ESP-IDF, WiFi,
 LVGL objects, fonts, image descriptors, stacks, queues, and codec libraries
@@ -321,9 +329,18 @@ produce allocation failures even when total free PSRAM appears sufficient.
 
 ### 2026-10-22 fragmentation handling
 
-Official Sendspin 0.9.3 adds 993,616 bytes (970.33 KiB) of persistent receive and
-artwork storage relative to R25. This is a bounded protocol cost, not evidence
-of a leak. Its lower contiguous headroom exposed two assumptions in the older
+The initial integration of official Sendspin 0.9.3 added 993,616 bytes
+(970.33 KiB) of persistent receive and artwork storage relative to R25. This
+was a bounded allocation increase, not evidence of a leak. The subsequent
+PCM-aware receive budget and transfer-lifetime artwork allocation recover
+586,752 idle bytes while preserving the negotiated capacities. Moving the
+unchanged HTTP/protocol/artwork stacks into PSRAM adds 15,872 bytes there and
+returns the same amount to internal RAM; the audio sync stack stays internal.
+Camera's stream-lifetime inputs recover another 776,192 idle bytes. These are
+source allocation deltas; actual free/largest-block measurements also depend
+on retained snapshots and runtime state.
+
+The initial lower contiguous headroom exposed two assumptions in the older
 snapshot code during actual Gallery/Camera/theme testing: two Settings halves
 still needed approximately 1.15 MB each, and JPEG scratch always requested its
 full configured upper budget.
@@ -630,7 +647,22 @@ Every memory report should include:
 
 Free bytes alone are insufficient. A 1.92 MiB image allocation fails when the
 largest contiguous block is smaller even if the sum of free fragments is
-larger.
+larger. The [ESP-IDF allocation API](https://docs.espressif.com/projects/esp-idf/en/release-v5.5/esp32p4/api-reference/system/mem_alloc.html)
+documents this distinction between aggregate free bytes and the largest
+allocatable block.
+
+Largest-block reports are not cheap counters. ESP-IDF obtains them through a
+heap traversal under a critical-section lock; the 2026-10-22 investigation
+records an8.520ms exclusion immediately before a DSI descriptor failure, against
+the measured8.372ms half-frame period. Treat collecting these statistics as part
+of the measured workload. Do not compute them for a log message that cannot be
+emitted: artwork state diagnostics are compiled only with DEBUG support. LVGL's
+internal-placement heuristic checks size and aggregate free bytes before asking
+for the largest block; its alignment, headroom and fallback policy remain intact.
+The additional aggregate-free observation is advisory under concurrent heap
+changes and can conservatively select PSRAM. Detailed incident limits and
+hardware comparison belong to the
+[recovery report](../development/lvgl-memory-recovery-2026-10-22.md).
 
 The optional ESP32 `preferences.sync_diagnostics` setting defaults to false.
 When enabled, it records one INFO line after a nonempty sync finishes: begin/end

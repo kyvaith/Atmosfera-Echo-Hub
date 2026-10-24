@@ -18,7 +18,12 @@ switch:
 
 sendspin:
   id: sendspin_hub
-  task_stack_in_psram: false
+  # Protocol, HTTP and artwork workers retain their full stack sizes in PSRAM.
+  # The timing-critical media sync task below stays in internal RAM.
+  task_stack_in_psram: true
+  # Keep the complete audio quota and image limits; avoid compressed-codec
+  # receive overhead for our PCM-only role and idle encoded artwork assemblies.
+  optimize_memory: true
 
 esp_afe:
   id: afe_processor
