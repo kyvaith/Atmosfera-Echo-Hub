@@ -278,6 +278,8 @@ font:
       - "\U0000e5d4" # more_vert
       - "\U0000e3f4" # photo_library
       - "\U0000e04b" # videocam
+      - "\U0000e8b6" # settings language
+      - "\U0000e3b7" # settings accent colour
 
   - file: "gfonts://Material+Symbols+Rounded"
     id: material_symbols_30
@@ -347,6 +349,7 @@ font:
       - "\U0000e5cd" # close
       - "\U0000e9e0" # shield
       - "\U0000f168" # mode_fan
+      - "\U0000e8b5" # schedule
 
   - file: "gfonts://Material+Symbols+Rounded"
     id: material_symbols_44
@@ -385,6 +388,7 @@ font:
       - "\U0000e5cd" # close
       - "\U0000e9e0" # shield
       - "\U0000f168" # mode_fan
+      - "\U0000e8b5" # schedule
 
   - file: "gfonts://Material+Symbols+Rounded"
     id: material_symbols_58
@@ -445,6 +449,9 @@ font:
       - "\U0000e5d5" # doorbell
       - "\U0000e65f" # auto_awesome
       - "\U0000e8ac" # power_settings_new
+      - "\U0000f1b4" # sensor_window
+      - "\U0000f0d3" # person
+      - "\U0000e8b5" # schedule
 
   - file: "gfonts://Material+Symbols+Rounded"
     id: material_symbols_86

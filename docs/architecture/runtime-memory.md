@@ -293,7 +293,7 @@ not add another raw slot; it adds compressed backing and cache work.
 | --- | ---: | --- |
 | Shared application RGB888 work buffer | 1,920,000 bytes | Decode/open/close work; reused across apps |
 | Player decoded RGB565 artwork | 1,280,000 bytes at 800x800 | Retained across Player closes and reused by the next open |
-| Gallery decoded destination / Settings raw snapshot | About 3 MiB for the current Gallery source; 2,297,600 RGB565 pixel bytes for Settings | Allocated on entry and released on close; Settings accepts an external loan or uses bounded row segments if a contiguous block is unavailable |
+| Gallery decoded destination / Settings raw snapshot | About 3 MiB for the current Gallery source; 3,657,600 RGB888 pixel bytes for the current 800x1524 Settings list (native30) | Allocated on entry and released on close; Settings accepts a correctly sized external loan or uses bounded row segments if a contiguous block is unavailable |
 | Gallery encoded JPEG buffer | 786,432 bytes configured | Gallery app/download lifetime |
 | Camera encoded JPEG and HTTP read buffers | 768,000 + 8,192 bytes configured | Stream lifetime with the product's `release_input_buffers_on_stop`; the worker releases them only after HTTP, parsing and synchronous frame consumption have returned |
 | Camera decoded RGB888 frame | Source dimensions x 3; 1,920,000 bytes at 800x800 | Camera app lifetime |
@@ -318,7 +318,7 @@ The same large features must not all peak simultaneously.
 | Boot cache preparation | DSI buffers, Lottie final frame, Home slots, JPEG encoder work |
 | Home idle | DSI buffers, Home slots, compressed app/Home backing, selected weather canvas; no idle application arena reservation |
 | Music playback | Home/DSI buffers, current artwork, direct media buffers, SendSpin/audio rings |
-| Settings | Home/DSI buffers, an optional shared loan or bounded RGB565 scroll segments; app preview work released after handoff |
+| Settings | Home/DSI buffers, an optional shared loan or bounded scroll segments (RGB888 selected by this product; RGB565 remains the component default); app preview work released after handoff |
 | Voice session | Home/DSI buffers, voice rings, AFE buffers, Assistant UI direct regions |
 | Gallery | Home/DSI buffers, shared arena used as the full-resolution RGB565 photo destination, encoded download/prefetch buffer, transition scratch when needed |
 | Camera | Home/DSI buffers, encoded MJPEG input, one current decoded frame; no frame queue |
@@ -553,11 +553,21 @@ The Immich path uses hardware JPEG and one boot-reserved decoded allocation:
 Settings never allocates a competing display-sized bitmap. Before opening it
 releases Gallery's active decoded generation into the spare pool, loans the
 smallest spare large enough for the measured Settings content, and gives that
-pointer to `snapshot_scroll`. The controller captures directly into the loaned
-RGB888 memory and marks it externally owned. On close it drains scrolling,
-detaches the pointer, and returns it to `artwork_image`. A fallback allocation
-is permitted only when no suitable external buffer was supplied; the product
-configuration treats that fallback as a diagnostic failure.
+pointer to `snapshot_scroll`. Calculate that size through the controller's
+`get_required_bytes()`, which includes its configured format even on first
+entry. The controller captures directly into the loaned RGB888 memory and
+marks it externally owned. On close it drains scrolling, detaches the pointer,
+returns it to `artwork_image`, and the product releases unused decode capacity.
+If no contiguous loan is available, bounded row segments are the supported
+fallback within the same byte cap; native30 validated 14 such pieces after
+media applications. Do not retain an undersized loan beside another raw list.
+
+RGB888 Settings adds 1,219,200 payload bytes while this current list is open.
+In matched native26/native30 tests the free heap after close remained about
+4,902 KiB. Gallery/Camera can separately grow their existing compressed app
+previews, so compare the same warmed application state rather than attributing
+all later heap differences to the scroll buffer. The final campaign and its
+original images are in the [30 October report](../development/touchdeck-performance-2026-10-30.md).
 
 The current pan-only configuration uses `zoom_start = zoom_end = 1.0`, a
 roughly 34 ms frame interval, and a movement duration derived from the user

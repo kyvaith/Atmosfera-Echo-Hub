@@ -15,19 +15,38 @@ from homeassistant.helpers.typing import ConfigType
 from .const import (
     ATTR_NODE_NAME,
     ATTR_SLOT,
+    ATTR_CARD_ID,
+    ATTR_REVISION,
     ATTR_SOURCE,
+    ATTR_PAYLOAD,
     CONF_CAMERAS,
     CONF_DEVICE_ID,
     DOMAIN,
     PLATFORMS,
     SERVICE_REPORT_CAMERA_SOURCE,
     SERVICE_REPORT_TILE_PRESS,
+    SERVICE_REPORT_TILE_CONTEXT_PRESS,
+    SERVICE_REPORT_LIGHT_CONTROL,
+    SERVICE_REPORT_ENTITY_CONTROL,
 )
 from .camera_proxy import AtmosferaCameraStreamView
 from .controller import CameraBridge
 from .panel import async_setup_panel
+from .layout import LayoutError, MAX_REVISION, SLOT_COUNT, parse_report_integer
+from .light_control import ProtocolError, decode as decode_light_control
+from .light_control_transport import async_route_report, async_route_entity_report
+from .entity_control_codec import decode as decode_entity_control
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _report_number(minimum: int, maximum: int, name: str):
+    def validate(value):
+        try:
+            return parse_report_integer(value, minimum, maximum, name)
+        except LayoutError as err:
+            raise vol.Invalid(str(err)) from err
+    return validate
 
 CONFIG_SCHEMA = vol.Schema(
     {
@@ -78,7 +97,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         for entry in hass.config_entries.async_loaded_entries(DOMAIN):
             bridge: CameraBridge = entry.runtime_data
             if bridge.node_name == node_name:
-                await bridge.async_press_tile(slot)
+                await bridge.async_press_tile(slot, context=call.context)
                 return
         _LOGGER.debug("Ignored tile press from unknown node %s", node_name)
 
@@ -89,9 +108,76 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         schema=vol.Schema(
             {
                 vol.Required(ATTR_NODE_NAME): cv.string,
-                vol.Required(ATTR_SLOT): vol.All(vol.Coerce(int), vol.Range(min=0, max=10)),
+                vol.Required(ATTR_SLOT): vol.All(vol.Coerce(int), vol.Range(min=0, max=SLOT_COUNT - 1)),
             }
         ),
+    )
+    async def async_report_tile_context_press(call: ServiceCall) -> None:
+        for entry in hass.config_entries.async_loaded_entries(DOMAIN):
+            bridge: CameraBridge = entry.runtime_data
+            if bridge.node_name == call.data[ATTR_NODE_NAME]:
+                await bridge.async_press_tile(
+                    call.data[ATTR_SLOT], card_id=call.data[ATTR_CARD_ID],
+                    revision=call.data[ATTR_REVISION], context=call.context,
+                )
+                return
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_REPORT_TILE_CONTEXT_PRESS, async_report_tile_context_press,
+        schema=vol.Schema({
+            vol.Required(ATTR_NODE_NAME): cv.string,
+            vol.Required(ATTR_SLOT): _report_number(0, SLOT_COUNT - 1, ATTR_SLOT),
+            vol.Required(ATTR_CARD_ID): vol.All(cv.string, vol.Match(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")),
+            vol.Required(ATTR_REVISION): _report_number(0, MAX_REVISION, ATTR_REVISION),
+        }),
+    )
+    def light_payload(value):
+        if not isinstance(value, str):
+            raise vol.Invalid("Expected bounded JSON text")
+        try:
+            message = decode_light_control(value)
+            if message["kind"] not in {"open", "command", "close", "cancel_open"}:
+                raise ProtocolError("direction")
+        except ProtocolError as err:
+            raise vol.Invalid(str(err)) from err
+        return value
+
+    async def async_report_light_control(call: ServiceCall) -> None:
+        try:
+            await async_route_report(hass, call.data[ATTR_NODE_NAME], call.data[ATTR_PAYLOAD], call.context)
+        except ProtocolError:
+            _LOGGER.debug("Rejected light control report")
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_REPORT_LIGHT_CONTROL, async_report_light_control,
+        schema=vol.Schema({
+            vol.Required(ATTR_NODE_NAME): vol.All(cv.string, vol.Length(min=1, max=128)),
+            vol.Required(ATTR_PAYLOAD): light_payload,
+        }, extra=vol.PREVENT_EXTRA),
+    )
+    def entity_payload(value):
+        if not isinstance(value, str):
+            raise vol.Invalid("Expected bounded JSON text")
+        try:
+            message = decode_entity_control(value)
+            if message["kind"] not in {"open", "command", "close", "cancel_open"}:
+                raise ProtocolError("direction")
+        except ProtocolError as error:
+            raise vol.Invalid(str(error)) from error
+        return value
+
+    async def async_report_entity_control(call: ServiceCall) -> None:
+        try:
+            await async_route_entity_report(hass, call.data[ATTR_NODE_NAME], call.data[ATTR_PAYLOAD], call.context)
+        except ProtocolError:
+            _LOGGER.debug("Rejected entity control report")
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_REPORT_ENTITY_CONTROL, async_report_entity_control,
+        schema=vol.Schema({
+            vol.Required(ATTR_NODE_NAME): vol.All(cv.string, vol.Length(min=1, max=128)),
+            vol.Required(ATTR_PAYLOAD): entity_payload,
+        }, extra=vol.PREVENT_EXTRA),
     )
     if DOMAIN in config:
         hass.async_create_task(
@@ -115,7 +201,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Reload after the selected camera list changes."""
+    """Apply card changes without restarting camera transport or its listeners."""
+    bridge: CameraBridge | None = entry.runtime_data
+    if bridge is not None and bridge.async_apply_tile_options():
+        return
     await hass.config_entries.async_reload(entry.entry_id)
 
 

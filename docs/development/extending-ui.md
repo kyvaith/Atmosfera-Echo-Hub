@@ -117,6 +117,45 @@ the controlled boot phase. New applications are included automatically after
 registration. Ensure the page can render a valid idle state without network
 data.
 
+Keep `controls_page` first in the merged `lvgl.pages` list. Product `on_boot`
+at priority600 requests Home before LVGL's `PROCESSOR` setup, which later calls
+`show_page(0)` unconditionally. A new first page can therefore replace Home at
+startup even when navigation still reports Home1. Preserve the original order
+`controls_page`, `settings_page`, `music_page`, `immich_page`, `camera_page`;
+append new application-page includes after those five (the light detail is
+currently sixth). Run `tools/tests/test_light_page_order.py` with the companion
+fork on `PYTHONPATH`: it checks the actual package merge and page registration
+with control admission both disabled and enabled. This source check does not
+replace firmware boot and visible Home validation.
+
+### Entity control detail
+
+The locally adopted W03 source registers one shared light detail as app6, with six
+compressed-preview entries and the existing single decoded work slot. Its
+[entity-control contract](../architecture/entity-control.md) requires capturing
+the granted selection generation before asynchronous opening and rechecking it
+before NAV and renderer resume after settlement. Use the bool NAV admission and
+actual Scalar drain result before scene changes; a lifecycle callback or wait
+alone is not a barrier. Slot-0 request admission is not a lifetime lease: stop,
+drain, release and fence competing presenters for the entire session, including
+delayed/HA/physical entry and close-cancel preview. The shared native control-view
+lifecycle owns matching captured-generation close-cancel recovery and calls
+Scalar rendering hooks; do not add a second YAML resume path. Scalar still owns
+its pixels, pause lease, source retirement and real drain result. Phase A keeps
+the public Scalar guard and scheduling order; its new hardware acceptance is
+tracked separately. Failed preparation
+retains its owned suppression until verified cleanup, so other mutation paths
+must also refuse while that ownership remains.
+
+Before a system notification, revoke the light selection, obtain true close/drain
+admission and wait for NAV settlement, then show the popup. Do not retain an
+active Scalar underneath it or resume the old selection on dismissal. Voice,
+sleep and theme/locale changes need the same explicit ownership handoff. This
+source has a complete preserved v12 build and verified OTA/full ELF identity;
+the first post-OTA functional Home check failed, so device acceptance remains
+open. Product admission defaults off. Source adoption or flash identity does
+not imply that the staged HA package has been activated.
+
 ## Add a snapshot-backed scroll region
 
 Use a scroll region when a large list has measured poor LVGL motion.
@@ -152,6 +191,21 @@ Requirements:
 - release all scroll buffers when the app closes.
 
 Do not leave the raw list snapshot allocated globally.
+
+The direct scroll backend additionally accepts `color_format: RGB888` as an
+explicit performance option; its default remains `RGB565`. Matching an RGB888
+display permits the existing DMA2D copy path instead of per-frame PPA color
+conversion. The same byte cap applies: calculate storage from the selected
+format, resolution, stride, and complete content height. A native-format bitmap
+uses more memory while the list is open and must be released on close.
+
+When borrowing an external buffer before the first capture, query the owning
+controller's `get_required_bytes()`. It includes that controller's configured
+format before any direct region has been activated. Do not use a previous
+region's global format or assume two bytes per pixel. The legacy C helper
+keeps RGB565 as its default and accepts an explicit format. The 30 October
+native-format hardware campaign is tracked in
+[the performance report](touchdeck-performance-2026-10-30.md).
 
 ## Invalidate a snapshot correctly
 

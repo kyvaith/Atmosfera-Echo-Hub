@@ -108,7 +108,17 @@ interval:
 
           const uint32_t timeout_ms =
               static_cast<uint32_t>(timeout_s * 1000.0f);
-          return millis() - id(display_last_interaction_ms) >= timeout_ms;
+          if (millis() - id(display_last_interaction_ms) < timeout_ms) return false;
+          id(selected_light_control).invalidate(esphome::lvgl_material::ControlReason::CONTROL_REASON_SLEEP);
+          if (id(ui_light_preparation_owned) ||
+              !id(light_control_renderer).suspend_for_snapshot(250)) return false;
+          if (id(ui_navigation).is_application_open(id(light_control_application))) {
+            // This interval retries after the admitted close has settled; it
+            // never blanks while a refused/unfinished handoff owns the base.
+            if (!id(ui_navigation).try_show_home()) return false;
+            return false;
+          }
+          return !id(ui_navigation).is_transition_active();
       then:
       - lambda: |-
           ESP_LOGW("backlight.diag",
@@ -122,6 +132,35 @@ interval:
       - light.turn_off:
           id: display_backlight
           transition_length: 0ms
+
+  # Settings-only Auto-Home reuses this inactivity tick. NAV owns the close,
+  # Settings scroll retirement and the remembered Home destination.
+  - lambda: |-
+      if (!id(boot_sequence_done) || !id(display_backlight).remote_values.is_on() ||
+          id(ui_active_app) != 2 ||
+          !id(ui_navigation).is_application_open(id(settings_application))) return;
+      const float timeout_s = id(settings_auto_home_timeout).state;
+      if (!std::isfinite(timeout_s) || timeout_s <= 0.0f || timeout_s > 300.0f) return;
+      const uint32_t now = millis();
+      const uint32_t timeout_ms = static_cast<uint32_t>(timeout_s * 1000.0f);
+      if (now - id(display_last_interaction_ms) < timeout_ms) return;
+      // The local scroll flag clears before direct inertia finishes. The
+      // snapshot owner remains active until its worker has actually retired.
+      if (id(ui_touch_active) || id(ui_manual_pressed_obj) != nullptr ||
+          id(ui_snapshot_io_busy) || id(ui_light_preparation_owned) ||
+          id(settings_scroll_snapshot).is_active() ||
+          lvgl_esphome_snapshot_is_active() || id(ui_navigation).is_transition_active() ||
+          id(global_volume_dragging) || id(global_volume_time_press_tracking) ||
+          id(ui_accent_picker_busy) || id(ui_refresh_settings_snapshot).is_running() ||
+          id(ui_apply_settings_snapshot_refresh).is_running()) return;
+      lv_obj_t *overlays[] = {id(boot_overlay), id(voice_assistant_overlay),
+          id(global_volume_overlay), id(volume_overlay), id(ui_touch_blocker),
+          id(material_notification_root), id(accent_picker_overlay), id(accent_refresh_overlay)};
+      for (auto *overlay : overlays) {
+        if (lv_obj_is_visible(overlay)) return;
+      }
+      // A refused admission has no fallback, mutation, wake or pending queue.
+      if (!id(ui_navigation).try_show_home()) return;
 
 switch:
 - platform: template
@@ -278,6 +317,23 @@ number:
   on_value:
   - script.execute: ui_update_display_timeout_state
 
+- platform: template
+  id: settings_auto_home_timeout
+  name: "Return Home from Settings"
+  update_interval: never
+  min_value: 0
+  max_value: 300
+  step: 30
+  initial_value: 0
+  optimistic: true
+  restore_value: true
+  unit_of_measurement: "s"
+  icon: "mdi:home-clock-outline"
+  entity_category: config
+  mode: box
+  on_value:
+  - script.execute: ui_update_settings_auto_home_state
+
 select:
 - platform: template
   name: "Interface Language"
@@ -291,9 +347,9 @@ select:
     - "en-US"
     - "pl-PL"
   on_value:
-  - lambda: 'id(ui_i18n).set_locale(x);'
-  - script.execute: ui_i18n_refresh
-  - script.execute: ui_update_i18n_state
+  - script.execute:
+      id: ui_set_locale_safely
+      locale: !lambda 'return x;'
 
 text:
 - platform: template

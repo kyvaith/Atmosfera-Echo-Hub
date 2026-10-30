@@ -240,8 +240,10 @@ script:
                 lv_obj_clear_flag(id(artwork_primary_overlay), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(artwork_scrim), LV_OBJ_FLAG_HIDDEN);
           lv_obj_add_flag(id(title_marquee_scrim), LV_OBJ_FLAG_HIDDEN);
-          id(media_wavy_progress).set_background_gradient(
-              id(ui_accent_dark_color), id(ui_accent_color), false);
+          if (!id(ui_light_preparation_owned) &&
+              !id(ui_navigation).is_application_open(id(light_control_application)))
+            id(media_wavy_progress).set_background_gradient(
+                id(ui_accent_dark_color), id(ui_accent_color), false);
           id(last_media_progress_percent) = 0;
           id(last_media_progress_permille) = 0;
           id(last_media_progress_basis_points) = 0;
@@ -523,6 +525,10 @@ script:
     mode: restart
     then:
       - lambda: |-
+          // HA metadata keeps updating; the hidden Player must not wake its
+          // raster/background worker during the complete light detail.
+          if (id(ui_light_preparation_owned) ||
+              id(ui_navigation).is_application_open(id(light_control_application))) return;
           int progress = id(last_media_progress_basis_points);
           if (progress < 0 && id(last_media_progress_permille) >= 0) progress = id(last_media_progress_permille) * 10;
           if (progress < 0 && id(last_media_progress_percent) >= 0) progress = id(last_media_progress_percent) * 100;
@@ -746,7 +752,7 @@ script:
       - delay: 4s
       - script.execute: media_hide_action_spinner
 
-  - id: show_volume_overlay
+  - id: show_volume_overlay_unblocked
     mode: restart
     then:
       - lambda: |-
@@ -768,7 +774,7 @@ script:
           lv_refr_now(nullptr);
       - script.execute: volume_overlay_timeout
 
-  - id: global_volume_begin_drag
+  - id: global_volume_begin_drag_unblocked
     mode: restart
     then:
       - script.stop: volume_overlay_timeout
@@ -803,7 +809,9 @@ script:
       - if:
           condition:
             lambda: |-
-              return id(global_volume_time_press_tracking) && !id(global_volume_dragging);
+              return id(global_volume_time_press_tracking) && !id(global_volume_dragging) &&
+                     !id(ui_light_preparation_owned) &&
+                     !id(ui_navigation).is_application_open(id(light_control_application));
           then:
             - script.execute: global_volume_begin_drag
 
@@ -903,7 +911,7 @@ script:
           then:
             - lvgl.widget.hide: global_volume_overlay
 
-  - id: main_volume_step
+  - id: main_volume_step_unblocked
     mode: restart
     parameters:
       direction: int
@@ -1125,8 +1133,10 @@ script:
           id(artwork_refresh_pending) = false;
           id(media_title_marquee).end(true);
           lv_obj_add_flag(id(title_marquee_scrim), LV_OBJ_FLAG_HIDDEN);
-          id(media_wavy_progress).set_background_gradient(
-              id(ui_accent_dark_color), id(ui_accent_color), false);
+          if (!id(ui_light_preparation_owned) &&
+              !id(ui_navigation).is_application_open(id(light_control_application)))
+            id(media_wavy_progress).set_background_gradient(
+                id(ui_accent_dark_color), id(ui_accent_color), false);
       - if:
           condition:
             lambda: 'return lv_obj_has_flag(id(album_art_background_widget), LV_OBJ_FLAG_HIDDEN);'
@@ -1340,6 +1350,8 @@ text_sensor:
                 condition:
                   lambda: |-
                     return id(boot_sequence_done) && id(ui_active_app) == 0 &&
+                           !id(ui_light_preparation_owned) &&
+                           !id(ui_navigation).is_application_open(id(light_control_application)) &&
                            id(media_player_play_started) &&
                            !id(camera_paused_media) &&
                            !id(voice_assistant_suppress_media_auto_open);
@@ -1534,6 +1546,8 @@ interval:
           const bool voice_visible = id(ui_active_app) == 3 ||
                                      lv_obj_is_visible(id(voice_assistant_overlay));
           const bool player_visible = id(ui_active_app) == 1 && !voice_visible &&
+                                      !id(ui_light_preparation_owned) &&
+                                      !id(ui_navigation).is_application_open(id(light_control_application)) &&
                                       id(display_backlight).remote_values.is_on();
           uint16_t blocker_mask = 0;
           if (!player_visible) blocker_mask |= 1U << 0;

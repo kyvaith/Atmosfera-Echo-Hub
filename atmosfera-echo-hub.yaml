@@ -112,6 +112,12 @@ substitutions:
   voice_assistant_default: realtime
   ui_language_default: en-US
   ui_accent_default: 'AEE2FF'
+  # Closed until the reviewed native competitor quiescence gate is composed.
+  light_control_product_admitted: 'false'
+  # Root-only diagnostic input for a settled selected light; Home stays unchanged.
+  debug_light_control_touch_admitted: 'false'
+  # Explicit cold Scalar diagnostics; only validation builds opt in.
+  light_control_performance_metrics: 'false'
 
   # Home Assistant entities used as initial values for runtime-configurable tiles
   tile_light_entity: light.living_room
@@ -146,6 +152,7 @@ packages:
   lvgl_runtime: !include modules/lvgl/base.yaml
   lvgl_fonts: !include modules/lvgl/fonts.yaml
   lvgl_material: !include modules/lvgl/material.yaml
+  lvgl_light_control: !include modules/lvgl/entity_control_number.yaml
   lvgl_theme: !include modules/lvgl/theme.yaml
   lvgl_navigation: !include modules/lvgl/navigation.yaml
   lvgl_boot_page: !include modules/lvgl/pages/boot.yaml
@@ -155,6 +162,9 @@ packages:
   lvgl_voice_assistant_overlay: !include modules/lvgl/pages/voice_assistant.yaml
   lvgl_immich_page: !include modules/lvgl/pages/immich.yaml
   lvgl_camera_page: !include modules/lvgl/pages/camera.yaml
+  # LVGL setup selects page 0 after the early boot trigger. Keep Home first
+  # and append app6 so the original five page indices remain unchanged.
+  lvgl_light_control_page: !include modules/lvgl/pages/light_control.yaml
   lvgl_global_overlay: !include modules/lvgl/pages/global_overlay.yaml
   lvgl_i18n: !include modules/lvgl/i18n.yaml
 

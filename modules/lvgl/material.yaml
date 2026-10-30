@@ -33,6 +33,15 @@ lvgl_material:
   # updated at runtime; the LVGL tree is never rebuilt while the device runs.
   tile_surfaces:
     - id: home_material_tiles
+      require_snapshot_ready: true
+      action_availability: true
+      control_press_enabled: true
+      on_control_press:
+        - lvgl_material.entity_control.open:
+            id: selected_light_control
+            slot: !lambda 'return slot;'
+            card_id: !lambda 'return std::string(card_id);'
+            revision: !lambda 'return revision;'
       tiles:
         - { slot: 0, widget: tile_light_button, icon_label: tile_light_icon, title_label: tile_light_title, subtitle_label: tile_light_subtitle, always_hidden: true }
         - { slot: 1, widget: tile_climate_button, icon_label: tile_climate_icon, title_label: tile_climate_title, subtitle_label: tile_climate_subtitle, always_hidden: true }
@@ -45,6 +54,11 @@ lvgl_material:
         - { slot: 8, widget: tile_switch_button, icon_label: tile_switch_icon, title_label: tile_switch_title, subtitle_label: tile_switch_subtitle }
         - { slot: 9, widget: tile_scene_button, icon_label: tile_scene_icon, title_label: tile_scene_title, subtitle_label: tile_scene_subtitle }
         - { slot: 10, widget: tile_trigger_button, icon_label: tile_trigger_icon, title_label: tile_action_title, subtitle_label: tile_trigger_subtitle }
+        - { slot: 11, widget: tile_door_window_button, icon_label: tile_window_icon, title_label: home_windows_title, subtitle_label: tile_window_subtitle }
+        - { slot: 12, widget: tile_presence_button, icon_label: tile_presence_icon, title_label: home_presence_title, subtitle_label: tile_presence_subtitle }
+        - { slot: 13, widget: tile_sensor_button, icon_label: tile_sensor_icon, title_label: tile_sensor_title, subtitle_label: tile_sensor_value }
+        - { slot: 14, widget: tile_clock_button, icon_label: tile_clock_icon, title_label: tile_clock_title, subtitle_label: tile_clock_value }
+        - { slot: 15, widget: tile_webhook_button, icon_label: tile_webhook_icon, title_label: tile_trigger_title, subtitle_label: home_run_title }
       on_press:
         - homeassistant.action:
             action: atmosfera_echo_hub.report_tile_press
@@ -54,6 +68,19 @@ lvgl_material:
             data_template:
               node_name: "{{ node_name }}"
               slot: "{{ tile_slot }}"
+      on_context_press:
+        - homeassistant.action:
+            action: atmosfera_echo_hub.report_tile_context_press
+            variables:
+              node_name: !lambda 'return App.get_name();'
+              tile_slot: !lambda 'return std::to_string(slot);'
+              tile_card_id: !lambda 'return std::string(card_id);'
+              tile_revision: !lambda 'return std::to_string(revision);'
+            data_template:
+              node_name: "{{ node_name }}"
+              slot: "{{ tile_slot }}"
+              card_id: "{{ tile_card_id }}"
+              revision: "{{ tile_revision }}"
 
   notification_overlays:
     - id: material_notification_overlay
@@ -103,6 +130,7 @@ lvgl_material:
         - home_weather_presenter
         - immich_slideshow
         - camera_stream_presenter
+        - light_control_renderer
 
   pressed_styles:
     - id: shared_pressed_feedback
@@ -116,6 +144,7 @@ lvgl_material:
         - settings_beta_firmware_button
         - settings_display_brightness_button
         - settings_display_timeout_button
+        - settings_auto_home_button
         - settings_voice_mute_button
         - settings_wake_sound_button
         - settings_wake_sensitivity_button

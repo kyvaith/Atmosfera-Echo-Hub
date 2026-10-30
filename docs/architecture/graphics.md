@@ -214,6 +214,13 @@ lock through buffer seeding and resume. Synchronizing realignment reports
 `full_pool_seeded` explicitly, initially false; success aligning the two LVGL
 buffers alone is not proof that the complete DSI pool is coherent.
 
+Home swipe completion uses this synchronizing handoff before discarding native
+visibility invalidations. A pointer-only `realign(false)` is insufficient:
+`direct_mode: true` still selects DIRECT when `full_refresh: true` is also
+configured, so the next clock refresh need not repaint static controls. The
+swipe retains its existing regional pause until its normal cleanup; the
+handoff must not adopt or release that caller-owned lease.
+
 After proving all three display-owned buffers were seeded, the handoff can
 commit resume under the regional PPA mutex: advance the base generation, stamp
 the verified pool with that generation, clear pause readiness, and publish

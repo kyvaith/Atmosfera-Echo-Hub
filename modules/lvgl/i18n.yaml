@@ -20,6 +20,8 @@ script:
           lv_label_set_text(id(settings_beta_firmware_label), id(ui_i18n).translate("settings.beta_firmware"));
           lv_label_set_text(id(settings_display_brightness_label), id(ui_i18n).translate("settings.display_brightness"));
           lv_label_set_text(id(settings_display_timeout_label), id(ui_i18n).translate("settings.display_timeout"));
+          lv_label_set_text(id(settings_auto_home_label), id(ui_i18n).translate("settings.auto_home"));
+          id(ui_update_settings_auto_home_state).execute();
           lv_label_set_text(id(settings_voice_mute_label), id(ui_i18n).translate("settings.voice_mute"));
           lv_label_set_text(id(settings_wake_sound_label), id(ui_i18n).translate("settings.wake_sound"));
           lv_label_set_text(id(settings_wake_sensitivity_label), id(ui_i18n).translate("settings.wake_sensitivity"));
@@ -41,8 +43,8 @@ script:
           if (id(home_weather_condition_sensor).has_state()) {
             lv_label_set_text(id(home_weather_condition), id(ui_i18n).translate_existing(id(home_weather_condition_sensor).state.c_str()));
           }
-          lv_label_set_text(id(home_windows_title), id(ui_i18n).translate("home.windows"));
-          lv_label_set_text(id(home_presence_title), id(ui_i18n).translate("home.home_occupied"));
+          // HA owns managed-card titles, including the window/presence cards.
+          // A locale refresh must not overwrite an entity's configured name.
           lv_label_set_text(id(home_cameras_title), id(ui_i18n).translate("home.cameras"));
           lv_label_set_text(id(home_player_title), id(ui_i18n).translate("home.player"));
           lv_label_set_text(id(home_photos_title), id(ui_i18n).translate("home.photos"));
@@ -62,6 +64,20 @@ script:
           lv_label_set_text(id(speaker_panel_title), id(ui_i18n).translate("player.speakers"));
           lv_label_set_text(id(group_volume_title), id(ui_i18n).translate("player.group_volume"));
           lv_label_set_text(id(volume_title_label), id(ui_i18n).translate("player.volume"));
+
+          #ifdef USE_LVGL_MATERIAL_NUMBER_STEPPER
+          if (id(selected_light_control).owner().is_number()) {
+            lv_label_set_text(id(light_control_on_label), id(ui_i18n).translate("number_control.minus"));
+            lv_label_set_text(id(light_control_off_label), id(ui_i18n).translate("number_control.plus"));
+          } else
+          #endif
+          {
+            lv_label_set_text(id(light_control_on_label), id(ui_i18n).translate("light_control.on"));
+            lv_label_set_text(id(light_control_off_label), id(ui_i18n).translate("light_control.off"));
+          }
+          if (!id(selected_light_control).owner().has_selection())
+            lv_label_set_text(id(light_control_title), id(ui_i18n).translate("light_control.title"));
+          id(selected_light_control).refresh_texts();
 
           // Keep dynamic status/metadata labels untouched. They are translated at
           // their update sites with the current state, while HA names remain raw.

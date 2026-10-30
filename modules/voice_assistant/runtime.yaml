@@ -224,19 +224,9 @@ micro_wake_word:
                                           - lambda: |-
                                               id(voice_assistant_restore_display_off) =
                                                   !id(display_backlight).remote_values.is_on();
-                                              id(voice_assistant_restore_app_id) = id(ui_active_app);
-                                              id(voice_assistant_terminal_close_pending) = false;
-                                              id(voice_assistant_stop_requested) = false;
-                                              id(voice_assistant_realtime_idle_pending) = false;
-                                          - script.execute: display_wake
-                                          - micro_wake_word.stop:
-                                          - if:
-                                              condition:
-                                                lambda: |-
-                                                  return id(ui_navigation).get_active_application() != nullptr;
-                                              then:
-                                                - lvgl.navigation.home: ui_navigation
-                                          - lvgl.navigation.open: voice_application
+                                              // A light selection is never restored after Voice.
+                                              id(voice_assistant_restore_app_id) = id(ui_active_app) == 6 ? 0 : id(ui_active_app);
+                                          - script.execute: ui_open_voice_safely
                                         else:
                                           # A wake word while Voice is already open is
                                           # a realtime barge-in, not another navigation

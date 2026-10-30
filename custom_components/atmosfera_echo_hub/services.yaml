@@ -23,6 +23,54 @@ report_tile_press:
       selector:
         number:
           min: 0
-          max: 10
+          max: 15
           step: 1
           mode: box
+report_tile_context_press:
+  fields:
+    node_name:
+      required: true
+      example: atmosfera-echo-hub
+      selector:
+        text: {}
+    slot:
+      required: true
+      example: 2
+      selector:
+        number:
+          min: 0
+          max: 15
+          step: 1
+          mode: box
+    card_id:
+      required: true
+      example: living-room-light
+      selector:
+        text: {}
+    revision:
+      required: true
+      example: "7"
+      selector:
+        text: {}
+report_light_control:
+  fields:
+    node_name:
+      required: true
+      selector:
+        text: {}
+    payload:
+      required: true
+      description: Bounded v1 light-control JSON; actual HA caller context is preserved.
+      selector:
+        text: {}
+report_entity_control:
+  fields:
+    node_name:
+      required: true
+      selector:
+        text: {}
+    payload:
+      required: true
+      description: Bounded entity_control_v1 JSON; actual HA caller context is preserved.
+      selector:
+        text: {}

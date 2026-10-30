@@ -21,6 +21,8 @@ light:
   # Keep runtime brightness changes immediate while we diagnose rare flashes.
   # Boot still uses an explicit fade-in in modules/common/core.yaml.
   default_transition_length: 0ms
+  on_turn_off:
+    - script.execute: ui_end_light_for_sleep
 
 i2c:
   id: touchscreen_bus

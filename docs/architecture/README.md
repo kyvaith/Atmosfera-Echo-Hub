@@ -18,6 +18,8 @@ Read this document first, then continue with:
 - [Navigation and snapshot lifecycle](navigation-snapshots.md)
 - [Audio and voice architecture](audio-voice.md)
 - [Camera streaming](camera-streaming.md)
+- [Home Assistant dashboard configuration](home-assistant-dashboard.md)
+- [Entity control detail and regional scalar](entity-control.md)
 - [Runtime tasks and memory](runtime-memory.md)
 - [Architecture decision log](decisions.md)
 - [Extending the UI](../development/extending-ui.md)

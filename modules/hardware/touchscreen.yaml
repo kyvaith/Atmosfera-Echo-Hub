@@ -126,6 +126,13 @@ touchscreen:
       then:
         - lambda: |-
             id(ui_last_touch_activity_ms) = millis();
+            // An explicit new contact may retry only OUR failed preparation.
+            // Keep the blocker/IO ownership until both real drains succeed.
+            if (id(ui_light_preparation_owned) &&
+                !id(ui_navigation).is_application_open(id(light_control_application)) &&
+                !id(ui_navigation).is_transition_active() &&
+                !id(selected_light_control).owner().has_selection())
+              id(ui_light_open_refused).execute(0);
             id(display_touch_wake_start_ms) = millis();
             id(display_touch_wake_start_x) = touch.x;
             id(display_touch_wake_start_y) = touch.y;
@@ -161,6 +168,8 @@ touchscreen:
             id(global_volume_time_press_tracking) = false;
             if (id(boot_sequence_done) && id(display_backlight).current_values.is_on() &&
                 !id(ui_snapshot_io_busy) &&
+                !id(ui_light_preparation_owned) &&
+                !id(ui_navigation).is_application_open(id(light_control_application)) &&
                 touch.x >= 280 && touch.x <= 520 && touch.y <= 84) {
               id(global_volume_time_press_tracking) = true;
               id(global_volume_time_press_start_ms) = millis();

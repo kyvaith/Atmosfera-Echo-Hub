@@ -1,0 +1,136 @@
+// The test inserts the actual product lambda unchanged; fakes expose its boundary only.
+#include <cassert>
+#include <cmath>
+#include <cstdint>
+#include <cstdio>
+#include <initializer_list>
+#include <limits>
+
+#define id(name) name
+struct lv_obj_t { bool visible{}; };
+bool lv_obj_is_visible(lv_obj_t *object) { return object->visible; }
+uint32_t test_now;
+uint32_t millis() { return test_now; }
+struct Flag {
+  bool value{};
+  bool is_on() const { return value; }
+  bool is_active() const { return value; }
+  bool is_running() const { return value; }
+};
+struct { Flag remote_values; } display_backlight;
+struct { float state; } settings_auto_home_timeout;
+struct Navigation {
+  bool application_open{true};
+  bool transition{};
+  bool admission{true};
+  int calls{};
+  bool is_application_open(int) const { return application_open; }
+  bool is_transition_active() const { return transition; }
+  bool try_show_home() {
+    ++calls;
+    if (!admission) return false;
+    transition = true;
+    return true;
+  }
+} ui_navigation;
+int settings_application;
+int ui_active_app;
+bool boot_sequence_done, ui_touch_active, ui_snapshot_io_busy, ui_light_preparation_owned;
+bool global_volume_dragging, global_volume_time_press_tracking, ui_accent_picker_busy;
+bool snapshot_active;
+bool lvgl_esphome_snapshot_is_active() { return snapshot_active; }
+uint32_t display_last_interaction_ms;
+lv_obj_t *ui_manual_pressed_obj;
+Flag settings_scroll_snapshot, ui_refresh_settings_snapshot, ui_apply_settings_snapshot_refresh;
+lv_obj_t overlay_objects[8];
+lv_obj_t *boot_overlay = &overlay_objects[0];
+lv_obj_t *voice_assistant_overlay = &overlay_objects[1];
+lv_obj_t *global_volume_overlay = &overlay_objects[2];
+lv_obj_t *volume_overlay = &overlay_objects[3];
+lv_obj_t *ui_touch_blocker = &overlay_objects[4];
+lv_obj_t *material_notification_root = &overlay_objects[5];
+lv_obj_t *accent_picker_overlay = &overlay_objects[6];
+lv_obj_t *accent_refresh_overlay = &overlay_objects[7];
+
+void tick() {
+// INSERT_ACTUAL_PRODUCT_POLICY
+}
+
+void reset() {
+  test_now = 30000;
+  display_last_interaction_ms = 0;
+  settings_auto_home_timeout.state = 30;
+  boot_sequence_done = true;
+  display_backlight.remote_values.value = true;
+  ui_active_app = 2;
+  ui_navigation = Navigation{};
+  ui_touch_active = ui_snapshot_io_busy = ui_light_preparation_owned = false;
+  global_volume_dragging = global_volume_time_press_tracking = ui_accent_picker_busy = false;
+  snapshot_active = false;
+  ui_manual_pressed_obj = nullptr;
+  settings_scroll_snapshot.value = false;
+  ui_refresh_settings_snapshot.value = ui_apply_settings_snapshot_refresh.value = false;
+  for (auto &overlay : overlay_objects) overlay.visible = false;
+}
+int cases;
+void check(bool allowed) {
+  const uint32_t stamp = display_last_interaction_ms;
+  const float timeout = settings_auto_home_timeout.state;
+  const bool was_on = display_backlight.remote_values.value;
+  tick();
+  assert(ui_navigation.calls == (allowed ? 1 : 0));
+  assert(display_last_interaction_ms == stamp);
+  assert((std::isnan(timeout) && std::isnan(settings_auto_home_timeout.state)) || settings_auto_home_timeout.state == timeout);
+  assert(display_backlight.remote_values.value == was_on);
+  ++cases;
+}
+
+int main() {
+  reset(); check(true);  // exact deadline
+  reset(); test_now = 29999; check(false);
+  reset(); test_now = 90000; display_last_interaction_ms = 60001; check(false);
+  reset(); test_now = 90000; display_last_interaction_ms = 60000; check(true);
+  reset(); display_last_interaction_ms = UINT32_MAX - 15000U; test_now = 14998; check(false);
+  reset(); display_last_interaction_ms = UINT32_MAX - 15000U; test_now = 14999; check(true);
+  for (float value : {0.0f, -1.0f, 300.01f, std::numeric_limits<float>::quiet_NaN(),
+                      std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity()}) {
+    reset(); settings_auto_home_timeout.state = value; check(false);
+  }
+  reset(); settings_auto_home_timeout.state = 300; test_now = 299999; check(false);
+  reset(); settings_auto_home_timeout.state = 300; test_now = 300000; check(true);
+  for (int app = -1; app <= 7; ++app) {
+    if (app == 2) continue;
+    reset(); ui_active_app = app; check(false);
+  }
+  bool *deny_flags[] = {&ui_touch_active, &ui_snapshot_io_busy, &ui_light_preparation_owned,
+    &global_volume_dragging, &global_volume_time_press_tracking, &ui_accent_picker_busy,
+    &snapshot_active, &settings_scroll_snapshot.value, &ui_navigation.transition,
+    &ui_refresh_settings_snapshot.value, &ui_apply_settings_snapshot_refresh.value};
+  for (auto *flag : deny_flags) {
+    reset(); *flag = true; check(false);
+  }
+  reset(); boot_sequence_done = false; check(false);
+  reset(); display_backlight.remote_values.value = false; check(false);
+  reset(); ui_navigation.application_open = false; check(false);
+  reset(); ui_manual_pressed_obj = boot_overlay; check(false);
+  for (auto &overlay : overlay_objects) {
+    reset(); overlay.visible = true; check(false);
+  }
+  // Direct inertia: local controller flag already false, global owner still true.
+  reset(); settings_scroll_snapshot.value = false; snapshot_active = true; check(false);
+  // A previous busy tick creates no queue and rechecks every condition afresh.
+  reset(); ui_touch_active = true; check(false);
+  ui_touch_active = false; ui_navigation.admission = false;
+  tick(); assert(ui_navigation.calls == 1 && !ui_navigation.transition);
+  assert(display_last_interaction_ms == 0 && display_backlight.remote_values.value); ++cases;
+  // False admission causes no fallback; the next existing interval may retry.
+  tick(); assert(ui_navigation.calls == 2 && !ui_navigation.transition); ++cases;
+  ui_navigation.admission = true;
+  tick(); assert(ui_navigation.calls == 3 && ui_navigation.transition); ++cases;
+  tick(); assert(ui_navigation.calls == 3); ++cases;  // no duplicate while closing
+  ui_navigation.transition = false; ui_active_app = 0;
+  tick(); assert(ui_navigation.calls == 3); ++cases;
+  // Sleep ran first in the unchanged interval, so Auto-Home cannot wake or close.
+  reset(); display_backlight.remote_values.value = false; check(false);
+  std::printf("policy cases: %d\n", cases);
+}

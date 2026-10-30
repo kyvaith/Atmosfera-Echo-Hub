@@ -224,6 +224,14 @@ prepared. Only then are the open hold/work buffer released and the transition
 completed/reset. Releasing this drained source is not permission to write a
 queued or scanned framebuffer; the display ownership API still controls that.
 
+After releasing that source, application completion calls
+`direct_handoff_to_lvgl()` before preparing the native destination. This seeds
+the idle pool from the final presented transition frame with the regional
+pause still held. If the worker barrier or DSI queue cannot drain, completion
+retains its phase, open hold and work buffer and retries from the normal loop.
+The external source release is idempotent across that retry. Destination
+callbacks and pause release must not run on a failed handoff.
+
 Camera opening can call native refresh and then acquire its own direct
 session. Keeping the old transition source pinned across those callbacks
 violated that handoff contract. R23 changes this release order in the reusable
@@ -442,6 +450,21 @@ selected, the 800x1436 list uses nine pieces and 2,297,600 pixel bytes. A viewpo
 can cross several pieces; PPA composes each intersection directly into an idle
 display framebuffer.
 
+Since the validated 30 October native30 checkpoint, this product explicitly
+selects `color_format: RGB888` for Settings. The reusable component retains
+RGB565 as its default. The current 800x1524 list occupies 3,657,600 pixel bytes,
+versus 2,438,400 in RGB565, only while Settings is open. Native-format spans
+use the existing DMA2D copy path; PPA remains the RGB565 conversion path and a
+compatible RGB888 fallback. The display-owned buffer pool is unchanged.
+
+Size an external loan through the controller's `get_required_bytes()` before
+its first capture. Its configured format is already known then; a previously
+active region's global format is not an allocation contract. A refused
+contiguous loan keeps the bounded partition fallback. Hardware validation
+covered both a 3,657,600-byte loan and 14 owned pieces after Gallery/Camera and
+Home2, with all scroll storage released on close. See the
+[measurement report](../development/touchdeck-performance-2026-10-30.md).
+
 Capture publishes only a complete partition. Refresh drains the worker before
 writing the existing pieces; a partial refresh is discarded rather than shown.
 A worker-drain timeout preserves its source buffers. Closing Settings releases
@@ -454,6 +477,29 @@ The live Settings tree is deliberately hidden while its snapshot owns the
 display. Gesture hit-testing therefore uses the registered root geometry even
 when that source tree is hidden; requiring `lv_obj_is_visible()` would make an
 in-flight snapshot impossible to interrupt.
+
+### Settings idle return
+
+The product's `settings_auto_home_timeout` is separate from backlight timeout:
+0 disables it, otherwise it uses 30-second steps up to 300 seconds. It defaults
+off and restores the user's number preference. The existing one-second product
+tick reads the existing interaction timestamp; redraw and diagnostic reads do
+not renew that timestamp.
+
+Only lit, fully booted, open Settings is eligible. Touch/pressed ownership,
+active or finishing snapshot scrolling, transitions, IO/preparation, volume
+gestures, accent/refresh work and visible overlays refuse admission. The global
+snapshot owner must also be idle: a cleared local scroll flag alone cannot
+prove that the inertia worker has retired. The policy calls the existing
+`try_show_home()` and changes no scene or queue after a refusal.
+
+Navigation remains the sole owner of close, scroll drain, loan release and
+restoring the remembered Home page. The new row extends the source content;
+measure its actual captured dimensions and loan capacity on the target rather
+than reuse the older 800x1436 measurement above. It introduces no permanent
+arena or additional snapshot slot. Native17 compiled with this policy and
+53 host cases passed; target Off/Idle30/scroll-boundary and memory scenarios
+remain pending because the device was offline before that image's OTA.
 
 ## Generic store versus production cache
 

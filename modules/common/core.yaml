@@ -12,6 +12,8 @@ esphome:
   name: ${name}
   friendly_name: ${friendly_name}
   min_version: ${esphome_min_version}
+  includes:
+    - <esp_app_desc.h>
   # Keep this integration worktree isolated from the production checkout.
   build_path: ${firmware_build_path}
   project:
@@ -141,6 +143,12 @@ esphome:
     # label/style updates during the splash-to-home hand-off can starve DSI.
     - script.execute: ui_apply_settings_state
     - script.wait: ui_apply_settings_state
+    - lambda: |-
+        // Keep app6 state changes synchronous before its first preview render.
+        for (auto *button : {id(light_control_on_button), id(light_control_off_button)}) {
+          lv_obj_remove_theme(button, LV_PART_MAIN | LV_STATE_DEFAULT);
+          lv_obj_remove_theme(button, LV_PART_MAIN | LV_STATE_PRESSED);
+        }
     # Preserve large contiguous blocks for the raw home-page cache first. The
     # encoded artwork buffers are then reserved once, while the panel is still
     # dark, and reused for every Music Assistant/Immich image.
@@ -321,6 +329,39 @@ api:
   custom_services: true
   homeassistant_states: true
   actions:
+    - action: home_tiles_get_status
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda |-
+              root["profile"] = "echo-hub-m3-v1";
+              root["context_press_version"] = 1;
+              root["press_enabled_version"] = id(home_material_tiles).get_press_enabled_version();
+              root["configured_context_version"] = id(home_material_tiles).get_context_version();
+              root["revision"] = id(home_material_tiles).get_configured_revision();
+              // Erasing a hidden card also leaves cache work in the product
+              // queue, even though that widget cannot receive a press.
+              const uint32_t pending = id(home_material_tiles).get_pending_slots() |
+                                       id(ui_managed_tile_refresh_pending_mask);
+              root["pending_slots"] = pending;
+              root["pending_context_slots"] = id(home_material_tiles).get_pending_context_slots();
+              root["snapshot_ready"] = pending == 0;
+              char firmware_hash[65];
+              esphome::format_hex_to(firmware_hash, esp_app_get_description()->app_elf_sha256, 32);
+              root["elf_sha256"] = std::string(firmware_hash);
+    # Read-only presentation export for diagnostics and exact test restoration.
+    # Entity IDs, HA credentials and configured actions remain owned by HA.
+    - action: home_tiles_get_config
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda |-
+              std::string payload;
+              if (!id(home_material_tiles).serialize_presentation(payload)) {
+                root["error"] = "presentation export unavailable";
+                return;
+              }
+              root["payload"] = payload;
     - action: home_tiles_set_config
       variables:
         payload: string
@@ -328,10 +369,9 @@ api:
         - lvgl_material.tiles.configure:
             id: home_material_tiles
             payload: !lambda 'return payload;'
-        # Home Assistant can deliver one retained card payload after the user
-        # changes the accent locally.  Keep the device preference authoritative
-        # while retaining the palette role and text changes from that payload.
-        - lambda: 'id(home_material_tiles).set_accent(id(ui_accent_color));'
+            # Device preference is authoritative during the single validated
+            # projection; do not apply the HA palette and recolor it again.
+            accent_override: !lambda 'return id(ui_accent_color);'
         - lambda: |-
             const uint32_t changed = id(home_material_tiles).get_last_changed_slots();
             if (changed != 0) {
@@ -345,14 +385,33 @@ api:
         icon: string
         duration_ms: int
       then:
-        - lvgl_material.notification.show:
-            id: material_notification_overlay
-            title: !lambda 'return title;'
-            message: !lambda 'return message;'
-            icon: !lambda 'return icon;'
-            duration: !lambda 'return duration_ms;'
+        - if:
+            condition:
+              lambda: |-
+                return id(ui_light_preparation_owned) ||
+                       id(ui_navigation).is_application_open(id(light_control_application)) ||
+                       id(selected_light_control).owner().has_selection() ||
+                       id(selected_light_control).owner().is_open_pending() ||
+                       id(ui_open_selected_light).is_running();
+            then:
+              - script.execute:
+                  id: ui_notification_after_light
+                  # Match the existing native notification field capacities;
+                  # retain only one bounded pending policy invocation.
+                  title: !lambda 'return title.substr(0, 63);'
+                  message: !lambda 'return message.substr(0, 255);'
+                  icon: !lambda 'return icon.substr(0, 15);'
+                  duration_ms: !lambda 'return duration_ms;'
+            else:
+              - lvgl_material.notification.show:
+                  id: material_notification_overlay
+                  title: !lambda 'return title;'
+                  message: !lambda 'return message;'
+                  icon: !lambda 'return icon;'
+                  duration: !lambda 'return duration_ms;'
     - action: notification_dismiss
       then:
+        - script.stop: ui_notification_after_light
         - lvgl_material.notification.dismiss:
             id: material_notification_overlay
     - action: debug_restart
@@ -440,6 +499,128 @@ api:
             } else {
               id(ui_navigation).touch_end();
             }
+    # Hardware QA uses the existing LVGL input listener, including hit testing,
+    # tap deferral and release replay. Controller-only navigation above cannot
+    # generate a child's click. This does not emulate the GT911/I2C transport.
+    - action: debug_touch_input
+      supports_response: only
+      variables:
+        phase: int
+        x: int
+        y: int
+      then:
+        - api.respond:
+            data: !lambda |-
+              auto reply = [&](bool accepted, const char *reason) {
+                root["accepted"] = accepted;
+                root["synthetic_active"] = id(ui_debug_touch_input_active);
+                root["reason"] = reason;
+              };
+              // A real contact owns the listener and shared touch flag. Drop
+              // only diagnostic ownership; never release the physical stream.
+              if (id(my_touchscreen).get_touch().has_value()) {
+                id(ui_debug_touch_input_active) = false;
+                id(ui_debug_touch_input_origin_app) = -1;
+                id(ui_debug_touch_input_selection_generation) = 0;
+                reply(false, "physical_contact");
+                return;
+              }
+              if (phase < 0 || phase > 2 || x < 0 || y < 0 ||
+                  x >= id(my_display).get_width() || y >= id(my_display).get_height()) {
+                reply(false, "invalid_request");
+                return;
+              }
+              const bool on_home = id(ui_active_app) == 0 &&
+                                   id(ui_navigation).get_active_application() == nullptr;
+              const bool light_diagnostic_enabled = ${debug_light_control_touch_admitted};
+              const bool on_light = light_diagnostic_enabled && id(ui_active_app) == 6 &&
+                                    id(ui_navigation).is_application_open(id(light_control_application));
+              const bool context_current = id(ui_debug_touch_input_origin_app) == 0
+                  ? on_home
+                  : id(ui_debug_touch_input_origin_app) == 6 && on_light &&
+                    id(selected_light_control).is_selection_current(
+                        id(ui_debug_touch_input_selection_generation));
+              if (phase == 2) {
+                if (!id(ui_debug_touch_input_active)) {
+                  reply(false, "not_active");
+                  return;
+                }
+                id(ui_debug_touch_input_active) = false;
+                id(ui_debug_touch_input_origin_app) = -1;
+                id(ui_debug_touch_input_selection_generation) = 0;
+                id(ui_touch_active) = false;
+                id(ui_last_touch_activity_ms) = millis();
+                id(display_last_interaction_ms) = millis();
+                // Context changes must not strand an owned contact or replay
+                // its old Home target into an application. Existing external
+                // capture makes listener release consume/cancel that gesture.
+                if (!id(boot_sequence_done) || !context_current)
+                  id(ui_navigation).set_external_touch_capture(true);
+                id(ui_touch_input).release();
+                reply(true, "ok");
+                return;
+              }
+              if (!id(boot_sequence_done)) {
+                reply(false, "not_ready");
+                return;
+              }
+              if (phase == 0) {
+                if (!on_home) {
+                  if (!on_light) {
+                    reply(false, "not_home");
+                    return;
+                  }
+                  // Only a fresh, settled app6 contact is admitted. The same
+                  // captured contact may then drive its ordinary close preview.
+                  if (id(ui_navigation).is_transition_active() || id(ui_snapshot_io_busy) ||
+                      id(ui_light_preparation_owned) || !lv_obj_is_visible(id(light_control_root)) ||
+                      !id(selected_light_control).owner().is_view_ready() ||
+                      id(selected_light_control).get_selection_generation() == 0) {
+                    reply(false, "not_ready");
+                    return;
+                  }
+                }
+                if (id(ui_debug_touch_input_active)) {
+                  reply(false, "already_active");
+                  return;
+                }
+                if (id(ui_touch_active)) {
+                  reply(false, "touch_busy");
+                  return;
+                }
+                // Physical drag release debounces for 32ms and deferred taps
+                // replay after 40ms. Do not merge with either prior stream.
+                if (millis() - id(ui_last_touch_activity_ms) < 100U) {
+                  reply(false, "quiet_period");
+                  return;
+                }
+                id(ui_debug_touch_input_origin_app) = on_home ? 0 : 6;
+                id(ui_debug_touch_input_selection_generation) = on_home ? 0 :
+                    id(selected_light_control).get_selection_generation();
+                id(ui_debug_touch_input_active) = true;
+              } else {
+                if (!id(ui_debug_touch_input_active)) {
+                  reply(false, "not_active");
+                  return;
+                }
+                // Close-preview suspension intentionally clears view_ready and
+                // sets IO busy. Keep this existing contact only while its exact
+                // app/selection remains current; never admit a replacement.
+                if (!context_current) {
+                  reply(false, (on_home || on_light) ? "not_ready" : "not_home");
+                  return;
+                }
+              }
+              id(ui_touch_active) = true;
+              id(ui_last_touch_activity_ms) = millis();
+              id(display_last_interaction_ms) = millis();
+              touchscreen::TouchPoint point{};
+              point.id = 0;
+              point.x = x;
+              point.y = y;
+              point.state = phase == 0 ? touchscreen::STATE_PRESSED : touchscreen::STATE_UPDATED;
+              id(ui_touch_input).update(touchscreen::TouchPoints_t{point});
+              reply(true, "ok");
     - action: debug_weather_press
       variables:
         pressed: bool
@@ -930,6 +1111,13 @@ api:
                id(diagnostics_wifi_rssi).state,
                (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
                (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024));
+
+  - if:
+      condition:
+        lambda: 'return client_info.find("Home Assistant") != std::string::npos;'
+      then:
+        - lvgl_material.entity_control.disconnect:
+            id: selected_light_control
 
 time:
 - platform: homeassistant

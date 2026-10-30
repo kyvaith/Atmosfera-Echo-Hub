@@ -10,14 +10,12 @@ from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import device_registry as dr, selector
 
-from .cards import normalize_cards
 from .const import (
     CONF_CAMERAS,
     CONF_DEVICE_ID,
     CONF_STREAM_FPS,
     CONF_STREAM_HEIGHT,
     CONF_STREAM_WIDTH,
-    CONF_TILES,
     CONF_ACCENT_COLOR,
     DEFAULT_ACCENT_COLOR,
     DEFAULT_STREAM_FPS,
@@ -134,22 +132,18 @@ class AtmosferaEchoHubOptionsFlow(config_entries.OptionsFlow):
         """Edit the camera list."""
         errors: dict[str, str] = {}
         if user_input is not None:
-            return self.async_create_entry(
-                title="",
-                data={
-                    CONF_CAMERAS: list(user_input[CONF_CAMERAS]),
-                    CONF_STREAM_WIDTH: int(user_input[CONF_STREAM_WIDTH]),
-                    CONF_STREAM_HEIGHT: int(user_input[CONF_STREAM_HEIGHT]),
-                    CONF_STREAM_FPS: int(user_input[CONF_STREAM_FPS]),
-                    CONF_ACCENT_COLOR: user_input[CONF_ACCENT_COLOR],
-                    CONF_TILES: normalize_cards(
-                        self.config_entry.options.get(
-                            CONF_TILES, self.config_entry.data.get(CONF_TILES)
-                        )
-                    ),
-                },
-            )
-
+            # OptionsFlow replaces options, so retain independent layout data,
+            # camera metadata and future settings instead of reconstructing a
+            # lossy subset when editing the camera form.
+            options = dict(self.config_entry.options)
+            options.update({
+                CONF_CAMERAS: list(user_input[CONF_CAMERAS]),
+                CONF_STREAM_WIDTH: int(user_input[CONF_STREAM_WIDTH]),
+                CONF_STREAM_HEIGHT: int(user_input[CONF_STREAM_HEIGHT]),
+                CONF_STREAM_FPS: int(user_input[CONF_STREAM_FPS]),
+                CONF_ACCENT_COLOR: user_input[CONF_ACCENT_COLOR],
+            })
+            return self.async_create_entry(title="", data=options)
         cameras = list(
             self.config_entry.options.get(
                 CONF_CAMERAS, self.config_entry.data[CONF_CAMERAS]

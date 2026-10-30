@@ -141,6 +141,35 @@ footprint. Actual media/theme tests exposed heaps with enough total free PSRAM
 but no block large enough for either of the old two snapshot halves. The
 256 KiB fallback target removes that unnecessary contiguous-block requirement.
 
+### ADR-N07: Explicit native-format scroll storage
+
+**Decision, validated on native30 (30 October):** A direct scroll region may
+opt into RGB888 storage; RGB565 remains the upstream default. Match the native
+display format to use the existing DMA2D copy path. Keep the same byte limit,
+segmentation fallback, worker drain and deterministic close release. External
+loans must be sized from the controller's configured format on first entry,
+before a global direct-scroll configuration exists.
+
+**Why:** Measured RGB565 composition took about 31.9 ms per frame, compared
+with less than 1 ms for buffer acquisition and presentation submission combined.
+Avoiding repeated cache synchronization alone did not improve FPS and was
+withdrawn. Native-format storage exchanges bounded app-lifetime memory for
+less per-frame conversion work; it does not allocate another DSI framebuffer.
+
+**Evidence:** [30 October performance campaign](../development/touchdeck-performance-2026-10-30.md).
+Native29 compiled but was not flashed: review found first-entry loan sizing
+still depended on the old global format. Native30 fixes that dependency and
+passed cold/warm Settings, refresh, Gallery/Camera reuse, a real 14-segment
+fallback and original-screen review. Source-frame cadence was 53–54 FPS with
+one loan and 46 FPS with 14 pieces, versus the matched native26 baseline's
+30 FPS. This is bounded device evidence, not acceptance of every other screen
+or continuous audio.
+
+The later media→Home2→Settings→Home1 visual roundtrip found incomplete Home1
+chrome in both native30 and a freshly restored native26. That pre-existing
+failure remains open as NAV-HOME-20261030 in the report; this decision accepts
+the measured scroll optimization, not a fix for that separate route.
+
 ## Audio and voice
 
 ### ADR-A01: One physical duplex audio owner
@@ -338,4 +367,24 @@ registered with its owning controller.
 
 **Why:** Automatic discovery cannot infer lifecycle, external side effects,
 snapshot invalidation, or safe buffer release.
+
+### ADR-U04: HA owns a versioned layout over a fixed native pool
+
+**Decision:** Extend the existing HA Core integration with an authenticated
+administrator editor, expected-revision saves, stable card IDs and a trusted
+product profile. Use its existing native ESPHome API connection. The first
+profile registers sixteen existing widgets; it does not create arbitrary LVGL
+trees, new pages, workers or framebuffers. Keep physical applied status distinct
+from saved, sent, source accepted and software snapshot readiness.
+
+**Why:** HA already owns entity discovery, registries, translations, permissions
+and service dispatch. A separate configuration server or build add-on is not
+needed to arrange existing cards. Fixed admission limits preserve the display
+and three-slot Home lifecycle. Correlated input rejects a changed card identity
+while ordinary state updates do not repeatedly disable the same action.
+
+**Status:** Local implementation under layered validation; actual HA deployment
+is a separate gate. See the [dashboard contract](home-assistant-dashboard.md) and
+[implementation record](../development/ha-dashboard-2026-10-24.md). Native domain
+control sheets, arbitrary pages and resizing remain separate roadmap items.
 

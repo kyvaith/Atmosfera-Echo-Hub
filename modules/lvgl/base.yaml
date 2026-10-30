@@ -15,10 +15,12 @@ image:
 # LVGL renderer configuration.
 # Page definitions are split into modules/lvgl/pages so the renderer settings stay easy to scan.
 lvgl:
+  id: ui_lvgl
   displays:
     - my_display
   touchscreens:
-    - my_touchscreen
+    - touchscreen_id: my_touchscreen
+      id: ui_touch_input
   update_interval: 10ms
   # Keep LVGL on full/direct rendering. The partial framebuffer compositor was
   # faster in a few synthetic paths, but on this RGB888 MIPI DSI panel it caused
@@ -129,6 +131,10 @@ lvgl:
           id: ui_home_page
           value: !lambda 'return page;'
     on_home_touch_start:
+      # A new Home intent cancels an earlier pending grant/open.
+      - lvgl_material.entity_control.invalidate:
+          id: selected_light_control
+          reason: navigation
       - lambda: |-
           id(ui_last_touch_activity_ms) = millis();
       - script.stop: ui_refresh_home_snapshot_if_pending
@@ -187,6 +193,9 @@ lvgl:
         close_gesture: true
         close_on_threshold: true
         on_prepare_open:
+          - lvgl_material.entity_control.invalidate:
+              id: selected_light_control
+              reason: navigation
           - script.execute: ui_clear_interaction_press
           - script.wait: ui_clear_interaction_press
           - script.stop: ui_refresh_tile_snapshots
@@ -340,6 +349,9 @@ lvgl:
         close_gesture: true
         close_on_threshold: true
         on_prepare_open:
+          - lvgl_material.entity_control.invalidate:
+              id: selected_light_control
+              reason: navigation
           - script.execute: ui_clear_interaction_press
           - script.wait: ui_clear_interaction_press
           - script.execute: ui_cancel_accent_picker
@@ -376,7 +388,7 @@ lvgl:
               ESP_LOGI("ui.memory", "Settings Home trim=%s drained=%s retained_page=%d",
                        YESNO(trimmed), YESNO(trim_drained), id(ui_home_page));
               const size_t settings_snapshot_capacity =
-                  lvgl_esphome_snapshot_scroll_required_bytes(id(settings_root));
+                  id(settings_scroll_snapshot).get_required_bytes();
               const bool pool_ready = id(immich_photo_image).reserve_decode_buffer_capacity(
                   settings_snapshot_capacity);
               size_t loan_capacity = 0;
@@ -457,7 +469,7 @@ lvgl:
               const bool gallery_buffer_ready = returned != nullptr &&
                   id(immich_photo_image).return_decode_buffer_capacity(returned, returned_capacity);
               // The shared buffer is needed only while Settings owns the
-              // scroll surface. Do not leave its ~2 MB allocation parked as a
+              // scroll surface. Do not leave its pixel allocation parked as a
               // Gallery spare after the handoff; Gallery reserves it again on
               // the next open, when it is actually needed.
               id(immich_photo_image).release_unused_decode_capacity();
@@ -495,6 +507,9 @@ lvgl:
         close_gesture: true
         close_on_threshold: true
         on_prepare_open:
+          - lvgl_material.entity_control.invalidate:
+              id: selected_light_control
+              reason: navigation
           - script.execute: ui_clear_interaction_press
           - script.wait: ui_clear_interaction_press
           - script.stop: ui_refresh_tile_snapshots
@@ -570,6 +585,9 @@ lvgl:
         close_gesture: true
         close_on_threshold: true
         on_prepare_open:
+          - lvgl_material.entity_control.invalidate:
+              id: selected_light_control
+              reason: navigation
           - script.execute: ui_clear_interaction_press
           - script.wait: ui_clear_interaction_press
           - script.stop: ui_refresh_tile_snapshots
@@ -645,6 +663,9 @@ lvgl:
         close_gesture: true
         close_on_threshold: true
         on_prepare_open:
+          - lvgl_material.entity_control.invalidate:
+              id: selected_light_control
+              reason: navigation
           - script.execute: ui_clear_interaction_press
           - script.wait: ui_clear_interaction_press
           - script.stop: ui_refresh_tile_snapshots
@@ -726,7 +747,7 @@ lvgl:
     jpeg_initial_output_buffer_size: 1048576  # 1 MiB
     # Entry records are lightweight metadata. Full-screen pixel storage is
     # still allocated on demand and bounded by decoded_slots.
-    max_entries: 5
+    max_entries: 6
     decoded_slots: 1
     settle_duration: 380ms
     application_transitions:
@@ -740,6 +761,9 @@ lvgl:
         application: settings_application
         widget: settings_root
         backend: direct
+        # Match the RGB888 DSI surface and use the existing DMA2D copy path.
+        # This bounded buffer exists only while Settings is open.
+        color_format: RGB888
         # The application lifecycle performs one deterministic capture after
         # applying state. Automatic screen-load preload raced that capture and
         # transferred the same multi-megabyte bitmap twice.

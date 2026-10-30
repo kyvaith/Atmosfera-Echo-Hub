@@ -1,0 +1,623 @@
+# Merge these entries into the existing product lvgl_material mapping.
+# Requires frozen regional checkpoint1 and separate reviewed TileSurface routing.
+# Product admission stays false until the whole proposed fork/product is reviewed and built.
+lvgl_material:
+  entity_controls:
+    - id: selected_light_control
+      lvgl_id: ui_lvgl
+      root: light_control_root
+      hit: light_control_scalar_region
+      title_label: light_control_title
+      value_label: light_control_authoritative_value
+      unknown_value_label: light_control_unknown_value
+      on_button: light_control_on_button
+      off_button: light_control_off_button
+      state_label: light_control_state
+      status_label: light_control_status
+      enabled: ${light_control_product_admitted}
+      text_provider: !lambda |-
+        if (text_id == 4 && id(selected_light_control).owner().has_selection() &&
+            !id(selected_light_control).owner().state().caps.brightness)
+          return id(ui_i18n).translate("light_control.power_only");
+        static const char *const keys[] = {
+          "light_control.state_on", "light_control.state_off", "light_control.disabled",
+          "light_control.waiting", "light_control.ready", "light_control.pending",
+          "light_control.ha_accepted", "light_control.state_matches",
+          "light_control.already_matched", "light_control.not_confirmed",
+          "light_control.rejected", "light_control.expired",
+          "light_control.renderer_unavailable", "light_control.connection_lost"
+        };
+        return text_id < sizeof(keys) / sizeof(keys[0])
+                   ? id(ui_i18n).translate(keys[text_id]) : "";
+      on_message:
+        - script.execute:
+            id: ui_send_light_control_message
+            control_payload: !lambda 'return std::string(payload);'
+      on_granted:
+        - script.execute:
+            id: ui_open_selected_light
+            selection_generation: !lambda 'return generation;'
+  direct_scalar_controls:
+    - id: light_control_renderer
+      lvgl_id: ui_lvgl
+      entity_control_id: selected_light_control
+      navigation_id: ui_navigation
+      application_id: light_control_application
+      region: light_control_scalar_region
+      track: light_control_scalar_track
+      bubble: light_control_scalar_bubble
+      value_label: light_control_scalar_value
+      minimum_label: light_control_scalar_minimum
+      maximum_label: light_control_scalar_maximum
+      # Match the configured/themed M3 secondary surface, including dark custom accents.
+      active_color: !lambda |-
+        const auto color = lv_obj_get_style_bg_color(id(light_control_scalar_bubble), LV_PART_MAIN);
+        return (static_cast<uint32_t>(color.red) << 16) |
+               (static_cast<uint32_t>(color.green) << 8) | color.blue;
+      enabled: ${light_control_product_admitted}
+      performance_metrics: ${light_control_performance_metrics}
+
+# Merge entries into the existing api.actions list, preserving all P0 actions.
+api:
+  actions:
+    - action: light_control_get_status
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda 'id(selected_light_control).populate_status(root);'
+    - action: light_control_bind
+      supports_response: only
+      variables:
+        payload: string
+      then:
+        - if:
+            condition:
+              lambda: 'return id(selected_light_control).prepare_bind_response(payload.empty() ? std::string_view{} : std::string_view(payload.c_str(), payload.size()));'
+            then:
+              - api.respond:
+                  data: !lambda 'id(selected_light_control).populate_bind_response(root);'
+            else:
+              - api.respond:
+                  success: false
+                  error_message: "Control bind refused"
+    - action: light_control_update
+      variables:
+        payload: string
+      then:
+        - lvgl_material.entity_control.receive:
+            id: selected_light_control
+            payload: !lambda 'return payload;'
+
+    - action: debug_scalar_performance
+      variables:
+        phase: string
+      then:
+        - lambda: |-
+            #ifdef USE_LVGL_MATERIAL_SCALAR_PERFORMANCE_METRICS
+            // Borrowed API StringRef is consumed synchronously; never retained.
+            if (phase.empty() || phase.size() > 32) return;
+            char label[33]{};  // StringRef need not carry a trailing NUL.
+            for (size_t index = 0; index < phase.size(); index++) {
+              const char value = phase[index];
+              if (!((value >= 'A' && value <= 'Z') || (value >= 'a' && value <= 'z') ||
+                    (value >= '0' && value <= '9') || value == '-' || value == '_')) return;
+              label[index] = value;
+            }
+            const auto &owner = id(selected_light_control).owner();
+            ESP_LOGI("scalar.performance", "%s selected=%u view_ready=%u scalar_ready=%u command_pending=%u turn_on=%u turn_off=%u selection_generation=%u render_request=%u status=%s",
+                     label, static_cast<unsigned>(owner.has_selection()),
+                     static_cast<unsigned>(owner.is_view_ready()), static_cast<unsigned>(owner.is_scalar_ready()),
+                     static_cast<unsigned>(owner.is_command_pending()),
+                     static_cast<unsigned>(owner.state().caps.turn_on), static_cast<unsigned>(owner.state().caps.turn_off),
+                     static_cast<unsigned>(id(selected_light_control).get_selection_generation()),
+                     static_cast<unsigned>(id(selected_light_control).get_render_request_id()),
+                     id(selected_light_control).get_status_key());
+            ESP_LOGI("scalar.performance", "%s on_disabled=%d off_disabled=%d renderer_quiescent=%u direct_base=%u",
+                     label, id(light_control_on_button) == nullptr ? -1 : static_cast<int>(lv_obj_has_state(id(light_control_on_button), LV_STATE_DISABLED)),
+                     id(light_control_off_button) == nullptr ? -1 : static_cast<int>(lv_obj_has_state(id(light_control_off_button), LV_STATE_DISABLED)),
+                     static_cast<unsigned>(id(light_control_renderer).is_quiescent()),
+                     static_cast<unsigned>(id(ui_lvgl).get_direct_region_base_generation()));
+            id(light_control_renderer).log_performance(label, true);
+            ESP_LOGI("scalar.performance", "%s component_object_b=%u snapshot_object_b=%u",
+                     label, static_cast<unsigned>(sizeof(*id(light_control_renderer))),
+                     static_cast<unsigned>(sizeof(esphome::lvgl_material::ScalarPerformanceSnapshot)));
+            #if defined(USE_ESP32) && defined(INCLUDE_uxTaskGetStackHighWaterMark) && INCLUDE_uxTaskGetStackHighWaterMark
+            // ESP-IDF reports bytes for the calling task; cumulative since task start.
+            ESP_LOGI("scalar.performance", "%s caller_stack_min_free_b=%u",
+                     label, static_cast<unsigned>(uxTaskGetStackHighWaterMark(nullptr)));
+            #endif
+            #else
+            (void) phase;  // Disabled build: no metrics, clocks, logging or phase copy.
+            #endif
+
+# One more compressed preview; the existing single decoded work slot is reused.
+lvgl:
+  navigation:
+    applications:
+      - id: light_control_application
+        page: light_control_page
+        widget: light_control_root
+        close_gesture: true
+        close_on_threshold: true
+        on_prepare_open:
+          - script.execute: ui_clear_interaction_press
+          - script.wait: ui_clear_interaction_press
+          - lambda: |-
+              if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
+              id(ui_touch_click_block_until_ms) = millis() + 800;
+              lvgl_esphome_snapshot_set_status_icons_visible(true);
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'true'
+        on_opened:
+          - globals.set:
+              id: ui_light_preparation_owned
+              value: 'false'
+          - lvgl.widget.hide: ui_touch_blocker
+          - globals.set:
+              id: ui_active_app
+              value: '6'
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'false'
+          - script.execute: ui_refresh_global_status_icons
+          - lvgl.widget.show: app_close_gesture_zone
+          - lambda: 'lv_obj_move_foreground(id(app_close_gesture_zone));'
+          # The async open script alone resumes the captured generation once
+          # this real lifecycle and the compositor both report settled.
+        on_prepare_close:
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'true'
+          # Scalar's NAV guard has already suspended/drained before capture.
+          # Its native lifecycle captures the admitted view generation here.
+        on_close_cancelled:
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'false'
+          # Native Scalar owns one captured-generation recovery; no YAML resume.
+        on_closed:
+          - globals.set:
+              id: ui_light_preparation_owned
+              value: 'false'
+          - globals.set:
+              id: ui_active_app
+              value: '0'
+          - globals.set:
+              id: ui_snapshot_io_busy
+              value: 'false'
+          - globals.set:
+              id: global_volume_activation_suppressed
+              value: 'false'
+          - lvgl.widget.show: global_volume_activation_surface
+          - lvgl.widget.hide: app_close_gesture_zone
+          - lvgl.widget.hide: ui_touch_blocker
+          - lambda: 'id(home_weather_presenter).resume_after_application(id(ui_page) == 1);'
+          - script.execute: ui_refresh_global_status_icons
+          - script.execute: voice_assistant_update_overlay
+          # Do not unpause media artwork or read a fresh control generation.
+          # Player's existing entry path reacquires those resources if opened.
+
+globals:
+  # Product preparation owns IO/overlay suppression until actual admission or
+  # verified cleanup. It is not a control token/protocol/renderer state.
+  - id: ui_light_preparation_owned
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+script:
+  # Copy the borrowed callback payload by value. With no response/delay/wait,
+  # the actual HomeAssistantServiceCallAction sends and completes this single
+  # invocation before script.execute returns: no queue or replacement policy.
+  - id: ui_send_light_control_message
+    mode: single
+    parameters:
+      control_payload: string
+    then:
+      - homeassistant.action:
+          action: atmosfera_echo_hub.report_light_control
+          data:
+            node_name: !lambda 'return App.get_name();'
+            payload: !lambda 'return control_payload;'
+
+  - id: ui_open_selected_light
+    mode: restart
+    parameters:
+      selection_generation: uint32_t
+    then:
+      - delay: 1ms
+      - if:
+          condition:
+            lambda: |-
+              return ${light_control_product_admitted} &&
+                     id(selected_light_control).is_selection_current(selection_generation) &&
+                     id(boot_sequence_done) && id(ui_active_app) == 0 &&
+                     !id(ui_touch_active) && !id(ui_snapshot_io_busy) &&
+                     !id(ui_navigation).is_transition_active() &&
+                     lv_obj_has_flag(id(material_notification_root), LV_OBJ_FLAG_HIDDEN);
+          then:
+            - script.stop: ui_refresh_tile_snapshots
+            - script.stop: ui_refresh_home_snapshot_if_pending
+            - script.stop: ui_refresh_managed_tile_snapshots
+            - script.stop: ui_refresh_current_tile_snapshot
+            - script.stop: ui_refresh_accent_snapshots
+            - script.stop: ui_finish_player_open
+            - script.stop: media_title_marquee_start_delayed
+            - script.stop: media_title_marquee_reset_and_start
+            - script.stop: media_apply_artwork
+            - script.stop: volume_overlay_timeout
+            - script.stop: global_volume_long_press_guard
+            - globals.set:
+                id: ui_light_preparation_owned
+                value: 'true'
+            - lvgl.widget.show: ui_touch_blocker
+            - globals.set:
+                id: ui_snapshot_io_busy
+                value: 'true'
+            - globals.set:
+                id: global_volume_activation_suppressed
+                value: 'true'
+            - lvgl.widget.hide: global_volume_activation_surface
+            - lambda: |-
+                id(home_weather_presenter).release_for_application();
+                id(album_art_background).set_sendspin_paused(true);
+                id(player_artwork_presenter).cancel_transition();
+                id(title_marquee_active) = false;
+                id(media_title_marquee).end(true);
+                id(global_volume_time_press_tracking) = false;
+                id(global_volume_dragging) = false;
+                id(global_volume_renderer).end();
+                lv_obj_add_flag(id(global_volume_overlay), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(id(volume_overlay), LV_OBJ_FLAG_HIDDEN);
+            - if:
+                condition:
+                  lambda: |-
+                    // This balances ONLY our temporary drain lease, including
+                    // failure. No global pause may remain while scalar runs.
+                    // Separate frozen Wave quiesce owns producer retirement
+                    // and exact slot release. A false result refuses entry.
+                    if (!id(media_wavy_progress).quiesce_direct_present(250)) return false;
+                    const bool drained = id(ui_lvgl).direct_regions_pause(true, 250);
+                    const bool sole_lease = id(ui_lvgl).get_direct_region_pause_depth() == 1;
+                    id(ui_lvgl).direct_regions_pause(false, 0);
+                    return drained && sole_lease && id(selected_light_control).is_selection_current(selection_generation) &&
+                           id(ui_navigation).try_open_application(id(light_control_application));
+                then:
+                  - wait_until:
+                      condition:
+                        lambda: |-
+                          return !id(selected_light_control).is_selection_current(selection_generation) ||
+                                 (id(ui_navigation).is_application_open(id(light_control_application)) &&
+                                  !id(ui_navigation).is_transition_active());
+                      timeout: 3s
+                  - if:
+                      condition:
+                        lambda: |-
+                          return id(selected_light_control).is_selection_current(selection_generation) &&
+                                 id(ui_navigation).is_application_open(id(light_control_application)) &&
+                                 !id(ui_navigation).is_transition_active();
+                      then:
+                        - lvgl_material.direct_scalar.resume:
+                            id: light_control_renderer
+                            generation: !lambda 'return selection_generation;'
+                      else:
+                        - script.execute:
+                            id: ui_light_open_refused
+                            selection_generation: !lambda 'return selection_generation;'
+                else:
+                  - script.execute:
+                      id: ui_light_open_refused
+                      selection_generation: !lambda 'return selection_generation;'
+          else:
+            # No preparation was acquired on this branch. Invalidate only the
+            # captured selection; never clear another application's IO flag.
+            - if:
+                condition:
+                  lambda: 'return id(selected_light_control).is_selection_current(selection_generation);'
+                then:
+                  - lvgl_material.entity_control.invalidate:
+                      id: selected_light_control
+                      reason: navigation
+
+  - id: ui_light_open_refused
+    mode: restart
+    parameters:
+      selection_generation: uint32_t
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return id(ui_light_preparation_owned) &&
+                     (!id(selected_light_control).owner().has_selection() ||
+                      id(selected_light_control).is_selection_current(selection_generation));
+          then:
+            - lvgl_material.entity_control.invalidate:
+                id: selected_light_control
+                reason: navigation
+            - if:
+                condition:
+                  lambda: |-
+                    return id(light_control_renderer).suspend_for_snapshot(250) &&
+                           id(media_wavy_progress).quiesce_direct_present(250) &&
+                           (!id(ui_navigation).is_application_open(id(light_control_application)) ||
+                            id(ui_navigation).try_show_home());
+                then:
+                  - wait_until:
+                      condition:
+                        lambda: |-
+                          return !id(ui_navigation).is_application_open(id(light_control_application)) &&
+                                 !id(ui_navigation).is_transition_active();
+                      timeout: 3s
+                  - if:
+                      condition:
+                        lambda: |-
+                          if (!id(ui_light_preparation_owned) ||
+                              id(selected_light_control).owner().has_selection() ||
+                              id(ui_active_app) != 0 || id(ui_navigation).get_active_application() != nullptr ||
+                              id(ui_navigation).is_transition_active() ||
+                              !id(light_control_renderer).is_quiescent() ||
+                              !id(media_wavy_progress).quiesce_direct_present(250)) return false;
+                          const bool drained = id(ui_lvgl).direct_regions_pause(true, 250);
+                          const bool sole_lease = id(ui_lvgl).get_direct_region_pause_depth() == 1;
+                          id(ui_lvgl).direct_regions_pause(false, 0);
+                          return drained && sole_lease;
+                      then:
+                        - globals.set:
+                            id: ui_light_preparation_owned
+                            value: 'false'
+                        - lvgl.widget.hide: ui_touch_blocker
+                        - globals.set:
+                            id: ui_snapshot_io_busy
+                            value: 'false'
+                        - globals.set:
+                            id: global_volume_activation_suppressed
+                            value: 'false'
+                        - lvgl.widget.show: global_volume_activation_surface
+                        - lambda: |-
+                            if (id(ui_active_app) == 0)
+                              id(home_weather_presenter).resume_after_application(id(ui_page) == 1);
+
+  # A policy change ends the detail before changing any shared native style.
+  # False barriers/close refusal skip the entire mutation body, never log/proceed.
+  - id: ui_apply_accent_theme
+    mode: restart
+    then:
+      - lvgl_material.entity_control.invalidate:
+          id: selected_light_control
+          reason: navigation
+      - if:
+          condition:
+            lambda: |-
+              return !id(ui_light_preparation_owned) &&
+                     id(light_control_renderer).suspend_for_snapshot(250) &&
+                     (!id(ui_navigation).is_application_open(id(light_control_application)) ||
+                      id(ui_navigation).try_show_home());
+          then:
+            - wait_until:
+                condition:
+                  lambda: |-
+                    return !id(ui_light_preparation_owned) &&
+                     !id(ui_navigation).is_application_open(id(light_control_application)) &&
+                           !id(ui_navigation).is_transition_active();
+                timeout: 3s
+            - if:
+                condition:
+                  lambda: |-
+                    return !id(ui_light_preparation_owned) &&
+                     !id(ui_navigation).is_application_open(id(light_control_application)) &&
+                           !id(ui_navigation).is_transition_active() &&
+                           id(light_control_renderer).suspend_for_snapshot(250);
+                then:
+                  - script.execute: ui_apply_accent_theme_committed
+
+  - id: ui_i18n_refresh
+    mode: restart
+    then:
+      - lvgl_material.entity_control.invalidate:
+          id: selected_light_control
+          reason: navigation
+      - if:
+          condition:
+            lambda: |-
+              return !id(ui_light_preparation_owned) &&
+                     id(light_control_renderer).suspend_for_snapshot(250) &&
+                     (!id(ui_navigation).is_application_open(id(light_control_application)) ||
+                      id(ui_navigation).try_show_home());
+          then:
+            - wait_until:
+                condition:
+                  lambda: |-
+                    return !id(ui_light_preparation_owned) &&
+                     !id(ui_navigation).is_application_open(id(light_control_application)) &&
+                           !id(ui_navigation).is_transition_active();
+                timeout: 3s
+            - if:
+                condition:
+                  lambda: |-
+                    return !id(ui_light_preparation_owned) &&
+                     !id(ui_navigation).is_application_open(id(light_control_application)) &&
+                           !id(ui_navigation).is_transition_active() &&
+                           id(light_control_renderer).suspend_for_snapshot(250);
+                then:
+                  - script.execute: ui_i18n_refresh_committed
+
+  - id: ui_set_locale_safely
+    mode: restart
+    parameters:
+      locale: string
+    then:
+      - lvgl_material.entity_control.invalidate:
+          id: selected_light_control
+          reason: navigation
+      - if:
+          condition:
+            lambda: |-
+              return !id(ui_light_preparation_owned) &&
+                     id(light_control_renderer).suspend_for_snapshot(250) &&
+                     (!id(ui_navigation).is_application_open(id(light_control_application)) ||
+                      id(ui_navigation).try_show_home());
+          then:
+            - wait_until:
+                condition:
+                  lambda: |-
+                    return !id(ui_light_preparation_owned) &&
+                     !id(ui_navigation).is_application_open(id(light_control_application)) &&
+                           !id(ui_navigation).is_transition_active();
+                timeout: 3s
+            - if:
+                condition:
+                  lambda: |-
+                    return !id(ui_light_preparation_owned) &&
+                     !id(ui_navigation).is_application_open(id(light_control_application)) &&
+                           !id(ui_navigation).is_transition_active() &&
+                           id(light_control_renderer).suspend_for_snapshot(250);
+                then:
+                  - lambda: 'id(ui_i18n).set_locale(locale);'
+                  - script.execute: ui_i18n_refresh_committed
+                  - script.execute: ui_update_i18n_state
+
+  # Volume is unavailable during the whole detail, including opening/closing.
+  # Registering Scalar as a volume scene-controller is a second native barrier.
+  - id: show_volume_overlay
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return !id(ui_light_preparation_owned) &&
+                     !id(ui_navigation).is_application_open(id(light_control_application)) &&
+                     !id(ui_open_selected_light).is_running();
+          then:
+            - script.execute: show_volume_overlay_unblocked
+  - id: global_volume_begin_drag
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return !id(ui_light_preparation_owned) &&
+                     !id(ui_navigation).is_application_open(id(light_control_application)) &&
+                     !id(ui_open_selected_light).is_running();
+          then:
+            - script.execute: global_volume_begin_drag_unblocked
+  - id: main_volume_step
+    mode: restart
+    parameters:
+      direction: int
+    then:
+      - if:
+          condition:
+            lambda: |-
+              return !id(ui_light_preparation_owned) &&
+                     !id(ui_navigation).is_application_open(id(light_control_application)) &&
+                     !id(ui_open_selected_light).is_running();
+          then:
+            - script.execute:
+                id: main_volume_step_unblocked
+                direction: !lambda 'return direction;'
+
+  - id: ui_open_voice_safely
+    mode: restart
+    then:
+      - lvgl_material.entity_control.invalidate:
+          id: selected_light_control
+          reason: voice
+      - if:
+          condition:
+            lambda: |-
+              return !id(ui_light_preparation_owned) &&
+                     id(light_control_renderer).suspend_for_snapshot(250) &&
+                     id(ui_navigation).try_show_home();
+          then:
+            - wait_until:
+                condition:
+                  lambda: |-
+                    return !id(ui_light_preparation_owned) &&
+                     id(ui_navigation).get_active_application() == nullptr &&
+                           !id(ui_navigation).is_transition_active();
+                timeout: 3s
+            - if:
+                condition:
+                  lambda: |-
+                    return !id(ui_light_preparation_owned) &&
+                     id(ui_navigation).get_active_application() == nullptr &&
+                           !id(ui_navigation).is_transition_active() &&
+                           id(light_control_renderer).suspend_for_snapshot(250) &&
+                           id(ui_navigation).try_open_application(id(voice_application));
+                then:
+                  - lambda: |-
+                      id(voice_assistant_terminal_close_pending) = false;
+                      id(voice_assistant_stop_requested) = false;
+                      id(voice_assistant_realtime_idle_pending) = false;
+                  - script.execute: display_wake
+                  - micro_wake_word.stop:
+                  # Existing Voice on_opened alone starts its audio session.
+
+  # External backlight Off is already an electrical change, not a framebuffer
+  # handoff. Revoke input immediately, then stop/close only on a true barrier.
+  - id: ui_end_light_for_sleep
+    mode: restart
+    then:
+      - lvgl_material.entity_control.invalidate:
+          id: selected_light_control
+          reason: sleep
+      - if:
+          condition:
+            lambda: |-
+              return !id(ui_light_preparation_owned) &&
+                     id(light_control_renderer).suspend_for_snapshot(250) &&
+                     id(ui_navigation).is_application_open(id(light_control_application));
+          then:
+            - if:
+                condition:
+                  lambda: 'return id(ui_navigation).try_show_home();'
+                then:
+                  - logger.log:
+                      level: DEBUG
+                      format: "Light detail sleep close admitted"
+
+  # This is a single restartable product handoff, not a notification queue or
+  # control state machine. Other applications retain the existing direct path.
+  - id: ui_notification_after_light
+    mode: restart
+    parameters:
+      title: string
+      message: string
+      icon: string
+      duration_ms: int
+    then:
+      - lvgl_material.entity_control.invalidate:
+          id: selected_light_control
+          reason: navigation
+      - if:
+          condition:
+            lambda: |-
+              return !id(ui_light_preparation_owned) &&
+                     id(light_control_renderer).suspend_for_snapshot(250) &&
+                     (!id(ui_navigation).is_application_open(id(light_control_application)) ||
+                      id(ui_navigation).try_close_application());
+          then:
+            - wait_until:
+                condition:
+                  lambda: |-
+                    return !id(ui_light_preparation_owned) &&
+                     !id(ui_navigation).is_application_open(id(light_control_application)) &&
+                           !id(ui_navigation).is_transition_active();
+                timeout: 3s
+            - if:
+                condition:
+                  lambda: |-
+                    return !id(ui_light_preparation_owned) &&
+                           !id(selected_light_control).owner().has_selection() &&
+                           !id(selected_light_control).owner().is_open_pending() &&
+                           !id(ui_navigation).is_application_open(id(light_control_application)) &&
+                           !id(ui_navigation).is_transition_active() &&
+                           id(light_control_renderer).suspend_for_snapshot(250);
+                then:
+                  - lvgl_material.notification.show:
+                      id: material_notification_overlay
+                      title: !lambda 'return title;'
+                      message: !lambda 'return message;'
+                      icon: !lambda 'return icon;'
+                      duration: !lambda 'return duration_ms;'

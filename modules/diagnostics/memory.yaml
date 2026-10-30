@@ -31,6 +31,9 @@ script:
           const size_t gallery_a_bytes = id(immich_photo_image).memory_usage_bytes();
           const size_t gallery_motion_bytes = id(immich_slideshow).memory_usage_bytes();
           const size_t camera_bytes = id(camera_stream_image).memory_usage_bytes();
+          // Scalar owns source canvas/reserved glyph arena/allocated stack.
+          // The existing global persistent copy is deliberately excluded.
+          const size_t light_control_bytes = id(light_control_renderer).memory_usage_bytes();
           size_t lottie_bytes = 0;
           if (id(boot_esphome_animation) != nullptr) {
             auto *ctx = static_cast<esphome::lvgl::LottieContext *>(
@@ -66,10 +69,11 @@ script:
             }
           }
           const size_t known = dsi_frame_bytes + snapshot_bytes + player_art_bytes + gallery_a_bytes +
-                               gallery_motion_bytes + camera_bytes + lottie_bytes + weather_lottie_bytes;
+                               gallery_motion_bytes + camera_bytes + lottie_bytes + weather_lottie_bytes +
+                               light_control_bytes;
           ESP_LOGW("memory.phase",
                    "%s psram=%uK/%uK used=%uK largest=%uK internal=%uK/%uK used=%uK known=%uK residual=%dK "
-                   "dsi=%uK snapshot=%uK player_art=%uK gallery=%uK motion=%uK camera=%uK lottie=%uK weather=%uK",
+                   "dsi=%uK snapshot=%uK player_art=%uK gallery=%uK motion=%uK camera=%uK lottie=%uK weather=%uK control=%uK",
                    phase.c_str(), (unsigned) (psram_free / 1024), (unsigned) (psram_total / 1024),
                    (unsigned) ((psram_total - psram_free) / 1024),
                    (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024),
@@ -81,7 +85,9 @@ script:
                    (unsigned) (gallery_motion_bytes / 1024),
                    (unsigned) (camera_bytes / 1024),
                    (unsigned) (lottie_bytes / 1024),
-                   (unsigned) (weather_lottie_bytes / 1024));
+                   (unsigned) (weather_lottie_bytes / 1024),
+                   (unsigned) (light_control_bytes / 1024));
+          id(light_control_renderer).log_memory_usage(phase.c_str());
           lvgl_esphome_snapshot_log_memory(phase.c_str());
           id(album_art_background).log_memory_usage((phase + ".player").c_str());
           id(immich_photo_image).log_memory_usage((phase + ".photo_a").c_str());

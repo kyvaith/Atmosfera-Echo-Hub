@@ -902,3 +902,12 @@ source/image identities, improved weather timing and memory, the later hardware
 failures, and the current acceptance status. Read its explicit coverage limits,
 including unavailable physical power cycles, real Sendspin playback and
 provider/acoustic dialogue, separately from completed automated checks.
+
+### 2026-10-24 HA dashboard development
+
+The published normal11 checkpoint above remains the historical baseline.
+Research of ESPControl, Tessera and Mosaico and the new fixed-pool HA editor are
+tracked in the [dashboard implementation record](ha-dashboard-2026-10-24.md).
+It separates model/browser tests, native image identity, device scenarios,
+visual review and matched performance. The local integration package is not
+an installed or accepted HA deployment; its real-HA access limit is explicit.

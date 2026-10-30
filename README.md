@@ -193,18 +193,38 @@ path and lifecycle.
 
 ### Home Assistant tile editor
 
-The same `atmosfera_echo_hub` integration registers an authenticated
-**Atmosfera** panel in Home Assistant. The panel edits the eleven preallocated
-Home tile slots: entity, title, icon, palette, optional service, and visibility.
-Changes are persisted in the integration config entry and sent to the device
-through the existing native ESPHome API connection. Entity state changes update
-the fixed LVGL object pool without rebuilding the widget tree.
+The `atmosfera_echo_hub` Core integration registers the administrator-only
+**Atmosfera** panel. The development editor offers an entity library with
+combined name/type/area filters, a scaled
+screen preview, drag-and-drop moves/swaps, keyboard interaction, card properties,
+typed tap actions, undo/redo, draft recovery, and validated layout import/export. English and
+Polish follow the Home Assistant UI language.
 
-This is deliberately a Home Assistant panel, not a second unauthenticated web
-server hosted by the ESP32. The current editor is a bounded production
-checkpoint, not yet a complete EspControl-equivalent configurator: arbitrary
-page creation, drag-and-drop sizing, all card types, layout backup/restore, and
-language/appearance editors remain future work.
+The `echo-hub-m3-v1` profile describes sixteen precompiled bindings: fourteen
+editable places on Security and Controls, plus two hidden compatibility slots.
+Clock/weather and Apps keep their existing composition. Positions and sizes are
+fixed; arbitrary pages, resizing and native domain control sheets are separate
+roadmap items. A configured action with a brightness value is a tap preset.
+
+Home Assistant owns the versioned layout and checks revision conflicts before
+saving it. It sends presentation updates through its existing ESPHome API
+connection to a fixed LVGL object pool. The editor distinguishes saved and sent
+revisions; applied remains unconfirmed. Source acceptance and snapshot readiness
+are tracked separately and do not prove physical scanout.
+It does not host another configuration server on the ESP32.
+
+This development work requires matching integration and firmware versions.
+Installation and current validation limits are tracked in the
+[dashboard implementation record](docs/development/ha-dashboard-2026-10-24.md).
+The [research comparison](docs/research/project-comparison-2026-10-24.md) and
+[feature roadmap](docs/development/feature-roadmap-2026-10-24.md) separate existing
+capabilities, new implementation and hardware acceptance.
+The [implementation plan](docs/development/implementation-plan-2026-10-24.md)
+assigns all 108 feature families to 27 ordered work packages with ownership,
+dependencies, migration rules, resource budgets and acceptance scenarios.
+The [first three editor increments](docs/development/editor-three-features-2026-10-24.md)
+add single-card copy/paste, received/snapshot status and visible profile limits;
+their deployment and hardware evidence are recorded separately.
 
 ## What Else This Device Could Support
 

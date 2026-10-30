@@ -98,6 +98,18 @@ globals:
     type: bool
     restore_value: no
     initial_value: 'false'
+  - id: ui_debug_touch_input_active
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+  - id: ui_debug_touch_input_origin_app
+    type: int
+    restore_value: no
+    initial_value: '-1'
+  - id: ui_debug_touch_input_selection_generation
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
   - id: ui_last_touch_activity_ms
     type: uint32_t
     restore_value: no
@@ -132,7 +144,7 @@ globals:
     initial_value: '0'
 
 script:
-  - id: ui_apply_accent_theme
+  - id: ui_apply_accent_theme_committed
     mode: restart
     then:
       - globals.set:
@@ -398,7 +410,7 @@ script:
                      id(ui_accent_rgb_g), id(ui_accent_rgb_b));
             return std::string(value);
 
-  - id: ui_i18n_refresh
+  - id: ui_i18n_refresh_committed
     mode: restart
     then:
       - lvgl.label.update:
@@ -500,7 +512,7 @@ script:
           // chrome; fullscreen Assistant/Gallery/Camera hide both owners.
           const bool show_home_status = id(ui_active_app) == 0;
           const bool show_global_status = id(ui_active_app) == 1 ||
-                                          id(ui_active_app) == 2;
+                                          id(ui_active_app) == 2 || id(ui_active_app) == 6;
           const bool show_home_local_status = false;
           lvgl_esphome_snapshot_set_status_icons_visible(show_home_status || show_global_status);
           lv_obj_t *home_status[] = {
@@ -1132,9 +1144,11 @@ script:
                   return;
                 uint32_t page_mask = 0;
                 if (id(ui_page) == 1) page_mask = (1UL << 0) | (1UL << 1);
-                else if (id(ui_page) == 2) page_mask = (1UL << 2) | (1UL << 3) | (1UL << 4) | (1UL << 5);
+                else if (id(ui_page) == 2) page_mask = (1UL << 2) | (1UL << 3) | (1UL << 4) |
+                                                       (1UL << 5) | (1UL << 11) | (1UL << 12);
                 else if (id(ui_page) == 4) page_mask = (1UL << 6) | (1UL << 7) | (1UL << 8) |
-                                                       (1UL << 9) | (1UL << 10);
+                                                       (1UL << 9) | (1UL << 10) | (1UL << 13) |
+                                                       (1UL << 14) | (1UL << 15);
                 const uint32_t refresh_slots = changed_slots & page_mask;
                 if (refresh_slots == 0)
                   return;
@@ -1152,25 +1166,34 @@ script:
                   if ((refresh_slots & (1UL << 1)) != 0) regions[count++] = id(tile_climate_button);
                   ok = lvgl_esphome_snapshot_refresh_tile_regions(id(controls_root_1), regions, count, width);
                 } else if (id(ui_page) == 2) {
-                  lv_obj_t *regions[4]{};
+                  lv_obj_t *regions[6]{};
                   size_t count = 0;
                   if ((refresh_slots & (1UL << 2)) != 0) regions[count++] = id(tile_cover_button);
                   if ((refresh_slots & (1UL << 3)) != 0) regions[count++] = id(tile_lock_button);
                   if ((refresh_slots & (1UL << 4)) != 0) regions[count++] = id(tile_alarm_button);
                   if ((refresh_slots & (1UL << 5)) != 0) regions[count++] = id(tile_garage_button);
+                  if ((refresh_slots & (1UL << 11)) != 0) regions[count++] = id(tile_door_window_button);
+                  if ((refresh_slots & (1UL << 12)) != 0) regions[count++] = id(tile_presence_button);
                   ok = lvgl_esphome_snapshot_refresh_tile_regions(id(controls_root_2), regions, count, width);
                 } else if (id(ui_page) == 4) {
-                  lv_obj_t *regions[5]{};
+                  lv_obj_t *regions[8]{};
                   size_t count = 0;
                   if ((refresh_slots & (1UL << 6)) != 0) regions[count++] = id(tile_fan_button);
                   if ((refresh_slots & (1UL << 7)) != 0) regions[count++] = id(tile_fan_speed_button);
                   if ((refresh_slots & (1UL << 8)) != 0) regions[count++] = id(tile_switch_button);
                   if ((refresh_slots & (1UL << 9)) != 0) regions[count++] = id(tile_scene_button);
                   if ((refresh_slots & (1UL << 10)) != 0) regions[count++] = id(tile_trigger_button);
+                  if ((refresh_slots & (1UL << 13)) != 0) regions[count++] = id(tile_sensor_button);
+                  if ((refresh_slots & (1UL << 14)) != 0) regions[count++] = id(tile_clock_button);
+                  if ((refresh_slots & (1UL << 15)) != 0) regions[count++] = id(tile_webhook_button);
                   ok = lvgl_esphome_snapshot_refresh_tile_regions(id(controls_root_4), regions, count, width);
                 }
                 id(ui_snapshot_io_busy) = false;
-                if (!ok) {
+                if (ok) {
+                  // This synchronous refresh and readiness mark run on the
+                  // same LVGL task, without an intervening configuration.
+                  id(home_material_tiles).mark_slots_ready(refresh_slots);
+                } else {
                   id(ui_managed_tile_refresh_pending_mask) |= refresh_slots;
                   id(ui_refresh_managed_tile_snapshots).execute();
                   if (id(settings_swipe_logs_switch).state)
@@ -1602,6 +1625,20 @@ script:
                   args: [id(settings_display_timeout).state]
       - script.execute: ui_refresh_settings_snapshot
 
+  - id: ui_update_settings_auto_home_state
+    then:
+      - lvgl.label.update:
+          id: settings_auto_home_value
+          text: !lambda |-
+            const float timeout_s = id(settings_auto_home_timeout).state;
+            if (!std::isfinite(timeout_s) || timeout_s < 0.0f || timeout_s > 300.0f)
+              return std::string("--");
+            if (timeout_s == 0.0f) return std::string(id(ui_i18n).translate("common.off"));
+            char value[8];
+            snprintf(value, sizeof(value), "%.0f s", timeout_s);
+            return std::string(value);
+      - script.execute: ui_refresh_settings_snapshot
+
   - id: ui_update_wake_sensitivity_state
     then:
       - if:
@@ -1699,6 +1736,8 @@ script:
       - script.wait: ui_update_display_brightness_state
       - script.execute: ui_update_display_timeout_state
       - script.wait: ui_update_display_timeout_state
+      - script.execute: ui_update_settings_auto_home_state
+      - script.wait: ui_update_settings_auto_home_state
       - script.execute: ui_update_voice_mute_state
       - script.wait: ui_update_voice_mute_state
       - script.execute: ui_update_wake_sound_state

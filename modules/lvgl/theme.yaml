@@ -17,6 +17,7 @@ lvgl_material:
         - material_notification_root
         - camera_root
         - immich_root
+        - light_control_root
 
 script:
   - id: ui_apply_accent_theme_full
@@ -28,6 +29,13 @@ script:
           id: ui_accent_theme
           color: !lambda 'return id(ui_accent_color);'
       - lambda: 'id(home_material_tiles).set_accent(id(ui_accent_color));'
+      - lambda: |-
+          id(ui_managed_tile_refresh_pending_mask) |= id(home_material_tiles).get_last_changed_slots();
+      - if:
+          condition:
+            lambda: 'return id(boot_sequence_done) && id(ui_managed_tile_refresh_pending_mask) != 0;'
+          then:
+            - script.execute: ui_refresh_managed_tile_snapshots
       # The clock is rendered with LVGL recolour markup. Invalidate its
       # minute key so a palette change immediately regenerates both hour and
       # minute strings, even when the wall clock minute did not change.

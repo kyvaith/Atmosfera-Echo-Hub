@@ -1,0 +1,207 @@
+# Isolated product composition. Not included by the canonical firmware yet.
+# The entity session owns input; the scalar renderer owns the bounded rail.
+lvgl:
+  pages:
+    - id: light_control_page
+      bg_color: 0x000000
+      bg_opa: 100%
+      widgets:
+        - obj:
+            id: light_control_root
+            width: 800
+            height: 800
+            align: CENTER
+            bg_color: 0x000000
+            bg_opa: 100%
+            border_width: 0
+            radius: 0
+            pad_all: 0
+            scrollable: false
+            overflow_visible: false
+            widgets:
+              - label:
+                  id: light_control_title
+                  x: 130
+                  y: 116
+                  width: 540
+                  height: 80
+                  text: !lambda 'return std::string(id(ui_i18n).translate("light_control.title"));'
+                  text_font: roboto_34
+                  text_color: 0xF2F2F2
+                  text_align: CENTER
+                  long_mode: CLIP
+                  clickable: false
+              - label:
+                  id: light_control_authoritative_value
+                  x: 150
+                  y: 204
+                  width: 500
+                  height: 132
+                  text: "0%"
+                  text_font: roboto_volume_112
+                  text_color: 0xF5F7FA
+                  text_align: CENTER
+                  long_mode: CLIP
+                  hidden: true
+                  clickable: false
+              - label:
+                  id: light_control_unknown_value
+                  x: 150
+                  y: 238
+                  width: 500
+                  height: 72
+                  text: "--"
+                  text_font: wear_title_53
+                  text_color: 0xF5F7FA
+                  text_align: CENTER
+                  long_mode: CLIP
+                  clickable: false
+              - label:
+                  id: light_control_state
+                  x: 200
+                  y: 340
+                  width: 400
+                  height: 44
+                  text: ""
+                  text_font: roboto_30
+                  text_color: 0xC4C7C5
+                  text_align: CENTER
+                  long_mode: CLIP
+                  clickable: false
+              - obj:
+                  id: light_control_scalar_region
+                  x: 118
+                  y: 410
+                  width: 564
+                  height: 112
+                  bg_color: 0x000000
+                  bg_opa: 100%
+                  border_width: 0
+                  radius: 0
+                  pad_all: 0
+                  scrollable: false
+                  clickable: true
+                  overflow_visible: false
+                  widgets:
+                    - obj:
+                        id: light_control_scalar_track
+                        x: 0
+                        y: 54
+                        width: 564
+                        height: 36
+                        bg_color: 0x071018
+                        bg_opa: 100%
+                        border_width: 0
+                        radius: 18
+                        pad_all: 0
+                        scrollable: false
+                        clickable: false
+                    - obj:
+                        id: light_control_scalar_bubble
+                        x: 0
+                        y: 0
+                        width: 78
+                        height: 48
+                        bg_color: 0xD3E3FD
+                        bg_opa: 100%
+                        border_width: 0
+                        radius: 24
+                        pad_all: 0
+                        scrollable: false
+                        clickable: false
+                        widgets:
+                          - label:
+                              id: light_control_scalar_value
+                              text: "--"
+                              align: CENTER
+                              text_font: roboto_24
+                              text_color: 0x071018
+                              long_mode: CLIP
+                              clickable: false
+                    - label:
+                        id: light_control_scalar_minimum
+                        x: 0
+                        y: 92
+                        width: 44
+                        height: 20
+                        text: "0%"
+                        text_font: roboto_16
+                        text_color: 0xC4C7C5
+                        long_mode: CLIP
+                        clickable: false
+                    - label:
+                        id: light_control_scalar_maximum
+                        x: 514
+                        y: 92
+                        width: 50
+                        height: 20
+                        text: "100%"
+                        text_font: roboto_16
+                        text_color: 0xC4C7C5
+                        text_align: RIGHT
+                        long_mode: CLIP
+                        clickable: false
+              - button:
+                  id: light_control_on_button
+                  x: 174
+                  y: 560
+                  width: 208
+                  height: 80
+                  radius: 40
+                  bg_color: 0xD3E3FD
+                  bg_opa: 100%
+                  border_width: 0
+                  pad_all: 0
+                  shadow_width: 0
+                  pressed:
+                    bg_opa: 80%
+                  disabled:
+                    bg_opa: 35%
+                    text_opa: 45%
+                  scrollable: false
+                  widgets:
+                    - label:
+                        id: light_control_on_label
+                        text: !lambda 'return std::string(id(ui_i18n).translate("light_control.on"));'
+                        align: CENTER
+                        text_font: roboto_30
+                        text_color: 0x071018
+                        clickable: false
+              - button:
+                  id: light_control_off_button
+                  x: 418
+                  y: 560
+                  width: 208
+                  height: 80
+                  radius: 40
+                  bg_color: 0x071018
+                  bg_opa: 100%
+                  border_width: 0
+                  pad_all: 0
+                  shadow_width: 0
+                  pressed:
+                    bg_opa: 80%
+                  disabled:
+                    bg_opa: 35%
+                    text_opa: 45%
+                  scrollable: false
+                  widgets:
+                    - label:
+                        id: light_control_off_label
+                        text: !lambda 'return std::string(id(ui_i18n).translate("light_control.off"));'
+                        align: CENTER
+                        text_font: roboto_30
+                        text_color: 0xF5F7FA
+                        clickable: false
+              - label:
+                  id: light_control_status
+                  x: 168
+                  y: 654
+                  width: 464
+                  height: 48
+                  text: !lambda 'return std::string(id(ui_i18n).translate("light_control.waiting"));'
+                  text_font: roboto_18
+                  text_color: 0xC4C7C5
+                  text_align: CENTER
+                  long_mode: WRAP
+                  clickable: false
