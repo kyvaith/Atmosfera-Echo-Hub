@@ -15,6 +15,7 @@ ROOT = Path(os.environ.get("AEH_SOURCE_ROOT", Path(__file__).resolve().parents[2
 OVERLAY = os.environ.get("AEH_ARTWORK_OVERLAY_ROOT")
 BASELINE = os.environ.get("AEH_ARTWORK_BASE_ROOT")
 OPTION = "prefer_external_download_buffer"
+PREALLOCATE = "preallocate_download_buffer"
 
 
 def load_product(root, overlay=None):
@@ -54,16 +55,17 @@ class ArtworkBootMemoryPolicyTests(unittest.TestCase):
             with self.subTest(image=image_id):
                 image = images[image_id]
                 self.assertIs(image[OPTION], True)
+                self.assertIs(image[PREALLOCATE], True)
                 self.assertIs(image["hardware_jpeg"], True)
                 self.assertEqual(image["buffer_size"], capacity)
         self.assertNotIn("scheduler_pool_max_items", config["esphome"])
 
     @unittest.skipUnless(BASELINE, "Set AEH_ARTWORK_BASE_ROOT for the frozen preimage")
-    def test_only_two_allocator_preferences_change_the_merged_product(self):
+    def test_only_two_initial_capacity_preferences_change_the_merged_product(self):
         before = plain(load_product(Path(BASELINE)))
         after = plain(load_product(ROOT, OVERLAY))
         for image in after["artwork_image"]:
-            image.pop(OPTION)
+            image.pop(PREALLOCATE)
         self.assertEqual(after, before)
 
 

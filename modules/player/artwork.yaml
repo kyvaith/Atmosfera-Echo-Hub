@@ -28,6 +28,9 @@ artwork_image:
     # Keep even the initial compressed-input buffer in PSRAM so startup
     # internal RAM remains available for Wi-Fi and duplex audio.
     prefer_external_download_buffer: true
+    # Allocate its final encoded capacity before other long-lived PSRAM
+    # owners; avoid moving a small input buffer during boot preparation.
+    preallocate_download_buffer: true
     # Keep the currently displayed generation immutable while the next JPEG
     # is decoded. The presenter freezes it only after decode completes, so the
     # wave, marquee and input remain responsive during the long operation.

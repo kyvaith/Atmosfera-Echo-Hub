@@ -137,6 +137,9 @@ artwork_image:
     # Keep even the initial compressed-input buffer in PSRAM so startup
     # internal RAM remains available for Wi-Fi and duplex audio.
     prefer_external_download_buffer: true
+    # Allocate its final encoded capacity before other long-lived PSRAM
+    # owners; avoid moving a small input buffer during boot preparation.
+    preallocate_download_buffer: true
     # Keep the decoder worker stack in PSRAM (the component default). Local
     # HTTP/lwIP still needs an internal-RAM reserve when Gallery is opened.
     reuse_active_buffer_capacity: true
