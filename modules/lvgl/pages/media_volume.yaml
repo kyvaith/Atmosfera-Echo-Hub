@@ -1,0 +1,103 @@
+# Isolated Media product composition; one existing native owner controls all input.
+id: media_volume_root
+x: 0
+y: 0
+width: 800
+height: 800
+bg_color: '0x000000'
+bg_opa: TRANSP
+border_width: 0
+pad_all: 0
+radius: 0
+hidden: true
+clickable: false
+scrollable: false
+widgets:
+- label:
+    id: media_volume_kind
+    x: 200
+    y: 68
+    width: 400
+    height: 28
+    text: ''
+    text_font: roboto_20
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: media_volume_title
+    x: 130
+    y: 104
+    width: 540
+    height: 42
+    text: ''
+    text_font: roboto_30
+    text_color: '0xF5F7FA'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- svg_icon:
+    id: media_volume_icon
+    file: assets/icons/media-panel-volume.svg
+    x: 368
+    y: 154
+    width: 64
+    height: 64
+    text_color: '0xD3E3FD'
+    clickable: false
+- label:
+    id: media_volume_observed
+    x: 130
+    y: 262
+    width: 540
+    height: 108
+    text: ''
+    text_font: wear_title_53
+    text_color: '0xF5F7FA'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: media_volume_status
+    x: 180
+    y: 550
+    width: 440
+    height: 56
+    text: ''
+    text_font: roboto_18
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- button:
+    id: media_panel_volume_back
+    width: 212
+    height: 64
+    radius: 32
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: false
+    pressed:
+      bg_opa: 80%
+    disabled:
+      text_opa: 80%
+    x: 294
+    y: 630
+    widgets:
+    - label:
+        id: media_panel_volume_back_label
+        x: 8
+        y: 19
+        width: 196
+        height: 26
+        text: ''
+        text_font: roboto_24
+        text_color: '0xF5F7FA'
+        text_align: CENTER
+        long_mode: WRAP
+        clickable: false

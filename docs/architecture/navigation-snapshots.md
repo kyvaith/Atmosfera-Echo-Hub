@@ -5,6 +5,20 @@ the live LVGL object tree. It owns gesture arbitration, Home paging,
 application transitions, Settings scrolling, tap cancellation, and snapshot
 lifetime.
 
+## Deferred press identity
+
+An opted-in Material TileSurface captures its presentation generation through
+the generic `DeferredPressContext` event on raw Home/scroll touch-down. This
+event sends no LVGL PRESSED state. Before replaying a stationary tap, the input
+listener asks the same widget to validate that generation and current admission.
+A changed and then restored caption/identity cannot regain a held contact; an
+update to another tile cannot cancel it. The existing synthetic press/release
+and post-PRESSED context checks remain in charge after admission. Drag capture
+never replays a child press. The existing `action_availability` option defaults
+to false and enables this small fixed context record without a task, pixel
+buffer or display-ownership change. Native46 qualification is tracked in
+[the repair design](../development/deferred-tap-context-design-2026-11-01.md).
+
 ## Declarative registration
 
 The product declares navigation below `lvgl.navigation` in
@@ -61,14 +75,28 @@ cancellation stay in the component.
 
 ## Home snapshot window
 
-The Home screen currently contains four pages. Keeping all four raw at RGB888
-would consume 7.68 MB. The runtime instead owns three fixed raw slots:
+Atmosfera registers five Home views. The active route can contain two to five
+of them. Each view has a stable ID defined by registration order. A route
+change reorders the existing view pointers for navigation and the compositor.
+Card bindings, snapshot identities and application return use the stable
+view. Hiding the current view selects the first view in the new route.
+
+The device applies a changed route when Home is idle and direct regions have
+drained. HA retries a busy request and resends its saved route after reconnect.
+Native LVGL and the direct compositor share the active route and indicator
+count. HA protects Home as the first view and keeps Apps visible. The Apps
+shortcut to Controls follows the route and refreshes that page's snapshot
+when its visibility changes.
+
+Keeping five views raw at RGB888 would consume 9.60 MB. The runtime owns
+three fixed raw slots:
 
 ```text
 3 * 800 * 800 * 3 = 5,760,000 bytes
 ```
 
-The pages outside the window keep compressed JPEG backing.
+The pages outside the window keep compressed JPEG backing. The following
+example shows the raw window for a four-view route.
 
 | Current page | Raw window |
 | --- | --- |
@@ -256,6 +284,22 @@ for framework evaluation, blocking-time and persistent-failure limits.
 `lvgl.navigation.prepare_applications` renders each registered application and
 stores compressed backing. Application previews do not remain as independent
 raw 800x800 surfaces.
+
+The native99 Text candidate adds an explicit subset overload of
+`try_prepare_application_snapshots`. It reuses the same compositor capture and
+exclusive DSI ownership path. Its nonempty application list must contain only
+registered, unique views; while an application is active, only that application
+may be refreshed. Touch, transitions, external capture and admission guards
+can defer preparation. Ownership and list validity are checked again after
+guard callbacks. The existing all-app preparation API is unchanged.
+
+Text uses a one-element list allocated during setup to retire only App6's old
+compressed preview. Closing or revoking Text clears visible text storage and
+marks retirement pending. The component's existing loop retries after the close
+compositor has finished; all App6 opens remain blocked until preparation
+succeeds. A hidden label alone does not retire compressed pixels. This adds no
+raw screen buffer, worker or alternate capture mechanism. Hardware acceptance
+for this candidate is tracked in the current development checkpoint.
 
 Applications can select their transition source independently for opening and
 closing:
@@ -457,6 +501,17 @@ versus 2,438,400 in RGB565, only while Settings is open. Native-format spans
 use the existing DMA2D copy path; PPA remains the RGB565 conversion path and a
 compatible RGB888 fallback. The display-owned buffer pool is unchanged.
 
+The optional direct-backend `segment_target_size` requests larger owned pieces
+when the external/full contiguous fast path is unavailable. Absence preserves
+the256KiB target and its original failure behavior. A larger target halves a
+failed capture request down to that minimum and retains the resulting bound
+for later pieces. Partial failure still releases the complete new partition;
+borrowed storage is never freed. The same height×stride pixel budget applies.
+The product's local native38 candidate opts into2MB to reduce DMA2D submissions
+after media-induced fragmentation; hardware performance acceptance is pending.
+It adds no permanent arena, extra pixels, worker or CPU copy. Refresh and close
+retain their existing drain and source-lifetime rules.
+
 Size an external loan through the controller's `get_required_bytes()` before
 its first capture. Its configured format is already known then; a previously
 active region's global format is not an allocation contract. A refused
@@ -469,6 +524,15 @@ Capture publishes only a complete partition. Refresh drains the worker before
 writing the existing pieces; a partial refresh is discarded rather than shown.
 A worker-drain timeout preserves its source buffers. Closing Settings releases
 owned pieces and returns borrowed storage only after the worker has stopped.
+
+After capture or in-place refresh temporarily resizes the source for each
+piece, resolve the restored viewport layout before restoring its scroll
+offset. LVGL clamps scrolling against the current resolved geometry. Restoring
+the offset first can silently move the live list when the final piece has a
+different height; native38 reproduced a 109-pixel shift with a 691-row final
+piece and an 800-row viewport. Native39 corrects this order; its hardware
+acceptance is tracked separately in the
+[31 October validation](../development/validation-2026-10-31.md).
 
 The refreshed snapshot is delayed until pressed/hover state is gone. Capturing
 earlier would bake a temporary state layer into the scroll bitmap.

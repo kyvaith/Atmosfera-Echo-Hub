@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="#FFFFFF">
+  <title>Cover: window</title>
+  <path d="M 22 18 L 106 18 L 106 26 L 22 26 Z"/>
+  <path d="M 22 102 L 106 102 L 106 110 L 22 110 Z"/>
+  <path d="M 22 26 L 30 26 L 30 102 L 22 102 Z"/>
+  <path d="M 98 26 L 106 26 L 106 102 L 98 102 Z"/>
+  <path d="M 60 26 L 68 26 L 68 102 L 60 102 Z"/>
+  <path d="M 30 60 L 98 60 L 98 68 L 30 68 Z"/>
+</svg>

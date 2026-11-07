@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
+from aioesphomeapi import TextInfo, TextState
 
 import test_ha_layout as host
 
@@ -81,7 +82,7 @@ class PaletteTests(unittest.TestCase):
 
 
 class PreferenceTests(unittest.IsolatedAsyncioTestCase):
-    async def bridge(self):
+    async def bridge(self, *, cached=None, stale=False, info=None, immediate=None):
         bridge = host.BridgeTests().bridge()
         bridge._device_preference_client = None
         bridge.scheduled = []
@@ -95,7 +96,7 @@ class PreferenceTests(unittest.IsolatedAsyncioTestCase):
             async def list_entities_services(self):
                 self.queries += 1
                 return [
-                    SimpleNamespace(
+                    info or SimpleNamespace(
                         key=77,
                         object_id="settings_accent_color",
                         name="Interface Accent Color",
@@ -104,13 +105,48 @@ class PreferenceTests(unittest.IsolatedAsyncioTestCase):
 
             def subscribe_states(self, cb):
                 self.callbacks.append(cb)
+                if immediate is not None:
+                    cb(immediate)
 
         client = Client()
         bridge.esphome_entry.runtime_data.client = client
+        if cached is not None:
+            bridge.esphome_entry.runtime_data.state = {TextState: {77: cached}}
+        bridge.esphome_entry.runtime_data.stale_state = {(TextState, 0, 77)} if stale else set()
         await host.controller.CameraBridge._async_subscribe_device_preferences_locked(
             bridge
         )
         return bridge, client, Client
+
+    async def test_already_consumed_initial_state_seeds_preview_without_wire_or_option_writes(self):
+        bridge, client, _ = await self.bridge(
+            info=TextInfo(key=77, name="Interface Accent Color"),
+            cached=TextState(key=77, state="AEE2FF"))
+        self.assertEqual(bridge.observed_accent_color, "AEE2FF")
+        self.assertEqual(bridge.accent_color, "36BCF0")
+        self.assertIsNone(bridge.device_locale)
+        self.assertEqual((client.queries, len(client.callbacks)), (1, 1))
+        self.assertFalse(bridge.hass.config_entries.updates)
+        self.assertFalse(bridge.hass.services.calls)
+        self.assertEqual(bridge.scheduled, [])
+
+    async def test_stale_missing_wrong_device_type_and_invalid_cached_values_do_not_seed_preview(self):
+        for cached, stale in ((TextState(key=77, state="AEE2FF"), True),
+                              (TextState(key=77, state="AEE2FF", missing_state=True), False),
+                              (TextState(key=77, state="AEE2FF", device_id=1), False),
+                              (SimpleNamespace(key=77, state="AEE2FF"), False),
+                              (TextState(key=77, state="invalid"), False)):
+            with self.subTest(cached=cached, stale=stale):
+                bridge, client, _ = await self.bridge(info=TextInfo(key=77, name="Interface Accent Color"), cached=cached, stale=stale)
+                self.assertIsNone(bridge.observed_accent_color)
+                client.callbacks[0](TextState(key=77, state="FBC8D5"))
+                self.assertEqual(bridge.observed_accent_color, "FBC8D5")
+
+    async def test_new_live_callback_wins_over_older_cache_during_subscription_setup(self):
+        bridge, client, _ = await self.bridge(info=TextInfo(key=77, name="Interface Accent Color"),
+            cached=TextState(key=77, state="AEE2FF"), immediate=TextState(key=77, state="FBC8D5"))
+        self.assertEqual(bridge.observed_accent_color, "FBC8D5")
+        self.assertEqual(len(client.callbacks), 1)
 
     async def test_observed_device_color_survives_hot_save_without_wire_change(self):
         bridge, client, _ = await self.bridge()

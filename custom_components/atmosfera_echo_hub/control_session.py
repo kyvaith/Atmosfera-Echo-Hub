@@ -37,6 +37,26 @@ class ProtocolError(ValueError):
     """Malformed or inadmissible message; no service is dispatched."""
 
 
+@dataclass(frozen=True)
+class ControlTarget:
+    """Resolved authorization target and optional private registration identity."""
+    entity_id: str
+    registration: object | None = None
+
+
+@dataclass(frozen=True)
+class ServiceDispatch:
+    domain: str
+    operation: str
+    data: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class CallbackDispatch:
+    """Trusted local callback only; never parsed from a native payload."""
+    invoke: Callable[[Any], bool]
+
+
 @dataclass
 class _Command:
     seq: int
@@ -46,6 +66,10 @@ class _Command:
     task: asyncio.Task | None = None
     prepared: Any = None
     changed: asyncio.Event = field(default_factory=asyncio.Event)
+    priority: bool = False
+    predecessor: asyncio.Task | None = None
+    predecessor_started: bool = False
+    service_started: bool = False
 
 
 @dataclass
@@ -76,6 +100,7 @@ class ControlSessionOwner:
     _open_fields = OPEN
     _selection_fields = SELECTION
     _result_reasons = RESULT_REASONS
+    _terminal_statuses = TERMINAL
 
     def __init__(self, hass: Any, read_context: Callable[[], Any],
                  emit: Callable[[dict[str, Any], int, object], Awaitable[None]],
@@ -139,13 +164,16 @@ class ControlSessionOwner:
     def _principal(context: Any) -> Any:
         return getattr(context, "user_id", None)
 
-    async def _authorized(self, context: Any, entity_id: str) -> bool:
+    def _authorization_policy(self, card):
+        return self.authorize
+
+    async def _authorized(self, context: Any, entity_id: str, *, authorizer=None) -> bool:
         # One lookup, with no waiter queue. A cancellation-resistant hook retains
         # this sole slot and blocks later lookup/dispatch instead of spawning jobs.
         if self._authorization_task is not None and not self._authorization_task.done():
             raise ProtocolError("busy")
         caller = asyncio.current_task()
-        job = asyncio.create_task(self.authorize(context, entity_id), name=caller.get_name() if caller else None)
+        job = asyncio.create_task((authorizer or self.authorize)(context, entity_id), name=caller.get_name() if caller else None)
         self._authorization_task = job
         job.add_done_callback(self._authorization_done)
         try:
@@ -196,7 +224,7 @@ class ControlSessionOwner:
         if self.clock() >= selected.deadline:
             raise ProtocolError("expired")
         state, card, caps = self._binding(selected.identity)
-        if card["entity_id"] != selected.entity_id:
+        if self._resolved_target(state, card, caps).entity_id != selected.entity_id:
             raise ProtocolError("selection_changed")
         if caps != selected.caps:
             raise ProtocolError("capabilities_changed")
@@ -282,21 +310,21 @@ class ControlSessionOwner:
         captured_open = None
         try:
             state, card, caps = self._binding(message)
-            authorized_entity = card["entity_id"]
+            authorized_target = self._resolved_target(state, card, caps)
             captured_open = self._capture_open(message, state, card, caps)
-            allowed = await self._authorized(context, authorized_entity)
+            allowed = await self._authorized(context, authorized_target.entity_id, authorizer=self._authorization_policy(card))
             # Authorization awaits: recheck every identity/capability before granting.
             if generation != self._open_generation:
                 return None
             if not allowed:
                 raise ProtocolError("unauthorized")
             state, card, caps = self._binding(message)
-            if card["entity_id"] != authorized_entity:
+            if self._resolved_target(state, card, caps) != authorized_target:
                 raise ProtocolError("selection_changed")
             self._revalidate_open(captured_open, state, card, caps)
             token = self.token_factory()
             identity = {key: message[key] for key in self._open_fields} | {"token": token}
-            selected = _Selection(identity, card["entity_id"], context, self._principal(context), caps,
+            selected = _Selection(identity, authorized_target.entity_id, context, self._principal(context), caps,
                                   self.clock() + TTL_MS / 1000)
             self._selection = selected
             self._opening = None
@@ -350,7 +378,7 @@ class ControlSessionOwner:
             return
         # Renewal is allowed only while actual permission is still valid.
         try:
-            allowed = await self._authorized(selected.context, selected.entity_id)
+            allowed = await self._authorized(selected.context, selected.entity_id, authorizer=self._authorization_policy(card))
         except ProtocolError:
             return  # Another bounded lookup owns admission; coalesce this refresh.
         if selected is not self._selection:
@@ -384,51 +412,124 @@ class ControlSessionOwner:
         if seq <= selected.highest_command:
             return await self._send(self._result(selected, seq, "rejected", "stale_sequence"))
         selected.highest_command = seq
-        if selected.command is not None or (self._service_task is not None and not self._service_task.done()):
+        predecessor = selected.command
+        priority = self._is_priority_successor(selected, message)
+        if (predecessor is not None or (self._service_task is not None and not self._service_task.done())) and not priority:
             record = _Command(seq, digest, message, self._result(selected, seq, "rejected", "busy"))
             selected.last = record
             return await self._send(record.result)
         record = _Command(seq, digest, message, self._result(selected, seq, "pending"))
-        selected.command = record
+        record.priority = priority
+        if not priority:
+            selected.command = record
         try:
             record.prepared = self._prepare_command(selected, message)
         except ProtocolError as error:
             reason = str(error) if str(error) in self._result_reasons else "unsupported"
+            if priority:
+                # A malformed/stale successor must not cancel the admitted job.
+                record.result = self._result(selected, seq, "rejected", reason)
+                selected.last = record
+                return await self._send(record.result)
             await self._publish(selected, record, "rejected", reason)
             return deepcopy(record.result)
+        if priority:
+            if selected is not self._selection or predecessor is None or selected.command is not predecessor:
+                raise ProtocolError("selection_changed")
+            record.predecessor = self._service_task
+            record.predecessor_started = predecessor.service_started
+            # No await: cancellation and replacement happen before the old
+            # authorization/observer gets another dispatch opportunity.
+            if predecessor.task is not None:
+                predecessor.task.cancel()
+            predecessor.result = self._result(selected, predecessor.seq, "rejected", "stale_sequence")
+            selected.last, selected.command = predecessor, record
         await self._send(record.result)
-        if selected is self._selection:
+        if self._record_current(selected, record):
             record.task = asyncio.create_task(self._execute(selected, record, context))
         return deepcopy(record.result)
 
     async def _publish(self, selected: _Selection, record: _Command, status: str, reason: str = "none") -> None:
-        if selected is not self._selection or selected.command is not record or record.result["status"] in TERMINAL:
+        if selected is not self._selection or selected.command is not record or record.result["status"] in self._terminal_statuses:
             return
         record.result = self._result(selected, record.seq, status, reason)
-        if status in TERMINAL:
+        if status in self._terminal_statuses:
             selected.last, selected.command = record, None
         await self._send(record.result)
 
     def _matches(self, selected: _Selection, command: dict[str, Any]) -> bool:
         state, _, _ = self._valid_selection(selected)
         return self._state_matches(state, selected.caps, command)
+
+    def _record_current(self, selected: _Selection, record: _Command) -> bool:
+        return (selected is self._selection and selected.command is record
+                and record.result["status"] not in self._terminal_statuses)
+
+    def _is_priority_successor(self, selected: _Selection, message: dict[str, Any]) -> bool:
+        """Policy opt-in only; ordinary controls never preempt an admitted job."""
+        return False
+
+    def _completed_service_status(self, selected: _Selection, record: _Command) -> str | None:
+        """Policy opt-in terminal after successful callback, never physical proof."""
+        return None
+
+    def _service_call_blocking(self, selected: _Selection, record: _Command) -> bool:
+        """Default to callback completion; only negotiated policy may dispatch asynchronously."""
+        return True
+
+    def _resolved_target(self, state, card, caps) -> ControlTarget:
+        return ControlTarget(card["entity_id"])
+
+    def _command_dispatch(self, selected, record, state, caps) -> ServiceDispatch | CallbackDispatch:
+        return ServiceDispatch(*self._command_service_action(state, caps, record))
+
+    async def _run_dispatch(self, selected, record, dispatch, context):
+        if isinstance(dispatch, ServiceDispatch):
+            return await self.hass.services.async_call(
+                dispatch.domain, dispatch.operation, {"entity_id": selected.entity_id, **dispatch.data},
+                blocking=self._service_call_blocking(selected, record), context=context)
+        if not isinstance(dispatch, CallbackDispatch) or not self._record_current(selected, record):
+            raise ProtocolError("selection_changed")
+        # create_task schedules another turn. Recheck the entire capture in that
+        # turn, then fire synchronously: no await gap can admit a retired binding.
+        state, _, caps = self._valid_selection(selected)
+        self._validate_prepared(selected, record, state, caps)
+        if dispatch.invoke(context) is not True:
+            raise ProtocolError("service_error")
+
     async def _execute(self, selected: _Selection, record: _Command, context: Any) -> None:
         try:
             self._cancel_authorization()
             await asyncio.sleep(0)
+            if record.predecessor is not None:
+                try:
+                    # Do not cancel a service already dispatched to HA. The
+                    # successor retains its order but never waits indefinitely.
+                    await asyncio.wait_for(asyncio.shield(record.predecessor), self.service_timeout)
+                except TimeoutError:
+                    await self._publish(selected, record, "not_confirmed", "service_timeout")
+                    return
+                except Exception:
+                    pass  # Ambiguous old failure still permits explicit Stop.
+            if not self._record_current(selected, record):
+                return
             if not await self._authorized(context, selected.entity_id):
                 await self._publish(selected, record, "rejected", "unauthorized")
                 return
+            if not self._record_current(selected, record):
+                return
             state, _, caps = self._valid_selection(selected)
             self._validate_prepared(selected, record, state, caps)
-            domain, operation, data = self._command_service_action(state, caps, record)
+            dispatch = self._command_dispatch(selected, record, state, caps)
             if self._command_matches(selected, record):
                 await self._publish(selected, record, "already_matched")
                 return
+            if self._service_task is not None and not self._service_task.done():
+                await self._publish(selected, record, "rejected", "busy")
+                return
             # No await between the final live validation and creating exactly one call.
-            job = asyncio.create_task(self.hass.services.async_call(
-                domain, operation, {"entity_id": selected.entity_id, **data},
-                blocking=True, context=context))
+            record.service_started = True
+            job = asyncio.create_task(self._run_dispatch(selected, record, dispatch, context))
             self._service_task = job
             job.add_done_callback(self._service_done)
             try:
@@ -440,6 +541,10 @@ class ControlSessionOwner:
                 await self._publish(selected, record, "rejected", "service_error")
                 return
             self._valid_selection(selected)
+            completed = self._completed_service_status(selected, record)
+            if completed is not None:
+                await self._publish(selected, record, completed)
+                return
             await self._publish(selected, record, "ha_accepted")
             deadline = self.clock() + self.state_timeout
             while selected is self._selection:

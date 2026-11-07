@@ -1,0 +1,226 @@
+[
+  {
+    "name": "ready-unset",
+    "metadata": {
+      "version": 1,
+      "panel_type": "action",
+      "caps": {
+        "skip_condition": null,
+        "action_type": "script",
+        "operations": 12,
+        "stop_actions": null,
+        "run_blocked": "none",
+        "parameter_status": "ready",
+        "parameter_label": "Confirm test",
+        "parameter_default": null,
+        "parameters_version": 1
+      },
+      "fingerprint": "1c32605b4e6884c44ddff55c7b311f982e733241d915c5ae0738f609301a47b9",
+      "state": {
+        "last_used_text": "",
+        "current": null,
+        "last_used_status": "unknown",
+        "source": "known",
+        "phase": "idle"
+      },
+      "available": true,
+      "eligible_actions": 4
+    }
+  },
+  {
+    "name": "ready-false",
+    "metadata": {
+      "version": 1,
+      "panel_type": "action",
+      "caps": {
+        "skip_condition": null,
+        "action_type": "script",
+        "operations": 12,
+        "stop_actions": null,
+        "run_blocked": "none",
+        "parameter_status": "ready",
+        "parameter_label": "Confirm test",
+        "parameter_default": false,
+        "parameters_version": 1
+      },
+      "fingerprint": "d457e150bc246ad00974555142cd7f501c3a43c3ddee24bc36644211f8495e2d",
+      "state": {
+        "last_used_text": "",
+        "current": null,
+        "last_used_status": "unknown",
+        "source": "known",
+        "phase": "idle"
+      },
+      "available": true,
+      "eligible_actions": 4
+    }
+  },
+  {
+    "name": "ready-true",
+    "metadata": {
+      "version": 1,
+      "panel_type": "action",
+      "caps": {
+        "skip_condition": null,
+        "action_type": "script",
+        "operations": 12,
+        "stop_actions": null,
+        "run_blocked": "none",
+        "parameter_status": "ready",
+        "parameter_label": "Confirm test",
+        "parameter_default": true,
+        "parameters_version": 1
+      },
+      "fingerprint": "8f24c250d24ef814ca4183785efbfaa2bb18b3101591ecffe262151b3393cf9c",
+      "state": {
+        "last_used_text": "",
+        "current": null,
+        "last_used_status": "unknown",
+        "source": "known",
+        "phase": "idle"
+      },
+      "available": true,
+      "eligible_actions": 4
+    }
+  },
+  {
+    "name": "unsupported-optional",
+    "metadata": {
+      "version": 1,
+      "panel_type": "action",
+      "caps": {
+        "skip_condition": null,
+        "action_type": "script",
+        "operations": 12,
+        "stop_actions": null,
+        "run_blocked": "needs_parameters",
+        "parameter_status": "unsupported",
+        "parameter_label": "",
+        "parameter_default": null,
+        "parameters_version": 1
+      },
+      "fingerprint": "55a54d6e29680afb5473c598fe779c9d9c12499389a3b2078a37371d7d2a2b7f",
+      "state": {
+        "last_used_text": "",
+        "current": null,
+        "last_used_status": "unknown",
+        "source": "known",
+        "phase": "idle"
+      },
+      "available": true,
+      "eligible_actions": 0
+    }
+  },
+  {
+    "name": "metadata-unavailable",
+    "metadata": {
+      "version": 1,
+      "panel_type": "action",
+      "caps": {
+        "skip_condition": null,
+        "action_type": "script",
+        "operations": 12,
+        "stop_actions": null,
+        "run_blocked": "metadata_unavailable",
+        "parameter_status": "metadata_unavailable",
+        "parameter_label": "",
+        "parameter_default": null,
+        "parameters_version": 1
+      },
+      "fingerprint": "d0ac3ae6d5671352e1a7d9b179d96acb83e2b75aad73f7e4a8bb31ff33971b8f",
+      "state": {
+        "last_used_text": "",
+        "current": null,
+        "last_used_status": "unknown",
+        "source": "known",
+        "phase": "idle"
+      },
+      "available": true,
+      "eligible_actions": 0
+    }
+  },
+  {
+    "name": "direct-service-missing",
+    "metadata": {
+      "version": 1,
+      "panel_type": "action",
+      "caps": {
+        "skip_condition": null,
+        "action_type": "script",
+        "operations": 8,
+        "stop_actions": null,
+        "run_blocked": "service_unavailable",
+        "parameter_status": "metadata_unavailable",
+        "parameter_label": "",
+        "parameter_default": null,
+        "parameters_version": 1
+      },
+      "fingerprint": "5a895a1620d9950d077b29fb54682df0bb5e8e9ff4fa9586ae5c0b16525147d5",
+      "state": {
+        "last_used_text": "",
+        "current": null,
+        "last_used_status": "unknown",
+        "source": "known",
+        "phase": "idle"
+      },
+      "available": true,
+      "eligible_actions": 0
+    }
+  },
+  {
+    "name": "running-stop",
+    "metadata": {
+      "version": 1,
+      "panel_type": "action",
+      "caps": {
+        "skip_condition": null,
+        "action_type": "script",
+        "operations": 12,
+        "stop_actions": null,
+        "run_blocked": "none",
+        "parameter_status": "ready",
+        "parameter_label": "Confirm test",
+        "parameter_default": null,
+        "parameters_version": 1
+      },
+      "fingerprint": "1c32605b4e6884c44ddff55c7b311f982e733241d915c5ae0738f609301a47b9",
+      "state": {
+        "last_used_text": "",
+        "current": null,
+        "last_used_status": "unknown",
+        "source": "known",
+        "phase": "running"
+      },
+      "available": true,
+      "eligible_actions": 8
+    }
+  },
+  {
+    "name": "unavailable",
+    "metadata": {
+      "version": 1,
+      "panel_type": "action",
+      "caps": {
+        "skip_condition": null,
+        "action_type": "script",
+        "operations": 12,
+        "stop_actions": null,
+        "run_blocked": "none",
+        "parameter_status": "ready",
+        "parameter_label": "Confirm test",
+        "parameter_default": null,
+        "parameters_version": 1
+      },
+      "fingerprint": "1c32605b4e6884c44ddff55c7b311f982e733241d915c5ae0738f609301a47b9",
+      "state": {
+        "last_used_text": "",
+        "current": null,
+        "last_used_status": "unknown",
+        "source": "unavailable",
+        "phase": "unknown"
+      },
+      "available": false,
+      "eligible_actions": 0
+    }
+  }
+]

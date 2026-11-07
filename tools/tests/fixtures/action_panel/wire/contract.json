@@ -1,0 +1,215 @@
+{
+  "status": "DRAFT_DESIGN_ONLY_NOT_IMPLEMENTED_OR_DEPLOYED",
+  "profile": {
+    "name": "action",
+    "version": 1
+  },
+  "base": "Frozen Media native93/HA113; old Extra, Panel, Detail, Media contracts unchanged",
+  "admission": {
+    "saved_action": {
+      "kind": "control",
+      "control": "panel",
+      "property": "action"
+    },
+    "automation_additional_required_fields": [
+      "skip_condition",
+      "stop_actions"
+    ],
+    "additional_field_type": "strict bool, automation only",
+    "open_close": "Existing panel identity unchanged; no facet/view_seq",
+    "default_native_option": false,
+    "permission": "Existing selected-entity control authorization and service fence"
+  },
+  "panel_type": "action",
+  "panel_caps": {
+    "exact_keys": [
+      "action_type",
+      "operations",
+      "skip_condition",
+      "stop_actions",
+      "run_blocked"
+    ],
+    "action_type": [
+      "button",
+      "input_button",
+      "scene",
+      "script",
+      "automation"
+    ],
+    "operations": {
+      "press": 1,
+      "activate": 2,
+      "run": 4,
+      "stop": 8,
+      "enable": 16,
+      "disable": 32,
+      "trigger": 64
+    },
+    "domain_masks": {
+      "button": 1,
+      "input_button": 1,
+      "scene": 2,
+      "script": 12,
+      "automation": 112
+    },
+    "automation_policies": "strict boolean for automation; null for every other subtype",
+    "run_blocked": [
+      "none",
+      "needs_parameters",
+      "metadata_unavailable",
+      "service_unavailable"
+    ],
+    "run_blocked_scope": "Script only; none for other subtypes. A registered Run bit can remain visible while parameters block eligibility."
+  },
+  "panel_state": {
+    "exact_keys": [
+      "source",
+      "phase",
+      "last_used_status",
+      "last_used_text",
+      "current"
+    ],
+    "source": [
+      "known",
+      "unknown",
+      "unavailable"
+    ],
+    "phase": [
+      "stateless",
+      "idle",
+      "running",
+      "enabled",
+      "disabled",
+      "unknown"
+    ],
+    "last_used_status": [
+      "value",
+      "unknown",
+      "invalid",
+      "too_long"
+    ],
+    "last_used_text": "Complete timezone-aware normalized ISO8601 text, <=48UTF8bytes; nonempty iffstatusvalue, no excerpt. UI display only, not command freshness token.",
+    "current": "null or strictinteger0..65535; onlyscript/automation, absent/invalid/overflow->null, never clamp"
+  },
+  "snapshot_fields": {
+    "available": "strictbool equals sourceknown",
+    "eligible_actions": "exact derivation below, subset operations",
+    "state_generation": "integer1..INT32_MAX; session monotonic inclABA"
+  },
+  "eligibility": {
+    "button": "known/stateless & pressbit",
+    "input_button": "known/stateless & pressbit",
+    "scene": "known/stateless & activatebit",
+    "script": "known/idle & runbit & run_blockednone; known/running & stopbit",
+    "automation": "known enabled/disabled: triggerbit always; enablebit onlydisabled; disablebit ifenabled OR stop_actionstrue",
+    "nonknown": "phaseunknown, eligible0, availablefalse, last_used_statusunknown/emptytext, currentnull"
+  },
+  "first_use": "Existing available button/input_button/scene with HA stateunknown => sourceknown/phasestateless,last_used_statusunknown/emptytext. Unknown timestamp is not source unavailability. Script/automation unknown or unrecognizedphase => sourceunknown/phaseunknown disabled.",
+  "command": {
+    "extra_exact_fields": [
+      "action_version",
+      "command_seq",
+      "expected_state_generation",
+      "op"
+    ],
+    "action_version": 1,
+    "op": [
+      "press",
+      "activate",
+      "run",
+      "stop",
+      "enable",
+      "disable",
+      "trigger"
+    ],
+    "inherit": "Full identity channel/open_seq/slot/card_id/revision/control_kind/token. No entity/service/target/payload/vars/facet/view_seq from native. Common result envelope unchanged."
+  },
+  "service_mapping": {
+    "press": "button.press or input_button.press by exactsubtype",
+    "activate": "scene.turn_on",
+    "run": "script.turn_on",
+    "stop": "script.turn_off",
+    "enable": "automation.turn_on",
+    "disable": "automation.turn_off with exactsavedstop_actions",
+    "trigger": "automation.trigger with exactsavedskip_condition"
+  },
+  "results": {
+    "service_only": [
+      "press",
+      "activate",
+      "run",
+      "trigger",
+      "disable when stop_actions true"
+    ],
+    "fresh_state_confirmation": {
+      "stop": "postdispatch script phaseidle",
+      "enable": "postdispatch automation phaseenabled",
+      "disable when stop_actions false": "postdispatch automation phasedisabled"
+    },
+    "stop_true_edge": "Disable with stop_actionstrue is eligible evenalreadydisabled/current0 ornull; alwaysservicecall, never ALREADY_MATCHED solelyfromoff/current. Servicecompleted doesnotprove all actionsstopped.",
+    "common": "Existing pending/ha_accepted/state_matches/service_completed/rejected/not_confirmed guards. Timestamp change cannot override servicefailure; callbacksuccess isnot physicaleffect. No automaticretry."
+  },
+  "generations": {
+    "changes": [
+      "source availability/phase",
+      "semantic ABA"
+    ],
+    "domain_retirement": [
+      "operation/service set",
+      "subtype",
+      "savedtrigger/disablepolicy",
+      "run_blocked metadata",
+      "layout/channel/principal/epoch"
+    ],
+    "metadata_only": [
+      "last_used timestamp/status",
+      "current count"
+    ],
+    "freshness": "Lease state_seq alone is not intended metadata acceptance; no optimistic snapshot claim."
+  },
+  "script_run_policy": {
+    "variables": "None in firstboundedversion",
+    "services": "Require registered script.turn_on plus reviewed entity-specific script metadata; no invented action from attrs",
+    "metadata": "Valid descriptor fields map and valid requiredbooleans; anyexplicitrequiredtrue=>needs_parameters; missing/invaliddescriptor=>metadata_unavailable; missinggenericrunservice=>service_unavailable",
+    "defaults": "fields.required/default are HA UI metadata; HA doesnot enforce required or supply fielddefaults at runtime. Suppression isexplicit conservativepanelpolicy, notclaimed HArefusal. Do not synthesize values."
+  },
+  "automation_conversion": {
+    "new_explicit_panel_defaults": {
+      "skip_condition": false,
+      "stop_actions": false
+    },
+    "legacy_trigger": "Keep savedskip_condition; omitted legacy trigger data has HAdefaulttrue, materialize true",
+    "legacy_disable": "Keep savedstop_actions; omitted explicit legacy turn_off data has HAdefaulttrue, materialize true; existing defaultaction has productstop_actionsfalse",
+    "conversion": "Staged editor conversion only, explicit complete policy captions; neverrewrite service/default during unrelatedsave"
+  },
+  "lifecycle": {
+    "owner": "One existing selectedowner/App6, active bounded familyunion, no newrawframe/task/poller",
+    "notice15": "Existing notification mayretire App6 during service. Keep dispatchedservice fence; neverreopen/repaint late result",
+    "doorbell30": "No conversion. Existing directCameraopen preserved untilseparate terminalreceipt/handoff accepted",
+    "first_migration": "Only action of currentownedslot15, freshwholelayout CAS; no assignednextrevision",
+    "retirement": "Close doesnotcancel/retry alreadydispatchedbusiness service; beforedispatchretirement denies action"
+  },
+  "validation_needed": [
+    "Crosslanguage malformed/disabledfeature rejection",
+    "Exact P4sizeof and simultaneous paths beforebuild",
+    "ActualcurrentCore/provider metadata beforemockmigration",
+    "Single actualdevicebatch with ownedfixtures, originalscreens/audio/UART/performance; existingCamera/notifications unchanged"
+  ],
+  "sources": [
+    {
+      "url": "https://www.home-assistant.io/integrations/script/",
+      "checked": "2026-11-05",
+      "claim": "on meansrunning; currentincludesqueued; fieldrequired/default onlyUI; script.turn_on startswithoutwaiting"
+    },
+    {
+      "url": "https://www.home-assistant.io/docs/automation/basics/",
+      "checked": "2026-11-05",
+      "claim": "Automation on/off enablesfuturetriggers, notrunningactions"
+    },
+    {
+      "url": "https://www.home-assistant.io/integrations/button/",
+      "checked": "2026-11-05",
+      "claim": "Momentarybutton useslastpressedtimestamp, noton/off"
+    }
+  ]
+}

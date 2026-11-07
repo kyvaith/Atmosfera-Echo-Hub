@@ -1,0 +1,198 @@
+# Optional color facet of the existing Light/App6 owner.
+# Sliders are visual only; the native owner admits and captures one root hit axis.
+id: light_color_root
+x: 0
+y: 0
+width: 800
+height: 800
+bg_color: 0x000000
+bg_opa: COVER
+styles: m3_text_control_inset
+radius: 0
+clickable: true
+scrollable: false
+hidden: true
+widgets:
+  - label:
+      id: light_color_kind
+      x: 200
+      y: 68
+      width: 400
+      height: 28
+      text: !lambda 'return std::string(id(ui_i18n).translate("light_color.kind"));'
+      text_font: roboto_20
+      text_color: 0xC4C7C5
+      text_align: CENTER
+      long_mode: DOT
+      clickable: false
+  - label:
+      id: light_color_title
+      x: 130
+      y: 104
+      width: 540
+      height: 42
+      text: ''
+      text_font: roboto_30
+      text_color: 0xF2F2F2
+      text_align: CENTER
+      long_mode: DOT
+      clickable: false
+  - label:
+      id: light_color_preview
+      text: '--'
+      text_font: roboto_24
+      text_color: 0xF2F2F2
+      text_align: CENTER
+      long_mode: CLIP
+      x: 310
+      y: 164
+      width: 180
+      height: 104
+      radius: 32
+      bg_color: 0x253139
+      bg_opa: COVER
+      border_width: 2
+      border_color: 0x67717A
+      pad_all: 0
+      pad_top: 36
+      pad_bottom: 36
+      pad_left: 12
+      pad_right: 12
+      scrollable: false
+      clickable: false
+  - label:
+      id: light_color_status
+      x: 170
+      y: 284
+      width: 460
+      height: 56
+      text: ''
+      text_font: roboto_20
+      text_color: 0xC4C7C5
+      text_align: CENTER
+      long_mode: WRAP
+      clickable: false
+  - label:
+      id: light_color_hue_label
+      x: 130
+      y: 354
+      width: 540
+      height: 28
+      text: ''
+      text_font: roboto_20
+      text_color: 0xF2F2F2
+      long_mode: CLIP
+      clickable: false
+  - slider:
+      id: light_color_hue_slider
+      x: 130
+      y: 400
+      width: 540
+      height: 28
+      min_value: 0
+      max_value: 359999
+      value: 0
+      animated: false
+      styles: m3_text_control_inset
+      radius: 14
+      bg_color: 0x253139
+      bg_opa: COVER
+      clickable: false
+      scrollable: false
+      indicator:
+        radius: 14
+        bg_color: 0xAEE2FF
+        bg_opa: COVER
+      knob:
+        bg_color: 0xF2F2F2
+        bg_opa: COVER
+        border_color: 0x101418
+        border_width: 3
+        radius: 20
+        pad_all: 6
+  - label:
+      id: light_color_saturation_label
+      x: 130
+      y: 478
+      width: 540
+      height: 28
+      text: ''
+      text_font: roboto_20
+      text_color: 0xF2F2F2
+      long_mode: CLIP
+      clickable: false
+  - slider:
+      id: light_color_saturation_slider
+      x: 130
+      y: 524
+      width: 540
+      height: 28
+      min_value: 0
+      max_value: 100000
+      value: 0
+      animated: false
+      styles: m3_text_control_inset
+      radius: 14
+      bg_color: 0x253139
+      bg_opa: COVER
+      clickable: false
+      scrollable: false
+      indicator:
+        radius: 14
+        bg_color: 0xAEE2FF
+        bg_opa: COVER
+      knob:
+        bg_color: 0xF2F2F2
+        bg_opa: COVER
+        border_color: 0x101418
+        border_width: 3
+        radius: 20
+        pad_all: 6
+  - button:
+      id: light_color_cancel
+      x: 174
+      y: 646
+      width: 208
+      height: 72
+      radius: 36
+      styles: m3_text_control_inset
+      bg_color: 0x1D2833
+      bg_opa: COVER
+      shadow_width: 0
+      scrollable: false
+      widgets:
+        - label:
+            id: light_color_cancel_label
+            width: 188
+            height: 44
+            text: !lambda 'return std::string(id(ui_i18n).translate("panel_control.cancel"));'
+            align: CENTER
+            text_font: roboto_24
+            text_color: 0xF2F2F2
+            text_align: CENTER
+            long_mode: CLIP
+            clickable: false
+  - button:
+      id: light_color_apply
+      x: 418
+      y: 646
+      width: 208
+      height: 72
+      radius: 36
+      styles: m3_text_control_inset
+      bg_color: 0x1D2833
+      bg_opa: COVER
+      shadow_width: 0
+      scrollable: false
+      widgets:
+        - label:
+            id: light_color_apply_label
+            width: 188
+            height: 44
+            text: !lambda 'return std::string(id(ui_i18n).translate("panel_control.apply"));'
+            align: CENTER
+            text_font: roboto_20
+            text_color: 0xF2F2F2
+            text_align: CENTER
+            long_mode: CLIP
+            clickable: false

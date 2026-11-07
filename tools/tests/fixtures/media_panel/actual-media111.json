@@ -1,0 +1,82 @@
+{
+  "captured_utc": "2026-11-04T21:20:24.234403+00:00",
+  "core": {
+    "version": "2026.7.1",
+    "time_zone": "Europe/Warsaw"
+  },
+  "revision": 355,
+  "states": {
+    "media_player.atmosfera_demo_music": {
+      "state": "playing",
+      "attributes": {
+        "sound_mode_list": [
+          "Music",
+          "Movie"
+        ],
+        "volume_level": 1.0,
+        "is_volume_muted": false,
+        "media_duration": 213,
+        "media_title": "I Wanna Be A Hippy (Flamman & Abraxas Radio Mix)",
+        "media_artist": "Technohead",
+        "media_album_name": "Bounzz",
+        "sound_mode": "Music",
+        "shuffle": false,
+        "repeat": "off",
+        "friendly_name": "Walkman",
+        "supported_features": 914877
+      }
+    },
+    "media_player.atmosfera_demo_tv": {
+      "state": "playing",
+      "attributes": {
+        "source_list": [
+          "dvd",
+          "youtube"
+        ],
+        "sound_mode_list": [
+          "Music",
+          "Movie"
+        ],
+        "volume_level": 1.0,
+        "is_volume_muted": false,
+        "media_duration": 3600,
+        "media_title": "Chapter 1",
+        "media_series_title": "House of Cards",
+        "media_season": "1",
+        "media_episode": "1",
+        "source": "dvd",
+        "sound_mode": "Music",
+        "shuffle": false,
+        "device_class": "tv",
+        "friendly_name": "Lounge room",
+        "supported_features": 121265
+      }
+    }
+  },
+  "services": [
+    "browse_media",
+    "clear_playlist",
+    "join",
+    "media_next_track",
+    "media_pause",
+    "media_play",
+    "media_play_pause",
+    "media_previous_track",
+    "media_seek",
+    "media_stop",
+    "play_media",
+    "repeat_set",
+    "search_media",
+    "select_sound_mode",
+    "select_source",
+    "shuffle_set",
+    "toggle",
+    "turn_off",
+    "turn_on",
+    "unjoin",
+    "volume_down",
+    "volume_mute",
+    "volume_set",
+    "volume_up"
+  ]
+}

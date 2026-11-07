@@ -1,5 +1,294 @@
 # Plan funkcji Atmosfera Echo Hub — 2026-10-24
 
+**Aktualny stan, 05.11.2026: native96 / HA118 / układ379.**
+Dedykowane panele urządzeń, w tym Osoba i Słońce, opisuje
+[aktualna mapa zakresu i braków](device-panels-roadmap-2026-11-04.md).
+Następna nowa funkcja to edytor daty/czasu. Poprawka początkowego ładowania
+podglądu w HA118 została odebrana. Szczegółowy punkt wznowienia:
+[checkpoint](resume-2026-11-04-panels.md). Odbiory i wskazania „następnego
+pakietu” poniżej są historyczne. Cały rejestr researchu nie jest zakończony.
+
+**Odbiór 03.11.2026 native69 / HA97 / układ300.** Dedykowany termostat
+pokazuje nastawę, odczyt, aktywność HVAC i pierścień zakresu w kolorze akcentu.
+Regulacja korzysta z potwierdzonego kroku integracji. Podgląd działa także bez
+zgodnego kontraktu edycji. Odbiór na urządzeniu obejmuje PL/EN, dwie nastawy
+przez HA/MQTT i podgląd z blokadą przycisków. Histereza czeka na interfejs
+providera. [Kontrakt i wyniki](thermostat-contract-2026-11-02.md).
+Następny jest [podgląd dzwonka W15](doorbell-design-2026-11-01.md).
+
+**Odbiór 02.11.2026 native49 / HA95 / układ298:** wdrożono górny baner,
+centrum i historię powiadomień100/24h (8 wierszy, tap/detail, swipe/dismiss),
+PL/EN i motyw oraz właściwe ikony robota/kosiarki. Typowane akcje i obrazy
+pozostają w planie. [Odbiór i screenshoty](notifications-acceptance-2026-11-02.md).
+Następny pakiet: [dedykowany termostat](thermostat-contract-2026-11-02.md).
+Starsze aktualizacje poniżej są historyczne, nie określają bieżącego firmware.
+
+
+
+**Aktualizacja 02.11.2026:** obowiązuje [kierunek rozwoju po uwagach użytkownika](priorities-2026-11-02.md).
+Główne aplikacje to dedykowane Player i Kamera. Najbliższe pakiety: ikony i
+powiadomienia/centrum od góry, termostat, dzwonek, dodatkowe strony. Opcjonalne
+adaptery zewnętrznych mediów nie są główną ścieżką rozwoju. [Konkretna lista
+wdrożonego zakresu i braków](status-2026-11-02.md). HA94 naprawia tylko Wi-Fi
+w podglądzie; native46 i układ298 zachowane. Pełne pomiary grupujemy według
+nowej polityki walidacji. Poniższe odbiory/historyczne plany pozostają dowodami
+ich ściśle określonego zakresu.
+
+
+
+**Odbiór 01.11: native46 / HA93 / układ298.** W14/MED003 otrzymał stały cel
+głośności z kafelka, ustawiany procentowo w HA. Dokładne cele47,25%/0%/100%
+przeszły przez publiczną usługę Core i własny MQTT; źródło nie zmieniało stanu
+przed feedback. 33 scenariusze,36 oryginałów urządzenia, edytor procentów i trzy
+Undo bez zapisu. 796 Python(3pominięte),397 Node,5 testów adaptera.
+Trasa54 source FPS, średnio15989/max22739us, failed0 i DSI0; PSRAM3515KiB,
+wewnętrzna23KiB, największy blok2560KiB, JPEG2090KiB, rawwork/scroll/close0.
+Native46 bez zmian; brak nowej kompilacji/flash dla HA93. Zachowano16kart,
+3kamery,8preferencji oraz dane/opcje; własne źródła testowe zarchiwizowano.
+[Projekt i dowody](media-volume-target-design-2026-11-01.md). Pełny suwak na
+urządzeniu pozostaje osobnym etapem; nie zmieniono kontraktu NumericDomain.
+Fizyczny głośnik i panelowy FPS nie są objęte tym odbiorem. Bez commit/stage/push.
+
+
+
+**Odbiór 01.11: native46 / HA92 / układ294.** W14/MED003 otrzymał Stop
+odtwarzacza HA, dostępny podczas playing/paused/buffering. Trzy dokładne
+polecenia Core/MQTT, bez optymistycznej zmiany stanu. 32 scenariusze i 35
+oryginalnych zrzutów urządzenia; edytor, Undo, PL/EN, held ABA, przeciąganie,
+stany nieaktywne i utrata obsługi przeszły. 791 Python (3 pominięte), 393 Node,
+7 testów Stop. Trasa: 54 source FPS, średnio16744/max23770us, failed0 i DSI0.
+PSRAM3507KiB, wewnętrzna23KiB, JPEG2099KiB, raw work/scroll/close0.
+Brak nowego kodu natywnego, buforów i flash dla HA92; bieżący native46
+wgrano wcześniej dla naprawy deferred tap. Zachowano16kart/3kamery/8preferencji
+i chronione dane/opcje. [Projekt i dowody](media-stop-design-2026-11-01.md).
+Fizyczne zatrzymanie głośnika pozostaje osobnym testem. W14 nadal częściowy.
+Bez commit/stage/push.
+
+
+
+**Odbiór01.11 native46/HA91/układ292.** W14/MED003: wybór trybu dźwięku
+z rzeczywistego sound_mode_list,bit65536/select_sound_mode. Istniejący Choice/
+app6/1..8nazw32UTF8b; bez nowych buforów/tasków/protokołu/nativeflash.
+5exactstrusług+MQTT przedfeedback, w tymUnicode/spacje i długa nazwa; playback,
+source,volume,mute,repeat,shuffle,title bez zmian.32case/35oryginałów800×800,
+aktualny91browser/review/dwaUndo/noSave,cleanup39plików/16kart/3kamer/8prefs.
+784Python(3skip)/389Node/7focused/criticalRuff/diff. Trasa54sourceFPS/avg16399/
+max24821us/failed0/DSI0. PSRAM3501/internal23/largest2560KiB/JPEG2104,rawwork0;
+free−6vs poprzedni media-check odpowiadaJPEG+5 i zaokrągleniu, stałe pule te same.
+[Projekt i dowody](media-sound-mode-design-2026-11-01.md). Fizyczny amplituner/DSP
+osobno; W14 nadal częściowy. Bez commit/stage/push.
+
+
+
+**Odbiór01.11 native46/HA90/układ290.** W14/MED003: Głośniej/Ciszej z kafelka,
+Core volume_up/down i rzeczywisty krok odtwarzacza, opis obserwowanego%.25case,
+35oryginałów800×800,actual90browser/dwaUndo/noSave,2exactpublicactions+2Core
+poziomy przedfeedback,cleanup39plików/16kart/3kamer/8prefs.777Python(3skip)/
+385Node/6focusedVolume/3realLVGL+6codegen. Wykryto i naprawiono opóźniony
+deferred tap po zmianie opisu podczas przytrzymania: raw generation przed
+PRESSED,bez nowychbuforów/tasków/protokołu. Native46 zbudowany i wgrany1OTA.
+Dwie trasy54sourceFPS vs54przed; średnio16673/16704us vs16256,failed0/DSI0.
+Nie widać narastającej straty pamięci; zmienna fragmentacja sprawdzona także
+rzeczywistą galerią i kamerą(60presentów/10.1presentFPS). Brak fizycznego
+odsłuchu/GT911 i nowego odbioru audio/lifetime. [Projekt głośności](media-volume-actions-design-2026-11-01.md),
+[poprawka dotyku](deferred-tap-context-design-2026-11-01.md). W14 nadal częściowy:
+pełny suwak,seek,browse/favourites/detail pozostają planem. Bez commit/stage/push.
+
+
+
+**Odbiór01.11 native45/HA89/układ283.** MED003/W14: jawne Losowo/Po kolei
+z kafelka,shuffle_set bool/bit32768.2exact usługi Core/MQTT przedfeedback,
+bez zmian playback/volume/mute/repeat/title.19przypadków/22oryginały,actual89
+browser/requiredBool/dwaUndo/noSave/cleanup.771Python(3skip)/382Node/39plików.
+Trasa54sourceFPS/avg16204/max23957us/failed0,PSRAM4892/internal27KiB/work0,
+DSI0; nadal52–55. [Projekt i dowody](media-shuffle-design-2026-11-01.md).
+W tej serii odebrano mute,source,repeat,shuffle i kompaktowe opisy. W14/MED003
+nadal częściowy; fizyczne odtwarzanie muzyki osobno. Bez nativeflash/Gitpush.
+
+
+
+**Odbiór01.11 native45/HA88/układ278.** Długie nazwy źródeł mają na Home
+widoczne... w budżecie136px; HAeditor dzieli dokładnie ten caption. W Choice
+i usłudze zachowano pełne nazwy.8przypadków/11oryginałów,1exact nieskrócona
+komenda HDMI2-Salon-Telewizor przedfeedback, final88browser/review/twoUndo/
+noSave/cleanup.763Python(3skip)/379Node/39zgodnych plików. Trasa53sourceFPS/
+avg16298/max30282us/failed0,PSRAM4886/internal27KiB/work0,DSI0; nadal52–55.
+[Zakres](media-source-design-2026-11-01.md). Aktualna seria dodała mute/unmute,
+źródła i powtarzanie dla HAmedia_player. W14/MED003 pozostaje częściowy.
+Bez nowego nativebuild/flash i bez commit/stage/push. Starsze wpisy niżej.
+
+
+
+**Odbiór01.11 native45/HA87/układ276.** MED003/W14: powtarzanie off/one/all
+przez istniejący Choice/Apply,bit262144, rzeczywisty CoreRepeatMode.4exact
+usługi/MQTT przedfeedback; playback/track/volume/mute/shuffle bez zmian.
+35przypadków/39oryginałów (w tym odrzucony stary opis86 i zaakceptowane87),
+final87browser/review/dwaUndo/noSave, cleanup.762Python(3skip)/378Node/39plików.
+Trasa53sourceFPS/avg16906/max24447us/failed0,PSRAM4884/internal27KiB/work0,
+zgodna z52–55. [Projekt i granice](media-repeat-design-2026-11-01.md).
+Skrócone opisy Home wPLEN mieszczą się w136px; długie tłumaczenia dostają...
+Fizyczne zapętlenie muzyki/GT911 osobno; bez nativebuild/flash/publikacji Git.
+
+
+
+**Odbiór01.11: native45/HA85/układ272.** MED003/W14: wybór źródła dowolnego
+HA media_player przez istniejący Choice/Zastosuj;1..8różnych nazw/32UTF8b,
+bit2048 i aktywny stan.5exact usług Core/MQTT przedfeedback,30ukończonych
+przypadków/33oryginały800×800, rzeczywisty final85browser/review/dwaUndo/noSave,
+niezależny cleanup.755Python(3skip)/374Node,39zgodnych plików. Trasa54sourceFPS/
+avg16805/max23134us/failed0,PSRAM4880/internal27KiB/work0,DSI0. Zgodna z
+poprzednim zakresem52–55. [Projekt i dowody](media-source-design-2026-11-01.md).
+Fizyczny TV/HDMI/GT911 i większe listy osobno; bez nativebuild/flash/publikacji.
+MED003 pozostaje częściowy: mute i source odebrane, bogatsze media dalej plan.
+
+
+
+**Odbiór 01.11: native45 / HA83 / układ268.** MED003/W14: jawne Wycisz i
+Przywróć dźwięk dla HA media_player, wymagany bool/bit8/świeży stan. Dwie
+dokładne usługi Core/MQTT przed feedback, bez zmiany odtwarzania, utworu ani
+głośności.19 przypadków/22 oryginały800×800, rzeczywisty browser/dwaUndo/noSave,
+niezależny cleanup.749Python(3skip)/371Node,39 zgodnych plików. Trasa55 source
+FPS/avg16575/max23453us/failed0, PSRAM4884/internal27 KiB, work0; zgodna z
+poprzednim zakresem52–55. [Zakres i dowody](media-mute-design-2026-11-01.md).
+Domyślne Play/Pause bez zmian; fizyczny głośnik/GT911 osobno. Bez native flash
+i publikacji Git. Starsze wpisy poniżej.
+
+
+**Odbiór 01.11: native45 / HA81 / układ263.** Wybór aktywności pilota przez
+istniejący Choice i Zastosuj, również z off. Cztery dokładne komendy Core/MQTT
+przed feedback, 25 przypadków/28 oryginałów, final browser/Undo/cleanup;
+742 Python (3 skip), 368 Node, 39 zgodnych plików. Krótka trasa53 source FPS
+(wcześniej52–55)/failed0, PSRAM4886/internal27 KiB, work0.
+[Projekt i ograniczenia](remote-activity-design-2026-11-01.md). Fizyczny IR/RF,
+keypad i duże katalogi osobno; bez nowego native flash lub publikacji Git.
+
+**Odbiór 01.11: native45 / HA79 / układ259.** Jawne Włącz/Wyłącz dla
+`remote.*`, bez domyślnego przełączania. Dwie dokładne komendy Core/MQTT przed
+feedback, 14 scenariuszy native i 18 oryginałów, browser/Undo/cleanup. 735 Python
+(3 skip), 365 Node, 39 zgodnych plików. Krótka trasa54 source FPS / failed0,
+PSRAM4878/internal27 KiB. [Zakres i dowody](remote-power-design-2026-11-01.md).
+Fizyczny IR/RF, aktywności i keypad osobno. Bez native flash i publikacji Git.
+
+**Odbiór 01.11: native45 / HA77 / układ254.** Podgląd czasu trwania używa
+kompaktowego formatu zgodnego z urządzeniem i precyzji HA. Brakujący zapisany
+pokój jest jawnie niedostępny, bez automatycznej zamiany celu. 731 Python
+(3 skip), 363 Node, 15 oryginałów, browser i cleanup; krótka trasa 54 source
+FPS / failed0, PSRAM4878/internal27 KiB. [Dowody](duration-preview-design-2026-11-01.md).
+Zmiana frontendu HA, bez nowego flash i bez publikacji Git. Starsze wpisy niżej.
+
+**Najnowszy odbiór01.11: native45/HA76/układ246.** Sprzątanie jednego
+rzeczywiście przypisanego obszaru HA na kafelek;3exact Core/MQTT commands,
+24cases+Home25oryginałów/browser/cleanup. Registry-only mapping loss, heldABA,
+drag i usunięcie pomieszczenia poprawnie blokują tap.39frozen=canonical=live,
+729Python(3skip)/360Node. Siedem serii kontrola75:52–54FPS/mediana53,
+76:53–55/mediana54,failed0; internal27both, zmianaPSRAM10KiB odpowiadaJPEG11KiB.
+Wszystkie4fixtures/8obszarów usunięto; źródła76 i układ zachowane poA/B.
+[Dowody i ograniczenia](validation-2026-11-01.md). Fizycznyrobot/GT911, wiele
+obszarów naraz i mapy/routines osobno. Bez nowego firmware/commit/push.
+Starsze aktualizacje poniżej.
+
+**Najnowszy odbiór01.11: native45/HA75/układ236.** Jawne akcje odkurzacza:
+start/wznowienie, pauza, stop, baza, locate i sprzątanie punktowe. 10exact usług
+HA/MQTT przedfeedback,32scenariusze+Home33oryginały/browser/cleanup. Native45
+bez zmian. Dopasowana trasa przed/po54sourceFPS/failed0, PSRAM4880→5610KiB,
+internal32KiB, work0; różnicy pamięci nie przypisujemy jako optymalizacji.
+719Python(3skip)/356Node,38frozen=canonical=installed. Fizyczny robot/GT911,
+mapy/pokoje/routines osobno. [Dowody](validation-2026-11-01.md).
+Bez commit/push. Starsze aktualizacje poniżej.
+
+**Najnowszy odbiór31.10: native45/HA73/układ226.** Jawne akcje kosiarki:
+start/wznowienie, pauza, powrót do bazy;6exactMQTTcommands przedfeedback,
+26oryginałów/browser/cleanup. HeldABA, drag, error/outage/unknown i featureloss
+bez dodatkowych komend. Standardowa trasa53sourceFPS/failed0,PSRAM5633KiB/
+largest3264/internal35/work0; brak nowych native buforów i flash. Fizyczny robot
+osobno. [Dowody](validation-2026-10-31.md). Bez commit/push. Starsze wpisy niżej.
+
+**Najnowszy odbiór31.10: native45/HA70/układ209.** Pasywna osoba i nazwa
+strefy, główne etykiety z HA, akcent tylko home;18oryginałów/browser. Poprawka
+rzeczywistej szerokości Person i Calendar:319 metryk Roboto16/288px, widoczne...;
+14oryginałów regresji kalendarza. Aktywna osoba i cleanup53sourceFPS/failed0,
+7dodatkowychoryginałów; fixed native buffers bez zmian. Wszystkie dane testowe
+usunięte, układ/prywatne ustawienia zachowane. Zdjęcia/mapa osobno.
+[Dowody](validation-2026-10-31.md). Bez nowego flash/commit/push. Starsze wpisy niżej.
+
+**Najnowszy odbiór31.10: native45/HA68/układ193.** Pasywne pojedyncze
+wydarzenie CalendarEntity,14oryginałów+24performance/browser/cleanup. Dopasowane
+control/active/control/active54sourceFPS,failed0; JPEG+10KiB/freePSRAM−8KiB
+tylko przy bogatszym aktywnym kadrze, po cleanup wraca. Zachowano pierwsze
+51–52FPS i pełne A/B, bez ukrywania słabszych prób. Agenda/booking osobno.
+[Dowody](validation-2026-10-31.md). Bez nowego firmware i publikacji.
+Starsze aktualizacje poniżej.
+
+**Najnowszy odbiór31.10: native45/HA67/układ177.** Niezależne pochylenie
+lameli128/co1%,6integercommands/0primary movement;24oryginały/browser/cleanup.
+Odwrócony zakres i nieznany stan przeszły.53sourceFPS/failed0,PSRAM5640KiB/
+internal35KiB/work0. Fizyczny silnik/szeroki suwak/Stop tilt osobno.
+[Dowody](validation-2026-10-31.md). Bez nowego firmware i publikacji.
+Starsze aktualizacje poniżej.
+
+**Najnowszy odbiór31.10: native45/HA66/układ175.** Dokładny procent otwarcia
+Cover0..100/co1%,6integercommands przedfeedback/0open-close-stop-tilt,
+odwrócony zakres Core,22oryginały/browser/cleanup.54sourceFPS/failed0,
+PSRAM5636KiB/internal35KiB/work0. Fizyczny silnik/szeroki suwak/tilt osobno.
+[Dowody](validation-2026-10-31.md). Bez nowego firmware i publikacji.
+Starsze aktualizacje poniżej.
+
+**Najnowszy odbiór31.10: native45/HA65/układ173.** Wybór mocy odkurzacza:
+FAN_SPEED32 i rzeczywisty katalog1..8,5exact commands przedfeedback/0start-dock,
+30oryginałów/browser/cleanup.54sourceFPS/failed0,PSRAM5631KiB/internal35KiB,
+work0. HA76 jeden przypisany obszar HA/card:3exact services/MQTT/25oryginałów/browser/cleanup246/mediana54sourceFPS. Fizyczny robot, wiele obszarów naraz, mapa i routines osobno. Bez nowego firmware.
+[Dowody](validation-2026-10-31.md). Bez publikacji. Starsze aktualizacje poniżej.
+
+**Najnowszy odbiór31.10: native45/HA64/układ171.** Docelowa wilgotność Climate:
+TARGET_HUMIDITY4 bez temperature1/2,5intcommands/realMQTT/23oryginały/browser/
+cleanup. Auto/dry/off,targetniepomiar,step/range/None/ABA/feature/outage passed.
+Normalna trasa55sourceFPS/failed0,PSRAM5640KiB/internal35KiB,work0. FizycznyHVAC,
+dual-temperature range i cross-unit nadal osobno. [Dowody](validation-2026-10-31.md).
+Bez publikacji. Poniższe aktualizacje są historyczne.
+
+**Najnowszy odbiór31.10: native45/HA63/układ169.** Wybór1..7rzeczywistych biegów
+wentylatora plus0 korzysta z przeliczeńCore:6exactintcommands/realMQTTcodes,
+21oryginałów/osobny realny browser/cleanup169. Outage unieważnia katalog bez
+kroku; stary press odrzucony, recovery wymaga świeżego otwarcia. Normalna trasa
+54sourceFPS/failed0,PSRAM5625KiB/internal35KiB,work0. Większe katalogi/scalar/
+silnik fizyczny osobno. [Dowody](validation-2026-10-31.md). Bez publikacji.
+Poniższe starsze aktualizacje są historyczne.
+
+**Najnowszy odbiór31.10: native45/HA62/układ163.** Precyzyjne dostrajanie barwy
+co1K: rzeczywiste min/max i aktualny color_temp,5exactintcommands przedfeedback,
+22oryginały/realny edytor/cleanup. Off/innytryb/unknown nie udają temperatury.
+Normalna trasa54sourceFPS/failed0,PSRAM5642KiB/internal35KiB,work0. Szeroki
+suwak/RGB, fizyczna lampa i lifetime nadal osobno. Brak nowego firmware dlaHA62.
+[Dowody](validation-2026-10-31.md). Bez publikacji. Starsze aktualizacje poniżej.
+
+**Bieżący odbiór31.10: native45/HA61/układ161.** Native45 naprawia podpis
+Number przy utracie wartości; pełny build/flash/ELF, obrazy i pomiar mają osobny
+odbiór. HA60 docelowa wilgotność:5int commands/21oryginałów/browser/cleanup157.
+HA61 efekty światła:5dokładnych efektów przedfeedback/23oryginały/osobny realny
+browser/cleanup161. Brak nowych zadań/buforów/firmware dla obu adapterów.
+Normalne trasy53–55sourceFPS/failed0,8preferencji i cały układ zachowane poza
+rewizją. Fizyczne aktuatory, audio/lifetime i RGB/temperatura barwowa nadal osobno.
+[Dowody i ograniczenia](validation-2026-10-31.md). Bez publikacji.
+Poniższe starsze aktualizacje są historyczne.
+
+Aktualny odebrany fragment 31 października: native40 / HA58 / rewizja149.
+W10: pasywne daty sensorów i input_datetime (trzy tryby) z realnym źródłem,
+PL/EN, obrazami, edytorem i cleanup. W06: preset wentylatora także z jawnego
+None/manual, bez fikcyjnej opcji; oscylacja niezależna od zasilania. Realny MQTT,
+negatywne przypadki, PL/EN, oryginały, browser Undo i cleanup są odebrane.
+Kierunek HA47 jest odebrany; speed i fizyczny silnik pozostają otwarte.
+Pojedyncza nastawa Climate HA50 i wybór trybu HVAC HA51 są odebrane. HA52
+przywraca zgodny pastelowy podgląd po restarcieHA bez zmiany preferencji.
+HA53: programy Climate,4polecenia przedfeedback,16oryginałów/browser,cleanup137.
+HA54 nawiew i HA55 żaluzje32 są odebrane, cleanup139/141 i17oryginałów.
+HA56 osobna oś512 odebrana, cleanup143/15oryginałów.
+HA57 domena humidifier, power obu klas, feature0/PLEN/MQTT/browser/12oryginałów
+cleanup147/54sourceFPS odebrane. HA58 mode: None/sticky-list guards,4commands/0powerHumidity,18oryginałów/browser/cleanup149.
+Humidity i dual-range pozostają W07.
+Post-feature53–54sourceFPS/failed0, średnio16,6ms; naprawiony wcześniej
+dryf109px ma osobny odbiór dwóch segmentów. Wszystkie opcje HA zachowane poza
+rewizją. [Dowody i granice](validation-2026-10-31.md). Bez publikacji na GitHub.
+
 Status dokumentu: mapa zakresu i rozpoczętej implementacji P0. Rejestr obejmuje 108 rodzin funkcji; nie jest deklaracją ich wdrożenia. Bieżące dowody pierwszego fragmentu są w [rejestrze walidacji](ha-dashboard-2026-10-24.md). Porównanie i pochodzenie źródeł: [analiza trzech projektów](../research/project-comparison-2026-10-24.md).
 
 **Konkretna kolejność wdrożenia:** [plan implementacji W00–W26](implementation-plan-2026-10-24.md) przypisuje wszystkie 108 ID do pakietów, plików właścicielskich, zależności, budżetów i kryteriów odbioru. Ten rejestr nadal przechowuje zakres/status, a plan wyjaśnia jak wykonać pracę.
@@ -80,7 +369,7 @@ Dowody przy pozycjach prowadzą do wersji bazowych lub przypiętych źródeł po
 | ID | Funkcja | Baza | Zależności | Etap | Realizacja nowa | Warunek i dowód |
 | --- | --- | --- | --- | --- | --- | --- |
 | AEH-CFG-001 | Wersjonowany model kart, trwałe IDs i profil urządzenia | C | HA | P0 | testy HA/host | Migracja v1; IDs niezależne od slotu; profil z zaufanego źródła. [A-CARD] [T-PAGES] |
-| AEH-CFG-002 | Biblioteka encji i możliwości HA | C | HA | P0 | testy HA/host | Filtrowanie nazwy/domeny/obszaru przed limitem, możliwości z encji/usług; unknown nie daje akcji. [A-EDITOR] [T-CAT] [E-CARDS] |
+| AEH-CFG-002 | Biblioteka encji i możliwości HA | C | HA | P0 | częściowo: HA/host/browser | HA21: filtrowanie nazwy/domeny/obszaru przed limitem, możliwości z serwera; aktualne etykiety bez utraty fokusu i szkicu. Zmiana unknown→on→unavailable→usunięta potwierdzona w prawdziwym HA; zero usług i zapisów układu. Pełna macierz możliwości nadal ma osobne odbiory domen. [A-EDITOR] [T-CAT] [E-CARDS] [odbiór 30 października](validation-2026-10-30.md) |
 | AEH-CFG-003 | Wizualny edytor rzeczywistego ekranu | B | HA | P0 | testy HA/host | Rozdzielczość, maska okręgu i istniejąca geometria, live state. [A-EDITOR] [E-LAYOUT] [T-PAGES] |
 | AEH-CFG-004 | Przeciąganie i zamiana kart w istniejących slotach | B | HA | P0 | testy HA/host | Trwałe IDs; blokada reserved slots; jedna operacja undo. [A-POOL] [T-PAGES] |
 | AEH-CFG-005 | Walidacja i podgląd przed zastosowaniem | B | HA | P0 | testy HA/host | Cały dokument i zgodność profilu; brak częściowych zapisów. [T-STORE] [E-STORE] |
@@ -104,37 +393,37 @@ Dowody przy pozycjach prowadzą do wersji bazowych lub przypiętych źródeł po
 
 | ID | Funkcja | Baza | Zależności | Etap | Realizacja nowa | Warunek i dowód |
 | --- | --- | --- | --- | --- | --- | --- |
-| AEH-CTL-001 | Switch/light/input_boolean i wizualny stan aktywny | C | HA+FW | P1 | plan | Toggle istnieje; pełna semantyka stanów i potwierdzeń. [A-CARD] [E-CARDS] |
+| AEH-CTL-001 | Switch/light/input_boolean i wizualny stan aktywny | C | HA+FW | P1 | częściowo: HA/runtime/visual/browser | HA24/native31: opcjonalny kolor dla dokładnego on, surface dla off/braku źródła; istniejące role i kontrast. Własny Boolean off→on→off, zmiana poza ekranem i powrót, zgodne konteksty HA, obrazy oraz czysty układ 26. 54 FPS, pamięć przed/po bez spadku w badanym cyklu. Pełne pending/error/result, fizyczny aktuator/audio/lifetime pozostają otwarte. [A-CARD] [E-CARDS] [odbiór](validation-2026-10-30-continuation.md) |
 | AEH-CTL-002 | Scene/script/button/input_button jako wykonanie | C | HA+FW | P0 | częściowo: availability/runtime/visual | HA18/native26: shared availability obejmuje button/scene/script; Scene disabled/held bez akcji, nowy tap wywołuje1Scene i faktyczne off→on wirtualnego przełącznika; oryginały i cleanup do14 PASS. Input_button ma wcześniejszy odbiór native24. Dwa Settings31sourceFPS/failed0; mixed CPU windows bez kontrolowanego porównania. Pending/error/result całej rodziny, fizyczny dotyk/aktuator i lifetime nadal otwarte. [A-CARD] [T-CAT] [walidacja](validation-2026-10-26.md) |
 | AEH-CTL-003 | Regulator jasności światła | B | HA+FW | P1 | częściowo: runtime/visual | Native21: Power i pięć cykli/NoOp PASS. Native23: izolowany test Off/On/jasność60 ma trzy state_matches, dokładnie trzy usługi/stany HA i oryginały PASS. Nie jest to odbiór fizycznej lampy; brak lampy potwierdził użytkownik. Pozostałe bramki: [walidacja](validation-2026-10-25.md). [A-POOL] [E-CARDS] [T-CAT] |
-| AEH-CTL-004 | Temperatura barwowa, RGB i efekty światła | B | HA+FW | P1 | plan | Kontrolki wyłącznie dla supported_color_modes encji. [E-CARDS] [T-CAT] |
-| AEH-CTL-005 | Cover/garage/gate: open/close/stop/position | C | HA+FW | P1 | plan | Zastąpić ogólny toggle domenową kontrolą i stanem przejściowym. [A-CARD] [E-CARDS] |
+| AEH-CTL-004 | Temperatura barwowa, RGB i efekty światła | B | HA+FW | P1 | częściowo: efekty i precyzyjne Kelvin HA/runtime/visual/browser | HA62 precyzyjne1K/on-color_temp,5intcommands/22oryginały/browser/cleanup163/54sourceFPS/failed0; szeroki suwak iRGB pozostają. HA61/native45:5effect commands przedfeedback, None/off/ABA/list/outage/PLEN,23oryginały i osobny rzeczywisty edytor;cleanup161/53sourceFPS/failed0. RGB i szeroki picker barwy nadal plan. [Projekt i odbiór](light-effects-design-2026-10-31.md). [E-CARDS] [T-CAT] |
+| AEH-CTL-005 | Cover/garage/gate: open/close/stop/position | C | HA+FW | P1 | częściowo: HA/runtime/visual/browser | HA66 dokładna pozycja0..100/co1%,6integercommands/realMQTT/odwrócony zakres/22oryginały/browser/cleanup175/54sourceFPS/failed0. Istniejący Cover open/close/stop ma osobny kontrakt; HA67 niezależne lamele128:6integercommands/current_position99bez zmian/24oryginały/browser/cleanup177/53sourceFPS/failed0. Fizyczny silnik, szeroki suwak i Stop tilt osobno. [Projekt i odbiór](cover-position-design-2026-10-31.md). [A-CARD] [E-CARDS] |
 | AEH-CTL-006 | Cover tilt i ustawienia pozycji lameli | B | HA+FW | P1 | plan | Niezależny capability i zakres; brak fikcyjnej wartości unknown. [T-CAT] [E-CARDS] |
-| AEH-CTL-007 | Fan: speed/direction/oscillate/preset | C | HA+FW | P1 | plan | Toggle i subtitle są; wymagane realne regulatory i listy. [A-CARD] [E-CARDS] |
-| AEH-CTL-008 | Climate: setpoint/range/HVAC/fan/swing/preset | C | HA+FW | P1 | plan | Temperatura w subtitle nie zastępuje panelu sterowania. [A-CARD] [T-CAT] [E-CARDS] |
-| AEH-CTL-009 | Number/input_number: slider/stepper | C | HA+FW | P1 | częściowo: runtime/visual | HA14/native22: jeden izolowany step0→0.25 ze stanem HA i oryginałami PASS. Native23: build/audit/OTA/ELF, pogoda PL i Number PL open/close PASS. Granice min/max i dwa ułamkowe kroki ze stanem HA/original PASS; dwa benchmarki Settings31FPS/failed0 ze stabilnym free i odzyskanym largest. Hold/physical/audio/lifetime otwarte. Układ6 przywraca tylko pola QA i zachowuje DnD; cztery fixture usunięte. [A-CARD] [T-CAT] [walidacja](validation-2026-10-25.md) |
-| AEH-CTL-010 | Select/input_select: wybór opcji | B | HA+FW | P1 | plan | Lista bieżących options; walidacja po zmianie encji. [T-CAT] [E-CARDS] |
-| AEH-CTL-011 | Timer: countdown/start/pause/resume/cancel | B | HA+FW | P1 | częściowo: runtime/visual | HA19 zainstalowane: default Start/Pauza/Wznów bez duration/resetu przy resume; native disabled/held i trzy akcje z rzeczywistym stanem HA/remaining11:59:54 PASS, cztery oryginały i cleanup do16 PASS. Dopasowany cykl Ustawień31sourceFPS/failed0; całkowita pamięć/CPU, physical/audio/lifetime nieprzyjęte. Lokalny countdown/detail/cancel UX pozostają planem. [T-CAT] [E-CARDS] [bieżący dziennik](validation-2026-10-26.md) |
+| AEH-CTL-007 | Fan: speed/direction/oscillate/preset | C | HA+FW | P1 | częściowo: HA/runtime/visual/browser | Preset z manual/None,oscylacja,kierunek odebrane wcześniej. HA63 wybór1..7rzeczywistych biegów plus0:6intcommands/realMQTT/21oryginałów/browser/cleanup169/54sourceFPS/failed0. Większe katalogi,scalar i fizyczny silnik pozostają. [Projekt i odbiór](fan-speed-design-2026-10-31.md). |
+| AEH-CTL-008 | Climate: setpoint/range/HVAC/fan/swing/preset | C | HA+FW | P1 | częściowo: HA/runtime/visual/browser | HA50: pojedyncza nastawa przez dokładny Number/app6,0.5°C, endpoints/unknown/offgrid/mode/step/unit guards, realne MQTT bez polecenia HVAC. HA51: jawny choice trybu heat/auto/cool/off, etykiety zHA,4brokercommands bez targetcommand, list/ABA/outage/PL/EN. Oryginały/browser/cleanup135 i54sourceFPS/failed0. HA53: programy none/eco/comfort/sleep,4brokercommands/0osobnychHVACtarget,16oryginałów/browser/cleanup137/53sourceFPS. HA54 fan_mode i HA55 swing_mode32: realne MQTT/oryginały/browser/cleanup139/141. HA56 independent512 odebrane MQTT/browser/15oryginałów/cleanup143/54sourceFPS. HA57 humidifier/dehumidifier power: real MQTT feature0/4power commands/0modeTarget/12originals/browser/cleanup147/54sourceFPS. Cross-unit/range/auto target, HA58 humidifier mode odebrane MQTT/None/sticky-list/18originals/browser/cleanup149. HA64 Climate humidity:5intcommands/23oryginały/browser/auto-dry-off/step-range-None-ABA-feature-outage/cleanup171/55sourceFPS/failed0. HA60 humidifier humidity odebrane w CTL-016; fizyczne urządzenia pozostają. HA52 zamyka osobny błąd podglądu akcentu. [Nastawa](climate-temperature-design-2026-10-31.md), [tryb](climate-hvac-choice-design-2026-10-31.md), [odbiór](validation-2026-10-31.md). |
+| AEH-CTL-009 | Number/input_number: slider/stepper | C | HA+FW | P1 | częściowo: runtime/visual/browser | HA34/native35: input_number oraz encje number urządzeń we wspólnym stepperze. Rzeczywiste30→35→30, dwa polecenia i potwierdzenia HA/native; held ABA bez komendy, cztery warm-open i browser/Undo PASS. Odtworzone16 kart/rev79, parametr30,3 kamery i8 preferencji. Warm PSRAM6359–6362KiB/largest3776KiB, Settings53FPS/failed0. Physical/audio/lifetime nadal otwarte. [A-CARD] [T-CAT] [odbiór](validation-2026-10-30-continuation.md) |
+| AEH-CTL-010 | Select/input_select: wybór opcji | B | HA+FW | P1 | częściowo: runtime/visual/browser | HA31/native35: 1..8 pełnych opcji po32 bajty, lokalny wybór i jawne Apply we wspólnym app6. Input_select: pięć komend/stany, unknown/ABA/list-held, 1/8/9 opcji i brak glyph; select: rzeczywiste PL→EN→PL urządzenia. Obrazy, panel/Undo, cleanup do58 i ciepła pamięć PASS; Settings54/55FPS/failed0. Większe listy/paginacja, physical/audio/lifetime pozostają otwarte. [T-CAT] [E-CARDS] [kontrakt i odbiór](choice-selection-design-2026-10-30.md) |
+| AEH-CTL-011 | Timer: countdown/start/pause/resume/cancel | B | HA+FW | P1 | częściowo: runtime/visual/browser | HA19: domyślne Start/Pauza/Wznów bez resetu przy resume. HA22/native31: konfigurowalny czas 1–86400 s, preset 90 s, wznowienie 88 s i jawne Anuluj potwierdzone dokładnymi zdarzeniami HA oraz obrazami; formularz PL i czysty szkic sprawdzone w przeglądarce. Przywrócone 16 kart, rewizja 22, brak pomocników QA. Normalne wejście do Ustawień 54 FPS, failed=0. Lokalny countdown, wspólny detail i pełne wyniki komend pozostają planem; physical/audio/lifetime nieprzyjęte. [T-CAT] [E-CARDS] [bieżący dziennik](validation-2026-10-30.md) |
 | AEH-CTL-012 | Lock: confirm/lock_only/code i stan unknown | C | HA+FW | P1 | plan | Obecne lock/unlock bez confirm; jawna polityka i keypad jeśli wymagany. [A-CARD] [T-CAT] |
 | AEH-CTL-013 | Alarm: tryby, disarm, PIN i pending/triggered | C | HA+FW | P1 | plan | Istnieje prezentacja; wymagane osobne dozwolone akcje i code flow. [A-CARD] [T-CAT] [E-CARDS] |
-| AEH-CTL-014 | Vacuum: akcje, pokoje/routines i mapa | B | HA+FW+integracja | P3 | plan | Podstawowe akcje najpierw; mapa tylko przy rzeczywistym API integracji. [T-VACUUM] [E-CARDS] |
-| AEH-CTL-015 | Lawn mower: start/dock/pause/resume | B | HA+FW+integracja | P3 | plan | Domenowy adapter i dostępne działania encji. [E-CARDS] |
-| AEH-CTL-016 | Humidifier: setpoint/mode/toggle | B | HA+FW | P3 | plan | Rzeczywiste granice celu i supported modes. [T-CAT] |
-| AEH-CTL-017 | Sensor: precision/unit/duration/state mapping | C | HA+FW | P1 | plan | Tekst i jednostka są; dodać warianty prezentacji z ograniczeniem długości. [A-CARD] [E-CARDS] |
+| AEH-CTL-014 | Vacuum: akcje, pokoje/routines i mapa | B | HA+FW+integracja | P3 | częściowo: HA/runtime/visual/browser | HA65 moc ssania; HA75 sześć jawnych akcji; HA76 jeden rzeczywiście zmapowany obszar HA na kafelek,3 exact Core/MQTT commands przed feedback,25 oryginałów/browser/registry-only mapping loss/ABA/drag/cleanup246. Fizyczny robot,wiele obszarów naraz,mapy i routines osobno. [Akcje](vacuum-actions-design-2026-11-01.md),[pokój](vacuum-area-design-2026-11-01.md). [T-VACUUM] |
+| AEH-CTL-015 | Lawn mower: start/dock/pause/resume | B | HA+FW+integracja | P3 | częściowo: HA/runtime/visual/browser | HA73 jawne3akcje/negotiated press,6exactMQTTcommands przedfeedback/26oryginałów/browser/heldABA-drag-outage-featureloss/cleanup226. Standardowa trasa53sourceFPS/failed0. Fizyczna kosiarka i nowsze idle/stop osobno. [Odbiór](mower-actions-design-2026-10-31.md). [E-CARDS] |
+| AEH-CTL-016 | Humidifier: setpoint/mode/toggle | B | HA+FW | P3 | częściowo: HA/runtime/visual/browser | HA57 power i HA58 mode; HA60/native45: dokładna docelowa wilgotność, min/max/step/None/off-grid/ABA/range/outage,5int broker commands przedfeedback bez power/mode.21oryginałów, rzeczywisty edytor/Undo,cleanup157/8prefs i55sourceFPS/failed0. Fizyczny aktuator i lifetime pozostają. [Projekt i odbiór](humidifier-humidity-design-2026-10-31.md). [T-CAT] |
+| AEH-CTL-017 | Sensor: precision/unit/duration/state mapping | C | HA+FW | P1 | częściowo: HA/runtime/visual/browser | HA25 precyzja0..6; HA35 do8 dokładnych opisów stanów. HA77/native45: podgląd duration zgodny z istniejącym native,203 shared cases/PLEN,7 dodatnich przypadków native+outage,4 browser proofs z prawdziwą precyzją HA,cleanup254/54 source FPS. Native formatter nie został dodany na nowo. Fizyczne sensory,audio,lifetime i mierniki osobno. [Duration](duration-preview-design-2026-11-01.md),[wcześniejszy odbiór](validation-2026-10-30-continuation.md). |
 | AEH-CTL-018 | Historia: wykres liczbowy i timeline stanów | B | HA+FW | P3 | plan | HA agreguje bounded samples; limit retained/peak pamięci. [T-CAT] |
 | AEH-CTL-019 | Mierniki ring/tape/bars | B | HA+FW | P3 | plan | Własne widgety M3 i cadence; brak porównania wydajności z obcym rendererem. [T-CAT] |
-| AEH-CTL-020 | Door/window/presence: dedykowane stany i ikony | C | HA+FW | P1 | plan | binary_sensor jest; jawne lit-when-open/detected i unavailable. [A-CARD] [E-CARDS] |
-| AEH-CTL-021 | Calendar: agenda/day/week/month/booking | B | HA+FW+integracja | P3 | plan | Bounded eventy; rezerwacja tylko przy wsparciu usług HA. [T-CALENDAR] |
-| AEH-CTL-022 | Person/map/zones/photos | B | HA+FW+mapy | P3 | plan | Dane HA, jawny provider map i limit obrazów. [T-MAP] |
-| AEH-CTL-023 | Sun: ścieżka słońca i karta stanu | B | HA+FW | P3 | częściowo: kod/testy host/pakiet | Lokalny HA20 pokazuje najbliższy wschód/zachód z aware danych HA i strefy HA; pasywna karta, krótkie PL/EN i zwalidowane miejsca tekstu.215 HA/219 Node PASS. Wdrożenie i odbiór ekranu otwarte; wykres ścieżki pozostaje planem. [T-CAT] [bieżący dziennik](validation-2026-10-26.md) |
-| AEH-CTL-024 | Remote: activity/power/command keypad | B | HA+FW+integracja | P3 | plan | Katalog komend zależny od integracji; jawne supported actions. [T-CAT] |
+| AEH-CTL-020 | Door/window/presence: dedykowane stany i ikony | C | HA+FW | P1 | częściowo: HA/runtime/visual/browser | HA26/native31: opcjonalne lit-when-on i ikona według klasy, istniejące fonty; dziewięć scenariuszy, unknown/unavailable, zmiana poza ekranem i dwa tapy bez usług. Przywrócone 16 kart przy rewizji 34; 55 FPS, pamięć bez spadku w cyklu. Osobne ikony open/closed i fizyczny czujnik pozostają otwarte. [A-CARD] [E-CARDS] [odbiór](validation-2026-10-30-continuation.md) |
+| AEH-CTL-021 | Calendar: agenda/day/week/month/booking | B | HA+FW+integracja | P3 | częściowo: HA/runtime/visual/browser | HA68 jedno CalendarEntity.event/slot12/timed-all-day/PLEN/14oryginałów/browser/cleanup193; HA70 pixel-fit290px/319glyphów i14nowychoryginałów/browser/cleanup207; dopasowane54sourceFPS/failed0. Agenda/day/week/month i booking pozostają otwarte. [Odbiór](calendar-next-design-2026-10-31.md). [T-CALENDAR] |
+| AEH-CTL-022 | Person/map/zones/photos | B | HA+FW+mapy | P3 | częściowo: HA/runtime/visual/browser | HA70 pasywna osoba/home-away-zone/PLEN/exact-home accent,18oryginałów/browser/cleanup209; aktywna karta i cleanup53sourceFPS/failed0. Bez GPS/account/photo. Zdjęcia, mapa i fizyczny tracking osobno. [Odbiór](person-presence-design-2026-10-31.md). [T-MAP] |
+| AEH-CTL-023 | Sun: ścieżka słońca i karta stanu | B | HA+FW | P3 | częściowo: HA/runtime/visual | HA20/native31: pięć poprawnych podpisów PL na urządzeniu, brak/błędne/niedostępne dane, data po północy, oryginalne obrazy i przywrócenie oryginalnych kart przy rewizji 18. Ustawienia 54 FPS, bez nowego bufora. PL/EN i DST hostowo; wykres ścieżki pozostaje planem. [T-CAT] [odbiór 30 października](validation-2026-10-30.md) |
+| AEH-CTL-024 | Remote: activity/power/command keypad | B | HA+FW+integracja | P3 | częściowo: HA/runtime/visual/browser | HA79: jawne power,2 exact commands/18 oryginałów/cleanup259. HA81/native45: Choice aktywności1..8/32 bajty,off→Apply i on→inna aktywność,4 exact Core/MQTT commands przed feedback,25 przypadków/28 oryginałów/final browser/cleanup263;53 source FPS/failed0. Własna Core RemoteEntity bez nadajnika; fizyczny IR/RF,keypad i większe katalogi osobno. [Power](remote-power-design-2026-11-01.md), [aktywności](remote-activity-design-2026-11-01.md). [T-CAT] |
 | AEH-CTL-025 | Energy: przepływy i agregacje | B | HA+FW | P3 | plan | HA liczy dane; osobny budżet animacji i punktów. [T-ENERGY] |
 | AEH-CTL-026 | Lokalne sensory/akcje ESPHome z katalogiem | C | FW+profil | P3 | plan | Skompilowane callbacki są; brak użytkowego katalogu i mapowania. [A-HOME] [E-CARDS] |
 | AEH-CTL-027 | Webhook/HTTP action z parametrami | C | HA+usługa | P3 | plan | Obecny Webhook to stały skrypt HA; konfiguracja wykonania po stronie HA. [A-HOME] [E-CARDS] |
 | AEH-CTL-028 | Guest Wi-Fi/QR i ewentualny przełącznik sieci | B | HA+dane | P3 | plan | Oddzielić sekrety od backupu; nie wymagać zapisu HA tokenu na ESP. [E-CARDS] |
-| AEH-CTL-029 | Automation: enable/disable/run | B | HA | P1 | plan | Dodać domenę, usługi i walidację stanu. [T-CAT] [E-CARDS] |
+| AEH-CTL-029 | Automation: enable/disable/run | B | HA | P1 | częściowo: runtime/visual/browser | HA27/native31: domyślne enable/disable bez zatrzymywania trwającej sekwencji; jawne Run/Stop z parametrami warunków. Osiem dokładnych usług i rzeczywiste wykonanie izolowanej sekwencji, 11 obrazów, panel PL/Undo, cleanup do 16 kart/rev42. 54 FPS, pamięć bez spadku w cyklu. Pełny wynik/pending oraz fizyczne wejście/lifetime nadal otwarte. [T-CAT] [E-CARDS] [odbiór](validation-2026-10-30-continuation.md) |
 | AEH-CTL-030 | Osobna encja stanu skrótu i aktywność potomków | B | HA+FW | P2 | plan | Oddzielić presentation od action target; bounded subskrypcje. [E-SUB] [E-CARDS] |
-| AEH-CTL-031 | Bezstanowy trigger/zdarzenie do automatyzacji HA | C | HA+FW | P1 | plan | Raport slotu istnieje; dodać konfigurowalną semantykę zdarzenia. [A-HA] [E-CARDS] |
+| AEH-CTL-031 | Bezstanowy trigger/zdarzenie do automatyzacji HA | C | HA+FW | P1 | częściowo: runtime/visual/browser | HA33/native35: jawne Action/event, odkrywalna encja Event, prywatny callback i aktualny kontekst. Sześć tapów/zdarzeń i zmian izolowanego helpera; drag/held/rename/hide/rebind/move bez fałszywych akcji. Stała tożsamość po zapisanym przeniesieniu15→13, browser/create/Undo, oryginały i cleanup do73. 54FPS/failed0, brak nowych buforów lub workerów. Physical/audio/lifetime otwarte. [A-HA] [E-CARDS] [odbiór](validation-2026-10-30-continuation.md) |
 
 ### Wzornictwo, dostępność i język
 
@@ -154,7 +443,7 @@ Dowody przy pozycjach prowadzą do wersji bazowych lub przypiętych źródeł po
 | --- | --- | --- | --- | --- | --- | --- |
 | AEH-MED-001 | Natywny Player/Sendspin, artwork, kolejka | O | HA+FW | utrzymać | baza; zachować | Nie zastępować wypracowanego audio/display lifecycle. [A-PLAYER] [A-AUDIO] |
 | AEH-MED-002 | Grupowanie głośników i volume członków | O | HA+FW | utrzymać | baza; zachować | Istnieją discovery/subskrypcje; zachować generacje i UX. [A-GROUP] |
-| AEH-MED-003 | Dowolne HA media_player jako karta | C | HA+FW | P1 | plan | Własny Player nie jest swobodną kartą wielu odtwarzaczy. [A-CARD] [T-CAT] |
+| AEH-MED-003 | Dowolne HA media_player jako karta | C | HA+FW | P1 | częściowo | HA83 jawne mute/unmute; HA85 bounded source Choice i HA87 repeat/HA89 shuffle odebrane na native45. HA90 relativevolume/HA91soundmode/HA92Stop/HA93fixedvolume + native46 guard odebrane; własny Player, pełny suwak/seek/browse/favourites/detail osobno. [A-CARD] [T-CAT] |
 | AEH-MED-004 | Biblioteka mediów, favourites i speaker picker | C | HA+integracja | P3 | plan | Picker grup jest; szersze browse API zależne od odtwarzacza. [A-GROUP] [T-CAT] |
 | AEH-MED-005 | MJPEG i picker kamer HA | O | HA+FW+źródło | utrzymać | baza; zachować | Allow-list, token kamery, hardware JPEG i idle DSI lease. [A-CAMERA] |
 | AEH-MED-006 | Miniatury camera/image, Fit/Fill i refresh policy | B | HA+FW | P3 | plan | Widoczność/generation/backoff; bez raw 800x800 na kartę. [E-CAMERA] [T-CAMERA] |
@@ -166,7 +455,7 @@ Dowody przy pozycjach prowadzą do wersji bazowych lub przypiętych źródeł po
 | AEH-MED-012 | Prognoza, szczegóły i wykres low/high | B | HA+FW | P3 | plan | Prognozę i jednostki normalizuje HA; bounded liczba dni. [E-CARDS] [T-CAT] |
 | AEH-MED-013 | Powiadomienia: czteroelementowa kolejka i M3 sheet | O | HA+FW | utrzymać | baza; zachować | Queue oraz pause/drain overlay są atutem obecnego produktu. [A-HA] [A-POOL] |
 | AEH-MED-014 | Akcje i obraz w powiadomieniu | B | HA+FW | P3 | plan | Typed action IDs; obraz ma jawny limit i lifecycle. [T-CAT] |
-| AEH-MED-015 | Historia/centrum powiadomień | B | HA+FW | P3 | plan | Historia na HA; tylko bounded strona na urządzeniu. [E-CARDS] [M-UI] |
+| AEH-MED-015 | Historia/centrum powiadomień | B | HA+FW | P3 | native49/HA95: wdrożone w zakresie tekstu i gestów | Historia na HA; tylko bounded strona na urządzeniu. [E-CARDS] [M-UI] |
 | AEH-MED-016 | GIF/radar i dodatkowe formaty obrazu | B | HA/host+FW | P4 | plan | Osobne limity rozmiaru/klatek/canvas; ukryte odtwarzanie zatrzymane. [E-CAMERA] |
 | AEH-MED-017 | Muzyczna wizualizacja/spectrum/ambient worlds | B | FW+opcjonalny HW | P4 | plan | Wyodrębniony ograniczony region; audio ma pierwszeństwo. [M-APPS] [M-BSP] |
 
@@ -282,11 +571,21 @@ poprzedza utworzenie timera. HA20 słońce ma lokalny kod/pakiet i testy hostowe
 ale nie ma jeszcze wdrożenia ani odbioru urządzenia. Zero commit/push.
 [Szczegóły i granice](validation-2026-10-26.md).
 
+### Wznowienie 2026-10-30
+
+Po jawnie zleconej publikacji obu repozytoriów migracja została wznowiona.
+HA20/native31 ma ograniczony odbiór pasywnej karty Sun; HA21 naprawia aktualność
+biblioteki encji i ma wdrożenie oraz test w przeglądarce. HA22 dodaje presety
+czasu timera, odebrane z resume i cancel na urządzeniu. Przywrócono wszystkie
+16 kart, rewizja wynosi 22, własne encje QA usunięto. Zwykłe wejście do Ustawień
+utrzymuje 54 FPS. [Dowody i ograniczenia](validation-2026-10-30.md).
+
 ## Kandydatury TouchDeck — 2026-10-30
 
-**Migracja funkcji jest wstrzymana na polecenie użytkownika.** Poniższa lista
-zapisuje wyniki badania, bez rozpoczęcia implementacji i bez zmiany statusu108
-bazowych rodzin. Punkt wznowienia: [resume-2026-10-30.md](resume-2026-10-30.md).
+Lista powstała podczas pauzy; **migracja została później jawnie wznowiona**.
+Poniższe kandydatury nadal są wynikami badania, a nie deklaracją implementacji
+ani zmiany statusu 108 bazowych rodzin. Bieżący punkt pracy:
+[resume-2026-10-30.md](resume-2026-10-30.md).
 Źródła, granice i propozycja kolejności: [raport TouchDeck](../research/touchdeck-2026-10-30.md).
 
 | Kandydat badawczy | Mechanizm | Powiązanie / warunek |

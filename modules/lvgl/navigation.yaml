@@ -11,7 +11,7 @@ interval:
           // Refresh one inactive data page per interval without changing the
           // Home page/window. Page 1 keeps its prepared weather-frame cache.
           static uint8_t next_page = 0;
-          lv_obj_t *pages[] = {id(controls_root_2), id(controls_root_3), id(controls_root_4)};
+          lv_obj_t *pages[] = {id(controls_root_2), id(controls_root_3), id(controls_root_4), id(controls_root_5)};
           auto *page = pages[next_page];
           id(ui_snapshot_io_busy) = true;
           const bool refreshed = lvgl_esphome_snapshot_refresh_tile_backing(
@@ -27,7 +27,7 @@ globals:
     type: int
     restore_value: no
     initial_value: '1'
-  # Application registry. Home/tile pages keep using ui_page=1..4; every
+  # Application registry. Home/tile pages keep using ui_page=1..5; every
   # fullscreen program is tracked here so launch/close gestures stay generic.
   - id: ui_home_page
     type: int
@@ -175,6 +175,11 @@ script:
             arc_color: !lambda 'return lv_color_hex(id(ui_accent_color));'
       - lvgl.widget.update:
           id: global_volume_arc
+          arc_color: !lambda 'return lv_color_hex(id(ui_accent_dark_color));'
+          indicator:
+            arc_color: !lambda 'return lv_color_hex(id(ui_accent_color));'
+      - lvgl.widget.update:
+          id: thermostat_control_arc
           arc_color: !lambda 'return lv_color_hex(id(ui_accent_dark_color));'
           indicator:
             arc_color: !lambda 'return lv_color_hex(id(ui_accent_color));'
@@ -485,24 +490,8 @@ script:
   - id: ui_update_page_indicator
     then:
       - lambda: |-
-          lv_obj_t *dots[] = {
-            id(page_indicator_1),
-            id(page_indicator_2),
-            id(page_indicator_3),
-            id(page_indicator_4),
-          };
-          int page = id(ui_page);
-          if (page < 1 || page > 4) page = 1;
-          for (int i = 0; i < 4; i++) {
-            const bool active = (i + 1) == page;
-            if (active)
-              lv_obj_add_state(dots[i], LV_STATE_CHECKED);
-            else
-              lv_obj_remove_state(dots[i], LV_STATE_CHECKED);
-          }
-          lv_obj_update_layout(id(page_indicator_row));
+          id(ui_navigation).refresh_home_indicators();
           lvgl_esphome_snapshot_swipe_set_page_indicator_geometry(id(page_indicator_row));
-          lvgl_esphome_snapshot_swipe_set_page_indicator(page, 4);
 
   - id: ui_refresh_global_status_icons
     then:
@@ -674,7 +663,8 @@ script:
       - if:
           condition:
             lambda: |-
-              return id(ui_home_snapshot_refresh_pending) &&
+              return !id(notification_center).owns_scene() &&
+                     id(ui_home_snapshot_refresh_pending) &&
                      id(boot_sequence_done) &&
                      lv_obj_has_flag(id(boot_overlay), LV_OBJ_FLAG_HIDDEN) &&
                      id(ui_active_app) == 0 && id(ui_page) == 1 &&
@@ -687,6 +677,7 @@ script:
                 if (!id(boot_sequence_done) ||
                     !lv_obj_has_flag(id(boot_overlay), LV_OBJ_FLAG_HIDDEN) ||
                     id(ui_active_app) != 0 || id(ui_page) != 1 || id(ui_snapshot_io_busy) ||
+                    id(notification_center).owns_scene() ||
                     id(ui_touch_active) || id(global_volume_dragging) ||
                     id(global_volume_time_press_tracking) || lvgl_esphome_snapshot_is_active()) return;
                 lv_obj_t *regions[] = {id(home_clock_refresh_region)};
@@ -736,12 +727,13 @@ script:
     then:
       - lambda: |-
           int page = id(ui_page);
-          if (page < 1 || page > 4) page = 1;
+          if (page < 1 || page > 5) page = 1;
           lv_obj_t *roots[] = {
             id(controls_root_1),
             id(controls_root_2),
             id(controls_root_3),
             id(controls_root_4),
+            id(controls_root_5),
           };
           const int page_count = sizeof(roots) / sizeof(roots[0]);
           auto *display = lv_obj_get_display(roots[0]);
@@ -767,6 +759,7 @@ script:
             id(page_indicator_2),
             id(page_indicator_3),
             id(page_indicator_4),
+            id(page_indicator_5),
           };
            for (auto *obj : indicators) {
              if (obj != nullptr) {
@@ -777,7 +770,7 @@ script:
           // behind the opaque boot overlay. Re-applying all four 800x800 roots
           // here invalidated the screen a second time and starved DSI exactly
           // when the overlay was about to disappear.
-          lvgl_esphome_snapshot_swipe_set_page_indicator(id(ui_page), 4);
+          id(ui_navigation).refresh_home_indicators();
 
   - id: ui_refresh_home_fixed_chrome
     then:
@@ -798,13 +791,6 @@ script:
       - globals.set:
           id: ui_page
           value: '2'
-      - script.execute: ui_apply_tile_positions
-
-  - id: ui_set_tile_visibility_4
-    then:
-      - globals.set:
-          id: ui_page
-          value: '4'
       - script.execute: ui_apply_tile_positions
 
   - id: ui_build_tile_snapshots_now
@@ -843,12 +829,14 @@ script:
             id(controls_root_2),
             id(controls_root_3),
             id(controls_root_4),
+            id(controls_root_5),
           };
           lv_obj_t *dots[] = {
             id(page_indicator_1),
             id(page_indicator_2),
             id(page_indicator_3),
             id(page_indicator_4),
+            id(page_indicator_5),
           };
            lv_obj_add_flag(id(global_volume_activation_surface), LV_OBJ_FLAG_HIDDEN);
            for (auto *dot : dots) {
@@ -876,7 +864,7 @@ script:
             }
             lv_obj_update_layout(id(page_indicator_row));
             lvgl_esphome_snapshot_swipe_set_page_indicator_geometry(id(page_indicator_row));
-            lvgl_esphome_snapshot_swipe_set_page_indicator(page, 4);
+            lvgl_esphome_snapshot_swipe_set_page_indicator(page, page_count);
             lv_obj_update_layout(lv_obj_get_parent(id(controls_root_1)));
           };
           // Application previews are captured only after the boot Lottie has
@@ -936,14 +924,14 @@ script:
     then:
       - lambda: |-
           // Boot owns snapshot allocation order until the splash cache is freed.
-          if (!id(boot_sequence_done) || id(ui_active_app) != 0 || id(ui_page) < 1 || id(ui_page) > 4) return;
-          lv_obj_t *pages[] = {
-            id(controls_root_1), id(controls_root_2),
-            id(controls_root_3), id(controls_root_4),
-          };
-          constexpr int page_count = sizeof(pages) / sizeof(pages[0]);
-          constexpr int window_count = 3;
-          int required_first = id(ui_page) - 1;
+          if (!id(boot_sequence_done) || id(ui_active_app) != 0 || id(ui_page) < 1 || id(ui_page) > 5) return;
+          auto &navigation = *id(ui_navigation);
+          auto **pages = navigation.home_route();
+          const int page_count = navigation.home_route_size();
+          const int route_page = navigation.home_route_index(id(ui_page)) + 1;
+          if (route_page <= 0) return;
+          const int window_count = std::min(page_count, 3);
+          int required_first = route_page - 1;
           if (required_first < 1) required_first = 1;
           if (required_first > page_count - window_count + 1)
             required_first = page_count - window_count + 1;
@@ -979,7 +967,7 @@ script:
                                      ? lv_display_get_horizontal_resolution(display)
                                      : lv_obj_get_width(lv_screen_active());
           const bool prepared =
-              lvgl_esphome_snapshot_cache_tile_window(pages, page_count, id(ui_page), page_width);
+              lvgl_esphome_snapshot_cache_tile_window(pages, page_count, route_page, page_width);
           id(ui_tile_snapshots_ready) = prepared;
           id(ui_tile_snapshot_prepared_page) = prepared ? id(ui_page) : 0;
           id(ui_tile_snapshot_cached_first) = prepared ? required_first : 0;
@@ -1046,7 +1034,7 @@ script:
                         auto *display = lv_obj_get_display(id(controls_root_1));
                         const int width = display == nullptr ? 0 : lv_display_get_horizontal_resolution(display);
                         lv_obj_t *pages[] = {id(controls_root_1), id(controls_root_2),
-                                             id(controls_root_3), id(controls_root_4)};
+                                             id(controls_root_3), id(controls_root_4), id(controls_root_5)};
                         invalidated = width > 0;
                         for (auto *page : pages) {
                           const bool changed = page != nullptr && width > 0 &&
@@ -1096,7 +1084,7 @@ script:
       - delay: 180ms
       - lambda: |-
           if (id(ui_active_app) != 0 || id(ui_snapshot_io_busy) ||
-              id(ui_touch_active) || id(ui_manual_pressed_obj) != nullptr ||
+              id(notification_center).owns_scene() || id(ui_touch_active) || id(ui_manual_pressed_obj) != nullptr ||
               lvgl_esphome_snapshot_is_active()) {
             id(ui_refresh_current_tile_snapshot).execute();
             return;
@@ -1105,6 +1093,7 @@ script:
           if (id(ui_page) == 2) page = id(controls_root_2);
           else if (id(ui_page) == 3) page = id(controls_root_3);
           else if (id(ui_page) == 4) page = id(controls_root_4);
+          else if (id(ui_page) == 5) page = id(controls_root_5);
           id(ui_snapshot_io_busy) = true;
           auto *display = lv_obj_get_display(page);
           const int page_width = display != nullptr
@@ -1130,7 +1119,7 @@ script:
           condition:
             lambda: |-
               return id(ui_active_app) != 0 || id(ui_snapshot_io_busy) ||
-                     id(ui_touch_active) ||
+                     id(notification_center).owns_scene() || id(ui_touch_active) ||
                      id(global_volume_time_press_tracking) ||
                      id(global_volume_dragging) ||
                      millis() - id(ui_last_touch_activity_ms) < 800U ||
@@ -1149,6 +1138,7 @@ script:
                 else if (id(ui_page) == 4) page_mask = (1UL << 6) | (1UL << 7) | (1UL << 8) |
                                                        (1UL << 9) | (1UL << 10) | (1UL << 13) |
                                                        (1UL << 14) | (1UL << 15);
+                else if (id(ui_page) == 5) page_mask = 0xFFFF0000UL;
                 const uint32_t refresh_slots = changed_slots & page_mask;
                 if (refresh_slots == 0)
                   return;
@@ -1187,6 +1177,13 @@ script:
                   if ((refresh_slots & (1UL << 14)) != 0) regions[count++] = id(tile_clock_button);
                   if ((refresh_slots & (1UL << 15)) != 0) regions[count++] = id(tile_webhook_button);
                   ok = lvgl_esphome_snapshot_refresh_tile_regions(id(controls_root_4), regions, count, width);
+                } else if (id(ui_page) == 5) {
+                  lv_obj_t *tiles[] = {id(tile_extra_16), id(tile_extra_17), id(tile_extra_18), id(tile_extra_19), id(tile_extra_20), id(tile_extra_21), id(tile_extra_22), id(tile_extra_23), id(tile_extra_24), id(tile_extra_25), id(tile_extra_26), id(tile_extra_27), id(tile_extra_28), id(tile_extra_29), id(tile_extra_30), id(tile_extra_31)};
+                  lv_obj_t *regions[16];
+                  size_t count = 0;
+                  for (unsigned i = 0; i < 16; ++i)
+                    if (refresh_slots & (1UL << (i + 16))) regions[count++] = tiles[i];
+                  ok = lvgl_esphome_snapshot_refresh_tile_regions(id(controls_root_5), regions, count, width);
                 }
                 id(ui_snapshot_io_busy) = false;
                 if (ok) {
@@ -1334,16 +1331,19 @@ script:
 
   - id: ui_show_tiles_4
     then:
-      - lvgl.widget.hide: wear_root
-      - lvgl.widget.update:
-          id: wear_root
-          y: 0
-      - script.execute: media_hide_lottie_visual
-      - globals.set:
-          id: ui_page
-          value: '4'
-      - script.execute: ui_set_tile_visibility_4
-      - script.execute: ui_refresh_tile_snapshots
+      - lambda: |-
+          auto &navigation = *id(ui_navigation);
+          const int index = navigation.home_route_index(4);
+          if (index < 0 || lvgl_esphome_snapshot_is_active()) return;
+          const bool drained = lvgl_esphome_direct_regions_pause(true, 150);
+          if (drained) {
+            lv_obj_add_flag(id(wear_root), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_set_y(id(wear_root), 0);
+            id(media_hide_lottie_visual).execute();
+            navigation.activate_home_view(index);
+          }
+          lvgl_esphome_direct_regions_pause(false, 0);
+          if (drained) id(ui_refresh_tile_snapshots).execute();
   # Delayed post-open work must be cancellable before close preparation. A
   # restartable script also replaces an older run when the same app reopens.
   - id: ui_finish_player_open

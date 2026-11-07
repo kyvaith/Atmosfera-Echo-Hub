@@ -1,0 +1,306 @@
+# Fixed choice widgets included in the existing app6 root.
+id: choice_control_root
+x: 0
+y: 0
+width: 800
+height: 800
+bg_opa: TRANSP
+border_width: 0
+pad_all: 0
+radius: 0
+hidden: true
+clickable: false
+scrollable: false
+widgets:
+  - label:
+      id: choice_control_current
+      x: 130
+      y: 174
+      width: 540
+      height: 32
+      text: ""
+      text_font: roboto_20
+      text_color: 0xF5F7FA
+      text_align: CENTER
+      long_mode: DOT
+      clickable: false
+  - obj:
+      id: choice_control_options
+      x: 130
+      y: 210
+      width: 540
+      height: 416
+      bg_opa: TRANSP
+      border_width: 0
+      pad_all: 0
+      scrollable: false
+      clickable: false
+      layout:
+        type: FLEX
+        pad_row: 4
+        flex_flow: COLUMN
+        flex_align_main: CENTER
+        flex_align_cross: CENTER
+      widgets:
+        - button:
+            id: choice_control_option_0
+            width: 540
+            height: 48
+            radius: 24
+            bg_color: 0x071018
+            bg_opa: 100%
+            text_color: 0xF5F7FA
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            scrollable: false
+            widgets:
+              - label:
+                  id: choice_control_label_0
+                  text: ""
+                  align: CENTER
+                  width: 492
+                  height: SIZE_CONTENT
+                  text_font: roboto_20
+                  text_align: CENTER
+                  long_mode: WRAP
+                  clickable: false
+        - button:
+            id: choice_control_option_1
+            width: 540
+            height: 48
+            radius: 24
+            bg_color: 0x071018
+            bg_opa: 100%
+            text_color: 0xF5F7FA
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            scrollable: false
+            widgets:
+              - label:
+                  id: choice_control_label_1
+                  text: ""
+                  align: CENTER
+                  width: 492
+                  height: SIZE_CONTENT
+                  text_font: roboto_20
+                  text_align: CENTER
+                  long_mode: WRAP
+                  clickable: false
+        - button:
+            id: choice_control_option_2
+            width: 540
+            height: 48
+            radius: 24
+            bg_color: 0x071018
+            bg_opa: 100%
+            text_color: 0xF5F7FA
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            scrollable: false
+            widgets:
+              - label:
+                  id: choice_control_label_2
+                  text: ""
+                  align: CENTER
+                  width: 492
+                  height: SIZE_CONTENT
+                  text_font: roboto_20
+                  text_align: CENTER
+                  long_mode: WRAP
+                  clickable: false
+        - button:
+            id: choice_control_option_3
+            width: 540
+            height: 48
+            radius: 24
+            bg_color: 0x071018
+            bg_opa: 100%
+            text_color: 0xF5F7FA
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            scrollable: false
+            widgets:
+              - label:
+                  id: choice_control_label_3
+                  text: ""
+                  align: CENTER
+                  width: 492
+                  height: SIZE_CONTENT
+                  text_font: roboto_20
+                  text_align: CENTER
+                  long_mode: WRAP
+                  clickable: false
+        - button:
+            id: choice_control_option_4
+            width: 540
+            height: 48
+            radius: 24
+            bg_color: 0x071018
+            bg_opa: 100%
+            text_color: 0xF5F7FA
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            scrollable: false
+            widgets:
+              - label:
+                  id: choice_control_label_4
+                  text: ""
+                  align: CENTER
+                  width: 492
+                  height: SIZE_CONTENT
+                  text_font: roboto_20
+                  text_align: CENTER
+                  long_mode: WRAP
+                  clickable: false
+        - button:
+            id: choice_control_option_5
+            width: 540
+            height: 48
+            radius: 24
+            bg_color: 0x071018
+            bg_opa: 100%
+            text_color: 0xF5F7FA
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            scrollable: false
+            widgets:
+              - label:
+                  id: choice_control_label_5
+                  text: ""
+                  align: CENTER
+                  width: 492
+                  height: SIZE_CONTENT
+                  text_font: roboto_20
+                  text_align: CENTER
+                  long_mode: WRAP
+                  clickable: false
+        - button:
+            id: choice_control_option_6
+            width: 540
+            height: 48
+            radius: 24
+            bg_color: 0x071018
+            bg_opa: 100%
+            text_color: 0xF5F7FA
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            scrollable: false
+            widgets:
+              - label:
+                  id: choice_control_label_6
+                  text: ""
+                  align: CENTER
+                  width: 492
+                  height: SIZE_CONTENT
+                  text_font: roboto_20
+                  text_align: CENTER
+                  long_mode: WRAP
+                  clickable: false
+        - button:
+            id: choice_control_option_7
+            width: 540
+            height: 48
+            radius: 24
+            bg_color: 0x071018
+            bg_opa: 100%
+            text_color: 0xF5F7FA
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            scrollable: false
+            widgets:
+              - label:
+                  id: choice_control_label_7
+                  text: ""
+                  align: CENTER
+                  width: 492
+                  height: SIZE_CONTENT
+                  text_font: roboto_20
+                  text_align: CENTER
+                  long_mode: WRAP
+                  clickable: false
+  - button:
+      id: choice_control_apply
+      x: 250
+      y: 650
+      width: 300
+      height: 64
+      radius: 32
+      bg_color: 0xD3E3FD
+      bg_opa: 100%
+      text_color: 0x071018
+      border_width: 0
+      pad_all: 0
+      shadow_width: 0
+      pressed:
+        bg_opa: 80%
+      disabled:
+        bg_opa: 35%
+        text_opa: 45%
+      scrollable: false
+      widgets:
+        - label:
+            id: choice_control_apply_label
+            text: ""
+            align: CENTER
+            text_font: roboto_30
+            clickable: false
+  - label:
+      id: choice_control_status
+      x: 205
+      y: 726
+      width: 390
+      height: 40
+      text: ""
+      text_font: roboto_18
+      text_color: 0xC4C7C5
+      text_align: CENTER
+      long_mode: WRAP
+      clickable: false

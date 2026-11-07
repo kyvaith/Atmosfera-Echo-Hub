@@ -283,10 +283,15 @@ font:
 
   - file: "gfonts://Material+Symbols+Rounded"
     id: material_symbols_30
+    extras:
+      - file: "assets/fonts/materialdesignicons-7.4.47.ttf"
+        glyphs: ["\U000F070D", "\U000F11F7"]
     size: 30
     bpp: 4
     ignore_missing_glyphs: true
     glyphs:
+      - "\uE5C4" # back
+      - "\uE5CD" # close
       - "\U0000e044" # skip_next
       - "\U0000e045" # skip_previous
       - "\U0000e0f0" # lightbulb
@@ -318,6 +323,9 @@ font:
 
   - file: "gfonts://Material+Symbols+Rounded"
     id: material_symbols_36
+    extras:
+      - file: "assets/fonts/materialdesignicons-7.4.47.ttf"
+        glyphs: ["\U000F070D", "\U000F11F7"]
     size: 36
     bpp: 4
     ignore_missing_glyphs: true
@@ -332,6 +340,7 @@ font:
       - "\U0000e0f0" # lightbulb
       - "\U0000e157" # link
       - "\U0000e1ff" # thermostat
+      - "\U0000e798" # water_drop (automatic moisture sensor icon)
       - "\U0000e03d" # queue_music
       - "\U0000f1b4" # sensor_window
       - "\U0000e3f4" # photo_library
@@ -353,6 +362,9 @@ font:
 
   - file: "gfonts://Material+Symbols+Rounded"
     id: material_symbols_44
+    extras:
+      - file: "assets/fonts/materialdesignicons-7.4.47.ttf"
+        glyphs: ["\U000F070D", "\U000F11F7"]
     size: 44
     bpp: 4
     ignore_missing_glyphs: true
@@ -371,6 +383,7 @@ font:
       - "\U0000e0f0" # lightbulb
       - "\U0000e157" # link
       - "\U0000e1ff" # thermostat
+      - "\U0000e798" # water_drop (automatic moisture sensor icon)
       - "\U0000e03d" # queue_music
       - "\U0000f1b4" # sensor_window
       - "\U0000e3f4" # photo_library
@@ -392,6 +405,9 @@ font:
 
   - file: "gfonts://Material+Symbols+Rounded"
     id: material_symbols_58
+    extras:
+      - file: "assets/fonts/materialdesignicons-7.4.47.ttf"
+        glyphs: ["\U000F070D", "\U000F11F7"]
     size: 58
     bpp: 4
     ignore_missing_glyphs: true
@@ -424,6 +440,9 @@ font:
 
   - file: "gfonts://Material+Symbols+Rounded"
     id: material_symbols_68
+    extras:
+      - file: "assets/fonts/materialdesignicons-7.4.47.ttf"
+        glyphs: ["\U000F070D", "\U000F11F7"]
     size: 68
     bpp: 4
     ignore_missing_glyphs: true
@@ -446,6 +465,7 @@ font:
       - "\U0000f168" # mode_fan
       - "\U0000e0f0" # lightbulb
       - "\U0000e1ff" # thermostat
+      - "\U0000e798" # water_drop (automatic moisture sensor icon)
       - "\U0000e5d5" # doorbell
       - "\U0000e65f" # auto_awesome
       - "\U0000e8ac" # power_settings_new

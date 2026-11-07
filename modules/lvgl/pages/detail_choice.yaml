@@ -1,0 +1,370 @@
+# Explicit detail profile in shared App6. Native owner controls visibility and input.
+# One pooled numeric/choice view; static SVG, no new worker or full-screen buffer.
+id: detail_choice_root
+x: 0
+y: 0
+width: 800
+height: 800
+bg_opa: COVER
+border_width: 0
+pad_all: 0
+radius: 0
+clickable: true
+scrollable: false
+bg_color: '0x000000'
+hidden: true
+widgets:
+- label:
+    id: detail_choice_kind
+    x: 200
+    y: 68
+    width: 400
+    height: 28
+    text: ''
+    text_font: roboto_20
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: DOT
+    clickable: false
+- label:
+    id: detail_choice_title
+    x: 130
+    y: 104
+    width: 540
+    height: 42
+    text: ''
+    text_font: roboto_30
+    text_color: '0xF2F2F2'
+    text_align: CENTER
+    long_mode: DOT
+    clickable: false
+- label:
+    id: detail_choice_current
+    x: 130
+    y: 154
+    width: 540
+    height: 52
+    text: ''
+    text_font: roboto_18
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- button:
+    id: detail_choice_option_0
+    width: 264
+    height: 84
+    radius: 32
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: true
+    pressed:
+      bg_opa: 80%
+    disabled:
+      text_opa: 80%
+    x: 130
+    y: 220
+    widgets:
+    - label:
+        id: detail_choice_option_label_0
+        width: 240
+        text: ''
+        text_font: roboto_18
+        text_color: '0xF2F2F2'
+        text_align: CENTER
+        long_mode: WRAP
+        clickable: false
+        align: CENTER
+        height: SIZE_CONTENT
+        max_height: 72
+- button:
+    id: detail_choice_option_1
+    width: 264
+    height: 84
+    radius: 32
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: true
+    pressed:
+      bg_opa: 80%
+    disabled:
+      text_opa: 80%
+    x: 406
+    y: 220
+    widgets:
+    - label:
+        id: detail_choice_option_label_1
+        width: 240
+        text: ''
+        text_font: roboto_18
+        text_color: '0xF2F2F2'
+        text_align: CENTER
+        long_mode: WRAP
+        clickable: false
+        align: CENTER
+        height: SIZE_CONTENT
+        max_height: 72
+- button:
+    id: detail_choice_option_2
+    width: 264
+    height: 84
+    radius: 32
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: true
+    pressed:
+      bg_opa: 80%
+    disabled:
+      text_opa: 80%
+    x: 130
+    y: 320
+    widgets:
+    - label:
+        id: detail_choice_option_label_2
+        width: 240
+        text: ''
+        text_font: roboto_18
+        text_color: '0xF2F2F2'
+        text_align: CENTER
+        long_mode: WRAP
+        clickable: false
+        align: CENTER
+        height: SIZE_CONTENT
+        max_height: 72
+- button:
+    id: detail_choice_option_3
+    width: 264
+    height: 84
+    radius: 32
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: true
+    pressed:
+      bg_opa: 80%
+    disabled:
+      text_opa: 80%
+    x: 406
+    y: 320
+    widgets:
+    - label:
+        id: detail_choice_option_label_3
+        width: 240
+        text: ''
+        text_font: roboto_18
+        text_color: '0xF2F2F2'
+        text_align: CENTER
+        long_mode: WRAP
+        clickable: false
+        align: CENTER
+        height: SIZE_CONTENT
+        max_height: 72
+- button:
+    id: detail_choice_option_4
+    width: 264
+    height: 84
+    radius: 32
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: true
+    pressed:
+      bg_opa: 80%
+    disabled:
+      text_opa: 80%
+    x: 130
+    y: 420
+    widgets:
+    - label:
+        id: detail_choice_option_label_4
+        width: 240
+        text: ''
+        text_font: roboto_18
+        text_color: '0xF2F2F2'
+        text_align: CENTER
+        long_mode: WRAP
+        clickable: false
+        align: CENTER
+        height: SIZE_CONTENT
+        max_height: 72
+- button:
+    id: detail_choice_option_5
+    width: 264
+    height: 84
+    radius: 32
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: true
+    pressed:
+      bg_opa: 80%
+    disabled:
+      text_opa: 80%
+    x: 406
+    y: 420
+    widgets:
+    - label:
+        id: detail_choice_option_label_5
+        width: 240
+        text: ''
+        text_font: roboto_18
+        text_color: '0xF2F2F2'
+        text_align: CENTER
+        long_mode: WRAP
+        clickable: false
+        align: CENTER
+        height: SIZE_CONTENT
+        max_height: 72
+- button:
+    id: detail_choice_option_6
+    width: 264
+    height: 84
+    radius: 32
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: true
+    pressed:
+      bg_opa: 80%
+    disabled:
+      text_opa: 80%
+    x: 130
+    y: 520
+    widgets:
+    - label:
+        id: detail_choice_option_label_6
+        width: 240
+        text: ''
+        text_font: roboto_18
+        text_color: '0xF2F2F2'
+        text_align: CENTER
+        long_mode: WRAP
+        clickable: false
+        align: CENTER
+        height: SIZE_CONTENT
+        max_height: 72
+- button:
+    id: detail_choice_option_7
+    width: 264
+    height: 84
+    radius: 32
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: true
+    pressed:
+      bg_opa: 80%
+    disabled:
+      text_opa: 80%
+    x: 406
+    y: 520
+    widgets:
+    - label:
+        id: detail_choice_option_label_7
+        width: 240
+        text: ''
+        text_font: roboto_18
+        text_color: '0xF2F2F2'
+        text_align: CENTER
+        long_mode: WRAP
+        clickable: false
+        align: CENTER
+        height: SIZE_CONTENT
+        max_height: 72
+- label:
+    id: detail_choice_status
+    x: 146
+    y: 608
+    width: 508
+    height: 36
+    text: ''
+    text_font: roboto_16
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- button:
+    id: detail_choice_back
+    width: 190
+    height: 64
+    radius: 32
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: false
+    pressed:
+      bg_opa: 80%
+    disabled:
+      text_opa: 80%
+    x: 200
+    y: 654
+    widgets:
+    - label:
+        id: detail_choice_back_label
+        width: 166
+        text: !lambda 'return std::string(id(ui_i18n).translate("detail_control.back"));'
+        text_font: roboto_24
+        text_color: '0xF2F2F2'
+        text_align: CENTER
+        long_mode: DOT
+        clickable: false
+        align: CENTER
+- button:
+    id: detail_choice_apply
+    width: 190
+    height: 64
+    radius: 32
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: false
+    pressed:
+      bg_opa: 80%
+    disabled:
+      text_opa: 80%
+    x: 410
+    y: 654
+    widgets:
+    - label:
+        id: detail_choice_apply_label
+        width: 166
+        text: !lambda 'return std::string(id(ui_i18n).translate("detail_control.apply"));'
+        text_font: roboto_24
+        text_color: '0xF2F2F2'
+        text_align: CENTER
+        long_mode: DOT
+        clickable: false
+        align: CENTER

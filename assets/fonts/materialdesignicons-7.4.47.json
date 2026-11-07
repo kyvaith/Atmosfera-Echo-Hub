@@ -1,0 +1,9 @@
+{
+  "version": "7.4.47",
+  "font_url": "https://raw.githubusercontent.com/Templarian/MaterialDesign-Webfont/v7.4.47/fonts/materialdesignicons-webfont.ttf",
+  "sha256": "61e8aba5a4e981fe22cf7c8e8bcdbea00476e75c62c37f01bf7ee33361d68428",
+  "glyphs": {
+    "robot-vacuum": "F070D",
+    "robot-mower": "F11F7"
+  }
+}

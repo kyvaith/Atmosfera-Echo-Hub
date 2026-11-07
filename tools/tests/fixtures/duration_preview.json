@@ -1,0 +1,1423 @@
+[
+  {
+    "state": "0",
+    "unit": "μs",
+    "precision": null,
+    "en": "0.000000 s",
+    "pl": "0,000000 s"
+  },
+  {
+    "state": "1",
+    "unit": "μs",
+    "precision": null,
+    "en": "1 us",
+    "pl": "1 us"
+  },
+  {
+    "state": "-1",
+    "unit": "μs",
+    "precision": null,
+    "en": "-1 us",
+    "pl": "-1 us"
+  },
+  {
+    "state": "59.9995",
+    "unit": "μs",
+    "precision": null,
+    "en": "59.9995 us",
+    "pl": "59,9995 us"
+  },
+  {
+    "state": "59.9995",
+    "unit": "μs",
+    "precision": 0,
+    "en": "60 us",
+    "pl": "60 us"
+  },
+  {
+    "state": "59.9995",
+    "unit": "μs",
+    "precision": 3,
+    "en": "60.000 us",
+    "pl": "60,000 us"
+  },
+  {
+    "state": "59.9995",
+    "unit": "μs",
+    "precision": 6,
+    "en": "59.999500 us",
+    "pl": "59,999500 us"
+  },
+  {
+    "state": "59.9985",
+    "unit": "μs",
+    "precision": null,
+    "en": "59.9985 us",
+    "pl": "59,9985 us"
+  },
+  {
+    "state": "59.9985",
+    "unit": "μs",
+    "precision": 0,
+    "en": "60 us",
+    "pl": "60 us"
+  },
+  {
+    "state": "59.9985",
+    "unit": "μs",
+    "precision": 3,
+    "en": "59.998 us",
+    "pl": "59,998 us"
+  },
+  {
+    "state": "59.9985",
+    "unit": "μs",
+    "precision": 6,
+    "en": "59.998500 us",
+    "pl": "59,998500 us"
+  },
+  {
+    "state": "61.2500",
+    "unit": "μs",
+    "precision": null,
+    "en": "61.2500 us",
+    "pl": "61,2500 us"
+  },
+  {
+    "state": "244291",
+    "unit": "μs",
+    "precision": null,
+    "en": "244291 us",
+    "pl": "244291 us"
+  },
+  {
+    "state": "249046",
+    "unit": "μs",
+    "precision": null,
+    "en": "249046 us",
+    "pl": "249046 us"
+  },
+  {
+    "state": "-3661",
+    "unit": "μs",
+    "precision": null,
+    "en": "-3661 us",
+    "pl": "-3661 us"
+  },
+  {
+    "state": "0.000001",
+    "unit": "μs",
+    "precision": null,
+    "en": "0.000001 us",
+    "pl": "0,000001 us"
+  },
+  {
+    "state": "0.000001",
+    "unit": "μs",
+    "precision": 0,
+    "en": "0.000000 s",
+    "pl": "0,000000 s"
+  },
+  {
+    "state": "0.000001",
+    "unit": "μs",
+    "precision": 3,
+    "en": "0.000000 s",
+    "pl": "0,000000 s"
+  },
+  {
+    "state": "0.000001",
+    "unit": "μs",
+    "precision": 6,
+    "en": "0.000001 us",
+    "pl": "0,000001 us"
+  },
+  {
+    "state": "-0.000001",
+    "unit": "μs",
+    "precision": null,
+    "en": "-0.000001 us",
+    "pl": "-0,000001 us"
+  },
+  {
+    "state": "1e-8",
+    "unit": "μs",
+    "precision": null,
+    "en": "0.000000 s",
+    "pl": "0,000000 s"
+  },
+  {
+    "state": "1.25e2",
+    "unit": "μs",
+    "precision": null,
+    "en": "125 us",
+    "pl": "125 us"
+  },
+  {
+    "state": "316224000",
+    "unit": "μs",
+    "precision": null,
+    "en": "5 min 16.224000 s",
+    "pl": "5 min 16,224000 s"
+  },
+  {
+    "state": "316224000.0000005",
+    "unit": "μs",
+    "precision": null,
+    "en": "5 min 16.224000 s",
+    "pl": "5 min 16,224000 s"
+  },
+  {
+    "state": "1000000000000000.1",
+    "unit": "μs",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "NaN",
+    "unit": "μs",
+    "precision": null,
+    "en": "Unknown",
+    "pl": "Nieznany"
+  },
+  {
+    "state": "invalid",
+    "unit": "μs",
+    "precision": null,
+    "en": "Unknown",
+    "pl": "Nieznany"
+  },
+  {
+    "state": "100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "unit": "μs",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": " 61.2500 ",
+    "unit": "μs",
+    "precision": null,
+    "en": "61.2500 us",
+    "pl": "61,2500 us"
+  },
+  {
+    "state": "0",
+    "unit": "ms",
+    "precision": null,
+    "en": "0.000 s",
+    "pl": "0,000 s"
+  },
+  {
+    "state": "1",
+    "unit": "ms",
+    "precision": null,
+    "en": "1 ms",
+    "pl": "1 ms"
+  },
+  {
+    "state": "-1",
+    "unit": "ms",
+    "precision": null,
+    "en": "-1 ms",
+    "pl": "-1 ms"
+  },
+  {
+    "state": "59.9995",
+    "unit": "ms",
+    "precision": null,
+    "en": "59.9995 ms",
+    "pl": "59,9995 ms"
+  },
+  {
+    "state": "59.9995",
+    "unit": "ms",
+    "precision": 0,
+    "en": "60 ms",
+    "pl": "60 ms"
+  },
+  {
+    "state": "59.9995",
+    "unit": "ms",
+    "precision": 3,
+    "en": "60.000 ms",
+    "pl": "60,000 ms"
+  },
+  {
+    "state": "59.9995",
+    "unit": "ms",
+    "precision": 6,
+    "en": "59.999500 ms",
+    "pl": "59,999500 ms"
+  },
+  {
+    "state": "59.9985",
+    "unit": "ms",
+    "precision": null,
+    "en": "59.9985 ms",
+    "pl": "59,9985 ms"
+  },
+  {
+    "state": "59.9985",
+    "unit": "ms",
+    "precision": 0,
+    "en": "60 ms",
+    "pl": "60 ms"
+  },
+  {
+    "state": "59.9985",
+    "unit": "ms",
+    "precision": 3,
+    "en": "59.998 ms",
+    "pl": "59,998 ms"
+  },
+  {
+    "state": "59.9985",
+    "unit": "ms",
+    "precision": 6,
+    "en": "59.998500 ms",
+    "pl": "59,998500 ms"
+  },
+  {
+    "state": "61.2500",
+    "unit": "ms",
+    "precision": null,
+    "en": "61.2500 ms",
+    "pl": "61,2500 ms"
+  },
+  {
+    "state": "244291",
+    "unit": "ms",
+    "precision": null,
+    "en": "4 min 4.291 s",
+    "pl": "4 min 4,291 s"
+  },
+  {
+    "state": "249046",
+    "unit": "ms",
+    "precision": null,
+    "en": "4 min 9.046 s",
+    "pl": "4 min 9,046 s"
+  },
+  {
+    "state": "-3661",
+    "unit": "ms",
+    "precision": null,
+    "en": "-3.661 s",
+    "pl": "-3,661 s"
+  },
+  {
+    "state": "0.000001",
+    "unit": "ms",
+    "precision": null,
+    "en": "0.000001 ms",
+    "pl": "0,000001 ms"
+  },
+  {
+    "state": "0.000001",
+    "unit": "ms",
+    "precision": 0,
+    "en": "0.000 s",
+    "pl": "0,000 s"
+  },
+  {
+    "state": "0.000001",
+    "unit": "ms",
+    "precision": 3,
+    "en": "0.000000 s",
+    "pl": "0,000000 s"
+  },
+  {
+    "state": "0.000001",
+    "unit": "ms",
+    "precision": 6,
+    "en": "0.000001 ms",
+    "pl": "0,000001 ms"
+  },
+  {
+    "state": "-0.000001",
+    "unit": "ms",
+    "precision": null,
+    "en": "-0.000001 ms",
+    "pl": "-0,000001 ms"
+  },
+  {
+    "state": "1e-8",
+    "unit": "ms",
+    "precision": null,
+    "en": "0.000000 s",
+    "pl": "0,000000 s"
+  },
+  {
+    "state": "1.25e2",
+    "unit": "ms",
+    "precision": null,
+    "en": "125 ms",
+    "pl": "125 ms"
+  },
+  {
+    "state": "316224000",
+    "unit": "ms",
+    "precision": null,
+    "en": "3 d 15 h",
+    "pl": "3 d 15 h"
+  },
+  {
+    "state": "316224000.0000005",
+    "unit": "ms",
+    "precision": null,
+    "en": "3 d 15 h",
+    "pl": "3 d 15 h"
+  },
+  {
+    "state": "1000000000000000.1",
+    "unit": "ms",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "NaN",
+    "unit": "ms",
+    "precision": null,
+    "en": "Unknown",
+    "pl": "Nieznany"
+  },
+  {
+    "state": "invalid",
+    "unit": "ms",
+    "precision": null,
+    "en": "Unknown",
+    "pl": "Nieznany"
+  },
+  {
+    "state": "100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "unit": "ms",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": " 61.2500 ",
+    "unit": "ms",
+    "precision": null,
+    "en": "61.2500 ms",
+    "pl": "61,2500 ms"
+  },
+  {
+    "state": "0",
+    "unit": "s",
+    "precision": null,
+    "en": "0 s",
+    "pl": "0 s"
+  },
+  {
+    "state": "1",
+    "unit": "s",
+    "precision": null,
+    "en": "1 s",
+    "pl": "1 s"
+  },
+  {
+    "state": "-1",
+    "unit": "s",
+    "precision": null,
+    "en": "-1 s",
+    "pl": "-1 s"
+  },
+  {
+    "state": "59.9995",
+    "unit": "s",
+    "precision": null,
+    "en": "59.9995 s",
+    "pl": "59,9995 s"
+  },
+  {
+    "state": "59.9995",
+    "unit": "s",
+    "precision": 0,
+    "en": "1 min",
+    "pl": "1 min"
+  },
+  {
+    "state": "59.9995",
+    "unit": "s",
+    "precision": 3,
+    "en": "1 min",
+    "pl": "1 min"
+  },
+  {
+    "state": "59.9995",
+    "unit": "s",
+    "precision": 6,
+    "en": "59.999500 s",
+    "pl": "59,999500 s"
+  },
+  {
+    "state": "59.9985",
+    "unit": "s",
+    "precision": null,
+    "en": "59.9985 s",
+    "pl": "59,9985 s"
+  },
+  {
+    "state": "59.9985",
+    "unit": "s",
+    "precision": 0,
+    "en": "1 min",
+    "pl": "1 min"
+  },
+  {
+    "state": "59.9985",
+    "unit": "s",
+    "precision": 3,
+    "en": "59.998 s",
+    "pl": "59,998 s"
+  },
+  {
+    "state": "59.9985",
+    "unit": "s",
+    "precision": 6,
+    "en": "59.998500 s",
+    "pl": "59,998500 s"
+  },
+  {
+    "state": "61.2500",
+    "unit": "s",
+    "precision": null,
+    "en": "1 min 1.2500 s",
+    "pl": "1 min 1,2500 s"
+  },
+  {
+    "state": "244291",
+    "unit": "s",
+    "precision": null,
+    "en": "2 d 19 h",
+    "pl": "2 d 19 h"
+  },
+  {
+    "state": "249046",
+    "unit": "s",
+    "precision": null,
+    "en": "2 d 21 h",
+    "pl": "2 d 21 h"
+  },
+  {
+    "state": "-3661",
+    "unit": "s",
+    "precision": null,
+    "en": "-1 h 1 min",
+    "pl": "-1 h 1 min"
+  },
+  {
+    "state": "0.000001",
+    "unit": "s",
+    "precision": null,
+    "en": "0.000001 s",
+    "pl": "0,000001 s"
+  },
+  {
+    "state": "0.000001",
+    "unit": "s",
+    "precision": 0,
+    "en": "0 s",
+    "pl": "0 s"
+  },
+  {
+    "state": "0.000001",
+    "unit": "s",
+    "precision": 3,
+    "en": "0.000 s",
+    "pl": "0,000 s"
+  },
+  {
+    "state": "0.000001",
+    "unit": "s",
+    "precision": 6,
+    "en": "0.000001 s",
+    "pl": "0,000001 s"
+  },
+  {
+    "state": "-0.000001",
+    "unit": "s",
+    "precision": null,
+    "en": "-0.000001 s",
+    "pl": "-0,000001 s"
+  },
+  {
+    "state": "1e-8",
+    "unit": "s",
+    "precision": null,
+    "en": "0.000000 s",
+    "pl": "0,000000 s"
+  },
+  {
+    "state": "1.25e2",
+    "unit": "s",
+    "precision": null,
+    "en": "2 min 5 s",
+    "pl": "2 min 5 s"
+  },
+  {
+    "state": "316224000",
+    "unit": "s",
+    "precision": null,
+    "en": "3660 d",
+    "pl": "3660 d"
+  },
+  {
+    "state": "316224000.0000005",
+    "unit": "s",
+    "precision": null,
+    "en": "3660 d",
+    "pl": "3660 d"
+  },
+  {
+    "state": "1000000000000000.1",
+    "unit": "s",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "NaN",
+    "unit": "s",
+    "precision": null,
+    "en": "Unknown",
+    "pl": "Nieznany"
+  },
+  {
+    "state": "invalid",
+    "unit": "s",
+    "precision": null,
+    "en": "Unknown",
+    "pl": "Nieznany"
+  },
+  {
+    "state": "100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "unit": "s",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": " 61.2500 ",
+    "unit": "s",
+    "precision": null,
+    "en": "1 min 1.2500 s",
+    "pl": "1 min 1,2500 s"
+  },
+  {
+    "state": "0",
+    "unit": "min",
+    "precision": null,
+    "en": "0 s",
+    "pl": "0 s"
+  },
+  {
+    "state": "1",
+    "unit": "min",
+    "precision": null,
+    "en": "1 min",
+    "pl": "1 min"
+  },
+  {
+    "state": "-1",
+    "unit": "min",
+    "precision": null,
+    "en": "-1 min",
+    "pl": "-1 min"
+  },
+  {
+    "state": "59.9995",
+    "unit": "min",
+    "precision": null,
+    "en": "59 min 59.9700 s",
+    "pl": "59 min 59,9700 s"
+  },
+  {
+    "state": "59.9995",
+    "unit": "min",
+    "precision": 0,
+    "en": "1 h",
+    "pl": "1 h"
+  },
+  {
+    "state": "59.9995",
+    "unit": "min",
+    "precision": 3,
+    "en": "1 h",
+    "pl": "1 h"
+  },
+  {
+    "state": "59.9995",
+    "unit": "min",
+    "precision": 6,
+    "en": "59 min 59.970000 s",
+    "pl": "59 min 59,970000 s"
+  },
+  {
+    "state": "59.9985",
+    "unit": "min",
+    "precision": null,
+    "en": "59 min 59.9100 s",
+    "pl": "59 min 59,9100 s"
+  },
+  {
+    "state": "59.9985",
+    "unit": "min",
+    "precision": 0,
+    "en": "1 h",
+    "pl": "1 h"
+  },
+  {
+    "state": "59.9985",
+    "unit": "min",
+    "precision": 3,
+    "en": "59 min 59.880 s",
+    "pl": "59 min 59,880 s"
+  },
+  {
+    "state": "59.9985",
+    "unit": "min",
+    "precision": 6,
+    "en": "59 min 59.910000 s",
+    "pl": "59 min 59,910000 s"
+  },
+  {
+    "state": "61.2500",
+    "unit": "min",
+    "precision": null,
+    "en": "1 h 1 min",
+    "pl": "1 h 1 min"
+  },
+  {
+    "state": "244291",
+    "unit": "min",
+    "precision": null,
+    "en": "169 d 15 h",
+    "pl": "169 d 15 h"
+  },
+  {
+    "state": "249046",
+    "unit": "min",
+    "precision": null,
+    "en": "172 d 22 h",
+    "pl": "172 d 22 h"
+  },
+  {
+    "state": "-3661",
+    "unit": "min",
+    "precision": null,
+    "en": "-2 d 13 h",
+    "pl": "-2 d 13 h"
+  },
+  {
+    "state": "0.000001",
+    "unit": "min",
+    "precision": null,
+    "en": "0.000001 min",
+    "pl": "0,000001 min"
+  },
+  {
+    "state": "0.000001",
+    "unit": "min",
+    "precision": 0,
+    "en": "0 s",
+    "pl": "0 s"
+  },
+  {
+    "state": "0.000001",
+    "unit": "min",
+    "precision": 3,
+    "en": "0.000 s",
+    "pl": "0,000 s"
+  },
+  {
+    "state": "0.000001",
+    "unit": "min",
+    "precision": 6,
+    "en": "0.000001 min",
+    "pl": "0,000001 min"
+  },
+  {
+    "state": "-0.000001",
+    "unit": "min",
+    "precision": null,
+    "en": "-0.000001 min",
+    "pl": "-0,000001 min"
+  },
+  {
+    "state": "1e-8",
+    "unit": "min",
+    "precision": null,
+    "en": "0.000000 s",
+    "pl": "0,000000 s"
+  },
+  {
+    "state": "1.25e2",
+    "unit": "min",
+    "precision": null,
+    "en": "2 h 5 min",
+    "pl": "2 h 5 min"
+  },
+  {
+    "state": "316224000",
+    "unit": "min",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "316224000.0000005",
+    "unit": "min",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "1000000000000000.1",
+    "unit": "min",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "NaN",
+    "unit": "min",
+    "precision": null,
+    "en": "Unknown",
+    "pl": "Nieznany"
+  },
+  {
+    "state": "invalid",
+    "unit": "min",
+    "precision": null,
+    "en": "Unknown",
+    "pl": "Nieznany"
+  },
+  {
+    "state": "100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "unit": "min",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": " 61.2500 ",
+    "unit": "min",
+    "precision": null,
+    "en": "1 h 1 min",
+    "pl": "1 h 1 min"
+  },
+  {
+    "state": "0",
+    "unit": "h",
+    "precision": null,
+    "en": "0 s",
+    "pl": "0 s"
+  },
+  {
+    "state": "1",
+    "unit": "h",
+    "precision": null,
+    "en": "1 h",
+    "pl": "1 h"
+  },
+  {
+    "state": "-1",
+    "unit": "h",
+    "precision": null,
+    "en": "-1 h",
+    "pl": "-1 h"
+  },
+  {
+    "state": "59.9995",
+    "unit": "h",
+    "precision": null,
+    "en": "2 d 11 h",
+    "pl": "2 d 11 h"
+  },
+  {
+    "state": "59.9995",
+    "unit": "h",
+    "precision": 0,
+    "en": "2 d 12 h",
+    "pl": "2 d 12 h"
+  },
+  {
+    "state": "59.9995",
+    "unit": "h",
+    "precision": 3,
+    "en": "2 d 12 h",
+    "pl": "2 d 12 h"
+  },
+  {
+    "state": "59.9995",
+    "unit": "h",
+    "precision": 6,
+    "en": "2 d 11 h",
+    "pl": "2 d 11 h"
+  },
+  {
+    "state": "59.9985",
+    "unit": "h",
+    "precision": null,
+    "en": "2 d 11 h",
+    "pl": "2 d 11 h"
+  },
+  {
+    "state": "59.9985",
+    "unit": "h",
+    "precision": 0,
+    "en": "2 d 12 h",
+    "pl": "2 d 12 h"
+  },
+  {
+    "state": "59.9985",
+    "unit": "h",
+    "precision": 3,
+    "en": "2 d 11 h",
+    "pl": "2 d 11 h"
+  },
+  {
+    "state": "59.9985",
+    "unit": "h",
+    "precision": 6,
+    "en": "2 d 11 h",
+    "pl": "2 d 11 h"
+  },
+  {
+    "state": "61.2500",
+    "unit": "h",
+    "precision": null,
+    "en": "2 d 13 h",
+    "pl": "2 d 13 h"
+  },
+  {
+    "state": "244291",
+    "unit": "h",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "249046",
+    "unit": "h",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "-3661",
+    "unit": "h",
+    "precision": null,
+    "en": "-152 d 13 h",
+    "pl": "-152 d 13 h"
+  },
+  {
+    "state": "0.000001",
+    "unit": "h",
+    "precision": null,
+    "en": "0.000001 h",
+    "pl": "0,000001 h"
+  },
+  {
+    "state": "0.000001",
+    "unit": "h",
+    "precision": 0,
+    "en": "0 s",
+    "pl": "0 s"
+  },
+  {
+    "state": "0.000001",
+    "unit": "h",
+    "precision": 3,
+    "en": "0.000 s",
+    "pl": "0,000 s"
+  },
+  {
+    "state": "0.000001",
+    "unit": "h",
+    "precision": 6,
+    "en": "0.000001 h",
+    "pl": "0,000001 h"
+  },
+  {
+    "state": "-0.000001",
+    "unit": "h",
+    "precision": null,
+    "en": "-0.000001 h",
+    "pl": "-0,000001 h"
+  },
+  {
+    "state": "1e-8",
+    "unit": "h",
+    "precision": null,
+    "en": "0.000000 s",
+    "pl": "0,000000 s"
+  },
+  {
+    "state": "1.25e2",
+    "unit": "h",
+    "precision": null,
+    "en": "5 d 5 h",
+    "pl": "5 d 5 h"
+  },
+  {
+    "state": "316224000",
+    "unit": "h",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "316224000.0000005",
+    "unit": "h",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "1000000000000000.1",
+    "unit": "h",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "NaN",
+    "unit": "h",
+    "precision": null,
+    "en": "Unknown",
+    "pl": "Nieznany"
+  },
+  {
+    "state": "invalid",
+    "unit": "h",
+    "precision": null,
+    "en": "Unknown",
+    "pl": "Nieznany"
+  },
+  {
+    "state": "100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "unit": "h",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": " 61.2500 ",
+    "unit": "h",
+    "precision": null,
+    "en": "2 d 13 h",
+    "pl": "2 d 13 h"
+  },
+  {
+    "state": "0",
+    "unit": "d",
+    "precision": null,
+    "en": "0 s",
+    "pl": "0 s"
+  },
+  {
+    "state": "1",
+    "unit": "d",
+    "precision": null,
+    "en": "1 d",
+    "pl": "1 d"
+  },
+  {
+    "state": "-1",
+    "unit": "d",
+    "precision": null,
+    "en": "-1 d",
+    "pl": "-1 d"
+  },
+  {
+    "state": "59.9995",
+    "unit": "d",
+    "precision": null,
+    "en": "59 d 23 h",
+    "pl": "59 d 23 h"
+  },
+  {
+    "state": "59.9995",
+    "unit": "d",
+    "precision": 0,
+    "en": "60 d",
+    "pl": "60 d"
+  },
+  {
+    "state": "59.9995",
+    "unit": "d",
+    "precision": 3,
+    "en": "60 d",
+    "pl": "60 d"
+  },
+  {
+    "state": "59.9995",
+    "unit": "d",
+    "precision": 6,
+    "en": "59 d 23 h",
+    "pl": "59 d 23 h"
+  },
+  {
+    "state": "59.9985",
+    "unit": "d",
+    "precision": null,
+    "en": "59 d 23 h",
+    "pl": "59 d 23 h"
+  },
+  {
+    "state": "59.9985",
+    "unit": "d",
+    "precision": 0,
+    "en": "60 d",
+    "pl": "60 d"
+  },
+  {
+    "state": "59.9985",
+    "unit": "d",
+    "precision": 3,
+    "en": "59 d 23 h",
+    "pl": "59 d 23 h"
+  },
+  {
+    "state": "59.9985",
+    "unit": "d",
+    "precision": 6,
+    "en": "59 d 23 h",
+    "pl": "59 d 23 h"
+  },
+  {
+    "state": "61.2500",
+    "unit": "d",
+    "precision": null,
+    "en": "61 d 6 h",
+    "pl": "61 d 6 h"
+  },
+  {
+    "state": "244291",
+    "unit": "d",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "249046",
+    "unit": "d",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "-3661",
+    "unit": "d",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "0.000001",
+    "unit": "d",
+    "precision": null,
+    "en": "0.000001 d",
+    "pl": "0,000001 d"
+  },
+  {
+    "state": "0.000001",
+    "unit": "d",
+    "precision": 0,
+    "en": "0 s",
+    "pl": "0 s"
+  },
+  {
+    "state": "0.000001",
+    "unit": "d",
+    "precision": 3,
+    "en": "0.000 s",
+    "pl": "0,000 s"
+  },
+  {
+    "state": "0.000001",
+    "unit": "d",
+    "precision": 6,
+    "en": "0.000001 d",
+    "pl": "0,000001 d"
+  },
+  {
+    "state": "-0.000001",
+    "unit": "d",
+    "precision": null,
+    "en": "-0.000001 d",
+    "pl": "-0,000001 d"
+  },
+  {
+    "state": "1e-8",
+    "unit": "d",
+    "precision": null,
+    "en": "0.000000 s",
+    "pl": "0,000000 s"
+  },
+  {
+    "state": "1.25e2",
+    "unit": "d",
+    "precision": null,
+    "en": "125 d",
+    "pl": "125 d"
+  },
+  {
+    "state": "316224000",
+    "unit": "d",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "316224000.0000005",
+    "unit": "d",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "1000000000000000.1",
+    "unit": "d",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "NaN",
+    "unit": "d",
+    "precision": null,
+    "en": "Unknown",
+    "pl": "Nieznany"
+  },
+  {
+    "state": "invalid",
+    "unit": "d",
+    "precision": null,
+    "en": "Unknown",
+    "pl": "Nieznany"
+  },
+  {
+    "state": "100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "unit": "d",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": " 61.2500 ",
+    "unit": "d",
+    "precision": null,
+    "en": "61 d 6 h",
+    "pl": "61 d 6 h"
+  },
+  {
+    "state": "0",
+    "unit": "w",
+    "precision": null,
+    "en": "0 s",
+    "pl": "0 s"
+  },
+  {
+    "state": "1",
+    "unit": "w",
+    "precision": null,
+    "en": "7 d",
+    "pl": "7 d"
+  },
+  {
+    "state": "-1",
+    "unit": "w",
+    "precision": null,
+    "en": "-7 d",
+    "pl": "-7 d"
+  },
+  {
+    "state": "59.9995",
+    "unit": "w",
+    "precision": null,
+    "en": "419 d 23 h",
+    "pl": "419 d 23 h"
+  },
+  {
+    "state": "59.9995",
+    "unit": "w",
+    "precision": 0,
+    "en": "420 d",
+    "pl": "420 d"
+  },
+  {
+    "state": "59.9995",
+    "unit": "w",
+    "precision": 3,
+    "en": "420 d",
+    "pl": "420 d"
+  },
+  {
+    "state": "59.9995",
+    "unit": "w",
+    "precision": 6,
+    "en": "419 d 23 h",
+    "pl": "419 d 23 h"
+  },
+  {
+    "state": "59.9985",
+    "unit": "w",
+    "precision": null,
+    "en": "419 d 23 h",
+    "pl": "419 d 23 h"
+  },
+  {
+    "state": "59.9985",
+    "unit": "w",
+    "precision": 0,
+    "en": "420 d",
+    "pl": "420 d"
+  },
+  {
+    "state": "59.9985",
+    "unit": "w",
+    "precision": 3,
+    "en": "419 d 23 h",
+    "pl": "419 d 23 h"
+  },
+  {
+    "state": "59.9985",
+    "unit": "w",
+    "precision": 6,
+    "en": "419 d 23 h",
+    "pl": "419 d 23 h"
+  },
+  {
+    "state": "61.2500",
+    "unit": "w",
+    "precision": null,
+    "en": "428 d 18 h",
+    "pl": "428 d 18 h"
+  },
+  {
+    "state": "244291",
+    "unit": "w",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "249046",
+    "unit": "w",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "-3661",
+    "unit": "w",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "0.000001",
+    "unit": "w",
+    "precision": null,
+    "en": "0.000001 w",
+    "pl": "0,000001 w"
+  },
+  {
+    "state": "0.000001",
+    "unit": "w",
+    "precision": 0,
+    "en": "0 s",
+    "pl": "0 s"
+  },
+  {
+    "state": "0.000001",
+    "unit": "w",
+    "precision": 3,
+    "en": "0.000 s",
+    "pl": "0,000 s"
+  },
+  {
+    "state": "0.000001",
+    "unit": "w",
+    "precision": 6,
+    "en": "0.000001 w",
+    "pl": "0,000001 w"
+  },
+  {
+    "state": "-0.000001",
+    "unit": "w",
+    "precision": null,
+    "en": "-0.000001 w",
+    "pl": "-0,000001 w"
+  },
+  {
+    "state": "1e-8",
+    "unit": "w",
+    "precision": null,
+    "en": "0.000000 s",
+    "pl": "0,000000 s"
+  },
+  {
+    "state": "1.25e2",
+    "unit": "w",
+    "precision": null,
+    "en": "875 d",
+    "pl": "875 d"
+  },
+  {
+    "state": "316224000",
+    "unit": "w",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "316224000.0000005",
+    "unit": "w",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "1000000000000000.1",
+    "unit": "w",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": "NaN",
+    "unit": "w",
+    "precision": null,
+    "en": "Unknown",
+    "pl": "Nieznany"
+  },
+  {
+    "state": "invalid",
+    "unit": "w",
+    "precision": null,
+    "en": "Unknown",
+    "pl": "Nieznany"
+  },
+  {
+    "state": "100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "unit": "w",
+    "precision": null,
+    "en": "Out of range",
+    "pl": "Poza zakresem"
+  },
+  {
+    "state": " 61.2500 ",
+    "unit": "w",
+    "precision": null,
+    "en": "428 d 18 h",
+    "pl": "428 d 18 h"
+  }
+]

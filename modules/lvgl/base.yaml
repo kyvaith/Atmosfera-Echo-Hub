@@ -40,6 +40,10 @@ lvgl:
   # M3 Wear OS Tiles design tokens. Geometry is defined by each tile
   # archetype, while surfaces, typography colors and radii stay centralized.
   style_definitions:
+    # Shared stable Text control appearance; palette and geometry stay local.
+    - id: m3_text_control_inset
+      border_width: 0
+      pad_all: 0
     - id: m3_tile_surface
       bg_color: 0x071018
       bg_opa: 100%
@@ -89,7 +93,8 @@ lvgl:
   use_ppa_draw: true
   use_ppa_blend: true
   use_ppa_img: true
-  profiler: false
+  rgb888_dma2d_image_copy: true
+  profiler: ${lvgl_profiler}
   # Route Home gestures through the LVGL input driver. The direct compositor
   # keeps the current JPEG-backed previous/current/next window, while LVGL
   # owns tap cancellation and pressed-state dispatch.
@@ -102,11 +107,13 @@ lvgl:
         - controls_root_2
         - controls_root_3
         - controls_root_4
+        - controls_root_5
       indicators:
         - page_indicator_1
         - page_indicator_2
         - page_indicator_3
         - page_indicator_4
+        - page_indicator_5
     blockers:
       - boot_overlay
       - voice_assistant_overlay
@@ -222,7 +229,7 @@ lvgl:
                        (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                        (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
           - lambda: |-
-              if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
+              if (id(ui_page) >= 1 && id(ui_page) <= 5) id(ui_home_page) = id(ui_page);
               id(ui_touch_click_block_until_ms) = millis() + 800;
               // Quiesce the regional renderer before selecting its backdrop.
               // Disabling it intentionally drops pending image work, so doing
@@ -370,12 +377,12 @@ lvgl:
               id(immich_photo_image).release(true, true);
               // Keep the current Home source for both app transitions, but
               // give its idle neighbours back before the contiguous loan.
-              if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
+              if (id(ui_page) >= 1 && id(ui_page) <= 5) id(ui_home_page) = id(ui_page);
               lv_obj_t *home_pages[] = {id(controls_root_1), id(controls_root_2),
-                                        id(controls_root_3), id(controls_root_4)};
+                                        id(controls_root_3), id(controls_root_4), id(controls_root_5)};
               const bool trim_drained = lvgl_esphome_direct_regions_pause(true, 150);
               const bool trimmed = trim_drained && lvgl_esphome_snapshot_trim_tile_window(
-                  home_pages[std::clamp(id(ui_home_page), 1, 4) - 1]);
+                  home_pages[std::clamp(id(ui_home_page), 1, 5) - 1]);
               // Balance this extra barrier even when its drain timed out.
               // The existing application preparation pause stays held.
               lvgl_esphome_direct_regions_pause(false, 0);
@@ -404,7 +411,7 @@ lvgl:
                        (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
                        (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
           - lambda: |-
-              if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
+              if (id(ui_page) >= 1 && id(ui_page) <= 5) id(ui_home_page) = id(ui_page);
               id(ui_touch_click_block_until_ms) = millis() + 800;
         on_opened:
           - script.execute: ui_prepare_settings_page
@@ -446,6 +453,7 @@ lvgl:
                       case 2: home = id(controls_root_2); break;
                       case 3: home = id(controls_root_3); break;
                       case 4: home = id(controls_root_4); break;
+                      case 5: home = id(controls_root_5); break;
                       default: home = id(controls_root_1); break;
                     }
                     auto *display = home == nullptr ? nullptr : lv_obj_get_display(home);
@@ -603,7 +611,7 @@ lvgl:
               id: ui_snapshot_io_busy
               value: 'true'
           - lambda: |-
-              if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
+              if (id(ui_page) >= 1 && id(ui_page) <= 5) id(ui_home_page) = id(ui_page);
               id(ui_touch_click_block_until_ms) = millis() + 800;
         on_before_reveal:
           - script.execute: ui_prepare_immich_page
@@ -681,7 +689,7 @@ lvgl:
               id: ui_snapshot_io_busy
               value: 'true'
           - lambda: |-
-              if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
+              if (id(ui_page) >= 1 && id(ui_page) <= 5) id(ui_home_page) = id(ui_page);
               id(ui_touch_click_block_until_ms) = millis() + 800;
         on_before_reveal:
           - script.execute: ui_prepare_camera_page
@@ -764,6 +772,9 @@ lvgl:
         # Match the RGB888 DSI surface and use the existing DMA2D copy path.
         # This bounded buffer exists only while Settings is open.
         color_format: RGB888
+        # Fewer DMA2D submissions when the full contiguous loan is unavailable.
+        # Capture halves failed requests down to the existing bounded fallback.
+        segment_target_size: 2MB
         # The application lifecycle performs one deterministic capture after
         # applying state. Automatic screen-load preload raced that capture and
         # transferred the same multi-megabyte bitmap twice.

@@ -4,6 +4,24 @@ This document explains where pixels are produced, which accelerator moves
 them, who owns each frame buffer, and why the firmware uses both PPA and
 DMA2D.
 
+## Small opaque RGB888 copies
+
+The product opts into `lvgl.rgb888_dma2d_image_copy` (reusable default:false,
+requires `use_ppa_img`). A clipped identity copy below100,000 pixels, with
+RGB888 source/destination and no alpha, recolor, mask, tiling, rounded image
+clip or transform, uses the existing synchronous DMA2D rectangle transport.
+The source must reside in external RAM and its complete byte span must be
+disjoint from the destination span; flash-backed and aliased sources keep the
+existing path.
+Source rows are synchronized for DMA reads; destination cache lines are cleaned
+before copying and invalidated afterwards, including lines shared with pixels
+outside the rectangle. A failed copy follows the existing hardware path.
+This removes the redundant SRM conversion into a compact RGB888 staging buffer.
+Large copies, alpha images and transforms retain their previous pipeline;
+generic RGB888 PPA fills/blends remain disabled. Diagnostics count completed
+direct copies separately from SRM work. The device qualification is tracked in
+[the notification repair record](../development/notification-cards-2026-11-02.md).
+
 ## Native Lottie publication (2026-09-19)
 
 The raster task prepares the next ARGB surface off-thread. Native canvas
@@ -324,7 +342,9 @@ BLOCK_DONE callback, whether recovery succeeds or rejects the state. Under the
 descriptor-switch ISR lock, recovery accepts only a known two-item ring with:
 
 - matching invalid-LLI/current-LLP addresses and cyclic links;
-- both VALID bits clear, expected source addresses, and valid frame geometry;
+- expected source addresses and valid frame geometry. Both VALID bits may be
+  clear. If the stopped descriptor is slot 0 and both halves reference the
+  active buffer, only slot 0 may already be valid;
 - an enabled, unsuspended channel without another fatal or common DMA error;
 - a bottom-half source matching the active ledger, and a coherent top/bottom
   pair when slot 0 is blocked.
@@ -344,6 +364,12 @@ active/current/pending ownership or emit an active/completion hook. Only a real
 later bottom-half completion promotes B; C then follows the ordinary staging
 path. Every source stays protected by an active, staged or queued lease.
 Unrecognized states are rejected without changing ownership.
+
+The native83 carousel stress captured a stopped coherent slot-0 pair with
+the top VALID bit set and the bottom bit clear. The old guard rejected it.
+The compositor continued counting submitted frames even though DMA
+completions stopped. Carousel stress now samples the DMA block counter and
+checks it advances before using compositor throughput as a display result.
 
 This production recovery does not depend on stress diagnostics. Temporary
 fault-injection APIs and SDK test hooks are absent from the production path.

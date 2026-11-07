@@ -1,0 +1,364 @@
+[
+  {
+    "name": "date",
+    "entity_id": "input_datetime.test",
+    "state": {
+      "entity_id": "input_datetime.test",
+      "state": "2026-11-05",
+      "attributes": {
+        "year": 2026,
+        "month": 11,
+        "day": 5,
+        "has_date": true,
+        "has_time": false,
+        "editable": false
+      },
+      "last_updated": "2026-11-05T10:00:00.123456+00:00"
+    },
+    "services": [
+      "set_datetime"
+    ],
+    "metadata": {
+      "datetime_panel": {
+        "version": 1,
+        "panel_type": "datetime",
+        "caps": {
+          "mode": "date",
+          "can_set": true,
+          "zone_text": ""
+        },
+        "fingerprint": "b0550f35fdb52a6c8f0c0330af8737271f8b202dc9732963705fd6a1e9f7d863",
+        "state": {
+          "source": "known",
+          "year": 2026,
+          "month": 11,
+          "day": 5,
+          "hour": null,
+          "minute": null,
+          "second": null,
+          "updated_text": "2026-11-05T11:00:00+01:00"
+        },
+        "available": true,
+        "eligible_actions": 1
+      }
+    }
+  },
+  {
+    "name": "time",
+    "entity_id": "input_datetime.test",
+    "state": {
+      "entity_id": "input_datetime.test",
+      "state": "12:34:56",
+      "attributes": {
+        "hour": 12,
+        "minute": 34,
+        "second": 56,
+        "has_date": false,
+        "has_time": true,
+        "editable": false
+      },
+      "last_updated": "2026-11-05T10:00:00.123456+00:00"
+    },
+    "services": [
+      "set_datetime"
+    ],
+    "metadata": {
+      "datetime_panel": {
+        "version": 1,
+        "panel_type": "datetime",
+        "caps": {
+          "mode": "time",
+          "can_set": true,
+          "zone_text": ""
+        },
+        "fingerprint": "d5e7ad3f1cd5d96e99910081bad5434767f1f2e6dbd6f78676a6c9b233fd4b81",
+        "state": {
+          "source": "known",
+          "year": null,
+          "month": null,
+          "day": null,
+          "hour": 12,
+          "minute": 34,
+          "second": 56,
+          "updated_text": "2026-11-05T11:00:00+01:00"
+        },
+        "available": true,
+        "eligible_actions": 1
+      }
+    }
+  },
+  {
+    "name": "datetime",
+    "entity_id": "input_datetime.test",
+    "state": {
+      "entity_id": "input_datetime.test",
+      "state": "2026-11-05 12:34:56",
+      "attributes": {
+        "year": 2026,
+        "month": 11,
+        "day": 5,
+        "hour": 12,
+        "minute": 34,
+        "second": 56,
+        "has_date": true,
+        "has_time": true,
+        "editable": false
+      },
+      "last_updated": "2026-11-05T10:00:00.123456+00:00"
+    },
+    "services": [
+      "set_datetime"
+    ],
+    "metadata": {
+      "datetime_panel": {
+        "version": 1,
+        "panel_type": "datetime",
+        "caps": {
+          "mode": "datetime",
+          "can_set": true,
+          "zone_text": "Europe/Warsaw"
+        },
+        "fingerprint": "0d0eb8733b738a078e0ca537ab556b606519997bbf9d18095a79162615140c9c",
+        "state": {
+          "source": "known",
+          "year": 2026,
+          "month": 11,
+          "day": 5,
+          "hour": 12,
+          "minute": 34,
+          "second": 56,
+          "updated_text": "2026-11-05T11:00:00+01:00"
+        },
+        "available": true,
+        "eligible_actions": 1
+      }
+    }
+  },
+  {
+    "name": "first-year",
+    "entity_id": "input_datetime.test",
+    "state": {
+      "entity_id": "input_datetime.test",
+      "state": "0001-11-05 12:34:56",
+      "attributes": {
+        "year": 1,
+        "month": 11,
+        "day": 5,
+        "hour": 12,
+        "minute": 34,
+        "second": 56,
+        "has_date": true,
+        "has_time": true,
+        "editable": false
+      },
+      "last_updated": "2026-11-05T10:00:00.123456+00:00"
+    },
+    "services": [
+      "set_datetime"
+    ],
+    "metadata": {
+      "datetime_panel": {
+        "version": 1,
+        "panel_type": "datetime",
+        "caps": {
+          "mode": "datetime",
+          "can_set": true,
+          "zone_text": "Europe/Warsaw"
+        },
+        "fingerprint": "0d0eb8733b738a078e0ca537ab556b606519997bbf9d18095a79162615140c9c",
+        "state": {
+          "source": "known",
+          "year": 1,
+          "month": 11,
+          "day": 5,
+          "hour": 12,
+          "minute": 34,
+          "second": 56,
+          "updated_text": "2026-11-05T11:00:00+01:00"
+        },
+        "available": true,
+        "eligible_actions": 1
+      }
+    }
+  },
+  {
+    "name": "last-year",
+    "entity_id": "input_datetime.test",
+    "state": {
+      "entity_id": "input_datetime.test",
+      "state": "9999-11-05",
+      "attributes": {
+        "year": 9999,
+        "month": 11,
+        "day": 5,
+        "has_date": true,
+        "has_time": false,
+        "editable": false
+      },
+      "last_updated": "2026-11-05T10:00:00.123456+00:00"
+    },
+    "services": [
+      "set_datetime"
+    ],
+    "metadata": {
+      "datetime_panel": {
+        "version": 1,
+        "panel_type": "datetime",
+        "caps": {
+          "mode": "date",
+          "can_set": true,
+          "zone_text": ""
+        },
+        "fingerprint": "b0550f35fdb52a6c8f0c0330af8737271f8b202dc9732963705fd6a1e9f7d863",
+        "state": {
+          "source": "known",
+          "year": 9999,
+          "month": 11,
+          "day": 5,
+          "hour": null,
+          "minute": null,
+          "second": null,
+          "updated_text": "2026-11-05T11:00:00+01:00"
+        },
+        "available": true,
+        "eligible_actions": 1
+      }
+    }
+  },
+  {
+    "name": "unknown",
+    "entity_id": "input_datetime.test",
+    "state": {
+      "entity_id": "input_datetime.test",
+      "state": "unknown",
+      "attributes": {
+        "year": 2026,
+        "month": 11,
+        "day": 5,
+        "hour": 12,
+        "minute": 34,
+        "second": 56,
+        "has_date": true,
+        "has_time": true,
+        "editable": false
+      },
+      "last_updated": "2026-11-05T10:00:00.123456+00:00"
+    },
+    "services": [
+      "set_datetime"
+    ],
+    "metadata": {
+      "datetime_panel": {
+        "version": 1,
+        "panel_type": "datetime",
+        "caps": {
+          "mode": "datetime",
+          "can_set": true,
+          "zone_text": "Europe/Warsaw"
+        },
+        "fingerprint": "0d0eb8733b738a078e0ca537ab556b606519997bbf9d18095a79162615140c9c",
+        "state": {
+          "source": "unknown",
+          "year": null,
+          "month": null,
+          "day": null,
+          "hour": null,
+          "minute": null,
+          "second": null,
+          "updated_text": "2026-11-05T11:00:00+01:00"
+        },
+        "available": false,
+        "eligible_actions": 0
+      }
+    }
+  },
+  {
+    "name": "unavailable",
+    "entity_id": "input_datetime.test",
+    "state": {
+      "entity_id": "input_datetime.test",
+      "state": "unavailable",
+      "attributes": {
+        "hour": 12,
+        "minute": 34,
+        "second": 56,
+        "has_date": false,
+        "has_time": true,
+        "editable": false
+      },
+      "last_updated": "2026-11-05T10:00:00.123456+00:00"
+    },
+    "services": [
+      "set_datetime"
+    ],
+    "metadata": {
+      "datetime_panel": {
+        "version": 1,
+        "panel_type": "datetime",
+        "caps": {
+          "mode": "time",
+          "can_set": true,
+          "zone_text": ""
+        },
+        "fingerprint": "d5e7ad3f1cd5d96e99910081bad5434767f1f2e6dbd6f78676a6c9b233fd4b81",
+        "state": {
+          "source": "unavailable",
+          "year": null,
+          "month": null,
+          "day": null,
+          "hour": null,
+          "minute": null,
+          "second": null,
+          "updated_text": "2026-11-05T11:00:00+01:00"
+        },
+        "available": false,
+        "eligible_actions": 0
+      }
+    }
+  },
+  {
+    "name": "readonly",
+    "entity_id": "input_datetime.test",
+    "state": {
+      "entity_id": "input_datetime.test",
+      "state": "2026-11-05 12:34:56",
+      "attributes": {
+        "year": 2026,
+        "month": 11,
+        "day": 5,
+        "hour": 12,
+        "minute": 34,
+        "second": 56,
+        "has_date": true,
+        "has_time": true,
+        "editable": false
+      },
+      "last_updated": "2026-11-05T10:00:00.123456+00:00"
+    },
+    "services": [],
+    "metadata": {
+      "datetime_panel": {
+        "version": 1,
+        "panel_type": "datetime",
+        "caps": {
+          "mode": "datetime",
+          "can_set": false,
+          "zone_text": "Europe/Warsaw"
+        },
+        "fingerprint": "5a0874c674cfbe825ca24999f78b1ab61c7bcb62bfd80b6cc15bddec5abd863a",
+        "state": {
+          "source": "known",
+          "year": 2026,
+          "month": 11,
+          "day": 5,
+          "hour": 12,
+          "minute": 34,
+          "second": 56,
+          "updated_text": "2026-11-05T11:00:00+01:00"
+        },
+        "available": true,
+        "eligible_actions": 0
+      }
+    }
+  }
+]

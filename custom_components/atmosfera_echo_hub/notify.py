@@ -43,7 +43,7 @@ class AtmosferaNotifyEntity(NotifyEntity):
         message: str,
         title: str | None = None,
     ) -> None:
-        """Show a Material bottom-sheet notification."""
+        """Archive the message in HA and show a bounded top banner."""
         await self._bridge.async_show_notification(
             plain_text(title or "Home Assistant", 64),
             plain_text(message, 384),

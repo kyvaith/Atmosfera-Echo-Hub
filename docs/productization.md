@@ -21,6 +21,14 @@ that branch until the complete device build and hardware regression suite pass.
 
 ## Current checkpoint
 
+The current product feature inventory is the [dedicated-panel roadmap, updated
+2026-11-06](development/device-panels-roadmap-2026-11-04.md), with exact runtime
+and validation evidence in the [resume checkpoint](development/resume-2026-11-04-panels.md).
+It covers the current five-page, 32-slot product and its dedicated device panels.
+The earlier migration descriptions and initial feature table below are historical;
+their eleven-slot, notification-history and drag-and-drop limitations do not
+describe the current product. The ownership and upstream boundaries still apply.
+
 The [2026-10-22 upstream integration](development/esphome-upstream-2026-10-22.md)
 records the move to current official ESPHome `dev` with preserved fork history,
 ESP-IDF `5.5.6`, the retained product ownership contracts and separate hardware
@@ -146,12 +154,12 @@ normalized before it reaches the device. The implementation was informed by
 the feature set of `jtenniswood/espcontrol`, but no source was copied because
 that project uses a non-commercial license.
 
-## Implemented product surface and remaining gaps
+## Historical initial product surface and remaining gaps
 
 This checkpoint contains a usable control plane, but it is not a claim that
 every EspControl capability has been ported.
 
-| Area | Implemented now | Deliberately not yet implemented |
+| Area | Implemented at this earlier checkpoint | Not implemented at this earlier checkpoint |
 | --- | --- | --- |
 | Web configuration | Authenticated Home Assistant sidebar panel; edits entity, title, icon, palette, optional service, and visibility for eleven fixed slots | Device-hosted unauthenticated web server, drag-and-drop layout, arbitrary pages/card sizes, full appearance editor |
 | Home cards | Fixed LVGL object pool, live HA state projection, conservative tap actions, changed-slot snapshot invalidation | EspControl's complete card catalog, subpages, per-card advanced controls, runtime object-tree construction |

@@ -1,0 +1,563 @@
+# Dedicated shared App6 view. Native owner controls state, gestures and visibility.
+# Static SVG only; no new task, image cache or full-screen buffer.
+id: timer_control_root
+x: 0
+y: 0
+width: 800
+height: 800
+bg_opa: COVER
+border_width: 0
+pad_all: 0
+radius: 0
+clickable: false
+scrollable: false
+bg_color: '0x000000'
+hidden: true
+widgets:
+- label:
+    id: timer_control_kind
+    x: 200
+    y: 68
+    width: 400
+    height: 28
+    text: ''
+    text_font: roboto_20
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: DOT
+    clickable: false
+- label:
+    id: timer_control_title
+    x: 130
+    y: 104
+    width: 540
+    height: 42
+    text: ''
+    text_font: roboto_30
+    text_color: '0xF2F2F2'
+    text_align: CENTER
+    long_mode: DOT
+    clickable: false
+- svg_icon:
+    id: timer_control_icon
+    file: assets/icons/panel-timer.svg
+    x: 368
+    y: 158
+    width: 64
+    height: 64
+    text_color: '0xD3E3FD'
+    hidden: false
+    clickable: false
+- label:
+    id: timer_control_state
+    x: 180
+    y: 236
+    width: 440
+    height: 28
+    text: ''
+    text_font: roboto_24
+    text_color: '0xF2F2F2'
+    text_align: CENTER
+    long_mode: DOT
+    clickable: false
+- label:
+    id: timer_control_remaining
+    x: 130
+    y: 276
+    width: 540
+    height: 72
+    text: --:--:--
+    text_font: wear_title_53
+    text_color: '0xF2F2F2'
+    text_align: CENTER
+    long_mode: DOT
+    clickable: false
+- label:
+    id: timer_control_draft_caption
+    x: 180
+    y: 370
+    width: 440
+    height: 24
+    text: !lambda 'return std::string(id(ui_i18n).translate("panel_control.duration"));'
+    text_font: roboto_20
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: DOT
+    clickable: false
+- obj:
+    id: timer_control_duration
+    x: 146
+    y: 400
+    width: 508
+    height: 140
+    bg_opa: TRANSP
+    border_width: 0
+    pad_all: 0
+    radius: 0
+    clickable: false
+    scrollable: false
+    widgets:
+    - obj:
+        id: timer_control_hour_column
+        x: 0
+        y: 0
+        width: 156
+        height: 140
+        bg_opa: TRANSP
+        border_width: 0
+        pad_all: 0
+        radius: 0
+        clickable: false
+        scrollable: false
+        widgets:
+        - label:
+            id: timer_control_hour_unit
+            x: 0
+            y: 0
+            width: 156
+            height: 24
+            text: !lambda 'return std::string(id(ui_i18n).translate("panel_control.hours"));'
+            text_font: roboto_18
+            text_color: '0xC4C7C5'
+            text_align: CENTER
+            long_mode: DOT
+            clickable: false
+        - label:
+            id: timer_control_draft_hour
+            x: 0
+            y: 30
+            width: 156
+            height: 44
+            text: --
+            text_font: roboto_34
+            text_color: '0xF2F2F2'
+            text_align: CENTER
+            long_mode: DOT
+            clickable: false
+        - button:
+            id: timer_control_hour_minus
+            width: 72
+            height: 52
+            radius: 26
+            bg_color: '0x1D2833'
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            x: 0
+            y: 88
+            widgets:
+            - label:
+                id: timer_control_hour_minus_label
+                width: 48
+                text: '-'
+                text_font: roboto_30
+                text_color: '0xF2F2F2'
+                text_align: CENTER
+                long_mode: DOT
+                clickable: false
+                align: CENTER
+        - button:
+            id: timer_control_hour_plus
+            width: 72
+            height: 52
+            radius: 26
+            bg_color: '0x1D2833'
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            x: 84
+            y: 88
+            widgets:
+            - label:
+                id: timer_control_hour_plus_label
+                width: 48
+                text: +
+                text_font: roboto_30
+                text_color: '0xF2F2F2'
+                text_align: CENTER
+                long_mode: DOT
+                clickable: false
+                align: CENTER
+    - obj:
+        id: timer_control_minute_column
+        x: 176
+        y: 0
+        width: 156
+        height: 140
+        bg_opa: TRANSP
+        border_width: 0
+        pad_all: 0
+        radius: 0
+        clickable: false
+        scrollable: false
+        widgets:
+        - label:
+            id: timer_control_minute_unit
+            x: 0
+            y: 0
+            width: 156
+            height: 24
+            text: !lambda 'return std::string(id(ui_i18n).translate("panel_control.minutes"));'
+            text_font: roboto_18
+            text_color: '0xC4C7C5'
+            text_align: CENTER
+            long_mode: DOT
+            clickable: false
+        - label:
+            id: timer_control_draft_minute
+            x: 0
+            y: 30
+            width: 156
+            height: 44
+            text: --
+            text_font: roboto_34
+            text_color: '0xF2F2F2'
+            text_align: CENTER
+            long_mode: DOT
+            clickable: false
+        - button:
+            id: timer_control_minute_minus
+            width: 72
+            height: 52
+            radius: 26
+            bg_color: '0x1D2833'
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            x: 0
+            y: 88
+            widgets:
+            - label:
+                id: timer_control_minute_minus_label
+                width: 48
+                text: '-'
+                text_font: roboto_30
+                text_color: '0xF2F2F2'
+                text_align: CENTER
+                long_mode: DOT
+                clickable: false
+                align: CENTER
+        - button:
+            id: timer_control_minute_plus
+            width: 72
+            height: 52
+            radius: 26
+            bg_color: '0x1D2833'
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            x: 84
+            y: 88
+            widgets:
+            - label:
+                id: timer_control_minute_plus_label
+                width: 48
+                text: +
+                text_font: roboto_30
+                text_color: '0xF2F2F2'
+                text_align: CENTER
+                long_mode: DOT
+                clickable: false
+                align: CENTER
+    - obj:
+        id: timer_control_second_column
+        x: 352
+        y: 0
+        width: 156
+        height: 140
+        bg_opa: TRANSP
+        border_width: 0
+        pad_all: 0
+        radius: 0
+        clickable: false
+        scrollable: false
+        widgets:
+        - label:
+            id: timer_control_second_unit
+            x: 0
+            y: 0
+            width: 156
+            height: 24
+            text: !lambda 'return std::string(id(ui_i18n).translate("panel_control.seconds"));'
+            text_font: roboto_18
+            text_color: '0xC4C7C5'
+            text_align: CENTER
+            long_mode: DOT
+            clickable: false
+        - label:
+            id: timer_control_draft_second
+            x: 0
+            y: 30
+            width: 156
+            height: 44
+            text: --
+            text_font: roboto_34
+            text_color: '0xF2F2F2'
+            text_align: CENTER
+            long_mode: DOT
+            clickable: false
+        - button:
+            id: timer_control_second_minus
+            width: 72
+            height: 52
+            radius: 26
+            bg_color: '0x1D2833'
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            x: 0
+            y: 88
+            widgets:
+            - label:
+                id: timer_control_second_minus_label
+                width: 48
+                text: '-'
+                text_font: roboto_30
+                text_color: '0xF2F2F2'
+                text_align: CENTER
+                long_mode: DOT
+                clickable: false
+                align: CENTER
+        - button:
+            id: timer_control_second_plus
+            width: 72
+            height: 52
+            radius: 26
+            bg_color: '0x1D2833'
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            x: 84
+            y: 88
+            widgets:
+            - label:
+                id: timer_control_second_plus_label
+                width: 48
+                text: +
+                text_font: roboto_30
+                text_color: '0xF2F2F2'
+                text_align: CENTER
+                long_mode: DOT
+                clickable: false
+                align: CENTER
+- obj:
+    id: timer_control_actions
+    x: 146
+    y: 562
+    width: 508
+    height: 136
+    bg_opa: TRANSP
+    border_width: 0
+    pad_all: 0
+    radius: 0
+    clickable: false
+    scrollable: false
+    layout:
+      type: FLEX
+      flex_flow: ROW_WRAP
+      flex_align_main: CENTER
+      flex_align_cross: CENTER
+      flex_align_track: CENTER
+      pad_column: 20
+      pad_row: 8
+    widgets:
+    - button:
+        id: timer_control_start
+        width: 244
+        height: 64
+        radius: 32
+        bg_color: '0x1D2833'
+        bg_opa: COVER
+        border_width: 0
+        pad_all: 0
+        shadow_width: 0
+        scrollable: false
+        hidden: true
+        pressed:
+          bg_opa: 80%
+        disabled:
+          bg_opa: 35%
+          text_opa: 45%
+        widgets:
+        - label:
+            id: timer_control_start_label
+            width: 220
+            text: ''
+            text_font: roboto_24
+            text_color: '0xF2F2F2'
+            text_align: CENTER
+            long_mode: DOT
+            clickable: false
+            align: CENTER
+    - button:
+        id: timer_control_resume
+        width: 244
+        height: 64
+        radius: 32
+        bg_color: '0x1D2833'
+        bg_opa: COVER
+        border_width: 0
+        pad_all: 0
+        shadow_width: 0
+        scrollable: false
+        hidden: true
+        pressed:
+          bg_opa: 80%
+        disabled:
+          bg_opa: 35%
+          text_opa: 45%
+        widgets:
+        - label:
+            id: timer_control_resume_label
+            width: 220
+            text: ''
+            text_font: roboto_24
+            text_color: '0xF2F2F2'
+            text_align: CENTER
+            long_mode: DOT
+            clickable: false
+            align: CENTER
+    - button:
+        id: timer_control_pause
+        width: 244
+        height: 64
+        radius: 32
+        bg_color: '0x1D2833'
+        bg_opa: COVER
+        border_width: 0
+        pad_all: 0
+        shadow_width: 0
+        scrollable: false
+        hidden: true
+        pressed:
+          bg_opa: 80%
+        disabled:
+          bg_opa: 35%
+          text_opa: 45%
+        widgets:
+        - label:
+            id: timer_control_pause_label
+            width: 220
+            text: ''
+            text_font: roboto_24
+            text_color: '0xF2F2F2'
+            text_align: CENTER
+            long_mode: DOT
+            clickable: false
+            align: CENTER
+    - button:
+        id: timer_control_cancel
+        width: 244
+        height: 64
+        radius: 32
+        bg_color: '0x1D2833'
+        bg_opa: COVER
+        border_width: 0
+        pad_all: 0
+        shadow_width: 0
+        scrollable: false
+        hidden: true
+        pressed:
+          bg_opa: 80%
+        disabled:
+          bg_opa: 35%
+          text_opa: 45%
+        widgets:
+        - label:
+            id: timer_control_cancel_label
+            width: 220
+            text: ''
+            text_font: roboto_24
+            text_color: '0xF2F2F2'
+            text_align: CENTER
+            long_mode: DOT
+            clickable: false
+            align: CENTER
+    - button:
+        id: timer_control_restart
+        width: 244
+        height: 64
+        radius: 32
+        bg_color: '0x1D2833'
+        bg_opa: COVER
+        border_width: 0
+        pad_all: 0
+        shadow_width: 0
+        scrollable: false
+        hidden: true
+        pressed:
+          bg_opa: 80%
+        disabled:
+          bg_opa: 35%
+          text_opa: 45%
+        widgets:
+        - label:
+            id: timer_control_restart_label
+            width: 220
+            text: ''
+            text_font: roboto_24
+            text_color: '0xF2F2F2'
+            text_align: CENTER
+            long_mode: DOT
+            clickable: false
+            align: CENTER
+- label:
+    id: timer_control_status
+    x: 200
+    y: 706
+    width: 400
+    height: 40
+    text: ''
+    text_font: roboto_16
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false

@@ -1,0 +1,137 @@
+{
+  "scope": "Golden observed outputs from installed Core2026.7.1, not a service or physical test",
+  "sources": {
+    "components/fan/__init__.py": "47958489070d97936633d0c1375e1fbe32fc7f21360365020548f87719a878d6",
+    "components/mqtt/fan.py": "7fa10bb9a0f589c30030db1ae58ff9937700dd0b6301c766d523a0f97a4037fe",
+    "util/percentage.py": "2704b9da9d056d4c023d15c42712592e965f63c86a84b1471ecaddf024a1188e"
+  },
+  "scaling_sha256": "ccbe3dfba13af9efdac26f67247950e537e1f7e40b8ac424c5657ffe4bd87043",
+  "counts": [
+    {
+      "count": 1,
+      "percentage_step": 100.0,
+      "percentages": [
+        0,
+        100
+      ],
+      "speed_roundtrip": [
+        0,
+        1
+      ]
+    },
+    {
+      "count": 2,
+      "percentage_step": 50.0,
+      "percentages": [
+        0,
+        50,
+        100
+      ],
+      "speed_roundtrip": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "count": 3,
+      "percentage_step": 33.333333333333336,
+      "percentages": [
+        0,
+        33,
+        66,
+        100
+      ],
+      "speed_roundtrip": [
+        0,
+        1,
+        2,
+        3
+      ]
+    },
+    {
+      "count": 4,
+      "percentage_step": 25.0,
+      "percentages": [
+        0,
+        25,
+        50,
+        75,
+        100
+      ],
+      "speed_roundtrip": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ]
+    },
+    {
+      "count": 5,
+      "percentage_step": 20.0,
+      "percentages": [
+        0,
+        20,
+        40,
+        60,
+        80,
+        100
+      ],
+      "speed_roundtrip": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
+    {
+      "count": 6,
+      "percentage_step": 16.666666666666668,
+      "percentages": [
+        0,
+        16,
+        33,
+        50,
+        66,
+        83,
+        100
+      ],
+      "speed_roundtrip": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ]
+    },
+    {
+      "count": 7,
+      "percentage_step": 14.285714285714286,
+      "percentages": [
+        0,
+        14,
+        28,
+        42,
+        57,
+        71,
+        85,
+        100
+      ],
+      "speed_roundtrip": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ]
+    }
+  ]
+}

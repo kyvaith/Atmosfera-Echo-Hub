@@ -578,12 +578,12 @@ class OwnerTests(unittest.IsolatedAsyncioTestCase):
         entered, release = asyncio.Event(), asyncio.Event()
         actual = self.owner._authorized
 
-        async def delayed(context, entity_id):
+        async def delayed(context, entity_id, *, authorizer=None):
             if asyncio.current_task().get_name() == "old-refresh":
                 entered.set()
                 await release.wait()
                 return False
-            return await actual(context, entity_id)
+            return await actual(context, entity_id, authorizer=authorizer)
 
         self.owner._authorized = delayed
         old = asyncio.create_task(self.owner.async_state_changed(), name="old-refresh")

@@ -77,7 +77,35 @@ script:
           }
           if (!id(selected_light_control).owner().has_selection())
             lv_label_set_text(id(light_control_title), id(ui_i18n).translate("light_control.title"));
+          lv_label_set_text(id(fan_control_kind), id(ui_i18n).translate("fan_control.title"));
+          lv_label_set_text(id(fan_control_speed_caption), id(ui_i18n).translate("fan_control.speed"));
+          lv_label_set_text(id(fan_control_presets_title), id(ui_i18n).translate("fan_control.choose_preset"));
+          lv_label_set_text(id(fan_control_preset_back_label), id(ui_i18n).translate("fan_control.back"));
+          lv_label_set_text(id(humidifier_control_modes_title), id(ui_i18n).translate("humidifier_control.choose_mode"));
+          lv_label_set_text(id(humidifier_control_mode_back_label), id(ui_i18n).translate("humidifier_control.back"));
+          lv_label_set_text(id(robot_control_suction_back_label), id(ui_i18n).translate("robot_control.back"));
+          lv_label_set_text(id(timer_control_draft_caption), id(ui_i18n).translate("panel_control.duration"));
+          lv_label_set_text(id(timer_control_hour_unit), id(ui_i18n).translate("panel_control.hours"));
+          lv_label_set_text(id(timer_control_minute_unit), id(ui_i18n).translate("panel_control.minutes"));
+          lv_label_set_text(id(timer_control_second_unit), id(ui_i18n).translate("panel_control.seconds"));
+          lv_label_set_text(id(remote_control_back_label), id(ui_i18n).translate("panel_control.back"));
+          lv_label_set_text(id(light_detail_kelvin_label), id(ui_i18n).translate("detail_control.kelvin"));
+          lv_label_set_text(id(light_detail_effect_label), id(ui_i18n).translate("detail_control.effect"));
+          lv_label_set_text(id(climate_detail_parameters_label), id(ui_i18n).translate("detail_control.parameters"));
+          lv_label_set_text(id(climate_detail_parameters_title), id(ui_i18n).translate("detail_control.parameters"));
+          lv_label_set_text(id(climate_detail_parameters_back_label), id(ui_i18n).translate("detail_control.back"));
+          lv_label_set_text(id(detail_numeric_target_caption), id(ui_i18n).translate("detail_control.target"));
+          lv_label_set_text(id(detail_numeric_back_label), id(ui_i18n).translate("detail_control.back"));
+          lv_label_set_text(id(detail_choice_back_label), id(ui_i18n).translate("detail_control.back"));
+          lv_label_set_text(id(media_panel_volume_back_label), id(ui_i18n).translate("media_control.back"));
+          lv_label_set_text(id(detail_choice_apply_label), id(ui_i18n).translate("detail_control.apply"));
+          lv_label_set_text(id(climate_detail_parameter_humidity_label), id(ui_i18n).translate("detail_control.humidity"));
+          lv_label_set_text(id(climate_detail_parameter_preset_label), id(ui_i18n).translate("detail_control.preset"));
+          lv_label_set_text(id(climate_detail_parameter_fan_label), id(ui_i18n).translate("detail_control.fan"));
+          lv_label_set_text(id(climate_detail_parameter_swing_label), id(ui_i18n).translate("detail_control.swing"));
+          lv_label_set_text(id(climate_detail_parameter_swing_horizontal_label), id(ui_i18n).translate("detail_control.swing_horizontal"));
           id(selected_light_control).refresh_texts();
+          id(notification_center).refresh_texts();
 
           // Keep dynamic status/metadata labels untouched. They are translated at
           // their update sites with the current state, while HA names remain raw.

@@ -1,0 +1,143 @@
+# Read-only Info context. Native owner supplies admitted observations; no commands.
+id: extra_sun_root
+x: 0
+y: 0
+width: 800
+height: 800
+bg_opa: TRANSP
+border_width: 0
+pad_all: 0
+radius: 0
+clickable: false
+scrollable: false
+hidden: true
+widgets:
+- svg_icon:
+    id: extra_sun_icon
+    x: 352
+    y: 164
+    width: 96
+    height: 96
+    file: assets/icons/info-context-sun.svg
+    text_color: '0xD3E3FD'
+    clickable: false
+- label:
+    id: extra_sun_phase
+    x: 150
+    y: 276
+    width: 500
+    height: 42
+    text: ''
+    text_font: roboto_30
+    text_color: '0xF2F2F2'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: extra_sun_rising_caption
+    x: 140
+    y: 334
+    width: 520
+    height: 26
+    text: ''
+    text_font: roboto_16
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: extra_sun_rising_value
+    x: 140
+    y: 366
+    width: 520
+    height: 58
+    text: ''
+    text_font: roboto_20
+    text_color: '0xF2F2F2'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: extra_sun_setting_caption
+    x: 140
+    y: 442
+    width: 520
+    height: 26
+    text: ''
+    text_font: roboto_16
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: extra_sun_setting_value
+    x: 140
+    y: 474
+    width: 520
+    height: 58
+    text: ''
+    text_font: roboto_20
+    text_color: '0xF2F2F2'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: extra_sun_elevation_caption
+    x: 110
+    y: 550
+    width: 280
+    height: 24
+    text: ''
+    text_font: roboto_16
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: extra_sun_elevation_value
+    x: 110
+    y: 580
+    width: 280
+    height: 32
+    text: ''
+    text_font: roboto_20
+    text_color: '0xF2F2F2'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: extra_sun_azimuth_caption
+    x: 410
+    y: 550
+    width: 280
+    height: 24
+    text: ''
+    text_font: roboto_16
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: extra_sun_azimuth_value
+    x: 410
+    y: 580
+    width: 280
+    height: 32
+    text: ''
+    text_font: roboto_20
+    text_color: '0xF2F2F2'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: extra_sun_zone
+    x: 150
+    y: 620
+    width: 500
+    height: 24
+    text: ''
+    text_font: roboto_16
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false

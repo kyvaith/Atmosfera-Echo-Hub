@@ -1,6 +1,10 @@
 # Local audio pipeline and SendSpin transport.
 # This keeps the amplifier, I2S codec, resampler and media_player entities in one hardware-oriented package.
 
+globals:
+  - id: speaker_output_frames
+    type: std::atomic<uint32_t>
+
 switch:
   - platform: gpio
     id: pa_enable
@@ -24,6 +28,7 @@ sendspin:
   # Keep the complete audio quota and image limits; avoid compressed-codec
   # receive overhead for our PCM-only role and idle encoded artwork assemblies.
   optimize_memory: true
+  startup_retries: 4
 
 esp_afe:
   id: afe_processor
@@ -265,8 +270,9 @@ script:
     mode: restart
     then:
       - lambda: |-
-          ESP_LOGI("audio.chime", "boot chime start uptime=%lums boot_done=%s snapshot_busy=%s",
-                   (unsigned long) millis(), YESNO(id(boot_sequence_done)), YESNO(id(ui_snapshot_io_busy)));
+          ESP_LOGI("audio.chime", "boot chime start uptime=%lums boot_done=%s snapshot_busy=%s tx_frames=%u amp=%s",
+                   (unsigned long) millis(), YESNO(id(boot_sequence_done)), YESNO(id(ui_snapshot_io_busy)),
+                   (unsigned) id(speaker_output_frames).load(std::memory_order_relaxed), YESNO(id(pa_enable).state));
       - speaker.stop: assistant_speaker
       - wait_until:
           condition:
@@ -293,8 +299,9 @@ script:
                   media_player.is_announcing: local_music_player
           timeout: 6s
       - lambda: |-
-          ESP_LOGI("audio.chime", "boot chime complete uptime=%lums",
-                   (unsigned long) millis());
+          ESP_LOGI("audio.chime", "boot chime complete uptime=%lums tx_frames=%u amp=%s",
+                   (unsigned long) millis(), (unsigned) id(speaker_output_frames).load(std::memory_order_relaxed),
+                   YESNO(id(pa_enable).state));
 
   - id: ui_play_va_listening_sound
     mode: restart

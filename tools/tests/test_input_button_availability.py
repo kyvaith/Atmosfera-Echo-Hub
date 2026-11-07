@@ -68,7 +68,7 @@ class InputButtonProjectionTests(unittest.TestCase):
                 self.assertIs(self.project(hass, card)["press_enabled"], False)
 
     def test_other_domains_and_both_control_kinds_have_identical_projection(self):
-        for domain, control in (("automation", None), ("light", "light"),
+        for domain, control in (("input_select", None), ("light", "light"),
                                 ("input_number", "number")):
             with self.subTest(domain=domain):
                 entity = domain + ".example"
@@ -253,7 +253,7 @@ class OneShotAvailabilityTests(unittest.IsolatedAsyncioTestCase):
                 )
                 self.assertIs(self.project(hass, card)["press_enabled"], True)
         for domain in (
-            "automation",
+            "input_select",
             "light",
             "input_number",
             "buttonish",
@@ -307,7 +307,7 @@ class OneShotAvailabilityTests(unittest.IsolatedAsyncioTestCase):
                     before,
                 )
         for domain, control in (
-            ("automation", None),
+            ("input_select", None),
             ("switch", None),
             ("light", "light"),
             ("input_number", "number"),
@@ -449,7 +449,7 @@ class OneShotAvailabilityTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_nonparticipating_and_control_only_do_not_add_first_probe(self):
         for domain, action in (
-            ("automation", {"kind": "none"}),
+            ("input_select", {"kind": "none"}),
             ("light", {"kind": "control", "control": "light"}),
             ("input_number", {"kind": "control", "control": "number"}),
         ):
@@ -499,7 +499,7 @@ class TimerDefaultActionTests(unittest.TestCase):
         for operation in ("start", "pause", "cancel"):
             hass, card = timer_environment("paused", action={"kind": "service", "service": "timer." + operation, "data": {}})
             self.assertEqual(base.cards.resolve_action(hass, card).service, operation)
-            self.assertEqual(base.cards.presentation_payload(hass, [card])["cards"][2]["subtitle"], "Paused")
+            self.assertEqual(base.cards.presentation_payload(hass, [card])["cards"][2]["subtitle"], "Cancel" if operation == "cancel" else "Paused")
         hass, card = timer_environment("idle", type="sensor", action={"kind": "none"})
         self.assertIsNone(base.cards.resolve_action(hass, card))
         self.assertEqual(base.cards.presentation_payload(hass, [card])["cards"][2]["subtitle"], "Idle")

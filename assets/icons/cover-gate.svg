@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="#FFFFFF">
+  <title>Cover: gate</title>
+  <path d="M 14 24 L 24 24 L 24 118 L 14 118 Z"/>
+  <path d="M 104 24 L 114 24 L 114 118 L 104 118 Z"/>
+  <path d="M 28 46 L 60 46 L 60 54 L 28 54 Z"/>
+  <path d="M 68 46 L 100 46 L 100 54 L 68 54 Z"/>
+  <path d="M 28 104 L 60 104 L 60 112 L 28 112 Z"/>
+  <path d="M 68 104 L 100 104 L 100 112 L 68 112 Z"/>
+  <path d="M 28 54 L 35 54 L 35 104 L 28 104 Z"/>
+  <path d="M 41 54 L 48 54 L 48 104 L 41 104 Z"/>
+  <path d="M 54 54 L 60 54 L 60 104 L 54 104 Z"/>
+  <path d="M 68 54 L 75 54 L 75 104 L 68 104 Z"/>
+  <path d="M 81 54 L 88 54 L 88 104 L 81 104 Z"/>
+  <path d="M 94 54 L 100 54 L 100 104 L 94 104 Z"/>
+</svg>

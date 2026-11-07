@@ -1,0 +1,124 @@
+# Dedicated shared App6 view. Native owner controls state, gestures and visibility.
+# Static SVG only; no new task, image cache or full-screen buffer.
+id: power_control_root
+x: 0
+y: 0
+width: 800
+height: 800
+bg_opa: COVER
+border_width: 0
+pad_all: 0
+radius: 0
+clickable: false
+scrollable: false
+bg_color: '0x000000'
+hidden: true
+widgets:
+- label:
+    id: power_control_kind
+    x: 200
+    y: 68
+    width: 400
+    height: 28
+    text: ''
+    text_font: roboto_20
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: DOT
+    clickable: false
+- label:
+    id: power_control_title
+    x: 130
+    y: 104
+    width: 540
+    height: 42
+    text: ''
+    text_font: roboto_30
+    text_color: '0xF2F2F2'
+    text_align: CENTER
+    long_mode: DOT
+    clickable: false
+- svg_icon:
+    id: power_control_icon_unknown
+    file: assets/icons/panel-power-unknown.svg
+    x: 336
+    y: 210
+    width: 128
+    height: 128
+    text_color: '0xD3E3FD'
+    hidden: true
+    clickable: false
+- svg_icon:
+    id: power_control_icon_switch
+    file: assets/icons/panel-power-switch.svg
+    x: 336
+    y: 210
+    width: 128
+    height: 128
+    text_color: '0xD3E3FD'
+    hidden: true
+    clickable: false
+- svg_icon:
+    id: power_control_icon_outlet
+    file: assets/icons/panel-power-outlet.svg
+    x: 336
+    y: 210
+    width: 128
+    height: 128
+    text_color: '0xD3E3FD'
+    hidden: true
+    clickable: false
+- label:
+    id: power_control_state
+    x: 146
+    y: 384
+    width: 508
+    height: 60
+    text: ''
+    text_font: wear_body_47
+    text_color: '0xF2F2F2'
+    text_align: CENTER
+    long_mode: DOT
+    clickable: false
+- button:
+    id: power_control_power
+    width: 280
+    height: 88
+    radius: 44
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: true
+    pressed:
+      bg_opa: 80%
+    disabled:
+      bg_opa: 35%
+      text_opa: 45%
+    x: 260
+    y: 504
+    widgets:
+    - label:
+        id: power_control_power_label
+        width: 256
+        text: ''
+        text_font: roboto_30
+        text_color: '0xF2F2F2'
+        text_align: CENTER
+        long_mode: DOT
+        clickable: false
+        align: CENTER
+- label:
+    id: power_control_status
+    x: 200
+    y: 706
+    width: 400
+    height: 40
+    text: ''
+    text_font: roboto_16
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false

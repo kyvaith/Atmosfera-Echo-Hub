@@ -111,7 +111,10 @@ class V3Tests(unittest.TestCase):
     def test_profile_advertises_schema_not_connected_native_support(self):
         profile = layout.device_profile()
         self.assertEqual(profile["layout_versions"], [2, 3])
-        self.assertEqual(profile["schema_control_types"], ["light", "number"])
+        self.assertEqual(profile["schema_control_types"], ["light", "number", "choice", "cover", "fan", "humidifier", "robot", "panel"])
+        self.assertEqual(profile["schema_panel_types"], ["timer", "remote", "power"])
+        self.assertTrue(profile["schema_panel_control"])
+        self.assertTrue(profile["schema_robot_control"])
         self.assertFalse(profile["features"]["native_controls"])
 
 

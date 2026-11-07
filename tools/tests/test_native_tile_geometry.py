@@ -42,6 +42,8 @@ CARD_RECTS = {
     13: (112, 548, 276, 112),
     14: (412, 548, 276, 112),
     15: (530, 168, 210, 190),
+    **{slot: (92 + (slot - 16) % 4 * 158, 150 + (slot - 16) // 4 * 126, 142, 112)
+       for slot in range(16, 32)},
 }
 
 
@@ -127,9 +129,9 @@ class NativeTileGeometryTest(unittest.TestCase):
             for item in load(ROOT / "modules/lvgl/fonts.yaml")["font"]
         }
 
-    def test_all_16_bindings_keep_approved_native_hit_geometry(self):
-        self.assertEqual({binding["slot"] for binding in self.bindings}, set(range(16)))
-        self.assertEqual(len(self.bindings), 16)
+    def test_bindings_keep_approved_native_hit_geometry(self):
+        self.assertEqual({binding["slot"] for binding in self.bindings}, set(CARD_RECTS))
+        self.assertEqual(len(self.bindings), len(CARD_RECTS))
         for binding in self.bindings:
             with self.subTest(slot=binding["slot"]):
                 card = self.widgets[binding["widget"]]
@@ -143,7 +145,7 @@ class NativeTileGeometryTest(unittest.TestCase):
                 if binding["slot"] in (0, 1):
                     self.assertTrue(card["hidden"])
 
-    def test_all_32_managed_text_labels_have_one_line_clip_bands(self):
+    def test_managed_text_labels_have_one_line_clip_bands(self):
         labels = set()
         for binding in self.bindings:
             for role in ("title_label", "subtitle_label"):
@@ -158,7 +160,7 @@ class NativeTileGeometryTest(unittest.TestCase):
                     # LVGL DOT modifies lv_label_get_text(), which native
                     # comparison/readback uses. CLIP retains the full value.
                     self.assertEqual(label["long_mode"], "CLIP")
-        self.assertEqual(len(labels), 32)
+        self.assertEqual(len(labels), 2 * len(CARD_RECTS))
 
     def test_title_and_state_bands_are_separate_for_every_binding(self):
         for binding in self.bindings:

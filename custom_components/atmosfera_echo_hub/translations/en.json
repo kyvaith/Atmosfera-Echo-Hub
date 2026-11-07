@@ -40,6 +40,16 @@
     }
   },
   "services": {
+    "doorbell_preview": {
+      "name": "Show doorbell camera",
+      "description": "Show a configured camera on idle Home or save an actionable notification while the display is busy.",
+      "fields": {
+        "device_id": {"name": "Atmosfera display"},
+        "camera_entity_id": {"name": "Doorbell camera"},
+        "duration_seconds": {"name": "Preview duration"},
+        "event_id": {"name": "Event ID", "description": "Use the same ID when delivering the same ring again."}
+      }
+    },
     "report_camera_source": {
       "name": "Report camera source",
       "description": "Synchronize a source selected on the display back to Home Assistant.",
@@ -65,6 +75,19 @@
         "slot": {
           "name": "Card slot",
           "description": "Zero-based fixed card slot."
+        }
+      }
+    }
+  },
+  "entity": {
+    "event": {
+      "tile_press": {
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "press": "Press"
+            }
+          }
         }
       }
     }

@@ -1,0 +1,72 @@
+# Read-only Info context. Native owner supplies admitted observations; no commands.
+id: extra_person_root
+x: 0
+y: 0
+width: 800
+height: 800
+bg_opa: TRANSP
+border_width: 0
+pad_all: 0
+radius: 0
+clickable: false
+scrollable: false
+hidden: true
+widgets:
+- obj:
+    id: extra_person_surface
+    x: 314
+    y: 170
+    width: 172
+    height: 172
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    radius: 86
+    scrollable: false
+    clickable: false
+- svg_icon:
+    id: extra_person_icon
+    x: 344
+    y: 200
+    width: 112
+    height: 112
+    file: assets/icons/info-context-person.svg
+    text_color: '0xD3E3FD'
+    clickable: false
+- label:
+    id: extra_person_state
+    x: 130
+    y: 360
+    width: 540
+    height: 84
+    text: ''
+    text_font: roboto_30
+    text_color: '0xF2F2F2'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: extra_person_changed
+    x: 140
+    y: 462
+    width: 520
+    height: 92
+    text: ''
+    text_font: roboto_20
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: extra_person_zone
+    x: 150
+    y: 578
+    width: 500
+    height: 48
+    text: ''
+    text_font: roboto_16
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false

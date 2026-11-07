@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="#FFFFFF">
+  <title>Cover: door</title>
+  <path d="M 28 14 L 36 14 L 36 114 L 28 114 Z"/>
+  <path d="M 92 14 L 100 14 L 100 114 L 92 114 Z"/>
+  <path d="M 36 14 L 92 14 L 92 22 L 36 22 Z"/>
+  <path d="M 38 26 L 88 26 L 88 114 L 38 114 Z"/>
+  <path d="M 18 114 L 110 114 L 110 122 L 18 122 Z"/>
+  <path d="M 76 64 L 76 72 L 84 72 L 84 64 Z"/>
+</svg>

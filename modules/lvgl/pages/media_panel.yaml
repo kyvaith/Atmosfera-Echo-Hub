@@ -1,0 +1,704 @@
+# Isolated Media product composition; one existing native owner controls all input.
+id: media_panel_root
+x: 0
+y: 0
+width: 800
+height: 800
+bg_color: '0x000000'
+bg_opa: COVER
+border_width: 0
+pad_all: 0
+radius: 0
+hidden: true
+clickable: false
+scrollable: false
+widgets:
+- label:
+    id: media_panel_kind
+    x: 200
+    y: 68
+    width: 400
+    height: 28
+    text: ''
+    text_font: roboto_20
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: media_panel_title
+    x: 130
+    y: 104
+    width: 540
+    height: 42
+    text: ''
+    text_font: roboto_30
+    text_color: '0xF5F7FA'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- svg_icon:
+    id: media_panel_icon_generic
+    file: assets/icons/media-panel-generic.svg
+    x: 368
+    y: 154
+    width: 64
+    height: 64
+    text_color: '0xD3E3FD'
+    clickable: false
+    hidden: true
+- svg_icon:
+    id: media_panel_icon_speaker
+    file: assets/icons/media-panel-speaker.svg
+    x: 368
+    y: 154
+    width: 64
+    height: 64
+    text_color: '0xD3E3FD'
+    clickable: false
+    hidden: true
+- svg_icon:
+    id: media_panel_icon_tv
+    file: assets/icons/media-panel-tv.svg
+    x: 368
+    y: 154
+    width: 64
+    height: 64
+    text_color: '0xD3E3FD'
+    clickable: false
+    hidden: true
+- svg_icon:
+    id: media_panel_icon_receiver
+    file: assets/icons/media-panel-receiver.svg
+    x: 368
+    y: 154
+    width: 64
+    height: 64
+    text_color: '0xD3E3FD'
+    clickable: false
+    hidden: true
+- label:
+    id: media_panel_track
+    x: 130
+    y: 236
+    width: 540
+    height: 70
+    text: ''
+    text_font: roboto_30
+    text_color: '0xF5F7FA'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: media_panel_artist
+    x: 130
+    y: 308
+    width: 540
+    height: 40
+    text: ''
+    text_font: roboto_20
+    text_color: '0xF5F7FA'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: media_panel_phase
+    x: 200
+    y: 350
+    width: 400
+    height: 24
+    text: ''
+    text_font: roboto_18
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- obj:
+    id: media_panel_transport
+    x: 132
+    y: 382
+    width: 536
+    height: 104
+    bg_opa: TRANSP
+    border_width: 0
+    pad_all: 0
+    scrollable: false
+    clickable: false
+    layout:
+      type: FLEX
+      flex_flow: ROW
+      flex_align_main: CENTER
+      flex_align_cross: CENTER
+      pad_column: 16
+    widgets:
+    - button:
+        id: media_panel_previous
+        width: 96
+        height: 80
+        radius: 28
+        bg_color: '0x1D2833'
+        bg_opa: COVER
+        border_width: 0
+        pad_all: 0
+        shadow_width: 0
+        scrollable: false
+        hidden: true
+        pressed:
+          bg_opa: 80%
+        disabled:
+          text_opa: 80%
+        widgets:
+        - svg_icon:
+            id: media_panel_previous_icon
+            file: assets/icons/media-panel-previous.svg
+            x: 36
+            y: 11
+            width: 24
+            height: 24
+            clickable: false
+        - label:
+            id: media_panel_previous_label
+            x: 4
+            y: 47
+            width: 88
+            height: 22
+            text: ''
+            text_font: roboto_16
+            text_color: '0xF5F7FA'
+            text_align: CENTER
+            long_mode: WRAP
+            clickable: false
+    - button:
+        id: media_panel_play
+        width: 112
+        height: 104
+        radius: 52
+        bg_color: '0x1D2833'
+        bg_opa: COVER
+        border_width: 0
+        pad_all: 0
+        shadow_width: 0
+        scrollable: false
+        hidden: true
+        pressed:
+          bg_opa: 80%
+        disabled:
+          text_opa: 80%
+        widgets:
+        - svg_icon:
+            id: media_panel_play_icon
+            file: assets/icons/media-panel-play.svg
+            x: 40
+            y: 18
+            width: 32
+            height: 32
+            clickable: false
+        - label:
+            id: media_panel_play_label
+            x: 4
+            y: 68
+            width: 104
+            height: 22
+            text: ''
+            text_font: roboto_16
+            text_color: '0xF5F7FA'
+            text_align: CENTER
+            long_mode: WRAP
+            clickable: false
+    - button:
+        id: media_panel_pause
+        width: 112
+        height: 104
+        radius: 52
+        bg_color: '0x1D2833'
+        bg_opa: COVER
+        border_width: 0
+        pad_all: 0
+        shadow_width: 0
+        scrollable: false
+        hidden: true
+        pressed:
+          bg_opa: 80%
+        disabled:
+          text_opa: 80%
+        widgets:
+        - svg_icon:
+            id: media_panel_pause_icon
+            file: assets/icons/media-panel-pause.svg
+            x: 40
+            y: 18
+            width: 32
+            height: 32
+            clickable: false
+        - label:
+            id: media_panel_pause_label
+            x: 4
+            y: 68
+            width: 104
+            height: 22
+            text: ''
+            text_font: roboto_16
+            text_color: '0xF5F7FA'
+            text_align: CENTER
+            long_mode: WRAP
+            clickable: false
+    - button:
+        id: media_panel_next
+        width: 96
+        height: 80
+        radius: 28
+        bg_color: '0x1D2833'
+        bg_opa: COVER
+        border_width: 0
+        pad_all: 0
+        shadow_width: 0
+        scrollable: false
+        hidden: true
+        pressed:
+          bg_opa: 80%
+        disabled:
+          text_opa: 80%
+        widgets:
+        - svg_icon:
+            id: media_panel_next_icon
+            file: assets/icons/media-panel-next.svg
+            x: 36
+            y: 11
+            width: 24
+            height: 24
+            clickable: false
+        - label:
+            id: media_panel_next_label
+            x: 4
+            y: 47
+            width: 88
+            height: 22
+            text: ''
+            text_font: roboto_16
+            text_color: '0xF5F7FA'
+            text_align: CENTER
+            long_mode: WRAP
+            clickable: false
+    - button:
+        id: media_panel_stop
+        width: 96
+        height: 80
+        radius: 28
+        bg_color: '0x1D2833'
+        bg_opa: COVER
+        border_width: 0
+        pad_all: 0
+        shadow_width: 0
+        scrollable: false
+        hidden: true
+        pressed:
+          bg_opa: 80%
+        disabled:
+          text_opa: 80%
+        widgets:
+        - svg_icon:
+            id: media_panel_stop_icon
+            file: assets/icons/media-panel-stop.svg
+            x: 36
+            y: 11
+            width: 24
+            height: 24
+            clickable: false
+        - label:
+            id: media_panel_stop_label
+            x: 4
+            y: 47
+            width: 88
+            height: 22
+            text: ''
+            text_font: roboto_16
+            text_color: '0xF5F7FA'
+            text_align: CENTER
+            long_mode: WRAP
+            clickable: false
+- button:
+    id: media_panel_turn_on
+    width: 64
+    height: 64
+    radius: 32
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: true
+    pressed:
+      bg_opa: 80%
+    disabled:
+      text_opa: 80%
+    x: 594
+    y: 160
+    widgets:
+    - svg_icon:
+        id: media_panel_turn_on_icon
+        file: assets/icons/media-panel-power.svg
+        x: 20
+        y: 8
+        width: 24
+        height: 24
+        clickable: false
+    - label:
+        id: media_panel_turn_on_label
+        x: 4
+        y: 36
+        width: 56
+        height: 20
+        text: ''
+        text_font: roboto_14
+        text_color: '0xF5F7FA'
+        text_align: CENTER
+        long_mode: WRAP
+        clickable: false
+- button:
+    id: media_panel_turn_off
+    width: 64
+    height: 64
+    radius: 32
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: true
+    pressed:
+      bg_opa: 80%
+    disabled:
+      text_opa: 80%
+    x: 594
+    y: 160
+    widgets:
+    - svg_icon:
+        id: media_panel_turn_off_icon
+        file: assets/icons/media-panel-power.svg
+        x: 20
+        y: 8
+        width: 24
+        height: 24
+        clickable: false
+    - label:
+        id: media_panel_turn_off_label
+        x: 4
+        y: 36
+        width: 56
+        height: 20
+        text: ''
+        text_font: roboto_14
+        text_color: '0xF5F7FA'
+        text_align: CENTER
+        long_mode: WRAP
+        clickable: false
+- button:
+    id: media_panel_volume_down
+    width: 64
+    height: 64
+    radius: 32
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: true
+    pressed:
+      bg_opa: 80%
+    disabled:
+      text_opa: 80%
+    x: 128
+    y: 502
+    widgets:
+    - svg_icon:
+        id: media_panel_volume_down_icon
+        file: assets/icons/media-panel-volume_down.svg
+        x: 20
+        y: 8
+        width: 24
+        height: 24
+        clickable: false
+    - label:
+        id: media_panel_volume_down_label
+        x: 4
+        y: 36
+        width: 56
+        height: 20
+        text: ''
+        text_font: roboto_14
+        text_color: '0xF5F7FA'
+        text_align: CENTER
+        long_mode: WRAP
+        clickable: false
+- button:
+    id: media_panel_volume_facet
+    width: 312
+    height: 64
+    radius: 32
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: true
+    pressed:
+      bg_opa: 80%
+    disabled:
+      text_opa: 80%
+    x: 200
+    y: 502
+    widgets:
+    - label:
+        id: media_panel_volume_facet_label
+        x: 12
+        y: 4
+        width: 288
+        height: 22
+        text: ''
+        text_font: roboto_16
+        text_color: '0xF5F7FA'
+        text_align: CENTER
+        long_mode: WRAP
+        clickable: false
+- button:
+    id: media_panel_volume_up
+    width: 64
+    height: 64
+    radius: 32
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: true
+    pressed:
+      bg_opa: 80%
+    disabled:
+      text_opa: 80%
+    x: 520
+    y: 502
+    widgets:
+    - svg_icon:
+        id: media_panel_volume_up_icon
+        file: assets/icons/media-panel-volume.svg
+        x: 20
+        y: 8
+        width: 24
+        height: 24
+        clickable: false
+    - label:
+        id: media_panel_volume_up_label
+        x: 4
+        y: 36
+        width: 56
+        height: 20
+        text: ''
+        text_font: roboto_14
+        text_color: '0xF5F7FA'
+        text_align: CENTER
+        long_mode: WRAP
+        clickable: false
+- button:
+    id: media_panel_mute
+    width: 64
+    height: 64
+    radius: 32
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: true
+    pressed:
+      bg_opa: 80%
+    disabled:
+      text_opa: 80%
+    x: 592
+    y: 502
+    widgets:
+    - svg_icon:
+        id: media_panel_mute_icon
+        file: assets/icons/media-panel-volume_off.svg
+        x: 20
+        y: 8
+        width: 24
+        height: 24
+        clickable: false
+    - label:
+        id: media_panel_mute_label
+        x: 4
+        y: 36
+        width: 56
+        height: 20
+        text: ''
+        text_font: roboto_14
+        text_color: '0xF5F7FA'
+        text_align: CENTER
+        long_mode: WRAP
+        clickable: false
+- label:
+    id: media_panel_volume_summary
+    x: 212
+    y: 532
+    width: 288
+    height: 28
+    text: ''
+    text_font: roboto_20
+    text_color: '0xF5F7FA'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- obj:
+    id: media_panel_facets
+    x: 128
+    y: 590
+    width: 544
+    height: 56
+    bg_opa: TRANSP
+    border_width: 0
+    pad_all: 0
+    scrollable: false
+    clickable: false
+    layout:
+      type: FLEX
+      flex_flow: ROW
+      flex_align_main: CENTER
+      flex_align_cross: CENTER
+      pad_column: 12
+    widgets:
+    - button:
+        id: media_panel_facet_source
+        width: 172
+        height: 56
+        radius: 28
+        bg_color: '0x1D2833'
+        bg_opa: COVER
+        border_width: 0
+        pad_all: 0
+        shadow_width: 0
+        scrollable: false
+        hidden: true
+        pressed:
+          bg_opa: 80%
+        disabled:
+          text_opa: 80%
+        widgets:
+        - label:
+            id: media_panel_facet_source_label
+            x: 8
+            y: 15
+            width: 156
+            height: 26
+            text: ''
+            text_font: roboto_18
+            text_color: '0xF5F7FA'
+            text_align: CENTER
+            long_mode: WRAP
+            clickable: false
+    - button:
+        id: media_panel_facet_sound_mode
+        width: 172
+        height: 56
+        radius: 28
+        bg_color: '0x1D2833'
+        bg_opa: COVER
+        border_width: 0
+        pad_all: 0
+        shadow_width: 0
+        scrollable: false
+        hidden: true
+        pressed:
+          bg_opa: 80%
+        disabled:
+          text_opa: 80%
+        widgets:
+        - label:
+            id: media_panel_facet_sound_mode_label
+            x: 8
+            y: 15
+            width: 156
+            height: 26
+            text: ''
+            text_font: roboto_18
+            text_color: '0xF5F7FA'
+            text_align: CENTER
+            long_mode: WRAP
+            clickable: false
+    - button:
+        id: media_panel_facet_repeat
+        width: 172
+        height: 56
+        radius: 28
+        bg_color: '0x1D2833'
+        bg_opa: COVER
+        border_width: 0
+        pad_all: 0
+        shadow_width: 0
+        scrollable: false
+        hidden: true
+        pressed:
+          bg_opa: 80%
+        disabled:
+          text_opa: 80%
+        widgets:
+        - label:
+            id: media_panel_facet_repeat_label
+            x: 8
+            y: 15
+            width: 156
+            height: 26
+            text: ''
+            text_font: roboto_18
+            text_color: '0xF5F7FA'
+            text_align: CENTER
+            long_mode: WRAP
+            clickable: false
+- button:
+    id: media_panel_shuffle
+    width: 240
+    height: 52
+    radius: 26
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: true
+    pressed:
+      bg_opa: 80%
+    disabled:
+      text_opa: 80%
+    x: 280
+    y: 666
+    widgets:
+    - label:
+        id: media_panel_shuffle_label
+        x: 8
+        y: 13
+        width: 224
+        height: 26
+        text: ''
+        text_font: roboto_18
+        text_color: '0xF5F7FA'
+        text_align: CENTER
+        long_mode: WRAP
+        clickable: false
+- label:
+    id: media_panel_status
+    x: 240
+    y: 730
+    width: 320
+    height: 36
+    text: ''
+    text_font: roboto_18
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false

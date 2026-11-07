@@ -37,6 +37,11 @@ interval:
                          static_cast<unsigned>(id(camera_stream_presenter).last_direct_jpeg_decode_us()),
                          static_cast<unsigned>(id(camera_stream_image).memory_usage_bytes()));
 
+camera_preview:
+  id: camera_doorbell_preview
+  camera: camera_stream_image
+  application: camera_application
+
 network_camera:
   id: camera_stream_image
   max_runtime_sources: 16
@@ -76,10 +81,12 @@ network_camera:
                 lv_image_set_src(id(camera_stream_widget), source);
               lv_obj_add_flag(id(camera_status_card), LV_OBJ_FLAG_HIDDEN);
               lv_obj_clear_flag(id(camera_stream_widget), LV_OBJ_FLAG_HIDDEN);
-              lv_obj_clear_flag(id(camera_previous_touch_zone), LV_OBJ_FLAG_HIDDEN);
-              lv_obj_clear_flag(id(camera_next_touch_zone), LV_OBJ_FLAG_HIDDEN);
-              lv_obj_clear_flag(id(camera_source_picker_touch_zone), LV_OBJ_FLAG_HIDDEN);
-              lv_obj_add_flag(id(camera_root), LV_OBJ_FLAG_CLICKABLE);
+              if (!id(camera_doorbell_preview).active()) {
+                lv_obj_clear_flag(id(camera_previous_touch_zone), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_clear_flag(id(camera_next_touch_zone), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_clear_flag(id(camera_source_picker_touch_zone), LV_OBJ_FLAG_HIDDEN);
+                lv_obj_add_flag(id(camera_root), LV_OBJ_FLAG_CLICKABLE);
+              }
           # The encoded-frame consumer has already presented this frame. A
           # second restart here released and reacquired the DSI scene directly
           # after the first image, briefly exposing the native loading page.
@@ -107,14 +114,18 @@ network_camera:
           lv_label_set_text(id(camera_source_label), source.c_str());
     # Keep the dynamic HA select synchronized when the source is changed on
     # the display. Authentication is provided by the existing ESPHome API.
-    - homeassistant.action:
-        action: atmosfera_echo_hub.report_camera_source
-        variables:
-          node_name: !lambda 'return App.get_name();'
-          selected_source: !lambda 'return source;'
-        data_template:
-          node_name: "{{ node_name }}"
-          source: "{{ selected_source }}"
+    - if:
+        condition:
+          lambda: 'return !id(camera_doorbell_preview).active();'
+        then:
+          - homeassistant.action:
+              action: atmosfera_echo_hub.report_camera_source
+              variables:
+                node_name: !lambda 'return App.get_name();'
+                selected_source: !lambda 'return source;'
+              data_template:
+                node_name: "{{ node_name }}"
+                source: "{{ selected_source }}"
 
 lvgl_image_presenter:
   - id: camera_stream_presenter
@@ -257,6 +268,11 @@ script:
       # Camera content owns the complete viewport. The top-layer clock remains
       # a touch activation region only and must never be painted over video.
       - lvgl.widget.hide: global_volume_activation_surface
+      - if:
+          condition:
+            lambda: 'return id(camera_doorbell_preview).active();'
+          then:
+            - script.execute: display_wake
       # Video decode, full-screen PPA scaling and SendSpin audio otherwise
       # compete for both CPU time and PSRAM bandwidth. Resume only playback
       # that this app actually paused.

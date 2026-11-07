@@ -1,0 +1,21 @@
+[
+  {"state":"12.3456","precision":0,"unit":"°C","en":"12 °C","pl":"12 °C"},
+  {"state":"12.3456","precision":2,"unit":"°C","en":"12.35 °C","pl":"12,35 °C"},
+  {"state":"12.3456","precision":6,"unit":"°C","en":"12.345600 °C","pl":"12,345600 °C"},
+  {"state":"2.5","precision":0,"unit":"W","en":"2 W","pl":"2 W"},
+  {"state":"3.5","precision":0,"unit":"W","en":"4 W","pl":"4 W"},
+  {"state":"-2.5","precision":0,"unit":"W","en":"-2 W","pl":"-2 W"},
+  {"state":"-0.004","precision":2,"unit":"W","en":"0.00 W","pl":"0,00 W"},
+  {"state":"-0.005","precision":2,"unit":"W","en":"0.00 W","pl":"0,00 W"},
+  {"state":"-0.015","precision":2,"unit":"W","en":"-0.02 W","pl":"-0,02 W"},
+  {"state":"1.245","precision":2,"unit":"W","en":"1.24 W","pl":"1,24 W"},
+  {"state":"1.255","precision":2,"unit":"W","en":"1.26 W","pl":"1,26 W"},
+  {"state":"19.975","precision":2,"unit":"W","en":"19.98 W","pl":"19,98 W"},
+  {"state":"0012.3500","precision":3,"unit":"W","en":"12.350 W","pl":"12,350 W"},
+  {"state":"1e-10000","precision":6,"unit":"W","en":"0.000000 W","pl":"0,000000 W"},
+  {"state":"1e15","precision":0,"unit":"W","en":"1000000000000000 W","pl":"1000000000000000 W"},
+  {"state":"1000000000000000.000001","precision":0,"unit":"W","en":"Out of range","pl":"Poza zakresem"},
+  {"state":"999999999999999.999999","precision":6,"unit":"W","en":"999999999999999.999999 W","pl":"999999999999999,999999 W"},
+  {"state":"1e10000","precision":2,"unit":"W","en":"Out of range","pl":"Poza zakresem"},
+  {"state":"0e10000","precision":2,"unit":"W","en":"0.00 W","pl":"0,00 W"}
+]

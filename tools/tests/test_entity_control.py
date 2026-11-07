@@ -451,11 +451,11 @@ class NumberModelTransportTests(unittest.IsolatedAsyncioTestCase):
             bridge.services["entity_control_" + suffix] = NS(**{**vars(legacy), "name": "entity_control_" + suffix, "key": 10 + index})
         return bridge
 
-    async def test_explicit_input_number_only_no_implicit_toggle_and_unsupported_marker(self):
+    async def test_explicit_number_no_implicit_toggle_and_unsupported_marker(self):
         card = base.card(entity="input_number.test", action={"kind": "control", "control": "number"})
         doc = base.document([card]) | {"version": 3}
         self.assertEqual(base.layout.validate_layout(doc)["cards"][0]["action"]["control"], "number")
-        for entity in ("number.test", "light.test", "sensor.test"):
+        for entity in ("light.test", "sensor.test"):
             with self.assertRaises(base.layout.LayoutError):
                 base.layout.validate_layout(doc | {"cards": [card | {"entity_id": entity}]})
         hass, _ = base.environment(states=[base.State("input_number.test", "0")])
@@ -467,7 +467,7 @@ class NumberModelTransportTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(imported["cards"][0]["action"], card["action"])
         self.assertEqual((imported["version"], imported["revision"]), (3, 9))
 
-    async def test_catalogue_numeric_descriptor_is_exact_bounded_and_input_number_only(self):
+    async def test_catalogue_numeric_descriptor_is_exact_bounded_and_service_gated(self):
         state = base.State("input_number.helper", "0.5", {"min": "-1.00", "max": "1", "step": "0.25", "unit_of_measurement": "°C"})
         hass, _ = base.environment(states=[state], services=["input_number.set_value"])
         metadata = base.cards._number_control_metadata(hass, state)["number_control"]

@@ -1,0 +1,9 @@
+{
+  "domain": "atmosfera_demo",
+  "name": "Atmosfera Demo Devices",
+  "version": "1.0.0",
+  "config_flow": true,
+  "documentation": "https://github.com/kyvaith/atmosfera-echo-hub",
+  "iot_class": "local_push",
+  "requirements": []
+}

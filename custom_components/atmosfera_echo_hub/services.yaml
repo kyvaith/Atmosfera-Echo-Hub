@@ -1,3 +1,26 @@
+doorbell_preview:
+  fields:
+    device_id:
+      required: true
+      selector:
+        device:
+          integration: esphome
+    camera_entity_id:
+      required: true
+      selector:
+        entity:
+          domain: camera
+    duration_seconds:
+      default: 35
+      selector:
+        number:
+          min: 15
+          max: 90
+          unit_of_measurement: s
+          mode: box
+    event_id:
+      selector:
+        text: {}
 report_camera_source:
   fields:
     node_name:
@@ -72,5 +95,16 @@ report_entity_control:
     payload:
       required: true
       description: Bounded entity_control_v1 JSON; actual HA caller context is preserved.
+      selector:
+        text: {}
+report_notification:
+  fields:
+    node_name:
+      required: true
+      selector:
+        text: {}
+    payload:
+      required: true
+      description: Internal bounded notification request; the current HA caller permissions and connection channel are checked.
       selector:
         text: {}

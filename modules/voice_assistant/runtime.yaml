@@ -126,6 +126,8 @@ globals:
 
 micro_wake_word:
   id: wake_word_engine
+  # Keep the existing internal inference stack available across UI allocation and voice handoffs.
+  preallocate_task_resources: true
   ring_buffer_duration: 1000ms
   microphone:
     # One ref-counted source serves wake-word and conversation streaming. The
@@ -965,10 +967,10 @@ script:
                   - micro_wake_word.start:
             - wait_until:
                 condition:
-                  lambda: 'return id(wake_word_engine).is_running();'
+                  lambda: 'return id(wake_word_engine).is_detecting();'
                 timeout: 2s
             - lambda: |-
-                if (!id(wake_word_engine).is_running()) {
+                if (!id(wake_word_engine).is_detecting()) {
                   ESP_LOGE("voice.wake", "Idle wake-word task failed to enter running state");
                 } else {
                   ESP_LOGI("voice.wake",

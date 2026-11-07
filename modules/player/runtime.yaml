@@ -810,6 +810,7 @@ script:
           condition:
             lambda: |-
               return id(global_volume_time_press_tracking) && !id(global_volume_dragging) &&
+                     !id(notification_center).owns_scene() &&
                      !id(ui_light_preparation_owned) &&
                      !id(ui_navigation).is_application_open(id(light_control_application));
           then:

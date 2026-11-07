@@ -674,6 +674,24 @@ changes and can conservatively select PSRAM. Detailed incident limits and
 hardware comparison belong to the
 [recovery report](../development/lvgl-memory-recovery-2026-10-22.md).
 
+The 2026-11-07 native114 checkpoint enables the fork's opt-in
+`esp32.framework.advanced.enable_fast_heap_query` for native ESP32-P4 / IDF5.5.6.
+The guarded framework patch reads the highest occupied TLSF bitmap bin under the
+existing heap lock, returning the same fit-rounded largest usable block without
+walking the pool. Capability selection and task-owner overhead remain unchanged;
+ROM/poisoning configurations retain the original full-info fallback. Allocation,
+free, and full heap-information APIs are not changed. This option defaults off in
+ESPHome and the runtime selector starts false. The product selects it at startup
+priority1001, before JPEG initialization; the original priority600 policy remains
+unchanged. It adds no worker, frame buffer, cache, or changed display ownership.
+
+In the same-firmware comparison, largest-block queries previously taking11–23ms
+took23–56us; the corresponding route changed from9 reported DSI underruns to0.
+The separately built114 Home/Settings and Agenda routes also recorded0 underruns.
+These bounded observations do not replace long-duration or physical-touch tests.
+See the [investigation and qualification record](../development/blue-flash-2026-11-07.md)
+for preserved failures, original captures, restart results and exact source pins.
+
 The optional ESP32 `preferences.sync_diagnostics` setting defaults to false.
 When enabled, it records one INFO line after a nonempty sync finishes: begin/end
 RTOS ticks and 64-bit microsecond times, unchanged (`cached`), written and failed

@@ -23,6 +23,7 @@ from .cards import (
 )
 from .const import (
     CONF_ACCENT_COLOR,
+    CONF_CAMERAS,
     CONF_DEVICE_ID,
     CONF_LAYOUT,
     CONF_TILES,
@@ -44,7 +45,7 @@ from .layout import (
 from .text import plain_text
 from .tile_palette import derive_tile_palette, observed_accent
 
-PANEL_ASSET_VERSION = "0.4.0.dev20"
+PANEL_ASSET_VERSION = "0.4.0.dev131"
 STATIC_URL = "/atmosfera_echo_hub_static"
 
 
@@ -122,6 +123,11 @@ def _status(entry, layout: dict[str, Any] | None = None) -> dict[str, Any]:
         "snapshot_ready": getattr(bridge, "snapshot_ready", None),
         "pending_slots": getattr(bridge, "pending_slots", None),
         "context_press_version": getattr(bridge, "context_press_version", 0),
+        "press_enabled_version": getattr(bridge, "press_enabled_version", 0),
+        "event_press_supported": bool(getattr(bridge, "event_press_supported", False)),
+        "camera_preview_supported": bool(getattr(bridge, "camera_preview_supported", False)),
+        "camera_preview_entities": list(getattr(bridge, "camera_preview_entities", ())),
+        "camera_catalog_generation": getattr(bridge, "_camera_catalog_generation", 0),
         **(bridge.light_control_status() if bridge is not None and hasattr(bridge, "light_control_status") else
            {"native_control_types": [], "light_control_status": "unsupported"}),
     }
@@ -135,7 +141,7 @@ def _legacy_cards(layout: dict[str, Any]) -> list[dict[str, Any]]:
     """Keep old readers working while preserving IDs and typed action metadata."""
     cards = normalize_cards(layout["cards"])
     for card in cards:
-        if card.get("action", {}).get("kind") == "control":
+        if card.get("action", {}).get("kind") in ("control", "event", "camera_preview"):
             # A pre-layout reader may infer toggle from the entity domain.
             # Keep this compatibility view passive; the v3 document owns it.
             card.update(entity_id="", service="", action={"kind": "none"})
@@ -146,7 +152,11 @@ def _save(hass: HomeAssistant, entry, expected: int, raw: Any) -> dict[str, Any]
     current = _layout(entry)
     revision = next_revision(current["revision"], expected)
     canonical = validate_layout(raw)
-    _validate_actions(hass, canonical)
+    if "home_order" in canonical and "home_order" not in current and not getattr(entry.runtime_data, "carousel_supported", False):
+        raise LayoutError("unsupported_carousel", "The display must be connected with carousel firmware")
+    if "home_order" in current and "home_order" not in canonical:
+        raise LayoutError("invalid_carousel", "The saved carousel order is required")
+    _validate_actions(hass, canonical, entry)
     if canonical["revision"] != expected:
         raise LayoutError("revision_conflict", f"Draft revision differs; current revision is {current['revision']}")
     # A reserved slot is not editable, including its ID, presentation or action.
@@ -164,11 +174,26 @@ def _save(hass: HomeAssistant, entry, expected: int, raw: Any) -> dict[str, Any]
     return canonical
 
 
-def _validate_actions(hass, document: dict[str, Any]) -> None:
+def _validate_actions(hass, document: dict[str, Any], entry=None) -> None:
     """Check available live capabilities without operating any entity."""
     for card in document["cards"]:
         action = card["action"]
         state = hass.states.get(card["entity_id"]) if card["entity_id"] else None
+        cameras = entry.options.get(CONF_CAMERAS, entry.data.get(CONF_CAMERAS, ())) if entry is not None else ()
+        if action["kind"] == "camera_preview" and (state is None or card["entity_id"] not in cameras):
+            raise LayoutError("unsupported_camera", "Choose an existing camera from this display's allow-list")
+        if action == {"kind": "control", "control": "panel", "property": "action", "parameters": "boolean_v1"}:
+            from .action_parameters_domain import ActionParametersDomain, ActionPanelError
+            # Existing saved forms stay editable/passive after their script changes.
+            previous = _layout(entry)["cards"] if entry is not None else ()
+            retained = any(old.get("id") == card.get("id") and old.get("entity_id") == card["entity_id"]
+                           and old.get("action") == action for old in previous)
+            if not retained:
+                try:
+                    if state is None or ActionParametersDomain.from_ha(hass, state, action).parameter_status != "ready":
+                        raise ActionPanelError("parameters_unsupported")
+                except (ActionPanelError, AttributeError):
+                    raise LayoutError("unsupported_action", "Choose a script with one required Boolean field") from None
         if action["kind"] == "service" and state is not None:
             validate_live_action(hass, state, action)
 
@@ -235,7 +260,9 @@ async def websocket_get_layout(hass, connection, msg) -> None:
             accent = _preview_accent(entry)
             result.append({
                 "entry_id": entry.entry_id, "title": entry.title,
-                "layout": layout, "profile": device_profile(), "status": _status(entry, layout),
+                "layout": layout, "profile": device_profile(
+                    carousel="home_order" in layout or getattr(entry.runtime_data, "carousel_supported", False)
+                ), "status": _status(entry, layout),
                 "device_identity": _device_identity(hass, entry),
                 "accent_color": f"{accent:06X}",
                 "colors": {name: {"background": colors[0], "foreground": colors[1]}
@@ -273,9 +300,9 @@ async def websocket_save_layout(hass, connection, msg) -> None:
 @websocket_api.async_response
 async def websocket_validate_layout(hass, connection, msg) -> None:
     try:
-        _entry(hass, msg["entry_id"])
+        entry = _entry(hass, msg["entry_id"])
         document = validate_layout(msg["layout"])
-        _validate_actions(hass, document)
+        _validate_actions(hass, document, entry)
         connection.send_result(msg["id"], {"layout": document})
     except LayoutError as err:
         _error(connection, msg, err)
@@ -312,7 +339,7 @@ async def websocket_import_layout(hass, connection, msg) -> None:
         draft["cards"] = [card for card in draft["cards"] if card["slot"] >= 2]
         draft["cards"] += [card for card in current["cards"] if card["slot"] < 2]
         draft = validate_layout(draft)
-        _validate_actions(hass, draft)
+        _validate_actions(hass, draft, entry)
         saved = draft if msg["dry_run"] else _save(hass, entry, msg["expected_revision"], draft)
         connection.send_result(msg["id"], {
             "layout": saved, "status": _status(entry),
@@ -333,9 +360,10 @@ async def websocket_import_layout(hass, connection, msg) -> None:
 @websocket_api.async_response
 async def websocket_get_catalogue(hass, connection, msg) -> None:
     try:
-        _entry(hass, msg["entry_id"])
+        entry = _entry(hass, msg["entry_id"])
         connection.send_result(msg["id"], entity_catalogue(
-            hass, msg["query"], msg.get("domains"), msg["limit"], msg.get("area_id")
+            hass, msg["query"], msg.get("domains"), msg["limit"], msg.get("area_id"),
+            camera_entity_ids=entry.options.get(CONF_CAMERAS, entry.data.get(CONF_CAMERAS, ()))
         ))
     except LayoutError as err:
         _error(connection, msg, err)

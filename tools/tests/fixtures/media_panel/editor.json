@@ -1,0 +1,154 @@
+{
+  "music": {
+    "entity_id": "media_player.atmosfera_demo_music",
+    "state": "playing",
+    "attributes": {
+      "sound_mode_list": [
+        "Music",
+        "Movie"
+      ],
+      "volume_level": 1.0,
+      "is_volume_muted": false,
+      "media_duration": 213,
+      "media_title": "I Wanna Be A Hippy (Flamman & Abraxas Radio Mix)",
+      "media_artist": "Technohead",
+      "media_album_name": "Bounzz",
+      "sound_mode": "Music",
+      "shuffle": false,
+      "repeat": "off",
+      "friendly_name": "Walkman",
+      "supported_features": 914877
+    },
+    "metadata": {
+      "version": 1,
+      "caps": {
+        "device_type": "generic",
+        "operations": 4095,
+        "facets": 13
+      },
+      "fingerprint": "9672c5422f2a5f2bda687c99484158dc58d5bcbdce8c7ad0367aa8a32cea43fa",
+      "state": {
+        "source": "known",
+        "phase": "playing",
+        "eligible": 3806,
+        "volume_raw": "1",
+        "volume_percent": "100",
+        "volume_rail": 10000,
+        "muted": false,
+        "shuffle": false,
+        "title_status": "value",
+        "media_title": "I Wanna Be A Hippy (Flamman & Abraxas Radio Mix)",
+        "artist_status": "value",
+        "media_artist": "Technohead"
+      },
+      "unsupported_facets": {
+        "source": "unsupported_catalogue"
+      }
+    },
+    "services": [
+      "browse_media",
+      "clear_playlist",
+      "join",
+      "media_next_track",
+      "media_pause",
+      "media_play",
+      "media_play_pause",
+      "media_previous_track",
+      "media_seek",
+      "media_stop",
+      "play_media",
+      "repeat_set",
+      "search_media",
+      "select_sound_mode",
+      "select_source",
+      "shuffle_set",
+      "toggle",
+      "turn_off",
+      "turn_on",
+      "unjoin",
+      "volume_down",
+      "volume_mute",
+      "volume_set",
+      "volume_up"
+    ]
+  },
+  "tv": {
+    "entity_id": "media_player.atmosfera_demo_tv",
+    "state": "playing",
+    "attributes": {
+      "source_list": [
+        "dvd",
+        "youtube"
+      ],
+      "sound_mode_list": [
+        "Music",
+        "Movie"
+      ],
+      "volume_level": 1.0,
+      "is_volume_muted": false,
+      "media_duration": 3600,
+      "media_title": "Chapter 1",
+      "media_series_title": "House of Cards",
+      "media_season": "1",
+      "media_episode": "1",
+      "source": "dvd",
+      "sound_mode": "Music",
+      "shuffle": false,
+      "device_class": "tv",
+      "friendly_name": "Lounge room",
+      "supported_features": 121265
+    },
+    "metadata": {
+      "version": 1,
+      "caps": {
+        "device_type": "tv",
+        "operations": 2175,
+        "facets": 6
+      },
+      "fingerprint": "00418a38d957d7ca16cfab4f78a348c6186fc33893ea8f2d07b053ef786b4f65",
+      "state": {
+        "source": "known",
+        "phase": "playing",
+        "eligible": 2142,
+        "volume_raw": null,
+        "volume_percent": "",
+        "volume_rail": null,
+        "muted": null,
+        "shuffle": false,
+        "title_status": "value",
+        "media_title": "Chapter 1",
+        "artist_status": "empty",
+        "media_artist": ""
+      },
+      "unsupported_facets": {
+        "repeat": "unsupported_catalogue"
+      }
+    },
+    "services": [
+      "browse_media",
+      "clear_playlist",
+      "join",
+      "media_next_track",
+      "media_pause",
+      "media_play",
+      "media_play_pause",
+      "media_previous_track",
+      "media_seek",
+      "media_stop",
+      "play_media",
+      "repeat_set",
+      "search_media",
+      "select_sound_mode",
+      "select_source",
+      "shuffle_set",
+      "toggle",
+      "turn_off",
+      "turn_on",
+      "unjoin",
+      "volume_down",
+      "volume_mute",
+      "volume_set",
+      "volume_up"
+    ]
+  }
+}

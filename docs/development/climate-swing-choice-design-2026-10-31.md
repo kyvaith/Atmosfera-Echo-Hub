@@ -1,0 +1,13 @@
+# Explicit climate swing mode choice (HA55 accepted / native40 /141)
+
+W07 v3 `{"kind":"control","control":"choice","property":"swing_mode"}` is climate-only. HA owns actual supported feature SWING_MODE32, swing_modes1..8 distinct printable strings<=32UTF8bytes, live swing_mode and registered set_swing_mode. Feature SWING_HORIZONTAL_MODE512 is separate and cannot substitute for32. Provider names and order remain canonical, with no assumed axes or invented on/off option. Missing/None/offlist/unknown/outage never use empty-choice.
+
+Existing single HA session on the event loop, existing native40 app6 and bounded Choice lifecycle own all state. No new native runtime, task, timer, buffer, codec or snapshot registration. Device locale labels use HA cached attribute translations with bounded distinct project PL/EN standard fallbacks and exact custom names. Selection/capabilities/labels/state generations, authorization, service fence and explicit Apply remain the existing contract. No separate HVAC/target/preset/fan command.
+
+Editor trusted schema_climate_swing_mode and negotiated live choice open reviewed Undo-able draft only. The same inspector removes the stray generic scalar-action hint for Climate fan/swing and shortens fan guidance; actual controls are unaffected.
+
+Validate exact feature32 vs512/strict options/service/current index, HA translations/collisions/custom names, stale authorization/ABA/list/locale/rebind/outage, import/recovery/editor history. Then actual owned MQTT climate, broker commands before feedback, all negative cases, PL/EN originals/browser, exact cleanup and native40 ELF/performance. Physical HVAC absent; separate acceptance.
+
+Primary: [Home Assistant climate contract](https://contributors.home-assistant.io/core/entities/climate/) and installed2026.7.1 climate const/service/mqtt sources already pinned in original D work root. MQTT swing_modes/swing_mode_state_topic/swing_mode_command_topic expose real exact strings; do not map horizontal512 into swing32.
+
+Accepted: ha55-swing-scoped-acceptance.json in C:\aeh-build\feature-continuation-20261031-next.594Python(3skip)/301Node/35files pinned,5real vertical/horizontal/both/on/off broker commands beforefeedback/0separateHVACtargetpresetfan,17reviewed originals, actualbrowser review/Confirm/2Undo/noSave, exactcleanup141/8prefs/faults[]. Actual fan-only draft inspection also proved shorter hint/no generic slider text and Undo restored swing. Post80frames/53sourceFPS/avg16786us/max24347us/failed0,PSRAM5623/largest2688/internal35/JPEG922/weather1792/work-scroll-close0. Native40 fullELF reverified, no new native flash. Physical HVAC remains separate.

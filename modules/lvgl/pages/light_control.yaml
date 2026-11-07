@@ -205,3 +205,23 @@ lvgl:
                   text_align: CENTER
                   long_mode: WRAP
                   clickable: false
+              - obj: !include choice_control.yaml
+              - obj: !include cover_control.yaml
+              - obj: !include thermostat_control.yaml
+              - obj: !include fan_control.yaml
+              - obj: !include humidifier_control.yaml
+              - obj: !include robot_control.yaml
+              - obj: !include timer_control.yaml
+              - obj: !include remote_control.yaml
+              - obj: !include power_control.yaml
+              - obj: !include light_detail.yaml
+              - obj: !include light_color.yaml
+              - obj: !include climate_detail.yaml
+              - obj: !include detail_numeric.yaml
+              - obj: !include detail_choice.yaml
+              - obj: !include extra_control.yaml
+              - obj: !include media_panel.yaml
+              - obj: !include media_volume.yaml
+              - obj: !include action_panel.yaml
+              - obj: !include datetime_panel.yaml
+              - obj: !include text_panel.yaml

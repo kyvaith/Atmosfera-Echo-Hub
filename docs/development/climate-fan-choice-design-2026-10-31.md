@@ -1,0 +1,13 @@
+# Explicit climate fan mode choice (W07, HA54 accepted / native40 /139)
+
+Action v3 `{ "kind": "control", "control": "choice", "property": "fan_mode" }` belongs only to climate entities. HA owns feature FAN_MODE8, actual fan_modes (1..8 distinct printable UTF8 names, max32bytes), current fan_mode and registered climate.set_fan_mode. No number grid or percentage is invented. None/missing/off-list and unknown/unavailable HVAC state are unavailable, never known empty. Only Apply on a real different option sends one exact canonical value; no separate HVAC, target or preset service.
+
+This HA policy runs on its existing event loop and single control owner. Native40 uses the existing app6 and bounded Choice domain: no new native code, task, timer, raw buffer, cache or lifecycle. Labels prefer cached HA attribute translations in device locale, bounded PL/EN standard fallbacks and exact provider names. Distinctness fallback avoids translated collisions. List/label/state generations, authorization and service fence revoke stale opens/held Apply.
+
+Editor requires trusted schema_climate_fan_mode, negotiated Choice and live matching metadata. Review/Confirm updates only the draft; Undo and import rules remain explicit. Target, HVAC, program and actual fan domain keep their meanings.
+
+Required: focused domain/owner/translation/schema/editor tests, full integration suite, real owned MQTT climate fan-mode command before feedback, no implicit mode/target/preset service, cancel/no-op/heldABA/list/capability/outage/recovery/PLEN, original screenshots, actual browser review/history, exact cleanup and native40 fullELF/performance recheck. Physical HVAC absent, remains separate.
+
+Primary: [HA climate contract](https://contributors.home-assistant.io/core/entities/climate/), and installed2026.7.1 climate/__init__.py, const.py and mqtt/climate.py pinned under D:\aeh-build\feature-continuation-20261031. FAN_MODE8 and set_fan_mode field fan_mode verified there; MQTT fan_modes/fan_mode_state_topic/fan_mode_command_topic route canonical strings without inventing a none option.
+
+Accepted: ha54-climate-fan-scoped-acceptance.json in D:\aeh-build\feature-continuation-20261031. 587Python(3skip)/298Node,35files pinned, actual low/medium/high/auto4broker commands before feedback/0separateHVACtargetpreset,16reviewed originals, browser review/Confirm/twoUndo/noSave, exact cleanup139,8prefs restored, faults[]. Post80frames/54sourceFPS/avg16347us/max23622us/failed0, PSRAM5629/largest2816/internal35/JPEG916,weather1792,work/scroll/close0. HA supplied English fan labels are retained in PL UI; project Polish fallback tested separately. Extra generic inspector hint remains cosmetic follow-up.

@@ -1,0 +1,221 @@
+# Static Action view. Existing App6/native owner controls input and retirement.
+# No product service callbacks, animation, Scalar region or additional full-frame buffer.
+id: action_panel_root
+x: 0
+y: 0
+width: 800
+height: 800
+bg_color: '0x000000'
+bg_opa: COVER
+border_width: 0
+pad_all: 0
+radius: 0
+hidden: true
+clickable: false
+scrollable: false
+widgets:
+- label:
+    id: action_panel_kind
+    x: 200
+    y: 68
+    width: 400
+    height: 28
+    text: ''
+    text_font: roboto_20
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: action_panel_title
+    x: 130
+    y: 104
+    width: 540
+    height: 42
+    text: ''
+    text_font: roboto_30
+    text_color: '0xF5F7FA'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: action_panel_phase
+    x: 130
+    y: 278
+    width: 540
+    height: 44
+    text: ''
+    text_font: roboto_30
+    text_color: '0xF5F7FA'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: action_panel_last_used
+    x: 130
+    y: 328
+    width: 540
+    height: 52
+    text: ''
+    text_font: roboto_20
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: action_panel_current
+    x: 180
+    y: 384
+    width: 440
+    height: 28
+    text: ''
+    text_font: roboto_20
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: action_panel_policy
+    x: 130
+    y: 418
+    width: 540
+    height: 56
+    text: ''
+    text_font: roboto_20
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- label:
+    id: action_panel_status
+    x: 200
+    y: 700
+    width: 400
+    height: 48
+    text: ''
+    text_font: roboto_16
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- svg_icon:
+    id: action_panel_icon_button
+    file: assets/icons/action-panel-button.svg
+    x: 352
+    y: 166
+    width: 96
+    height: 96
+    text_color: '0xD3E3FD'
+    clickable: false
+    hidden: true
+- svg_icon:
+    id: action_panel_icon_scene
+    file: assets/icons/action-panel-scene.svg
+    x: 352
+    y: 166
+    width: 96
+    height: 96
+    text_color: '0xD3E3FD'
+    clickable: false
+    hidden: true
+- svg_icon:
+    id: action_panel_icon_script
+    file: assets/icons/action-panel-script.svg
+    x: 352
+    y: 166
+    width: 96
+    height: 96
+    text_color: '0xD3E3FD'
+    clickable: false
+    hidden: true
+- svg_icon:
+    id: action_panel_icon_automation
+    file: assets/icons/action-panel-automation.svg
+    x: 352
+    y: 166
+    width: 96
+    height: 96
+    text_color: '0xD3E3FD'
+    clickable: false
+    hidden: true
+- button:
+    id: action_panel_primary
+    x: 190
+    y: 494
+    width: 420
+    height: 76
+    radius: 28
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    shadow_width: 0
+    pad_all: 0
+    text_color: '0xF5F7FA'
+    scrollable: false
+    hidden: true
+    widgets:
+    - label:
+        id: action_panel_primary_label
+        align: CENTER
+        width: 404
+        height: 32
+        text: ''
+        text_font: roboto_24
+        text_color: '0xF5F7FA'
+        text_align: CENTER
+        long_mode: WRAP
+        clickable: false
+- button:
+    id: action_panel_left
+    x: 174
+    y: 586
+    width: 218
+    height: 80
+    radius: 28
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    shadow_width: 0
+    pad_all: 0
+    text_color: '0xF5F7FA'
+    scrollable: false
+    hidden: true
+    widgets:
+    - label:
+        id: action_panel_left_label
+        align: CENTER
+        width: 202
+        height: 32
+        text: ''
+        text_font: roboto_24
+        text_color: '0xF5F7FA'
+        text_align: CENTER
+        long_mode: WRAP
+        clickable: false
+- button:
+    id: action_panel_right
+    x: 408
+    y: 586
+    width: 218
+    height: 80
+    radius: 28
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    shadow_width: 0
+    pad_all: 0
+    text_color: '0xF5F7FA'
+    scrollable: false
+    hidden: true
+    widgets:
+    - label:
+        id: action_panel_right_label
+        align: CENTER
+        width: 202
+        height: 32
+        text: ''
+        text_font: roboto_24
+        text_color: '0xF5F7FA'
+        text_align: CENTER
+        long_mode: WRAP
+        clickable: false

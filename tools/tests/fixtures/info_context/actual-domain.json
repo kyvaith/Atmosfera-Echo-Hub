@@ -1,0 +1,261 @@
+{
+  "person-home": {
+    "entity_id": "person.test",
+    "state": "home",
+    "metadata": {
+      "extra_panel": {
+        "version": 1,
+        "panel_type": "info",
+        "caps": {
+          "info_type": "person",
+          "device_class": null
+        },
+        "fingerprint": "30b4c6ba8ed535fcc1fd086826d6e5fc17f92721652f2badb56cc280b11508d8",
+        "state": {
+          "source": "known",
+          "updated_text": "2026-11-05T20:16:32+01:00",
+          "phase": "home",
+          "zone_text": "Europe/Warsaw",
+          "text_status": "value",
+          "state_text": "W domu",
+          "changed_status": "value",
+          "changed_text": "2026-11-05T18:16:32+01:00"
+        },
+        "available": true,
+        "eligible_actions": 0
+      }
+    }
+  },
+  "person-not_home": {
+    "entity_id": "person.test",
+    "state": "not_home",
+    "metadata": {
+      "extra_panel": {
+        "version": 1,
+        "panel_type": "info",
+        "caps": {
+          "info_type": "person",
+          "device_class": null
+        },
+        "fingerprint": "30b4c6ba8ed535fcc1fd086826d6e5fc17f92721652f2badb56cc280b11508d8",
+        "state": {
+          "source": "known",
+          "updated_text": "2026-11-05T20:16:32+01:00",
+          "phase": "away",
+          "zone_text": "Europe/Warsaw",
+          "text_status": "value",
+          "state_text": "Poza domem",
+          "changed_status": "value",
+          "changed_text": "2026-11-05T18:16:32+01:00"
+        },
+        "available": true,
+        "eligible_actions": 0
+      }
+    }
+  },
+  "person-Pracownia_Łódź": {
+    "entity_id": "person.test",
+    "state": "Pracownia_Łódź",
+    "metadata": {
+      "extra_panel": {
+        "version": 1,
+        "panel_type": "info",
+        "caps": {
+          "info_type": "person",
+          "device_class": null
+        },
+        "fingerprint": "30b4c6ba8ed535fcc1fd086826d6e5fc17f92721652f2badb56cc280b11508d8",
+        "state": {
+          "source": "known",
+          "updated_text": "2026-11-05T20:16:32+01:00",
+          "phase": "zone",
+          "zone_text": "Europe/Warsaw",
+          "text_status": "value",
+          "state_text": "Pracownia_Łódź",
+          "changed_status": "value",
+          "changed_text": "2026-11-05T18:16:32+01:00"
+        },
+        "available": true,
+        "eligible_actions": 0
+      }
+    }
+  },
+  "person-unknown": {
+    "entity_id": "person.test",
+    "state": "unknown",
+    "metadata": {
+      "extra_panel": {
+        "version": 1,
+        "panel_type": "info",
+        "caps": {
+          "info_type": "person",
+          "device_class": null
+        },
+        "fingerprint": "30b4c6ba8ed535fcc1fd086826d6e5fc17f92721652f2badb56cc280b11508d8",
+        "state": {
+          "source": "unknown",
+          "updated_text": "2026-11-05T20:16:32+01:00",
+          "phase": "unknown",
+          "zone_text": "",
+          "text_status": "unknown",
+          "state_text": "",
+          "changed_status": "unknown",
+          "changed_text": ""
+        },
+        "available": false,
+        "eligible_actions": 0
+      }
+    }
+  },
+  "person-unavailable": {
+    "entity_id": "person.test",
+    "state": "unavailable",
+    "metadata": {
+      "extra_panel": {
+        "version": 1,
+        "panel_type": "info",
+        "caps": {
+          "info_type": "person",
+          "device_class": null
+        },
+        "fingerprint": "30b4c6ba8ed535fcc1fd086826d6e5fc17f92721652f2badb56cc280b11508d8",
+        "state": {
+          "source": "unavailable",
+          "updated_text": "2026-11-05T20:16:32+01:00",
+          "phase": "unknown",
+          "zone_text": "",
+          "text_status": "unknown",
+          "state_text": "",
+          "changed_status": "unknown",
+          "changed_text": ""
+        },
+        "available": false,
+        "eligible_actions": 0
+      }
+    }
+  },
+  "sun-above_horizon": {
+    "entity_id": "sun.test",
+    "state": "above_horizon",
+    "metadata": {
+      "extra_panel": {
+        "version": 1,
+        "panel_type": "info",
+        "caps": {
+          "info_type": "sun",
+          "device_class": null
+        },
+        "fingerprint": "76b93e494ada760d9980bb748f6ce4466b69ff55a083809db455d4794d9fd6d0",
+        "state": {
+          "source": "known",
+          "updated_text": "2026-11-05T20:16:32+01:00",
+          "phase": "above_horizon",
+          "zone_text": "Europe/Warsaw",
+          "next_rising_status": "value",
+          "next_rising_text": "2026-11-06T06:38:19+01:00",
+          "next_setting_status": "value",
+          "next_setting_text": "2026-11-06T15:53:55+01:00",
+          "elevation_status": "value",
+          "elevation_text": "-36.43",
+          "azimuth_status": "value",
+          "azimuth_text": "293.83"
+        },
+        "available": true,
+        "eligible_actions": 0
+      }
+    }
+  },
+  "sun-below_horizon": {
+    "entity_id": "sun.test",
+    "state": "below_horizon",
+    "metadata": {
+      "extra_panel": {
+        "version": 1,
+        "panel_type": "info",
+        "caps": {
+          "info_type": "sun",
+          "device_class": null
+        },
+        "fingerprint": "76b93e494ada760d9980bb748f6ce4466b69ff55a083809db455d4794d9fd6d0",
+        "state": {
+          "source": "known",
+          "updated_text": "2026-11-05T20:16:32+01:00",
+          "phase": "below_horizon",
+          "zone_text": "Europe/Warsaw",
+          "next_rising_status": "value",
+          "next_rising_text": "2026-11-06T06:38:19+01:00",
+          "next_setting_status": "value",
+          "next_setting_text": "2026-11-06T15:53:55+01:00",
+          "elevation_status": "value",
+          "elevation_text": "-36.43",
+          "azimuth_status": "value",
+          "azimuth_text": "293.83"
+        },
+        "available": true,
+        "eligible_actions": 0
+      }
+    }
+  },
+  "sun-unknown": {
+    "entity_id": "sun.test",
+    "state": "unknown",
+    "metadata": {
+      "extra_panel": {
+        "version": 1,
+        "panel_type": "info",
+        "caps": {
+          "info_type": "sun",
+          "device_class": null
+        },
+        "fingerprint": "76b93e494ada760d9980bb748f6ce4466b69ff55a083809db455d4794d9fd6d0",
+        "state": {
+          "source": "unknown",
+          "updated_text": "2026-11-05T20:16:32+01:00",
+          "phase": "unknown",
+          "zone_text": "",
+          "next_rising_status": "unknown",
+          "next_rising_text": "",
+          "next_setting_status": "unknown",
+          "next_setting_text": "",
+          "elevation_status": "unknown",
+          "elevation_text": "",
+          "azimuth_status": "unknown",
+          "azimuth_text": ""
+        },
+        "available": false,
+        "eligible_actions": 0
+      }
+    }
+  },
+  "sun-unavailable": {
+    "entity_id": "sun.test",
+    "state": "unavailable",
+    "metadata": {
+      "extra_panel": {
+        "version": 1,
+        "panel_type": "info",
+        "caps": {
+          "info_type": "sun",
+          "device_class": null
+        },
+        "fingerprint": "76b93e494ada760d9980bb748f6ce4466b69ff55a083809db455d4794d9fd6d0",
+        "state": {
+          "source": "unavailable",
+          "updated_text": "2026-11-05T20:16:32+01:00",
+          "phase": "unknown",
+          "zone_text": "",
+          "next_rising_status": "unknown",
+          "next_rising_text": "",
+          "next_setting_status": "unknown",
+          "next_setting_text": "",
+          "elevation_status": "unknown",
+          "elevation_text": "",
+          "azimuth_status": "unknown",
+          "azimuth_text": ""
+        },
+        "available": false,
+        "eligible_actions": 0
+      }
+    }
+  }
+}

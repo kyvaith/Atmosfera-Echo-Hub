@@ -1,6 +1,7 @@
 i18n:
   id: ui_i18n
   default_locale: en-US
+  use_flash_table: true
   translations:
     - locale: en-US
       values: !include ../../translations/en-US.yaml

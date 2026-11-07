@@ -2,6 +2,17 @@
 # Keep this file as the readable entry point: identity, user-facing defaults and package wiring only.
 
 substitutions:
+  # Optional external HA media view; the dedicated local Player is independent.
+  media_control_product_admitted: 'true'
+  action_control_product_admitted: 'true'
+  tile_event_control_product_admitted: 'true'
+  text_control_product_admitted: 'true'
+  datetime_control_product_admitted: 'true'
+  light_color_control_product_admitted: 'true'
+  climate_range_control_product_admitted: 'true'
+  info_context_product_admitted: 'true'
+  info_agenda_product_admitted: 'true'
+  info_statistics_product_admitted: 'true'
   # Device identity
   device_name: atmosfera-echo-hub
   name: atmosfera-echo-hub
@@ -13,6 +24,9 @@ substitutions:
   # validation may override these two paths through ESPHome substitutions.
   esphome_components_path: ../kyvaith-esphome/esphome/components
   firmware_build_path: C:/aeh-build/${name}-productization-idf556
+  # Compile detailed LVGL tracing only for a diagnostic firmware build.
+  # Runtime capture still requires the existing explicit debug action.
+  lvgl_profiler: 'false'
 
   # Firmware update and dashboard import endpoints
   firmware_manifest_url: "https://kyvaith.github.io/Atmosfera-Echo-Hub/manifest.json"

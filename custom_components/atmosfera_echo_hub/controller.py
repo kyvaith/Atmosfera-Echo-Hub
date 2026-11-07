@@ -1,16 +1,21 @@
 """Runtime bridge between Home Assistant cameras and an ESPHome display."""
 
 from __future__ import annotations
+from .notification_transport import NotificationTransport
 
 import asyncio
 from collections.abc import Callable
+from copy import deepcopy
 from dataclasses import dataclass
+from hashlib import sha256
 import json
 import logging
+from time import monotonic
 from urllib.parse import quote, urlencode
+from uuid import uuid4
 
-from aioesphomeapi import APIConnectionError, EntityState, UserService
-from aioesphomeapi.model import SupportsResponseType
+from aioesphomeapi import APIConnectionError, EntityState, TextInfo, TextState, UserService
+from aioesphomeapi.model import SupportsResponseType, UserServiceArgType
 
 from homeassistant.components.camera.helper import get_camera_from_entity_id
 from homeassistant.components.network import async_get_source_ip
@@ -19,6 +24,7 @@ from homeassistant.const import ATTR_FRIENDLY_NAME, CONF_HOST, EVENT_CORE_CONFIG
 from homeassistant.core import CALLBACK_TYPE, Event, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.event import (
     async_call_later,
     async_track_state_change_event,
@@ -40,6 +46,8 @@ from .const import (
     API_ACTION_DISMISS_NOTIFICATION,
     API_ACTION_SHOW_NOTIFICATION,
     API_ACTION_SET_SOURCES,
+    API_ACTION_SET_KEYED_SOURCES,
+    API_ACTION_DOORBELL_PREVIEW,
     API_ACTION_SET_TILES,
     API_ACTION_GET_TILE_STATUS,
     CONF_CAMERAS,
@@ -54,11 +62,15 @@ from .const import (
     DEFAULT_STREAM_WIDTH,
     RETRY_INTERVAL_SECONDS,
     TOKEN_REFRESH_INTERVAL,
+    DOMAIN,
+    EVENT_TILE_PRESS,
 )
 from .text import plain_text
 from .tile_palette import observed_accent
-from .layout import PROFILE_ID
-from .light_control_transport import LightControlTransport
+from .layout import CAROUSEL_SLOT_COUNT, HOME_ORDER, PROFILE_ID, SLOT_COUNT, device_profile, is_camera_preview_card
+from .light_control_transport import LightControlTransport, authorize_ha_context
+from .tile_events import EVENT_TYPE_PRESS, MAX_EVENT_CARDS, event_unique_id, is_event_card, is_event_definition, is_event_panel
+from .vacuum_areas import mapped_area_ids
 
 _LOGGER = logging.getLogger(__name__)
 _NATIVE_STATUS_REQUERY_DELAYS = (0.3, 0.8, 1.5)
@@ -71,6 +83,11 @@ class CameraSource:
     entity_id: str
     name: str
     url: str
+
+    @property
+    def key(self) -> str:
+        """Keep firmware identity independent of display name and token rotation."""
+        return sha256(self.entity_id.encode()).hexdigest()[:32]
 
 
 class CameraBridge:
@@ -106,6 +123,8 @@ class CameraBridge:
         self.tile_cards = normalize_cards(self.layout["cards"])
         self.saved_revision = self.layout["revision"]
         self.sent_revision: int | None = None
+        self._tile_event_entities: dict[str, tuple[str, object, Callable]] = {}
+        self._event_dispatch_busy = False
         self.accent_color = entry.options.get(
             CONF_ACCENT_COLOR, entry.data.get(CONF_ACCENT_COLOR, DEFAULT_ACCENT_COLOR)
         )
@@ -123,6 +142,10 @@ class CameraBridge:
         self.sources: list[CameraSource] = []
         self.current_option: str | None = None
         self.available = False
+        self._camera_catalog_generation = 0
+        self._keyed_camera_catalog = None
+        self._manual_preview_busy = False
+        self._manual_preview_attempts = []
         self._listeners: set[Callable[[], None]] = set()
         self._remove_debounce: CALLBACK_TYPE | None = None
         self._remove_tile_debounce: CALLBACK_TYPE | None = None
@@ -138,6 +161,7 @@ class CameraBridge:
         self._observed_accent_color: str | None = None
         self._device_preference_generation = 0
         self._tile_unsubscribe: CALLBACK_TYPE | None = None
+        self._tile_registry_unsubscribers: list[CALLBACK_TYPE] = []
         self._closed = False
         self._connection_epoch = 0
         self._native_status_lock = asyncio.Lock()
@@ -153,6 +177,7 @@ class CameraBridge:
         self._background_tasks: set[asyncio.Task] = set()
         self._active_push_tasks: set[asyncio.Task] = set()
         self._light_control = LightControlTransport(self)
+        self._notifications = NotificationTransport(self)
 
     @property
     def tile_device_available(self) -> bool:
@@ -208,10 +233,104 @@ class CameraBridge:
         if self._tile_unsubscribe is not None:
             self._tile_unsubscribe()
             self._tile_unsubscribe = None
-        if self.tile_entity_ids and not self._closed:
+        for unsubscribe in self._tile_registry_unsubscribers:
+            unsubscribe()
+        self._tile_registry_unsubscribers.clear()
+        entity_ids = sorted(set(self.tile_entity_ids) | {
+            binding[0] for card_id, binding in getattr(self, "_tile_event_entities", {}).items()
+            if any(card["id"] == card_id and is_event_panel(card) for card in self.tile_cards)})
+        if entity_ids and not self._closed:
             self._tile_unsubscribe = async_track_state_change_event(
-                self.hass, self.tile_entity_ids, self._tile_state_changed
+                self.hass, entity_ids, self._tile_state_changed
             )
+            robot_registry = any(card["visible"] and (card.get("action", {}).get("service") == "vacuum.clean_area"
+                    or (card.get("action") == {"kind": "control", "control": "robot"}
+                        and card.get("entity_id", "").startswith("vacuum."))) for card in self.tile_cards)
+            event_panels = any(is_event_panel(card) for card in self.tile_cards)
+            statistics_panels = any(card["visible"] and card.get("action") == {"kind": "control", "control": "panel", "property": "statistics"} for card in self.tile_cards)
+            agenda_panels = any(card["visible"] and card.get("action") == {"kind": "control", "control": "panel", "property": "agenda"} for card in self.tile_cards)
+            parameters_panels = any(card["visible"] and card.get("action") == {"kind": "control", "control": "panel", "property": "action", "parameters": "boolean_v1"} for card in self.tile_cards)
+            event_types = (["entity_registry_updated"] if robot_registry or event_panels or agenda_panels or statistics_panels or parameters_panels else [])
+            if parameters_panels:
+                for event_type in ("service_registered", "service_removed"):
+                    self._tile_registry_unsubscribers.append(self.hass.bus.async_listen(event_type, self._tile_parameters_lifecycle_changed))
+            if statistics_panels:
+                self._tile_registry_unsubscribers.append(self.hass.bus.async_listen("core_config_updated", self._tile_statistics_zone_changed))
+            if robot_registry:
+                event_types.append("area_registry_updated")
+            for event_type in event_types:
+                self._tile_registry_unsubscribers.append(self.hass.bus.async_listen(event_type, self._tile_area_registry_changed))
+
+    @callback
+    def _tile_parameters_lifecycle_changed(self, event: Event) -> None:
+        if self._closed:
+            return
+        light = getattr(self, "_light_control", None)
+        if light is not None:
+            light.action_parameters_lifecycle_changed(event)
+        # Refresh only cards backed by this direct script service.
+        if event.data.get("domain") == "script":
+            registry = er.async_get(self.hass)
+            for card in self.tile_cards:
+                if not card["visible"] or card.get("action", {}).get("parameters") != "boolean_v1":
+                    continue
+                entry = registry.async_get(card["entity_id"])
+                if event.data.get("service") in {"turn_off", getattr(entry, "unique_id", None)}:
+                    self.async_schedule_tile_push(delay=0)
+                    break
+
+    @callback
+    def _tile_statistics_zone_changed(self, event: Event) -> None:
+        if not self._closed and "time_zone" in event.data:
+            light = getattr(self, "_light_control", None)
+            if light is not None:
+                light.statistics_zone_changed(event)
+
+    @callback
+    def _tile_area_registry_changed(self, event: Event) -> None:
+        """Registry changes retire captured bindings even if source state is unchanged."""
+        if self._closed:
+            return
+        changes = event.data.get("changes")
+        binding_changed = not (event.data.get("action") == "update" and isinstance(changes, dict)
+            and not {"disabled_by", "entity_id", "device_id", "unique_id", "platform", "config_entry_id"}.intersection(changes))
+        event_entities = {event.data.get("entity_id")}
+        if isinstance(changes, dict) and isinstance(changes.get("entity_id"), str):
+            event_entities.add(changes["entity_id"])
+        if binding_changed:
+            light = getattr(self, "_light_control", None)
+            if light is not None:
+                light.action_parameters_lifecycle_changed(event)
+            if any(card["visible"] and card.get("action", {}).get("parameters") == "boolean_v1"
+                   and card.get("entity_id") in event_entities for card in self.tile_cards):
+                self.async_schedule_tile_push(delay=0)
+        for card in self.tile_cards:
+            binding = getattr(self, "_tile_event_entities", {}).get(card["id"])
+            if binding_changed and is_event_panel(card) and binding is not None and binding[0] in event_entities:
+                light = getattr(self, "_light_control", None)
+                if light is not None:
+                    light.tile_event_binding_changed(card["id"])
+                self.async_schedule_tile_push(delay=0)
+        if binding_changed and any(card["visible"] and card.get("action") in ({"kind": "control", "control": "panel", "property": "agenda"}, {"kind": "control", "control": "panel", "property": "statistics"})
+                                   and card.get("entity_id") in event_entities for card in self.tile_cards):
+            light = getattr(self, "_light_control", None)
+            if light is not None:
+                light.robot_registry_changed(event)
+            self.async_schedule_tile_push(delay=0)
+        cards = [card for card in self.tile_cards if card["visible"] and card.get("action", {}).get("service") == "vacuum.clean_area"]
+        robots = [card for card in self.tile_cards if card["visible"] and card.get("action") == {"kind": "control", "control": "robot"}
+                  and card.get("entity_id", "").startswith("vacuum.")]
+        robot_areas = {area_id for card in robots for area_id in mapped_area_ids(
+            getattr(er.async_get(self.hass).async_get(card["entity_id"]), "options", None))}
+        if robots and (event.data.get("entity_id") in {card["entity_id"] for card in robots}
+                       or event.data.get("area_id") in robot_areas):
+            light = getattr(self, "_light_control", None)
+            if light is not None:
+                light.robot_registry_changed(event)
+            self.async_schedule_tile_push(delay=0)
+        if (event.data.get("entity_id") in {card["entity_id"] for card in cards}
+                or event.data.get("area_id") in {card["action"].get("data", {}).get("cleaning_area_id") for card in cards}):
+            self.async_schedule_tile_push(delay=0)
 
     @callback
     def async_apply_tile_options(self) -> bool:
@@ -225,6 +344,7 @@ class CameraBridge:
         )
         if any(options.get(key, data.get(key, current)) != current
                for key, current in camera_settings):
+            self._invalidate_camera_catalog()
             return False
         previous = (self.saved_revision, self.layout["version"])
         self.layout = entry_layout(options, data)
@@ -276,6 +396,7 @@ class CameraBridge:
 
     async def async_setup(self) -> None:
         """Start state tracking and publish the first catalog."""
+        await self._notifications.setup()
         runtime_data = self.esphome_entry.runtime_data
         if runtime_data is not None:
             self._unsubscribers.append(
@@ -301,6 +422,7 @@ class CameraBridge:
         await self._async_subscribe_device_preferences()
         self.async_schedule_push(delay=0)
         self.async_schedule_tile_push(delay=0.5)
+        self._spawn_background(self._async_push_notifications())
 
     @callback
     def _esphome_device_updated(self) -> None:
@@ -308,6 +430,7 @@ class CameraBridge:
         if self._closed:
             return
         self._connection_epoch += 1
+        self._invalidate_camera_catalog()
         if light := getattr(self, "_light_control", None):
             light.invalidate_connection()
         self._cancel_native_status_requery()
@@ -335,10 +458,21 @@ class CameraBridge:
         # async_push_sources() retains the normal retry when setup takes longer.
         self.async_schedule_push(delay=0.25)
         self.async_schedule_tile_push(delay=0.5)
+        self._spawn_background(self._async_push_notifications())
+
+    async def _async_push_notifications(self) -> None:
+        await asyncio.sleep(1)
+        if not self._closed:
+            try:
+                async with self._notifications.lock:
+                    await self._notifications.push()
+            except (APIConnectionError, TimeoutError, HomeAssistantError):
+                _LOGGER.debug("Notification history sync deferred until reconnect")
 
     async def async_shutdown(self) -> None:
         """Stop tracking runtime state."""
         self._closed = True
+        self._invalidate_camera_catalog()
         self._observed_accent_color = None
         self._press_enabled_version = 0
         if light := getattr(self, "_light_control", None):
@@ -414,6 +548,22 @@ class CameraBridge:
                     self._observed_accent_color = normalized
 
         client.subscribe_states(state_changed)
+        # Core may have consumed the initial state before this observer attaches.
+        # Seed only the preview from this live connection's typed, non-stale cache;
+        # preserve the legacy wire/locale handler and any newer synchronous callback.
+        if self._observed_accent_color is None:
+            states = getattr(runtime_data, "state", {}).get(TextState, {})
+            stale = getattr(runtime_data, "stale_state", set())
+            for entity in entities:
+                if not isinstance(entity, TextInfo) or keys.get(entity.key) != "accent":
+                    continue
+                cached = states.get(entity.key)
+                identity = (TextState, entity.device_id, entity.key)
+                if (type(cached) is TextState and cached.device_id == entity.device_id
+                        and not cached.missing_state and identity not in stale):
+                    normalized = observed_accent(cached.state)
+                    if normalized is not None:
+                        self._observed_accent_color = normalized
 
     @callback
     def _device_preference_state_changed(self, state: EntityState) -> None:
@@ -437,6 +587,8 @@ class CameraBridge:
             locale = str(state.state).strip()
             if locale and locale != self.device_locale:
                 self.device_locale = locale
+                if light := getattr(self, "_light_control", None):
+                    light.state_changed()
                 self._last_tile_payload = ""
                 self._spawn_background(self._async_load_device_locale(locale))
                 self.async_schedule_tile_push(delay=0.1)
@@ -465,6 +617,7 @@ class CameraBridge:
 
     @callback
     def _camera_state_changed(self, event: Event) -> None:
+        self._invalidate_camera_catalog()
         self.async_schedule_push(delay=1)
 
     @callback
@@ -475,8 +628,16 @@ class CameraBridge:
 
     @callback
     def _core_config_updated(self, event: Event) -> None:
-        """Reproject Sun local captions when UTC source attributes stay unchanged."""
-        if (self._closed or "time_zone" not in event.data
+        """Reproject existing cards when HA changes their display units or timezone."""
+        if self._closed:
+            return
+        if ("unit_system" in event.data and any(card["visible"] and card.get("action") ==
+                {"kind": "control", "control": "number", "property": "temperature"} for card in self.tile_cards)):
+            if light := getattr(self, "_light_control", None):
+                light.state_changed()
+            self.async_schedule_tile_push(delay=0)
+            return
+        if ("time_zone" not in event.data
                 or not any(card["visible"] and card["entity_id"].startswith("sun.") for card in self.tile_cards)):
             return
         self.async_schedule_tile_push(delay=0)
@@ -484,6 +645,7 @@ class CameraBridge:
     async def _periodic_refresh(self, _now) -> None:
         await self.async_push_sources()
         await self.async_push_tiles(force=True)
+        await self._async_push_notifications()
 
     @callback
     def async_schedule_push(self, delay: float = 1) -> None:
@@ -628,6 +790,40 @@ class CameraBridge:
             None,
         )
 
+    @property
+    def carousel_supported(self) -> bool:
+        action = self._find_api_action("home_carousel_set")
+        return getattr(action, "supports_response", None) == SupportsResponseType.ONLY
+
+    async def _async_push_carousel(self, runtime, epoch, revision) -> bool:
+        action = self._find_api_action("home_carousel_set")
+        if getattr(action, "supports_response", None) != SupportsResponseType.ONLY:
+            return True
+        order = "".join(page[-1] for page in self.layout.get("home_order", HOME_ORDER))
+        applied = (epoch, order)
+        if getattr(self, "_applied_carousel", None) == applied:
+            return True
+        try:
+            response = await runtime.client.execute_service(
+                action, {"order": order}, return_response=True, timeout=5.0
+            )
+            if (
+                response is None or not response.success
+                or not isinstance(response.response_data, bytes)
+                or len(response.response_data) > 128
+                or json.loads(response.response_data) != {"status": "applied"}
+            ):
+                return False
+        except (APIConnectionError, TimeoutError, ValueError):
+            return False
+        if (
+            self._closed or epoch != self._connection_epoch or revision != self.saved_revision
+            or runtime is not self.esphome_entry.runtime_data
+        ):
+            return False
+        self._applied_carousel = applied
+        return True
+
     async def async_push_sources(self) -> bool:
         """Own source push work until the existing camera request completes."""
         if self._closed:
@@ -644,7 +840,12 @@ class CameraBridge:
         async with self._push_lock:
             if self._closed:
                 return False
-            if not self.camera_entity_ids:
+            self._invalidate_camera_catalog()
+            generation = self._camera_catalog_generation
+            epoch = self._connection_epoch
+            keyed_accepted = False
+            keyed_action = self._find_api_action(API_ACTION_SET_KEYED_SOURCES)
+            if not self.camera_entity_ids and keyed_action is None:
                 self.sources.clear()
                 self.current_option = None
                 self.available = False
@@ -652,36 +853,62 @@ class CameraBridge:
                 return True
 
             runtime_data = self.esphome_entry.runtime_data
-            action = self._find_api_action(API_ACTION_SET_SOURCES)
+            catalog_client = runtime_data.client if runtime_data is not None else None
+            action = keyed_action or self._find_api_action(API_ACTION_SET_SOURCES)
             select_action = self._find_api_action(API_ACTION_SELECT_SOURCE)
-            sources = await self._async_build_sources()
+            sources = await self._async_build_sources() if self.camera_entity_ids else []
             if (
                 runtime_data is None
                 or not runtime_data.available
                 or action is None
-                or not sources
+                or (not sources and keyed_action is None)
             ):
                 self.available = False
                 self._notify_listeners()
                 return False
 
             try:
-                await runtime_data.client.execute_service(
-                    action,
-                    {
-                        "names": [source.name for source in sources],
-                        "urls": [source.url for source in sources],
-                    },
-                )
-            except (APIConnectionError, TimeoutError) as err:
+                if keyed_action is not None:
+                    payload = json.dumps(
+                        {"sources": [{"key": source.key, "name": source.name, "url": source.url}
+                                     for source in sources]},
+                        ensure_ascii=False, separators=(",", ":"),
+                    )
+                    reply = await runtime_data.client.execute_service(
+                        action, {"payload": payload}, return_response=True, timeout=6.0
+                    )
+                    if (
+                        reply is None
+                        or not reply.success
+                        or not isinstance(reply.response_data, bytes)
+                        or len(reply.response_data) > 128
+                        or json.loads(reply.response_data) != {"accepted": True}
+                    ):
+                        raise HomeAssistantError("Display rejected the camera catalog")
+                    keyed_accepted = json.loads(reply.response_data)["accepted"] is True
+                else:
+                    await runtime_data.client.execute_service(
+                        action,
+                        {"names": [source.name for source in sources],
+                         "urls": [source.url for source in sources]},
+                    )
+            except (APIConnectionError, TimeoutError, HomeAssistantError, ValueError) as err:
                 self.available = False
                 self._notify_listeners()
                 _LOGGER.debug("Unable to update camera catalog: %s", err)
                 return False
 
+            previous_key = next(
+                (source.key for source in self.sources if source.name == self.current_option),
+                None,
+            )
             self.sources = sources
+            if keyed_action is not None and previous_key is not None:
+                self.current_option = next(
+                    (source.name for source in sources if source.key == previous_key), None
+                )
             if self.current_option not in self.options:
-                self.current_option = self.options[0]
+                self.current_option = self.options[0] if sources else None
             if select_action is not None and self.current_option is not None:
                 try:
                     await runtime_data.client.execute_service(
@@ -693,9 +920,197 @@ class CameraBridge:
                     self._notify_listeners()
                     _LOGGER.debug("Unable to restore camera selection: %s", err)
                     return False
-            self.available = True
+            self.available = bool(sources)
+            if (keyed_accepted and runtime_data is self.esphome_entry.runtime_data
+                    and runtime_data.client is catalog_client
+                    and epoch == self._connection_epoch and generation == self._camera_catalog_generation
+                    and not self._closed):
+                self._keyed_camera_catalog = (runtime_data, catalog_client, epoch, generation,
+                                             tuple(self.camera_entity_ids), tuple(sources), keyed_action)
+                self._schedule_camera_tiles()
             self._notify_listeners()
             return True
+
+    def _schedule_camera_tiles(self) -> None:
+        if not self._closed and any(is_camera_preview_card(card) for card in self.tile_cards):
+            self.async_schedule_tile_push(delay=0)
+
+    def _invalidate_camera_catalog(self) -> None:
+        """Retire only the new manual-launch proof, never the Camera buffers."""
+        self._camera_catalog_generation = getattr(self, "_camera_catalog_generation", 0) + 1
+        self._keyed_camera_catalog = None
+        self._schedule_camera_tiles()
+
+    def _current_camera_catalog(self):
+        proof = getattr(self, "_keyed_camera_catalog", None)
+        runtime = self.esphome_entry.runtime_data
+        configured = tuple(self.entry.options.get(CONF_CAMERAS, self.entry.data.get(CONF_CAMERAS, ())))
+        if (not self.tile_device_available or not getattr(self, "available", False) or proof is None
+                or proof[0] is not runtime or proof[1] is not runtime.client
+                or proof[2] != self._connection_epoch or proof[3] != self._camera_catalog_generation
+                or proof[4] != configured or proof[4] != tuple(self.camera_entity_ids)
+                or proof[5] != tuple(self.sources)
+                or proof[6] is not self._find_api_action(API_ACTION_SET_KEYED_SOURCES)):
+            return None
+        return proof
+
+    @property
+    def camera_preview_supported(self) -> bool:
+        """Require current keyed ACK and the actual response-only API contract."""
+        action = self._find_api_action(API_ACTION_DOORBELL_PREVIEW)
+        return bool(self.event_press_supported and self._current_camera_catalog() is not None
+                    and action is not None and getattr(action, "supports_response", None) == SupportsResponseType.ONLY
+                    and [(getattr(arg, "name", None), getattr(arg, "type", None)) for arg in getattr(action, "args", ())]
+                    == [("source_key", UserServiceArgType.STRING), ("event_id", UserServiceArgType.STRING),
+                        ("duration_seconds", UserServiceArgType.INT)])
+
+    @property
+    def camera_preview_entities(self) -> tuple[str, ...]:
+        if not self.camera_preview_supported:
+            return ()
+        return tuple(source.entity_id for source in self.sources
+                     if source.entity_id in self.camera_entity_ids
+                     and (state := self.hass.states.get(source.entity_id)) is not None
+                     and state.state not in {"unknown", "unavailable"})
+
+    def _camera_preview_binding(self, slot, card_id, revision):
+        if (type(slot) is not int or type(revision) is not int or revision != self.saved_revision
+                or revision != self.sent_revision or not self.camera_preview_supported):
+            return None
+        document = entry_layout(self.entry.options, self.entry.data)
+        if document["version"] != 3 or document["revision"] != revision:
+            return None
+        card = next((item for item in document["cards"] if item["slot"] == slot), None)
+        if (card is None or card["id"] != card_id or not card["visible"] or slot < 2
+                or not is_camera_preview_card(card) or card["entity_id"] not in self.camera_preview_entities
+                or card != next((item for item in self.layout["cards"] if item["slot"] == slot), None)):
+            return None
+        geometry = next((item for item in device_profile(carousel="home_order" in document)["slots"] if item["slot"] == slot), None)
+        if geometry is None or geometry["page_id"] not in document.get("home_order", HOME_ORDER):
+            return None
+        return card
+
+    async def _async_press_camera_preview(self, slot, card_id, revision, context) -> None:
+        """One authorized Home release, one request; busy and uncertainty never queue."""
+        if getattr(self, "_manual_preview_busy", False) or not (card := self._camera_preview_binding(slot, card_id, revision)):
+            return
+        card = deepcopy(card)
+        proof = self._current_camera_catalog()
+        action = self._find_api_action(API_ACTION_DOORBELL_PREVIEW)
+        context_key = tuple(getattr(context, name, None) for name in ("id", "user_id", "parent_id"))
+        key = (context_key, slot, card_id, revision)
+        attempts = getattr(self, "_manual_preview_attempts", [])
+        if key in attempts:
+            return
+        registry = er.async_get(self.hass)
+        notify_entity = registry.async_get_entity_id("notify", DOMAIN, f"{self.device_id}_display_notifications")
+
+        def current():
+            return (self._current_camera_catalog() is proof
+                    and self._find_api_action(API_ACTION_DOORBELL_PREVIEW) is action
+                    and tuple(getattr(context, name, None) for name in ("id", "user_id", "parent_id")) == context_key
+                    and registry.async_get_entity_id("notify", DOMAIN, f"{self.device_id}_display_notifications") == notify_entity
+                    and self._camera_preview_binding(slot, card_id, revision) == card)
+
+        self._manual_preview_busy = True
+        try:
+            if notify_entity is None or not await authorize_ha_context(self.hass, context, notify_entity) or not current():
+                return
+            if not await authorize_ha_context(self.hass, context, card["entity_id"]) or not current():
+                return
+            self._manual_preview_attempts = (attempts + [key])[-4:]
+            # All source/catalog checks are synchronous up to execute_service in
+            # this existing lower helper. No refresh branch is admitted here.
+            await self.async_request_camera_preview(card["entity_id"], card["action"]["duration_seconds"], uuid4().hex)
+        finally:
+            self._manual_preview_busy = False
+
+    async def async_doorbell_preview(
+        self, camera_entity_id: str, duration_seconds: int, event_id: str | None, context
+    ) -> dict[str, str]:
+        """Request a temporary Camera preview for an authorized catalog entry."""
+        if camera_entity_id not in self.camera_entity_ids:
+            raise HomeAssistantError("Camera is outside this display's allow-list")
+        notify_entity = er.async_get(self.hass).async_get_entity_id(
+            "notify", DOMAIN, f"{self.device_id}_display_notifications"
+        )
+        if (
+            notify_entity is None
+            or not await authorize_ha_context(self.hass, context, notify_entity)
+            or not await authorize_ha_context(self.hass, context, camera_entity_id)
+        ):
+            raise HomeAssistantError("Access to this display or camera was denied")
+
+        request_id = uuid4().hex if event_id is None else sha256(event_id.encode()).hexdigest()[:32]
+        notifications = getattr(self, "_notifications", None)
+        if notifications is not None and await notifications.has_doorbell(request_id):
+            return {"status": "duplicate"}
+        status = await self.async_request_camera_preview(camera_entity_id, duration_seconds, request_id)
+        if status == "busy" and notifications is not None and notifications.supports_actions():
+            status = await notifications.add_doorbell(camera_entity_id, duration_seconds, request_id)
+        return {"status": status}
+
+    async def async_request_camera_preview(
+        self,
+        camera_entity_id: str,
+        duration_seconds: int,
+        request_id: str,
+        *,
+        expires: float | None = None,
+    ) -> str:
+        """Send a preview for a camera already authorized by the caller."""
+        action = self._find_api_action(API_ACTION_DOORBELL_PREVIEW)
+        runtime = self.esphome_entry.runtime_data
+        epoch = self._connection_epoch
+        if self._closed or runtime is None or not runtime.available:
+            return "offline"
+        if action is None or action.supports_response != SupportsResponseType.ONLY:
+            return "unsupported"
+        state = self.hass.states.get(camera_entity_id)
+        if (
+            camera_entity_id not in self.camera_entity_ids
+            or state is None
+            or state.state in {"unavailable", "unknown"}
+        ):
+            return "source_unavailable"
+        source = next((item for item in self.sources if item.entity_id == camera_entity_id), None)
+        if source is None or not self.available:
+            if not await self.async_push_sources():
+                return "source_unavailable"
+            source = next((item for item in self.sources if item.entity_id == camera_entity_id), None)
+            if source is None:
+                return "source_unavailable"
+        if expires is not None and monotonic() >= expires:
+            return "expired"
+        if self._closed or epoch != self._connection_epoch or runtime is not self.esphome_entry.runtime_data:
+            return "offline"
+        if camera_entity_id not in self.camera_entity_ids:
+            return "source_unavailable"
+        try:
+            reply = await runtime.client.execute_service(
+                action,
+                {
+                    "source_key": source.key,
+                    "event_id": request_id,
+                    "duration_seconds": duration_seconds,
+                },
+                return_response=True,
+                timeout=8.0,
+            )
+            if (
+                reply is not None
+                and reply.success
+                and isinstance(reply.response_data, bytes)
+                and len(reply.response_data) <= 128
+            ):
+                data = json.loads(reply.response_data)
+                if isinstance(data, dict) and data.get("status") in (
+                    "opened", "busy", "duplicate", "source_unavailable", "invalid"
+                ):
+                    return data["status"]
+        except (APIConnectionError, TimeoutError, ValueError):
+            pass
+        return "unconfirmed"
 
     async def async_push_tiles(self, *, force: bool = False) -> bool:
         """Own in-flight tile work so unloading cannot resurrect its retries."""
@@ -737,7 +1152,25 @@ class CameraBridge:
                 self.hass, self.tile_cards, self.accent_color, self.device_locale,
                 light_control_supported=light.supported if light is not None else False,
                 number_control_supported=light.number_supported if light is not None else False,
+                choice_control_supported=getattr(light, "choice_supported", False),
+                cover_control_supported=getattr(light, "cover_supported", False),
+                fan_control_supported=getattr(light, "fan_supported", False),
+                humidifier_control_supported=getattr(light, "humidifier_supported", False),
+                robot_control_supported=getattr(light, "robot_supported", False),
+                panel_types=getattr(light, "panel_types", ()),
+                panel_extra_profiles=tuple(item["name"] for item in getattr(light, "panel_extra_profiles", ())),
+                info_agenda_supported=getattr(light, "info_agenda_version", 0) == 1,
+                info_statistics_supported=getattr(light, "info_statistics_version", 0) == 1,
+                action_parameters_supported=getattr(light, "action_parameters_version", 0) == 1,
+                light_detail_supported=getattr(light, "light_detail_supported", False),
+                climate_panel_supported=getattr(light, "climate_panel_supported", False),
+                cover_panel_supported=getattr(light, "cover_panel_supported", False),
+                thermostat_supported=getattr(light, "thermostat_supported", False),
                 press_enabled_supported=getattr(self, "_press_enabled_version", 0) == 1,
+                event_press_supported=self.event_press_supported,
+                camera_preview_entities=self.camera_preview_entities,
+                event_card_ids=getattr(self, "_tile_event_entities", {}),
+                slot_count=CAROUSEL_SLOT_COUNT if self.carousel_supported else SLOT_COUNT,
             )
             # Older v1 renderers ignore this optional metadata. It provides a
             # correlation point for a future native acknowledgement; successful
@@ -752,7 +1185,7 @@ class CameraBridge:
             if not force and payload == self._last_tile_payload and self.sent_revision == revision:
                 if self._native_context_required and self._context_press_version != 1:
                     await self._async_refresh_native_status()
-                return True
+                return await self._async_push_carousel(runtime_data, epoch, revision)
             if runtime_data is None or not runtime_data.available or action is None:
                 return False
             try:
@@ -770,7 +1203,7 @@ class CameraBridge:
                 force=self.accepted_revision != revision or self.snapshot_ready is not True
             )
             self._schedule_native_status_requery(revision, epoch)
-            return True
+            return await self._async_push_carousel(runtime_data, epoch, revision)
 
     async def _async_refresh_native_status(self, *, force: bool = False) -> None:
         """Negotiate only an explicitly response-capable native status action."""
@@ -822,7 +1255,8 @@ class CameraBridge:
                 return
             pending = status.get("pending_slots")
             if pending is not None and (
-                type(pending) is not int or not 0 <= pending < 2**16
+                type(pending) is not int
+                or not 0 <= pending < 2**(CAROUSEL_SLOT_COUNT if self.carousel_supported else SLOT_COUNT)
                 or ready != (pending == 0)
             ):
                 return
@@ -836,6 +1270,105 @@ class CameraBridge:
     @property
     def context_press_version(self) -> int:
         return self._context_press_version
+
+    @property
+    def press_enabled_version(self) -> int:
+        return getattr(self, "_press_enabled_version", 0)
+
+    @property
+    def event_press_supported(self) -> bool:
+        """Actual negotiated input contracts, separate from editor schema support."""
+        return bool(self.tile_device_available and getattr(self, "_context_press_version", 0) == 1
+                    and getattr(self, "_press_enabled_version", 0) == 1)
+
+    @callback
+    def register_tile_event(self, card_id: str, entity_id: str, accept: Callable) -> CALLBACK_TYPE | None:
+        """Register one live HA entity; the token prevents a stale remove/ABA."""
+        document = entry_layout(self.entry.options, self.entry.data)
+        if (self._closed or not callable(accept) or not isinstance(entity_id, str) or not entity_id.startswith("event.")
+                or not any(card["id"] == card_id and is_event_definition(card, visible_only=False)
+                           for card in document["cards"])
+                or (card_id not in self._tile_event_entities and len(self._tile_event_entities) >= MAX_EVENT_CARDS)):
+            return None
+        binding = (entity_id, object(), accept)
+        self._tile_event_entities[card_id] = binding
+        self._tile_event_binding_changed(card_id)
+        self.async_schedule_tile_push(delay=0)
+
+        @callback
+        def remove() -> None:
+            if self._tile_event_entities.get(card_id) == binding:
+                del self._tile_event_entities[card_id]
+                if not self._closed:
+                    self._tile_event_binding_changed(card_id)
+                    self.async_schedule_tile_push(delay=0)
+
+        return remove
+
+    def _tile_event_binding_changed(self, card_id):
+        """Reuse the existing listeners and close/refresh task for a registration ABA."""
+        self._replace_tile_subscription()
+        light = getattr(self, "_light_control", None)
+        if light is not None:
+            light.tile_event_binding_changed(card_id)
+
+    def _event_binding(self, slot, card_id, revision, *, panel=False):
+        if (self._closed or not (self.tile_device_available if panel else self.event_press_supported)
+                or type(slot) is not int or type(revision) is not int
+                or revision != self.saved_revision or self.sent_revision != revision):
+            return None
+        # A config entry can change before its hot-apply listener executes.
+        document = entry_layout(self.entry.options, self.entry.data)
+        if document["version"] != 3 or document["revision"] != revision:
+            return None
+        card = next((item for item in document["cards"] if item["id"] == card_id), None)
+        if not (is_event_panel(card) if panel else is_event_card(card)) or card["slot"] != slot:
+            return None
+        binding = self._tile_event_entities.get(card_id)
+        if binding is None:
+            return None
+        registered = er.async_get(self.hass).async_get(binding[0])
+        if (registered is None or registered.platform != DOMAIN or registered.device_id != self.device_id
+                or registered.unique_id != event_unique_id(self.device_id, card_id)
+                or registered.disabled_by is not None):
+            return None
+        return binding
+
+    def resolve_tile_event_panel(self, slot, card_id, revision):
+        return self._event_binding(slot, card_id, revision, panel=True)
+
+    def _fire_tile_event(self, slot, card_id, revision, binding, context, *, panel=False):
+        """Final synchronous registration/registry/layout check shared by both routes."""
+        if self._event_binding(slot, card_id, revision, panel=panel) != binding:
+            return False
+        payload = {"entry_id": self.entry.entry_id, "device_id": self.device_id,
+                   "card_id": card_id, "slot": slot, "revision": revision, "type": EVENT_TYPE_PRESS}
+        if binding[2](payload, context) is not True:
+            return False
+        self.hass.bus.async_fire(EVENT_TILE_PRESS, payload, context=context)
+        return True
+
+    def dispatch_tile_event_panel(self, slot, card_id, revision, binding, context):
+        return self._fire_tile_event(slot, card_id, revision, binding, context, panel=True)
+
+    async def _async_press_event(self, slot, card_id, revision, context) -> None:
+        """One authorization in flight, no queue, and a fresh fence before fire."""
+        if self._event_dispatch_busy or not (binding := self._event_binding(slot, card_id, revision)):
+            return
+        runtime = self.esphome_entry.runtime_data
+        client = runtime.client
+        self._event_dispatch_busy = True
+        try:
+            if not await authorize_ha_context(self.hass, context, binding[0]):
+                return
+            if (self.esphome_entry.runtime_data is not runtime or runtime.client is not client
+                    or self._event_binding(slot, card_id, revision) != binding):
+                return
+            # The entity consumes this trusted callback, never the public bus.
+            # Firing a same-name event through HA cannot forge an entity press.
+            self._fire_tile_event(slot, card_id, revision, binding, context)
+        finally:
+            self._event_dispatch_busy = False
 
     def light_control_status(self) -> dict:
         light = getattr(self, "_light_control", None)
@@ -865,6 +1398,20 @@ class CameraBridge:
             or revision != self.saved_revision
         ):
             return
+        if card.get("action", {}).get("kind") == "camera_preview":
+            await self._async_press_camera_preview(slot, card_id, revision, context)
+            return
+        if is_event_card(card, visible_only=False):
+            await self._async_press_event(slot, card_id, revision, context)
+            return
+        if card.get("action") == {"kind": "fan_oscillation"} and (
+            card_id is None or getattr(self, "_press_enabled_version", 0) != 1
+        ):
+            return
+        if card.get("entity_id", "").startswith("humidifier.") and (
+            card_id is None or getattr(self, "_press_enabled_version", 0) != 1
+        ):
+            return
         action = resolve_action(self.hass, card)
         if action is None:
             _LOGGER.debug("Tile %u has no executable action", slot)
@@ -881,6 +1428,8 @@ class CameraBridge:
         self, title: str, message: str, icon: str, duration_ms: int
     ) -> None:
         """Present a notification through the native ESPHome API session."""
+        if notifications := getattr(self, "_notifications", None):
+            await notifications.add(title, message)
         runtime_data = self.esphome_entry.runtime_data
         action = self._find_api_action(API_ACTION_SHOW_NOTIFICATION)
         if runtime_data is None or not runtime_data.available or action is None:

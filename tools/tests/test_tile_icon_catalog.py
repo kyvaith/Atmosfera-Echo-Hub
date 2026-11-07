@@ -68,7 +68,7 @@ def object_index(node, result=None):
 
 def glyphs(font):
     value = font.get("glyphs", [])
-    return set(value if isinstance(value, str) else "".join(value))
+    return set(value if isinstance(value, str) else "".join(value)) | {ch for extra in font.get("extras", []) for ch in "".join(extra["glyphs"])}
 
 
 def missing_icons(icons, fonts):
@@ -96,9 +96,9 @@ class TileIconCatalogTest(unittest.TestCase):
     def test_registered_icon_labels_resolve_to_the_shared_material_fonts(self):
         # Include hidden sensor/clock labels and reserved bindings: copies may
         # place any accepted catalogue icon into another editable physical slot.
-        self.assertEqual({item["slot"] for item in self.bindings}, set(range(16)))
-        self.assertEqual(len(self.bindings), 16)
-        self.assertEqual(len({item["icon_label"] for item in self.bindings}), 16)
+        self.assertEqual({item["slot"] for item in self.bindings}, set(range(32)))
+        self.assertEqual(len(self.bindings), 32)
+        self.assertEqual(len({item["icon_label"] for item in self.bindings}), 32)
         self.assertEqual(
             self.used_fonts,
             {"material_symbols_36", "material_symbols_44", "material_symbols_68"},
@@ -160,6 +160,10 @@ class TileIconCatalogTest(unittest.TestCase):
             line_height = face.size.height // 64
             for key, character in self.icons.items():
                 with self.subTest(font=font_id, icon=key):
+                    selected = next((item for item in font.get("extras", []) if character in "".join(item["glyphs"])), None)
+                    face = freetype.Face(str(ROOT / selected["file"])) if selected else freetype.Face(str(path))
+                    face.set_pixel_sizes(0, font["size"])
+                    line_height = face.size.height // 64
                     self.assertNotEqual(face.get_char_index(ord(character)), 0)
                     face.load_char(character)
                     self.assertGreater(face.glyph.bitmap.width, 0)

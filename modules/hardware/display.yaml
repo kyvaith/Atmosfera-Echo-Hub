@@ -43,6 +43,7 @@ display:
   lane_bit_rate: 1.5Gbps
   use_dma2d: true
   async_lvgl_flush: true
+  memory_fault_diagnostics: true
   hsync_back_porch: 40
   hsync_pulse_width: 6
   hsync_front_porch: 120

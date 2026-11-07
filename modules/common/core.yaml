@@ -4,6 +4,8 @@
 # Diagnostic builds can explicitly select UART capture with a matching ELF.
 esp32:
   framework:
+    advanced:
+      enable_fast_heap_query: true
     sdkconfig_options:
       CONFIG_ESP_COREDUMP_ENABLE_TO_NONE: "y"
       CONFIG_ESP_COREDUMP_ENABLE_TO_UART: "n"
@@ -14,6 +16,7 @@ esphome:
   min_version: ${esphome_min_version}
   includes:
     - <esp_app_desc.h>
+    - <esp_heap_caps.h>
   # Keep this integration worktree isolated from the production checkout.
   build_path: ${firmware_build_path}
   project:
@@ -114,213 +117,225 @@ esphome:
       - -DCONFIG_ESPHOME_LVGL_PPA_SRM_WRITE_PRIORITY=0
       - -DCONFIG_ESPHOME_LVGL_PPA_SRM_READ_PRIORITY=0
   on_boot:
-    priority: 600
-    then:
-    - micro_wake_word.stop:
-    - script.stop: ui_play_va_error_sound
-    - output.turn_off: backlight_output
-    - light.turn_off:
-        id: display_backlight
-    - lambda: |-
-        id(album_art_background).set_sendspin_paused(true);
-        id(boot_audio_ready) = false;
-    - lvgl.page.show:
-        id: controls_page
-    - delay: 250ms
-    # Reserve the full Lottie frame cache while PSRAM is still contiguous.
-    # Tile snapshots are deliberately built afterwards; doing this in the
-    # opposite order fragmented the largest block and forced live vector
-    # rendering during the visible splash animation.
-    - script.execute: boot_show_esphome_animation
-    - wait_until:
-        condition:
-          lambda: |-
-            if (id(boot_esphome_animation) == nullptr) return true;
-            auto *ctx = static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(id(boot_esphome_animation)));
-            return esphome::lvgl::lottie_is_ready(ctx);
-        timeout: 4s
-    # Apply persisted UI state while the panel is still dark. Performing these
-    # label/style updates during the splash-to-home hand-off can starve DSI.
-    - script.execute: ui_apply_settings_state
-    - script.wait: ui_apply_settings_state
-    - lambda: |-
-        // Keep app6 state changes synchronous before its first preview render.
-        for (auto *button : {id(light_control_on_button), id(light_control_off_button)}) {
-          lv_obj_remove_theme(button, LV_PART_MAIN | LV_STATE_DEFAULT);
-          lv_obj_remove_theme(button, LV_PART_MAIN | LV_STATE_PRESSED);
-        }
-    # Preserve large contiguous blocks for the raw home-page cache first. The
-    # encoded artwork buffers are then reserved once, while the panel is still
-    # dark, and reused for every Music Assistant/Immich image.
-    - lambda: |-
-        const bool player_reserved = id(album_art_background).reserve_download_buffer();
-        const bool immich_a_reserved = id(immich_photo_image).reserve_download_buffer();
-        const bool immich_a_http = id(immich_photo_image).reserve_local_http_client(id(immich_url).state);
-        ESP_LOGW("boot.diag", "JPEG input buffers reserved player=%d immich=%d http=%d psram=%uK/%uK",
-                 player_reserved, immich_a_reserved, immich_a_http,
-                 (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
-                 (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
-    # Wi-Fi scan/association briefly consumes enough memory bandwidth to make
-    # an otherwise fast Lottie frame miss its visible cadence. Keep the panel
-    # dark until association has settled, with a bounded offline fallback.
-    - wait_until:
-        condition:
-          lambda: |-
-            return esphome::wifi::global_wifi_component != nullptr &&
-                   esphome::wifi::global_wifi_component->is_connected();
-        timeout: 6s
-    - delay: 300ms
-    - lambda: |-
-        lvgl_esphome_snapshot_dsi_quiet_ms(450);
-    - output.turn_off: backlight_output
-    - light.turn_off:
-        id: display_backlight
-    - lambda: |-
-        ESP_LOGW("boot.diag",
-                 "boot lottie prepared internal=%uK/%uK psram=%uK/%uK",
-                 (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
-                 (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
-                 (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
-                 (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
-        lvgl_esphome_snapshot_dsi_quiet_ms(450);
-    - output.ledc.set_next_fade_duration:
-        id: backlight_output
-        duration: 2400ms
-    - light.turn_on:
-        id: display_backlight
-        brightness: !lambda |-
-          const float b = id(settings_display_brightness).state;
-          return (b < 28.0f ? 28.0f : b) / 100.0f;
-        transition_length: 0ms
-    - delay: 2600ms
-    # Audio initialization is complete by this point. Enable the amplifier
-    # before the final splash phase so the chime can accompany the wordmark
-    # without exposing codec/PA startup noise.
-    - lambda: |-
-        lvgl_esphome_snapshot_dsi_quiet_ms(450);
-        lvgl_esphome_dsi_mark_stress("boot-pa-enable", 500);
-    - switch.turn_on: pa_enable
-    - delay: 240ms
-    - media_player.unmute: local_music_player
-    - media_player.volume_set:
-        id: local_music_player
-        volume: 50%
-    - lambda: |-
-        lvgl_esphome_snapshot_dsi_quiet_ms(240);
-        lvgl_esphome_dsi_mark_stress("boot-boot-sound", 6000);
-    - script.execute: boot_start_esphome_animation
-    - script.wait: boot_reveal_esphome_wordmark
-    # The wordmark and chime are now complete. Fade the panel fully to black
-    # before changing the overlay ownership. Snapshotting while the boot
-    # overlay was still present allowed a scanout fragment of the splash to
-    # become the first Home transition frame.
-    - output.ledc.set_next_fade_duration:
-        id: backlight_output
-        duration: 700ms
-    - light.turn_off:
-        id: display_backlight
-        transition_length: 0ms
-    - delay: 730ms
-    - lambda: |-
-        ESP_LOGW("boot.diag",
-                 "boot transition: hide animation internal=%uK/%uK psram=%uK/%uK",
-                 (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
-                 (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
-                 (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
-                 (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
-        lvgl_esphome_dsi_mark_stress("boot-hide-overlay", 700);
-    - script.execute: boot_hide_esphome_animation
-    - script.wait: boot_hide_esphome_animation
-    - script.execute: boot_finish_esphome_overlay
-    - script.wait: boot_finish_esphome_overlay
-    # Stop and hide the splash before any cache/layout work. The panel is
-    # already dark, so this does not change the visible sequence, but it keeps
-    # the boot Lottie from competing with snapshot encoding and prevents its
-    # last direct frame from leaking into Home.
-    # Each unsuccessful attempt returns its own pause lease. Continue only
-    # after the barrier succeeds; retain that one lease for the final handoff.
-    # No timeout: expiration would let wait_until continue without ownership.
-    - wait_until:
-        condition:
-          lambda: |-
-            if (lvgl_esphome_direct_regions_pause(true, 500)) return true;
-            lvgl_esphome_direct_regions_pause(false, 0);
-            ESP_LOGW("boot.diag", "waiting for direct-region drain before first Home refresh");
-            return false;
-    - lambda: |-
-        lvgl_esphome_snapshot_dsi_quiet_ms(180);
-        // Force one ordinary LVGL refresh after the splash is gone so both
-        // display buffers contain the covered Home tree, not a stale boot
-        // fragment.
-        lv_refr_now(nullptr);
-    # Build the application and Home caches only after the splash worker and
-    # its overlay have been fully stopped.
-    - script.execute: ui_build_tile_snapshots_now
-    - script.wait: ui_build_tile_snapshots_now
-    - script.execute: ui_finish_boot_tile_snapshot_cache
-    - script.wait: ui_finish_boot_tile_snapshot_cache
-    - lambda: |-
-        lvgl_esphome_dsi_mark_stress("boot-show-home-apply", 1500);
-    - script.execute: ui_show_home_content_after_boot
-    - script.wait: ui_show_home_content_after_boot
-    - lambda: |-
-        // Keep the boot-wide region lease held while the final Home frame is
-        // seeded into both LVGL/DSI buffers. Releasing first allowed a queued
-        // weather frame to race this handoff and occasionally left the next
-        // application transition with the pressed tile in front.
-        lvgl_esphome_snapshot_dsi_quiet_ms(450);
-        ESP_LOGW("boot.diag",
-                 "boot transition: controls shown internal=%uK/%uK psram=%uK/%uK",
-                 (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
-                 (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
-                 (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
-                 (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
-    - lambda: |-
-        lv_refr_now(nullptr);
-        // The handoff adopts this single boot pause on every exit. It stamps
-        // the seeded pool before resuming, so the first weather update does
-        // not copy the same full-screen base again.
-        if (!lvgl_esphome_direct_handoff_to_lvgl_and_resume(120)) {
-          ESP_LOGW("boot.diag", "home framebuffer handoff could not complete coherent resume");
-        }
-        lvgl_esphome_snapshot_dsi_quiet_ms(450);
-    - output.ledc.set_next_fade_duration:
-        id: backlight_output
-        duration: 900ms
-    - light.turn_on:
-        id: display_backlight
-        brightness: !lambda |-
-          const float b = id(settings_display_brightness).state;
-          return (b < 28.0f ? 28.0f : b) / 100.0f;
-        transition_length: 0ms
-    - delay: 930ms
-    - lambda: |-
-        lvgl_esphome_dsi_mark_stress("boot-done-flag", 600);
-    - globals.set:
-        id: boot_sequence_done
-        value: 'true'
-    - lambda: |-
-        // A backend can report the first connection error while its socket
-        // is still settling. Do not let that delayed error chime overlap the
-        // boot chime or the final black-to-Home handoff.
-        id(boot_error_sound_allowed_after_ms) = millis() + 5000U;
-    - script.execute: home_weather_refresh
-    # The weather presenter is deliberately armed only after the boot overlay
-    # and the first Home snapshot are on screen. Otherwise its one-shot Lottie
-    # can finish underneath the splash and only the retained last frame leaks
-    # into the first visible Home frame.
-    - lvgl_material.weather.resume:
-        id: home_weather_presenter
-        value: 'true'
-    - lambda: |-
-        id(display_last_interaction_ms) = millis();
-        lv_display_trigger_activity(nullptr);
-    - script.execute: voice_assistant_start_idle_wake_word
-    - lambda: |-
-        ESP_LOGW("boot.diag", "boot transition: done");
-    - globals.set:
-        id: boot_audio_ready
-        value: 'true'
+    # Run before JPEG/bus setup (1000) and LVGL/widget setup (400/395).
+    - priority: 1001
+      then:
+        - lambda: |-
+            heap_caps_set_fast_largest_free_block(true);
+    - priority: 600
+      then:
+      - micro_wake_word.stop:
+      - script.stop: ui_play_va_error_sound
+      - output.turn_off: backlight_output
+      - light.turn_off:
+          id: display_backlight
+      - lambda: |-
+          id(album_art_background).set_sendspin_paused(true);
+          id(boot_audio_ready) = false;
+          id(board_speaker).add_audio_output_callback([](uint32_t frames, int64_t) {
+            id(speaker_output_frames).fetch_add(frames, std::memory_order_relaxed);
+          });
+      - lvgl.page.show:
+          id: controls_page
+      - delay: 250ms
+      # Reserve the full Lottie frame cache while PSRAM is still contiguous.
+      # Tile snapshots are deliberately built afterwards; doing this in the
+      # opposite order fragmented the largest block and forced live vector
+      # rendering during the visible splash animation.
+      - script.execute: boot_show_esphome_animation
+      - wait_until:
+          condition:
+            lambda: |-
+              if (id(boot_esphome_animation) == nullptr) return true;
+              auto *ctx = static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(id(boot_esphome_animation)));
+              return esphome::lvgl::lottie_is_ready(ctx);
+          timeout: 4s
+      # Apply persisted UI state while the panel is still dark. Performing these
+      # label/style updates during the splash-to-home hand-off can starve DSI.
+      - script.execute: ui_apply_settings_state
+      - script.wait: ui_apply_settings_state
+      - lambda: |-
+          // Keep app6 state changes synchronous before its first preview render.
+          for (auto *button : {id(light_control_on_button), id(light_control_off_button)}) {
+            lv_obj_remove_theme(button, LV_PART_MAIN | LV_STATE_DEFAULT);
+            lv_obj_remove_theme(button, LV_PART_MAIN | LV_STATE_PRESSED);
+          }
+      # Preserve large contiguous blocks for the raw home-page cache first. The
+      # encoded artwork buffers are then reserved once, while the panel is still
+      # dark, and reused for every Music Assistant/Immich image.
+      - lambda: |-
+          const bool player_reserved = id(album_art_background).reserve_download_buffer();
+          const bool immich_a_reserved = id(immich_photo_image).reserve_download_buffer();
+          const bool immich_a_http = id(immich_photo_image).reserve_local_http_client(id(immich_url).state);
+          ESP_LOGW("boot.diag", "JPEG input buffers reserved player=%d immich=%d http=%d psram=%uK/%uK",
+                   player_reserved, immich_a_reserved, immich_a_http,
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+                   (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
+      # Wi-Fi scan/association briefly consumes enough memory bandwidth to make
+      # an otherwise fast Lottie frame miss its visible cadence. Keep the panel
+      # dark until association has settled, with a bounded offline fallback.
+      - wait_until:
+          condition:
+            lambda: |-
+              return esphome::wifi::global_wifi_component != nullptr &&
+                     esphome::wifi::global_wifi_component->is_connected();
+          timeout: 6s
+      - delay: 300ms
+      - lambda: |-
+          lvgl_esphome_snapshot_dsi_quiet_ms(450);
+      - output.turn_off: backlight_output
+      - light.turn_off:
+          id: display_backlight
+      - lambda: |-
+          ESP_LOGW("boot.diag",
+                   "boot lottie prepared internal=%uK/%uK psram=%uK/%uK",
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+                   (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+                   (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
+          lvgl_esphome_snapshot_dsi_quiet_ms(450);
+      - output.ledc.set_next_fade_duration:
+          id: backlight_output
+          duration: 2400ms
+      - light.turn_on:
+          id: display_backlight
+          brightness: !lambda |-
+            const float b = id(settings_display_brightness).state;
+            return (b < 28.0f ? 28.0f : b) / 100.0f;
+          transition_length: 0ms
+      - delay: 2600ms
+      - wait_until:
+          condition:
+            lambda: 'return id(audio_stack).is_audio_prepared();'
+          timeout: 2s
+      # Audio initialization is complete by this point. Enable the amplifier
+      # before the final splash phase so the chime can accompany the wordmark
+      # without exposing codec/PA startup noise.
+      - lambda: |-
+          lvgl_esphome_snapshot_dsi_quiet_ms(450);
+          lvgl_esphome_dsi_mark_stress("boot-pa-enable", 500);
+      - switch.turn_on: pa_enable
+      - delay: 240ms
+      - media_player.unmute: local_music_player
+      - media_player.volume_set:
+          id: local_music_player
+          volume: 50%
+      - lambda: |-
+          lvgl_esphome_snapshot_dsi_quiet_ms(240);
+          lvgl_esphome_dsi_mark_stress("boot-boot-sound", 6000);
+      - script.execute: boot_start_esphome_animation
+      - script.wait: boot_reveal_esphome_wordmark
+      # The wordmark and chime are now complete. Fade the panel fully to black
+      # before changing the overlay ownership. Snapshotting while the boot
+      # overlay was still present allowed a scanout fragment of the splash to
+      # become the first Home transition frame.
+      - output.ledc.set_next_fade_duration:
+          id: backlight_output
+          duration: 700ms
+      - light.turn_off:
+          id: display_backlight
+          transition_length: 0ms
+      - delay: 730ms
+      - lambda: |-
+          ESP_LOGW("boot.diag",
+                   "boot transition: hide animation internal=%uK/%uK psram=%uK/%uK",
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+                   (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+                   (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
+          lvgl_esphome_dsi_mark_stress("boot-hide-overlay", 700);
+      - script.execute: boot_hide_esphome_animation
+      - script.wait: boot_hide_esphome_animation
+      - script.execute: boot_finish_esphome_overlay
+      - script.wait: boot_finish_esphome_overlay
+      # Stop and hide the splash before any cache/layout work. The panel is
+      # already dark, so this does not change the visible sequence, but it keeps
+      # the boot Lottie from competing with snapshot encoding and prevents its
+      # last direct frame from leaking into Home.
+      # Each unsuccessful attempt returns its own pause lease. Continue only
+      # after the barrier succeeds; retain that one lease for the final handoff.
+      # No timeout: expiration would let wait_until continue without ownership.
+      - wait_until:
+          condition:
+            lambda: |-
+              if (lvgl_esphome_direct_regions_pause(true, 500)) return true;
+              lvgl_esphome_direct_regions_pause(false, 0);
+              ESP_LOGW("boot.diag", "waiting for direct-region drain before first Home refresh");
+              return false;
+      - lambda: |-
+          lvgl_esphome_snapshot_dsi_quiet_ms(180);
+          // Force one ordinary LVGL refresh after the splash is gone so both
+          // display buffers contain the covered Home tree, not a stale boot
+          // fragment.
+          lv_refr_now(nullptr);
+      # Build the application and Home caches only after the splash worker and
+      # its overlay have been fully stopped.
+      - script.execute: ui_build_tile_snapshots_now
+      - script.wait: ui_build_tile_snapshots_now
+      - script.execute: ui_finish_boot_tile_snapshot_cache
+      - script.wait: ui_finish_boot_tile_snapshot_cache
+      - lambda: |-
+          lvgl_esphome_dsi_mark_stress("boot-show-home-apply", 1500);
+      - script.execute: ui_show_home_content_after_boot
+      - script.wait: ui_show_home_content_after_boot
+      - lambda: |-
+          // Keep the boot-wide region lease held while the final Home frame is
+          // seeded into both LVGL/DSI buffers. Releasing first allowed a queued
+          // weather frame to race this handoff and occasionally left the next
+          // application transition with the pressed tile in front.
+          lvgl_esphome_snapshot_dsi_quiet_ms(450);
+          ESP_LOGW("boot.diag",
+                   "boot transition: controls shown internal=%uK/%uK psram=%uK/%uK",
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_INTERNAL) / 1024),
+                   (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL) / 1024),
+                   (unsigned) (heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024),
+                   (unsigned) (heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM) / 1024));
+      - lambda: |-
+          lv_refr_now(nullptr);
+          // The handoff adopts this single boot pause on every exit. It stamps
+          // the seeded pool before resuming, so the first weather update does
+          // not copy the same full-screen base again.
+          if (!lvgl_esphome_direct_handoff_to_lvgl_and_resume(120)) {
+            ESP_LOGW("boot.diag", "home framebuffer handoff could not complete coherent resume");
+          }
+          lvgl_esphome_snapshot_dsi_quiet_ms(450);
+      - output.ledc.set_next_fade_duration:
+          id: backlight_output
+          duration: 900ms
+      - light.turn_on:
+          id: display_backlight
+          brightness: !lambda |-
+            const float b = id(settings_display_brightness).state;
+            return (b < 28.0f ? 28.0f : b) / 100.0f;
+          transition_length: 0ms
+      - delay: 930ms
+      - lambda: |-
+          lvgl_esphome_dsi_mark_stress("boot-done-flag", 600);
+      - globals.set:
+          id: boot_sequence_done
+          value: 'true'
+      - lambda: |-
+          // A backend can report the first connection error while its socket
+          // is still settling. Do not let that delayed error chime overlap the
+          // boot chime or the final black-to-Home handoff.
+          id(boot_error_sound_allowed_after_ms) = millis() + 5000U;
+      - script.execute: home_weather_refresh
+      # The weather presenter is deliberately armed only after the boot overlay
+      # and the first Home snapshot are on screen. Otherwise its one-shot Lottie
+      # can finish underneath the splash and only the retained last frame leaks
+      # into the first visible Home frame.
+      - lvgl_material.weather.resume:
+          id: home_weather_presenter
+          value: 'true'
+      - lambda: |-
+          id(display_last_interaction_ms) = millis();
+          lv_display_trigger_activity(nullptr);
+      - script.execute: voice_assistant_start_idle_wake_word
+      - lambda: |-
+          ESP_LOGW("boot.diag", "boot transition: done");
+      - globals.set:
+          id: boot_audio_ready
+          value: 'true'
 
 ota:
 - platform: esphome
@@ -378,6 +393,55 @@ api:
               id(ui_managed_tile_refresh_pending_mask) |= changed;
               id(ui_refresh_managed_tile_snapshots).execute();
             }
+    - action: notification_get_status
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda 'root["payload"] = id(notification_center).status_json();'
+    - action: notification_sync
+      variables:
+        payload: string
+      then:
+        - lvgl_material.notifications.sync:
+            id: notification_center
+            payload: !lambda 'return payload;'
+    - action: notification_sync_v2
+      variables:
+        payload: string
+      then:
+        - lvgl_material.notifications.sync:
+            id: notification_center
+            payload: !lambda 'return payload;'
+    - action: notification_sync_v3
+      variables:
+        payload: string
+      then:
+        - lvgl_material.notifications.sync:
+            id: notification_center
+            payload: !lambda 'return payload;'
+    - action: notification_show_passive
+      variables:
+        title: string
+        message: string
+      then:
+        - if:
+            condition:
+              lambda: |-
+                return id(boot_sequence_done) && !id(ui_snapshot_io_busy) && !id(ui_touch_active) &&
+                       !id(ui_navigation).is_transition_active() &&
+                       !lv_obj_is_visible(id(voice_assistant_overlay)) &&
+                       !id(ui_light_preparation_owned) &&
+                       !id(selected_light_control).owner().has_selection() &&
+                       !id(selected_light_control).owner().is_open_pending() &&
+                       !id(ui_open_selected_light).is_running() &&
+                       !id(global_volume_renderer).is_active();
+            then:
+              - lvgl_material.notification.show:
+                  id: material_notification_overlay
+                  title: !lambda 'return title;'
+                  message: !lambda 'return message;'
+                  icon: "\uE7F4"
+                  duration: 6000
     - action: notification_show
       variables:
         title: string
@@ -417,6 +481,16 @@ api:
     - action: debug_restart
       then:
         - lambda: 'App.safe_reboot();'
+    - action: debug_audio_output
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda |-
+              root["tx_frames"] = id(speaker_output_frames).load(std::memory_order_relaxed);
+              root["amplifier_enabled"] = id(pa_enable).state;
+              root["muted"] = id(board_speaker).get_mute_state();
+              root["volume"] = id(board_speaker).get_volume();
+              root["wake_word_detecting"] = id(wake_word_engine).is_detecting();
     - action: debug_test_long_title
       then:
         - lambda: |-
@@ -471,20 +545,96 @@ api:
             lvgl_esphome_set_swipe_logging_enabled(id(settings_swipe_logs_switch).state);
         - script.execute: ui_apply_tile_positions
         - script.execute: ui_refresh_tile_snapshots
+    - action: home_carousel_get
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda |-
+              auto &navigation = *id(ui_navigation);
+              std::string order;
+              for (size_t i = 0; i < navigation.home_route_size(); ++i)
+                order += static_cast<char>('0' + navigation.home_view_id(i));
+              root["order"] = order;
+              root["current"] = id(ui_home_page);
+              root["max_pages"] = 5;
+              root["max_slots"] = 32;
+              root["psram_free"] = heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+              root["psram_largest"] = heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM);
+              root["internal_free"] = heap_caps_get_free_size(MALLOC_CAP_INTERNAL);
+    - action: home_carousel_set
+      supports_response: only
+      variables:
+        order: string
+      then:
+        - api.respond:
+            data: !lambda |-
+              uint8_t views[5];
+              if (order.size() < 2 || order.size() > sizeof(views) || order[0] != '1' ||
+                  order.find('3') == std::string::npos) {
+                root["status"] = "invalid";
+                return;
+              }
+              uint8_t seen = 0;
+              for (size_t i = 0; i < order.size(); ++i) {
+                const int value = order[i] - '0';
+                if (value < 1 || value > 5 || (seen & (1U << value))) {
+                  root["status"] = "invalid";
+                  return;
+                }
+                seen |= 1U << value;
+                views[i] = value;
+              }
+              auto &navigation = *id(ui_navigation);
+              bool current = order.size() == navigation.home_route_size();
+              for (size_t i = 0; current && i < order.size(); ++i)
+                current = views[i] == navigation.home_view_id(i);
+              if (current) {
+                root["status"] = "applied";
+                return;
+              }
+              if (!id(boot_sequence_done) || id(ui_snapshot_io_busy) || id(ui_touch_active) ||
+                  id(notification_center).owns_scene() || !navigation.is_idle_home()) {
+                root["status"] = "busy";
+                return;
+              }
+              const bool drained = lvgl_esphome_direct_regions_pause(true, 150);
+              const bool changed = drained && navigation.replace_home_route(views, order.size());
+              if (changed) {
+                const bool show_more = navigation.home_route_index(4) >= 0;
+                auto *shortcut = id(tile_subpage_button);
+                if (lv_obj_has_flag(shortcut, LV_OBJ_FLAG_HIDDEN) == show_more) {
+                  if (show_more)
+                    lv_obj_remove_flag(shortcut, LV_OBJ_FLAG_HIDDEN);
+                  else
+                    lv_obj_add_flag(shortcut, LV_OBJ_FLAG_HIDDEN);
+                  auto *apps = id(controls_root_3);
+                  const int width = lv_display_get_horizontal_resolution(lv_obj_get_display(apps));
+                  if (!lvgl_esphome_snapshot_refresh_tile_backing(apps, width))
+                    lvgl_esphome_snapshot_invalidate_tile_page(apps, width);
+                }
+              }
+              lvgl_esphome_direct_regions_pause(false, 0);
+              if (changed) {
+                id(ui_tile_snapshots_ready) = false;
+                id(ui_tile_snapshot_prepared_page) = 0;
+                id(ui_refresh_tile_snapshots).execute();
+              }
+              root["status"] = changed ? "applied" : "busy";
     - action: debug_navigation_home
       variables:
         page: int
       then:
         - lambda: |-
-            int index = page - 1;
-            if (index < 0) index = 0;
-            if (index > 3) index = 3;
-            id(ui_navigation).show_home();
-            id(ui_navigation).activate_home_view(index);
-            id(ui_page) = index + 1;
-            id(ui_home_page) = index + 1;
-            id(home_weather_presenter).resume_after_navigation(index == 0);
+            auto &navigation = *id(ui_navigation);
+            const int index = page >= 1 && page <= 5 ? navigation.home_route_index(page) : -1;
+            if (index < 0) return;
+            navigation.show_home();
+            navigation.activate_home_view(index);
+            id(ui_page) = page;
+            id(ui_home_page) = page;
+            id(home_weather_presenter).resume_after_navigation(page == 1);
         - script.execute: ui_apply_tile_positions
+        - script.execute: ui_refresh_tile_snapshots
     - action: debug_navigation_touch
       variables:
         phase: int
@@ -637,6 +787,37 @@ api:
     - action: debug_task_profile
       then:
         - task_runtime_profiler.log: runtime_profiler
+    - action: debug_lvgl_profile
+      variables:
+        enabled: bool
+      then:
+        - lambda: |-
+            if (!enabled) lvgl_esphome_profiler_flush();
+            lvgl_esphome_set_profiler_enabled(enabled);
+    - action: debug_notification_frame_trace
+      variables:
+        enabled: bool
+      then:
+        - lambda: |-
+            id(notification_center).set_frame_profile(enabled);
+            if (enabled) id(ui_lvgl).reset_direct_frame_trace();
+            else id(ui_lvgl).log_direct_frame_trace("notifications");
+    - action: debug_notification_row_cache
+      variables:
+        enabled: bool
+      then:
+        - lambda: |-
+            #ifdef USE_LVGL_MATERIAL_NOTIFICATION_ROW_CACHE
+            id(notification_center).set_row_snapshot_cache(enabled);
+            #endif
+    - action: debug_notification_cache_bands
+      variables:
+        bands: int
+      then:
+        - lambda: |-
+            #ifdef USE_LVGL_MATERIAL_NOTIFICATION_ROW_CACHE
+            if (bands >= 1 && bands <= 8) id(notification_center).set_row_cache_band_count(bands);
+            #endif
     - action: debug_log_memory
       variables:
         phase: string
@@ -947,6 +1128,27 @@ api:
         - network_camera.select:
             id: camera_stream_image
             index: !lambda 'return static_cast<uint16_t>(index < 0 ? 0 : index);'
+    - action: camera_set_sources_v2
+      supports_response: only
+      variables:
+        payload: string
+      then:
+        - api.respond:
+            data: !lambda |-
+              root["accepted"] = id(camera_doorbell_preview).apply_catalog(payload);
+    - action: camera_doorbell_preview_v1
+      supports_response: only
+      variables:
+        source_key: string
+        event_id: string
+        duration_seconds: int
+      then:
+        - api.respond:
+            data: !lambda |-
+              if (!id(boot_sequence_done) || id(ui_snapshot_io_busy))
+                root["status"] = "busy";
+              else
+                root["status"] = id(camera_doorbell_preview).open(source_key, event_id, duration_seconds);
     - action: debug_next_camera
       then:
         - network_camera.next: camera_stream_image

@@ -1,0 +1,593 @@
+# One fixed humidity view in the shared entity-control application.
+# The native owner handles target preview, release, mode and power commands.
+id: humidifier_control_root
+x: 0
+y: 0
+width: 800
+height: 800
+bg_color: 0x000000
+bg_opa: COVER
+border_width: 0
+pad_all: 0
+radius: 0
+hidden: true
+clickable: false
+scrollable: false
+widgets:
+  - label:
+      id: humidifier_control_kind
+      x: 200
+      y: 68
+      width: 400
+      height: 28
+      text: !lambda 'return std::string(id(ui_i18n).translate("humidifier_control.humidity"));'
+      text_font: roboto_20
+      text_color: 0xC4C7C5
+      text_align: CENTER
+      long_mode: DOT
+      clickable: false
+  - label:
+      id: humidifier_control_title
+      x: 130
+      y: 104
+      width: 540
+      height: 42
+      text: ""
+      text_font: roboto_30
+      text_color: 0xF2F2F2
+      text_align: CENTER
+      long_mode: DOT
+      clickable: false
+  - svg_icon:
+      id: humidifier_control_icon
+      file: assets/icons/humidity.svg
+      x: 352
+      y: 156
+      width: 96
+      height: 96
+      text_color: 0xD3E3FD
+      clickable: false
+  - label:
+      id: humidifier_control_target
+      x: 150
+      y: 260
+      width: 500
+      height: 64
+      text: "--"
+      text_font: wear_title_53
+      text_color: 0xF2F2F2
+      text_align: CENTER
+      long_mode: DOT
+      clickable: false
+  - label:
+      id: humidifier_control_current
+      x: 170
+      y: 326
+      width: 460
+      height: 28
+      text: ""
+      text_font: roboto_24
+      text_color: 0xC4C7C5
+      text_align: CENTER
+      long_mode: DOT
+      clickable: false
+  - label:
+      id: humidifier_control_state
+      x: 200
+      y: 358
+      width: 400
+      height: 28
+      text: ""
+      text_font: roboto_20
+      text_color: 0xC4C7C5
+      text_align: CENTER
+      long_mode: DOT
+      clickable: false
+  - obj:
+      id: humidifier_control_track
+      x: 146
+      y: 394
+      width: 508
+      height: 72
+      bg_opa: TRANSP
+      border_width: 0
+      pad_all: 0
+      radius: 0
+      clickable: true
+      scrollable: false
+      widgets:
+        - obj:
+            id: humidifier_control_inactive_track
+            x: 20
+            y: 30
+            width: 468
+            height: 12
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            radius: 6
+            clickable: false
+            scrollable: false
+        - obj:
+            id: humidifier_control_fill
+            x: 20
+            y: 30
+            width: 0
+            height: 12
+            bg_color: 0xD3E3FD
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            radius: 6
+            clickable: false
+            scrollable: false
+        - obj:
+            id: humidifier_control_knob
+            x: 0
+            y: 16
+            width: 40
+            height: 40
+            bg_color: 0xD3E3FD
+            bg_opa: COVER
+            border_color: 0x000000
+            border_width: 4
+            pad_all: 0
+            radius: 20
+            clickable: false
+            scrollable: false
+  - label:
+      id: humidifier_control_minimum
+      x: 136
+      y: 474
+      width: 100
+      height: 24
+      text: ""
+      text_font: roboto_16
+      text_color: 0xC4C7C5
+      text_align: CENTER
+      long_mode: DOT
+      clickable: false
+  - label:
+      id: humidifier_control_maximum
+      x: 564
+      y: 474
+      width: 100
+      height: 24
+      text: ""
+      text_font: roboto_16
+      text_color: 0xC4C7C5
+      text_align: CENTER
+      long_mode: DOT
+      clickable: false
+  - button:
+      id: humidifier_control_minus
+      x: 260
+      y: 506
+      width: 64
+      height: 64
+      radius: 32
+      bg_color: 0x1D2833
+      bg_opa: COVER
+      text_color: 0xF2F2F2
+      border_width: 0
+      pad_all: 0
+      shadow_width: 0
+      scrollable: false
+      pressed:
+        bg_opa: 80%
+      disabled:
+        text_opa: 40%
+      widgets:
+        - label:
+            id: humidifier_control_minus_label
+            text: "-"
+            align: CENTER
+            width: 40
+            text_align: CENTER
+            text_font: roboto_30
+            text_color: 0xF2F2F2
+            long_mode: DOT
+            clickable: false
+  - button:
+      id: humidifier_control_plus
+      x: 476
+      y: 506
+      width: 64
+      height: 64
+      radius: 32
+      bg_color: 0x1D2833
+      bg_opa: COVER
+      text_color: 0xF2F2F2
+      border_width: 0
+      pad_all: 0
+      shadow_width: 0
+      scrollable: false
+      pressed:
+        bg_opa: 80%
+      disabled:
+        text_opa: 40%
+      widgets:
+        - label:
+            id: humidifier_control_plus_label
+            text: "+"
+            align: CENTER
+            width: 40
+            text_align: CENTER
+            text_font: roboto_30
+            text_color: 0xF2F2F2
+            long_mode: DOT
+            clickable: false
+  - obj:
+      id: humidifier_control_actions
+      x: 170
+      y: 592
+      width: 460
+      height: 64
+      bg_opa: TRANSP
+      border_width: 0
+      pad_all: 0
+      radius: 0
+      clickable: false
+      scrollable: false
+      layout:
+        type: FLEX
+        flex_flow: ROW
+        flex_align_main: CENTER
+        flex_align_cross: CENTER
+        flex_align_track: CENTER
+        pad_column: 20
+      widgets:
+        - button:
+            id: humidifier_control_power
+            width: 210
+            height: 64
+            radius: 32
+            bg_color: 0xD3E3FD
+            bg_opa: COVER
+            text_color: 0x071018
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 40%
+            widgets:
+              - label:
+                  id: humidifier_control_power_label
+                  text: ""
+                  align: CENTER
+                  width: 186
+                  text_align: CENTER
+                  text_font: roboto_24
+                  text_color: 0x071018
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: humidifier_control_mode
+            width: 210
+            height: 64
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            text_color: 0xF2F2F2
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 40%
+            widgets:
+              - label:
+                  id: humidifier_control_mode_label
+                  text: ""
+                  align: CENTER
+                  width: 186
+                  text_align: CENTER
+                  text_font: roboto_20
+                  text_color: 0xF2F2F2
+                  long_mode: DOT
+                  clickable: false
+  - label:
+      id: humidifier_control_status
+      x: 200
+      y: 674
+      width: 400
+      height: 42
+      text: ""
+      text_font: roboto_16
+      text_color: 0xC4C7C5
+      text_align: CENTER
+      long_mode: DOT
+      clickable: false
+  - obj:
+      id: humidifier_control_modes
+      x: 0
+      y: 0
+      width: 800
+      height: 800
+      bg_color: 0x000000
+      bg_opa: COVER
+      border_width: 0
+      pad_all: 0
+      radius: 0
+      hidden: true
+      scrollable: false
+      widgets:
+        - label:
+            id: humidifier_control_modes_title
+            x: 130
+            y: 124
+            width: 540
+            height: 44
+            text: !lambda 'return std::string(id(ui_i18n).translate("humidifier_control.choose_mode"));'
+            text_font: roboto_30
+            text_color: 0xF2F2F2
+            text_align: CENTER
+            long_mode: DOT
+            clickable: false
+        - button:
+            id: humidifier_control_option_0
+            x: 130
+            y: 220
+            width: 264
+            height: 84
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            text_color: 0xF2F2F2
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 40%
+            widgets:
+              - label:
+                  id: humidifier_control_option_label_0
+                  text: ""
+                  align: CENTER
+                  width: 240
+                  text_align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: humidifier_control_option_1
+            x: 406
+            y: 220
+            width: 264
+            height: 84
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            text_color: 0xF2F2F2
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 40%
+            widgets:
+              - label:
+                  id: humidifier_control_option_label_1
+                  text: ""
+                  align: CENTER
+                  width: 240
+                  text_align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: humidifier_control_option_2
+            x: 130
+            y: 320
+            width: 264
+            height: 84
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            text_color: 0xF2F2F2
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 40%
+            widgets:
+              - label:
+                  id: humidifier_control_option_label_2
+                  text: ""
+                  align: CENTER
+                  width: 240
+                  text_align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: humidifier_control_option_3
+            x: 406
+            y: 320
+            width: 264
+            height: 84
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            text_color: 0xF2F2F2
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 40%
+            widgets:
+              - label:
+                  id: humidifier_control_option_label_3
+                  text: ""
+                  align: CENTER
+                  width: 240
+                  text_align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: humidifier_control_option_4
+            x: 130
+            y: 420
+            width: 264
+            height: 84
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            text_color: 0xF2F2F2
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 40%
+            widgets:
+              - label:
+                  id: humidifier_control_option_label_4
+                  text: ""
+                  align: CENTER
+                  width: 240
+                  text_align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: humidifier_control_option_5
+            x: 406
+            y: 420
+            width: 264
+            height: 84
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            text_color: 0xF2F2F2
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 40%
+            widgets:
+              - label:
+                  id: humidifier_control_option_label_5
+                  text: ""
+                  align: CENTER
+                  width: 240
+                  text_align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: humidifier_control_option_6
+            x: 130
+            y: 520
+            width: 264
+            height: 84
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            text_color: 0xF2F2F2
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 40%
+            widgets:
+              - label:
+                  id: humidifier_control_option_label_6
+                  text: ""
+                  align: CENTER
+                  width: 240
+                  text_align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: humidifier_control_option_7
+            x: 406
+            y: 520
+            width: 264
+            height: 84
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            text_color: 0xF2F2F2
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 40%
+            widgets:
+              - label:
+                  id: humidifier_control_option_label_7
+                  text: ""
+                  align: CENTER
+                  width: 240
+                  text_align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: humidifier_control_mode_back
+            x: 280
+            y: 650
+            width: 240
+            height: 72
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            text_color: 0xF2F2F2
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 40%
+            widgets:
+              - label:
+                  id: humidifier_control_mode_back_label
+                  text: !lambda 'return std::string(id(ui_i18n).translate("humidifier_control.back"));'
+                  align: CENTER
+                  width: 216
+                  text_align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  long_mode: DOT
+                  clickable: false

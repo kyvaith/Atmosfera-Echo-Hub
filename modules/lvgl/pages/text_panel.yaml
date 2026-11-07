@@ -1,0 +1,615 @@
+# One bounded App6 text view; static keyboard maps, no text-scroll buffer or animation.
+id: text_root
+x: 0
+y: 0
+width: 800
+height: 800
+bg_opa: COVER
+border_width: 0
+pad_all: 0
+radius: 0
+clickable: false
+scrollable: false
+bg_color: '0x000000'
+hidden: true
+widgets:
+- label:
+    id: text_kind
+    x: 200
+    y: 60
+    width: 400
+    height: 28
+    text: ''
+    text_font: roboto_20
+    text_color: '0xF5F7FA'
+    text_align: CENTER
+    long_mode: CLIP
+    clickable: false
+- label:
+    id: text_title
+    x: 180
+    y: 94
+    width: 440
+    height: 72
+    text: ''
+    text_font: roboto_30
+    text_color: '0xF5F7FA'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- svg_icon:
+    id: text_icon
+    file: assets/icons/text-notes.svg
+    x: 376
+    y: 190
+    width: 48
+    height: 48
+    text_color: '0xF5F7FA'
+    clickable: false
+- obj:
+    id: text_surface
+    x: 144
+    y: 270
+    width: 500
+    height: 304
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    radius: 24
+    clickable: false
+    scrollable: false
+    bg_color: '0x1D2833'
+    widgets:
+    - obj:
+        id: text_viewport
+        x: 22
+        y: 20
+        width: 456
+        height: 240
+        bg_opa: TRANSP
+        border_width: 0
+        pad_all: 0
+        radius: 0
+        clickable: true
+        scrollable: false
+        overflow_visible: false
+        widgets:
+        - label:
+            id: text_line_0
+            x: 0
+            y: 0
+            width: 456
+            height: 40
+            text: ''
+            text_font: roboto_30
+            text_color: '0xF5F7FA'
+            text_align: LEFT
+            long_mode: CLIP
+            clickable: false
+        - label:
+            id: text_line_1
+            x: 0
+            y: 40
+            width: 456
+            height: 40
+            text: ''
+            text_font: roboto_30
+            text_color: '0xF5F7FA'
+            text_align: LEFT
+            long_mode: CLIP
+            clickable: false
+        - label:
+            id: text_line_2
+            x: 0
+            y: 80
+            width: 456
+            height: 40
+            text: ''
+            text_font: roboto_30
+            text_color: '0xF5F7FA'
+            text_align: LEFT
+            long_mode: CLIP
+            clickable: false
+        - label:
+            id: text_line_3
+            x: 0
+            y: 120
+            width: 456
+            height: 40
+            text: ''
+            text_font: roboto_30
+            text_color: '0xF5F7FA'
+            text_align: LEFT
+            long_mode: CLIP
+            clickable: false
+        - label:
+            id: text_line_4
+            x: 0
+            y: 160
+            width: 456
+            height: 40
+            text: ''
+            text_font: roboto_30
+            text_color: '0xF5F7FA'
+            text_align: LEFT
+            long_mode: CLIP
+            clickable: false
+        - label:
+            id: text_line_5
+            x: 0
+            y: 200
+            width: 456
+            height: 40
+            text: ''
+            text_font: roboto_30
+            text_color: '0xF5F7FA'
+            text_align: LEFT
+            long_mode: CLIP
+            clickable: false
+        - obj:
+            id: text_cursor
+            x: 0
+            y: 0
+            width: 2
+            height: 36
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            radius: 0
+            clickable: false
+            scrollable: false
+            bg_color: '0xF5F7FA'
+            hidden: true
+- label:
+    id: text_count
+    x: 168
+    y: 584
+    width: 464
+    height: 28
+    text: ''
+    text_font: roboto_20
+    text_color: '0xF5F7FA'
+    text_align: CENTER
+    long_mode: CLIP
+    clickable: false
+- label:
+    id: text_status
+    x: 160
+    y: 626
+    width: 480
+    height: 28
+    text: ''
+    text_font: roboto_20
+    text_color: '0xF5F7FA'
+    text_align: CENTER
+    long_mode: CLIP
+    clickable: false
+- button:
+    id: text_up
+    styles: m3_text_control_inset
+    x: 658
+    y: 342
+    width: 48
+    height: 48
+    bg_opa: COVER
+    radius: 12
+    clickable: true
+    scrollable: false
+    bg_color: '0x1D2833'
+    shadow_width: 0
+    text_color: '0xF5F7FA'
+    widgets:
+    - svg_icon:
+        id: text_up_icon
+        file: assets/icons/text-arrow-upward.svg
+        x: 9
+        y: 9
+        width: 30
+        height: 30
+        text_color: '0xF5F7FA'
+        clickable: false
+- button:
+    id: text_down
+    styles: m3_text_control_inset
+    x: 658
+    y: 406
+    width: 48
+    height: 48
+    bg_opa: COVER
+    radius: 12
+    clickable: true
+    scrollable: false
+    bg_color: '0x1D2833'
+    shadow_width: 0
+    text_color: '0xF5F7FA'
+    widgets:
+    - svg_icon:
+        id: text_down_icon
+        file: assets/icons/text-arrow-downward.svg
+        x: 9
+        y: 9
+        width: 30
+        height: 30
+        text_color: '0xF5F7FA'
+        clickable: false
+- buttonmatrix:
+    id: text_keys_0
+    styles: m3_text_control_inset
+    x: 80
+    y: 370
+    width: 640
+    height: 54
+    bg_opa: TRANSP
+    radius: 0
+    clickable: true
+    scrollable: false
+    text_font: roboto_30
+    pad_column: 6
+    pad_row: 0
+    items:
+      bg_color: '0x1D2833'
+      bg_opa: COVER
+      radius: 12
+      text_color: '0xF5F7FA'
+      border_width: 0
+      shadow_width: 0
+      pad_all: 0
+    rows:
+    - buttons:
+      - text: q
+        control:
+        - no_repeat: true
+      - text: w
+        control:
+        - no_repeat: true
+      - text: e
+        control:
+        - no_repeat: true
+      - text: r
+        control:
+        - no_repeat: true
+      - text: t
+        control:
+        - no_repeat: true
+      - text: y
+        control:
+        - no_repeat: true
+      - text: u
+        control:
+        - no_repeat: true
+      - text: i
+        control:
+        - no_repeat: true
+      - text: o
+        control:
+        - no_repeat: true
+      - text: p
+        control:
+        - no_repeat: true
+- buttonmatrix:
+    id: text_keys_1
+    styles: m3_text_control_inset
+    x: 112
+    y: 432
+    width: 576
+    height: 54
+    bg_opa: TRANSP
+    radius: 0
+    clickable: true
+    scrollable: false
+    text_font: roboto_30
+    pad_column: 6
+    pad_row: 0
+    items:
+      bg_color: '0x1D2833'
+      bg_opa: COVER
+      radius: 12
+      text_color: '0xF5F7FA'
+      border_width: 0
+      shadow_width: 0
+      pad_all: 0
+    rows:
+    - buttons:
+      - text: a
+        control:
+        - no_repeat: true
+      - text: s
+        control:
+        - no_repeat: true
+      - text: d
+        control:
+        - no_repeat: true
+      - text: f
+        control:
+        - no_repeat: true
+      - text: g
+        control:
+        - no_repeat: true
+      - text: h
+        control:
+        - no_repeat: true
+      - text: j
+        control:
+        - no_repeat: true
+      - text: k
+        control:
+        - no_repeat: true
+      - text: l
+        control:
+        - no_repeat: true
+- buttonmatrix:
+    id: text_keys_2
+    styles: m3_text_control_inset
+    x: 168
+    y: 494
+    width: 464
+    height: 54
+    bg_opa: TRANSP
+    radius: 0
+    clickable: true
+    scrollable: false
+    text_font: roboto_30
+    pad_column: 6
+    pad_row: 0
+    items:
+      bg_color: '0x1D2833'
+      bg_opa: COVER
+      radius: 12
+      text_color: '0xF5F7FA'
+      border_width: 0
+      shadow_width: 0
+      pad_all: 0
+    rows:
+    - buttons:
+      - text: z
+        control:
+        - no_repeat: true
+      - text: x
+        control:
+        - no_repeat: true
+      - text: c
+        control:
+        - no_repeat: true
+      - text: v
+        control:
+        - no_repeat: true
+      - text: b
+        control:
+        - no_repeat: true
+      - text: n
+        control:
+        - no_repeat: true
+      - text: m
+        control:
+        - no_repeat: true
+- button:
+    id: text_shift
+    styles: m3_text_control_inset
+    x: 100
+    y: 494
+    width: 60
+    height: 54
+    bg_opa: COVER
+    radius: 12
+    clickable: true
+    scrollable: false
+    bg_color: '0x1D2833'
+    shadow_width: 0
+    text_color: '0xF5F7FA'
+    widgets:
+    - svg_icon:
+        id: text_shift_icon
+        file: assets/icons/text-keyboard-capslock.svg
+        x: 15
+        y: 12
+        width: 30
+        height: 30
+        text_color: '0xF5F7FA'
+        clickable: false
+- button:
+    id: text_backspace
+    styles: m3_text_control_inset
+    x: 640
+    y: 494
+    width: 60
+    height: 54
+    bg_opa: COVER
+    radius: 12
+    clickable: true
+    scrollable: false
+    bg_color: '0x1D2833'
+    shadow_width: 0
+    text_color: '0xF5F7FA'
+    widgets:
+    - svg_icon:
+        id: text_backspace_icon
+        file: assets/icons/datetime-backspace.svg
+        x: 15
+        y: 12
+        width: 30
+        height: 30
+        text_color: '0xF5F7FA'
+        clickable: false
+- button:
+    id: text_symbols
+    styles: m3_text_control_inset
+    x: 152
+    y: 556
+    width: 72
+    height: 54
+    bg_opa: COVER
+    radius: 12
+    clickable: true
+    scrollable: false
+    bg_color: '0x1D2833'
+    shadow_width: 0
+    text_color: '0xF5F7FA'
+    widgets:
+    - label:
+        id: text_symbols_label
+        x: 4
+        y: 12
+        width: 64
+        height: 30
+        text: ''
+        text_font: roboto_24
+        text_color: '0xF5F7FA'
+        text_align: CENTER
+        long_mode: CLIP
+        clickable: false
+- button:
+    id: text_alternate
+    styles: m3_text_control_inset
+    x: 232
+    y: 556
+    width: 64
+    height: 54
+    bg_opa: COVER
+    radius: 12
+    clickable: true
+    scrollable: false
+    bg_color: '0x1D2833'
+    shadow_width: 0
+    text_color: '0xF5F7FA'
+    widgets:
+    - label:
+        id: text_alternate_label
+        x: 4
+        y: 12
+        width: 56
+        height: 30
+        text: ''
+        text_font: roboto_24
+        text_color: '0xF5F7FA'
+        text_align: CENTER
+        long_mode: CLIP
+        clickable: false
+- button:
+    id: text_left
+    styles: m3_text_control_inset
+    x: 304
+    y: 556
+    width: 56
+    height: 54
+    bg_opa: COVER
+    radius: 12
+    clickable: true
+    scrollable: false
+    bg_color: '0x1D2833'
+    shadow_width: 0
+    text_color: '0xF5F7FA'
+    widgets:
+    - svg_icon:
+        id: text_left_icon
+        file: assets/icons/text-arrow-back.svg
+        x: 13
+        y: 12
+        width: 30
+        height: 30
+        text_color: '0xF5F7FA'
+        clickable: false
+- button:
+    id: text_space
+    styles: m3_text_control_inset
+    x: 368
+    y: 556
+    width: 216
+    height: 54
+    bg_opa: COVER
+    radius: 12
+    clickable: true
+    scrollable: false
+    bg_color: '0x1D2833'
+    shadow_width: 0
+    text_color: '0xF5F7FA'
+    widgets:
+    - label:
+        id: text_space_label
+        x: 4
+        y: 12
+        width: 208
+        height: 30
+        text: ''
+        text_font: roboto_24
+        text_color: '0xF5F7FA'
+        text_align: CENTER
+        long_mode: CLIP
+        clickable: false
+- button:
+    id: text_right
+    styles: m3_text_control_inset
+    x: 592
+    y: 556
+    width: 56
+    height: 54
+    bg_opa: COVER
+    radius: 12
+    clickable: true
+    scrollable: false
+    bg_color: '0x1D2833'
+    shadow_width: 0
+    text_color: '0xF5F7FA'
+    widgets:
+    - svg_icon:
+        id: text_right_icon
+        file: assets/icons/text-arrow-forward.svg
+        x: 13
+        y: 12
+        width: 30
+        height: 30
+        text_color: '0xF5F7FA'
+        clickable: false
+- button:
+    id: text_cancel
+    styles: m3_text_control_inset
+    x: 212
+    y: 670
+    width: 176
+    height: 56
+    bg_opa: COVER
+    radius: 28
+    clickable: true
+    scrollable: false
+    bg_color: '0x1D2833'
+    shadow_width: 0
+    text_color: '0xF5F7FA'
+    widgets:
+    - label:
+        id: text_cancel_label
+        x: 4
+        y: 13
+        width: 168
+        height: 30
+        text: ''
+        text_font: roboto_24
+        text_color: '0xF5F7FA'
+        text_align: CENTER
+        long_mode: CLIP
+        clickable: false
+- button:
+    id: text_save
+    styles: m3_text_control_inset
+    x: 312
+    y: 670
+    width: 176
+    height: 56
+    bg_opa: COVER
+    radius: 28
+    clickable: true
+    scrollable: false
+    bg_color: '0x1D2833'
+    shadow_width: 0
+    text_color: '0xF5F7FA'
+    widgets:
+    - label:
+        id: text_save_label
+        x: 4
+        y: 13
+        width: 168
+        height: 30
+        text: ''
+        text_font: roboto_24
+        text_color: '0xF5F7FA'
+        text_align: CENTER
+        long_mode: CLIP
+        clickable: false

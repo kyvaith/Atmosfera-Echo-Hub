@@ -40,6 +40,16 @@
     }
   },
   "services": {
+    "doorbell_preview": {
+      "name": "Pokaż kamerę wideodzwonka",
+      "description": "Pokazuje kamerę na bezczynnym ekranie głównym lub zapisuje powiadomienie z podglądem, gdy ekran jest zajęty.",
+      "fields": {
+        "device_id": {"name": "Ekran Atmosfera"},
+        "camera_entity_id": {"name": "Kamera wideodzwonka"},
+        "duration_seconds": {"name": "Czas podglądu"},
+        "event_id": {"name": "Identyfikator zdarzenia", "description": "Użyj tego samego identyfikatora przy ponownej dostawie tego samego dzwonka."}
+      }
+    },
     "report_camera_source": {
       "name": "Zgłoś źródło kamery",
       "description": "Synchronizuje źródło wybrane na ekranie z Home Assistant.",
@@ -65,6 +75,19 @@
         "slot": {
           "name": "Pozycja kafelka",
           "description": "Numer stałej pozycji kafelka liczony od zera."
+        }
+      }
+    }
+  },
+  "entity": {
+    "event": {
+      "tile_press": {
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "press": "Naciśnięcie"
+            }
+          }
         }
       }
     }

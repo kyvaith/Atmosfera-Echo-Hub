@@ -42,7 +42,7 @@ bool lvgl_esphome_snapshot_is_active() { return snapshot_active; }
 uint32_t display_last_interaction_ms;
 lv_obj_t *ui_manual_pressed_obj;
 Flag settings_scroll_snapshot, ui_refresh_settings_snapshot, ui_apply_settings_snapshot_refresh;
-lv_obj_t overlay_objects[8];
+lv_obj_t overlay_objects[9];
 lv_obj_t *boot_overlay = &overlay_objects[0];
 lv_obj_t *voice_assistant_overlay = &overlay_objects[1];
 lv_obj_t *global_volume_overlay = &overlay_objects[2];
@@ -51,6 +51,7 @@ lv_obj_t *ui_touch_blocker = &overlay_objects[4];
 lv_obj_t *material_notification_root = &overlay_objects[5];
 lv_obj_t *accent_picker_overlay = &overlay_objects[6];
 lv_obj_t *accent_refresh_overlay = &overlay_objects[7];
+lv_obj_t *notification_center_root = &overlay_objects[8];
 
 void tick() {
 // INSERT_ACTUAL_PRODUCT_POLICY

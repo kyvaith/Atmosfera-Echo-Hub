@@ -1,0 +1,701 @@
+# Shared app6 Robot panel: actual capabilities determine the visible controls.
+# Static SVGs and one pooled options modal; no animation worker or image cache.
+id: robot_control_root
+x: 0
+y: 0
+width: 800
+height: 800
+bg_color: 0x000000
+bg_opa: COVER
+border_width: 0
+pad_all: 0
+radius: 0
+hidden: true
+clickable: false
+scrollable: false
+widgets:
+  - label:
+      id: robot_control_kind
+      x: 200
+      y: 68
+      width: 400
+      height: 28
+      text: ""
+      text_font: roboto_20
+      text_color: 0xC4C7C5
+      text_align: CENTER
+      long_mode: DOT
+      clickable: false
+  - label:
+      id: robot_control_title
+      x: 130
+      y: 104
+      width: 540
+      height: 42
+      text: ""
+      text_font: roboto_30
+      text_color: 0xF2F2F2
+      text_align: CENTER
+      long_mode: DOT
+      clickable: false
+  - svg_icon:
+      id: robot_control_icon_vacuum
+      file: assets/icons/robot-vacuum.svg
+      x: 352
+      y: 156
+      width: 96
+      height: 96
+      text_color: 0xD3E3FD
+      hidden: true
+      clickable: false
+  - svg_icon:
+      id: robot_control_icon_mower
+      file: assets/icons/robot-mower.svg
+      x: 352
+      y: 156
+      width: 96
+      height: 96
+      text_color: 0xD3E3FD
+      hidden: true
+      clickable: false
+  - label:
+      id: robot_control_state
+      x: 180
+      y: 270
+      width: 440
+      height: 44
+      text: ""
+      text_font: roboto_34
+      text_color: 0xF2F2F2
+      text_align: CENTER
+      long_mode: DOT
+      clickable: false
+  - label:
+      id: robot_control_battery
+      x: 200
+      y: 322
+      width: 400
+      height: 24
+      text: ""
+      text_font: roboto_20
+      text_color: 0xC4C7C5
+      text_align: CENTER
+      long_mode: DOT
+      clickable: false
+      hidden: true
+  - obj:
+      id: robot_control_actions
+      x: 146
+      y: 350
+      width: 508
+      height: 320
+      bg_opa: TRANSP
+      border_width: 0
+      pad_all: 0
+      radius: 0
+      clickable: false
+      scrollable: false
+      layout:
+        type: FLEX
+        flex_flow: ROW_WRAP
+        flex_align_main: CENTER
+        flex_align_cross: CENTER
+        flex_align_track: CENTER
+        pad_column: 20
+        pad_row: 16
+      widgets:
+        - button:
+            id: robot_control_start
+            width: 244
+            height: 72
+            radius: 36
+            bg_color: 0xD3E3FD
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: true
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            widgets:
+              - label:
+                  id: robot_control_start_label
+                  text: ""
+                  width: 220
+                  align: CENTER
+                  text_font: roboto_24
+                  text_color: 0x071018
+                  text_align: CENTER
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: robot_control_pause
+            width: 244
+            height: 72
+            radius: 36
+            bg_color: 0xD3E3FD
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: true
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            widgets:
+              - label:
+                  id: robot_control_pause_label
+                  text: ""
+                  width: 220
+                  align: CENTER
+                  text_font: roboto_24
+                  text_color: 0x071018
+                  text_align: CENTER
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: robot_control_stop
+            width: 244
+            height: 64
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: true
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            widgets:
+              - label:
+                  id: robot_control_stop_label
+                  text: ""
+                  width: 220
+                  align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  text_align: CENTER
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: robot_control_dock
+            width: 244
+            height: 64
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: true
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            widgets:
+              - label:
+                  id: robot_control_dock_label
+                  text: ""
+                  width: 220
+                  align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  text_align: CENTER
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: robot_control_locate
+            width: 244
+            height: 64
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: true
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            widgets:
+              - label:
+                  id: robot_control_locate_label
+                  text: ""
+                  width: 220
+                  align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  text_align: CENTER
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: robot_control_spot
+            width: 244
+            height: 64
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: true
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            widgets:
+              - label:
+                  id: robot_control_spot_label
+                  text: ""
+                  width: 220
+                  align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  text_align: CENTER
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: robot_control_suction
+            width: 244
+            height: 64
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: true
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            widgets:
+              - label:
+                  id: robot_control_suction_label
+                  text: ""
+                  width: 220
+                  align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  text_align: CENTER
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: robot_control_room
+            width: 244
+            height: 64
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: true
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            widgets:
+              - label:
+                  id: robot_control_room_label
+                  text: ""
+                  width: 220
+                  align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  text_align: CENTER
+                  long_mode: DOT
+                  clickable: false
+  - label:
+      id: robot_control_status
+      x: 180
+      y: 704
+      width: 440
+      height: 44
+      text: ""
+      text_font: roboto_16
+      text_color: 0xC4C7C5
+      text_align: CENTER
+      long_mode: WRAP
+      clickable: false
+  - obj:
+      id: robot_control_suctions
+      x: 0
+      y: 0
+      width: 800
+      height: 800
+      bg_color: 0x000000
+      bg_opa: COVER
+      border_width: 0
+      pad_all: 0
+      radius: 0
+      hidden: true
+      # Consume empty-area taps so hidden main controls cannot be activated.
+      clickable: true
+      scrollable: false
+      widgets:
+        - label:
+            id: robot_control_options_title
+            x: 130
+            y: 124
+            width: 540
+            height: 44
+            text: ""
+            text_font: roboto_30
+            text_color: 0xF2F2F2
+            text_align: CENTER
+            long_mode: DOT
+            clickable: false
+        - button:
+            id: robot_control_option_0
+            x: 130
+            y: 220
+            width: 264
+            height: 84
+            radius: 42
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: true
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            widgets:
+              - label:
+                  id: robot_control_option_label_0
+                  text: ""
+                  width: 240
+                  height: SIZE_CONTENT
+                  max_height: 72
+                  align: CENTER
+                  text_font: roboto_18
+                  text_color: 0xF2F2F2
+                  text_align: CENTER
+                  long_mode: WRAP
+                  clickable: false
+        - button:
+            id: robot_control_option_1
+            x: 406
+            y: 220
+            width: 264
+            height: 84
+            radius: 42
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: true
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            widgets:
+              - label:
+                  id: robot_control_option_label_1
+                  text: ""
+                  width: 240
+                  height: SIZE_CONTENT
+                  max_height: 72
+                  align: CENTER
+                  text_font: roboto_18
+                  text_color: 0xF2F2F2
+                  text_align: CENTER
+                  long_mode: WRAP
+                  clickable: false
+        - button:
+            id: robot_control_option_2
+            x: 130
+            y: 320
+            width: 264
+            height: 84
+            radius: 42
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: true
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            widgets:
+              - label:
+                  id: robot_control_option_label_2
+                  text: ""
+                  width: 240
+                  height: SIZE_CONTENT
+                  max_height: 72
+                  align: CENTER
+                  text_font: roboto_18
+                  text_color: 0xF2F2F2
+                  text_align: CENTER
+                  long_mode: WRAP
+                  clickable: false
+        - button:
+            id: robot_control_option_3
+            x: 406
+            y: 320
+            width: 264
+            height: 84
+            radius: 42
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: true
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            widgets:
+              - label:
+                  id: robot_control_option_label_3
+                  text: ""
+                  width: 240
+                  height: SIZE_CONTENT
+                  max_height: 72
+                  align: CENTER
+                  text_font: roboto_18
+                  text_color: 0xF2F2F2
+                  text_align: CENTER
+                  long_mode: WRAP
+                  clickable: false
+        - button:
+            id: robot_control_option_4
+            x: 130
+            y: 420
+            width: 264
+            height: 84
+            radius: 42
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: true
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            widgets:
+              - label:
+                  id: robot_control_option_label_4
+                  text: ""
+                  width: 240
+                  height: SIZE_CONTENT
+                  max_height: 72
+                  align: CENTER
+                  text_font: roboto_18
+                  text_color: 0xF2F2F2
+                  text_align: CENTER
+                  long_mode: WRAP
+                  clickable: false
+        - button:
+            id: robot_control_option_5
+            x: 406
+            y: 420
+            width: 264
+            height: 84
+            radius: 42
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: true
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            widgets:
+              - label:
+                  id: robot_control_option_label_5
+                  text: ""
+                  width: 240
+                  height: SIZE_CONTENT
+                  max_height: 72
+                  align: CENTER
+                  text_font: roboto_18
+                  text_color: 0xF2F2F2
+                  text_align: CENTER
+                  long_mode: WRAP
+                  clickable: false
+        - button:
+            id: robot_control_option_6
+            x: 130
+            y: 520
+            width: 264
+            height: 84
+            radius: 42
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: true
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            widgets:
+              - label:
+                  id: robot_control_option_label_6
+                  text: ""
+                  width: 240
+                  height: SIZE_CONTENT
+                  max_height: 72
+                  align: CENTER
+                  text_font: roboto_18
+                  text_color: 0xF2F2F2
+                  text_align: CENTER
+                  long_mode: WRAP
+                  clickable: false
+        - button:
+            id: robot_control_option_7
+            x: 406
+            y: 520
+            width: 264
+            height: 84
+            radius: 42
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: true
+            pressed:
+              bg_opa: 80%
+            disabled:
+              bg_opa: 35%
+              text_opa: 45%
+            widgets:
+              - label:
+                  id: robot_control_option_label_7
+                  text: ""
+                  width: 240
+                  height: SIZE_CONTENT
+                  max_height: 72
+                  align: CENTER
+                  text_font: roboto_18
+                  text_color: 0xF2F2F2
+                  text_align: CENTER
+                  long_mode: WRAP
+                  clickable: false
+        - obj:
+            id: robot_control_options_footer
+            x: 146
+            y: 650
+            width: 508
+            height: 72
+            bg_opa: TRANSP
+            border_width: 0
+            pad_all: 0
+            radius: 0
+            clickable: false
+            scrollable: false
+            layout:
+              type: FLEX
+              flex_flow: ROW
+              flex_align_main: CENTER
+              flex_align_cross: CENTER
+              flex_align_track: CENTER
+              pad_column: 20
+            widgets:
+              - button:
+                  id: robot_control_suction_back
+                  width: 190
+                  height: 64
+                  radius: 32
+                  bg_color: 0x1D2833
+                  bg_opa: COVER
+                  border_width: 0
+                  pad_all: 0
+                  shadow_width: 0
+                  scrollable: false
+                  pressed:
+                    bg_opa: 80%
+                  disabled:
+                    bg_opa: 35%
+                    text_opa: 45%
+                  widgets:
+                    - label:
+                        id: robot_control_suction_back_label
+                        text: !lambda 'return std::string(id(ui_i18n).translate("robot_control.back"));'
+                        width: 166
+                        align: CENTER
+                        text_font: roboto_24
+                        text_color: 0xF2F2F2
+                        text_align: CENTER
+                        long_mode: DOT
+                        clickable: false
+              - button:
+                  id: robot_control_room_apply
+                  width: 190
+                  height: 64
+                  radius: 32
+                  bg_color: 0xD3E3FD
+                  bg_opa: COVER
+                  border_width: 0
+                  pad_all: 0
+                  shadow_width: 0
+                  scrollable: false
+                  hidden: true
+                  pressed:
+                    bg_opa: 80%
+                  disabled:
+                    bg_opa: 35%
+                    text_opa: 45%
+                  widgets:
+                    - label:
+                        id: robot_control_room_apply_label
+                        text: ""
+                        width: 166
+                        align: CENTER
+                        text_font: roboto_24
+                        text_color: 0x071018
+                        text_align: CENTER
+                        long_mode: DOT
+                        clickable: false

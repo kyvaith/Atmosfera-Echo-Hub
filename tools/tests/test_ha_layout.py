@@ -48,11 +48,14 @@ def identity(function):
 
 module("homeassistant")
 module("homeassistant.components")
+module("homeassistant.components.climate", DATA_COMPONENT="climate")
+module("homeassistant.components.fan", DATA_COMPONENT="fan")
 module("homeassistant.helpers")
 module("homeassistant.const", ATTR_ENTITY_ID="entity_id",
-       Platform=types.SimpleNamespace(SELECT="select", NOTIFY="notify"))
+       Platform=types.SimpleNamespace(SELECT="select", NOTIFY="notify", EVENT="event"))
 module("homeassistant.core", HomeAssistant=object, State=State, callback=identity)
 module("homeassistant.helpers.entity_registry", async_get=lambda hass: hass.entity_registry)
+module("homeassistant.helpers.service", async_get_cached_service_description=lambda hass, domain, service: getattr(hass, "service_descriptions", {}).get((domain, service)))
 module("homeassistant.helpers.device_registry", async_get=lambda hass: hass.device_registry)
 module("homeassistant.helpers.area_registry", async_get=lambda hass: hass.area_registry)
 module("homeassistant.helpers.translation", async_get_cached_translations=lambda *_: {},
@@ -670,6 +673,7 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
         bridge = controller.CameraBridge.__new__(controller.CameraBridge)
         bridge.hass, bridge.entry = hass, entry
         bridge._closed = False
+        bridge._notifications = types.SimpleNamespace(setup=unittest.mock.AsyncMock(), lock=asyncio.Lock(), push=unittest.mock.AsyncMock())
         bridge._connection_epoch = 0
         bridge._native_status_lock = asyncio.Lock()
         bridge._native_status_epoch = -1
@@ -683,6 +687,7 @@ class BridgeTests(unittest.IsolatedAsyncioTestCase):
         bridge._listeners = set()
         bridge._unsubscribers, bridge._device_preference_keys = [], {}
         bridge._tile_unsubscribe = None
+        bridge._tile_registry_unsubscribers = []
         bridge._remove_debounce = bridge._remove_tile_debounce = None
         bridge.camera_entity_ids = ["camera.door"]
         bridge.stream_width = bridge.stream_height = 800

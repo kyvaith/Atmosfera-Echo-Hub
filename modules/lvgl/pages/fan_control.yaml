@@ -1,0 +1,721 @@
+# One fixed Fan view in the shared entity-control application.
+id: fan_control_root
+x: 0
+y: 0
+width: 800
+height: 800
+bg_color: 0x000000
+bg_opa: COVER
+border_width: 0
+pad_all: 0
+radius: 0
+hidden: true
+clickable: false
+scrollable: false
+widgets:
+  - label:
+      id: fan_control_kind
+      x: 200
+      y: 68
+      width: 400
+      height: 28
+      text: !lambda 'return std::string(id(ui_i18n).translate("fan_control.title"));'
+      text_font: roboto_20
+      text_color: 0xC4C7C5
+      text_align: CENTER
+  - label:
+      id: fan_control_title
+      x: 130
+      y: 104
+      width: 540
+      height: 42
+      text: ""
+      text_font: roboto_30
+      text_color: 0xF2F2F2
+      text_align: CENTER
+      long_mode: DOT
+  - svg_icon:
+      id: fan_control_icon
+      file: assets/icons/fan.svg
+      x: 352
+      y: 156
+      width: 96
+      height: 96
+      text_color: 0xD3E3FD
+      clickable: false
+  - label:
+      id: fan_control_value
+      x: 150
+      y: 260
+      width: 500
+      height: 64
+      text: "--"
+      text_font: wear_title_53
+      text_color: 0xF2F2F2
+      text_align: CENTER
+      long_mode: DOT
+  - label:
+      id: fan_control_state
+      x: 200
+      y: 326
+      width: 400
+      height: 28
+      text: ""
+      text_font: roboto_20
+      text_color: 0xC4C7C5
+      text_align: CENTER
+  - label:
+      id: fan_control_speed_caption
+      x: 200
+      y: 356
+      width: 400
+      height: 24
+      text: !lambda 'return std::string(id(ui_i18n).translate("fan_control.speed"));'
+      text_font: roboto_16
+      text_color: 0xC4C7C5
+      text_align: CENTER
+  - button:
+      id: fan_control_speed_0
+      x: 146
+      y: 386
+      width: 120
+      height: 46
+      radius: 23
+      bg_color: 0x1D2833
+      bg_opa: COVER
+      text_color: 0xF2F2F2
+      border_width: 0
+      pad_all: 0
+      shadow_width: 0
+      scrollable: false
+      pressed:
+        bg_opa: 80%
+      disabled:
+        text_opa: 40%
+      widgets:
+        - label:
+            id: fan_control_speed_label_0
+            text: ""
+            align: CENTER
+            width: 96
+            text_align: CENTER
+            text_font: roboto_20
+            text_color: 0xF2F2F2
+            long_mode: DOT
+            clickable: false
+  - button:
+      id: fan_control_speed_1
+      x: 274
+      y: 386
+      width: 120
+      height: 46
+      radius: 23
+      bg_color: 0x1D2833
+      bg_opa: COVER
+      text_color: 0xF2F2F2
+      border_width: 0
+      pad_all: 0
+      shadow_width: 0
+      scrollable: false
+      pressed:
+        bg_opa: 80%
+      disabled:
+        text_opa: 40%
+      widgets:
+        - label:
+            id: fan_control_speed_label_1
+            text: ""
+            align: CENTER
+            width: 96
+            text_align: CENTER
+            text_font: roboto_20
+            text_color: 0xF2F2F2
+            long_mode: DOT
+            clickable: false
+  - button:
+      id: fan_control_speed_2
+      x: 402
+      y: 386
+      width: 120
+      height: 46
+      radius: 23
+      bg_color: 0x1D2833
+      bg_opa: COVER
+      text_color: 0xF2F2F2
+      border_width: 0
+      pad_all: 0
+      shadow_width: 0
+      scrollable: false
+      pressed:
+        bg_opa: 80%
+      disabled:
+        text_opa: 40%
+      widgets:
+        - label:
+            id: fan_control_speed_label_2
+            text: ""
+            align: CENTER
+            width: 96
+            text_align: CENTER
+            text_font: roboto_20
+            text_color: 0xF2F2F2
+            long_mode: DOT
+            clickable: false
+  - button:
+      id: fan_control_speed_3
+      x: 530
+      y: 386
+      width: 120
+      height: 46
+      radius: 23
+      bg_color: 0x1D2833
+      bg_opa: COVER
+      text_color: 0xF2F2F2
+      border_width: 0
+      pad_all: 0
+      shadow_width: 0
+      scrollable: false
+      pressed:
+        bg_opa: 80%
+      disabled:
+        text_opa: 40%
+      widgets:
+        - label:
+            id: fan_control_speed_label_3
+            text: ""
+            align: CENTER
+            width: 96
+            text_align: CENTER
+            text_font: roboto_20
+            text_color: 0xF2F2F2
+            long_mode: DOT
+            clickable: false
+  - button:
+      id: fan_control_speed_4
+      x: 146
+      y: 440
+      width: 120
+      height: 46
+      radius: 23
+      bg_color: 0x1D2833
+      bg_opa: COVER
+      text_color: 0xF2F2F2
+      border_width: 0
+      pad_all: 0
+      shadow_width: 0
+      scrollable: false
+      pressed:
+        bg_opa: 80%
+      disabled:
+        text_opa: 40%
+      widgets:
+        - label:
+            id: fan_control_speed_label_4
+            text: ""
+            align: CENTER
+            width: 96
+            text_align: CENTER
+            text_font: roboto_20
+            text_color: 0xF2F2F2
+            long_mode: DOT
+            clickable: false
+  - button:
+      id: fan_control_speed_5
+      x: 274
+      y: 440
+      width: 120
+      height: 46
+      radius: 23
+      bg_color: 0x1D2833
+      bg_opa: COVER
+      text_color: 0xF2F2F2
+      border_width: 0
+      pad_all: 0
+      shadow_width: 0
+      scrollable: false
+      pressed:
+        bg_opa: 80%
+      disabled:
+        text_opa: 40%
+      widgets:
+        - label:
+            id: fan_control_speed_label_5
+            text: ""
+            align: CENTER
+            width: 96
+            text_align: CENTER
+            text_font: roboto_20
+            text_color: 0xF2F2F2
+            long_mode: DOT
+            clickable: false
+  - button:
+      id: fan_control_speed_6
+      x: 402
+      y: 440
+      width: 120
+      height: 46
+      radius: 23
+      bg_color: 0x1D2833
+      bg_opa: COVER
+      text_color: 0xF2F2F2
+      border_width: 0
+      pad_all: 0
+      shadow_width: 0
+      scrollable: false
+      pressed:
+        bg_opa: 80%
+      disabled:
+        text_opa: 40%
+      widgets:
+        - label:
+            id: fan_control_speed_label_6
+            text: ""
+            align: CENTER
+            width: 96
+            text_align: CENTER
+            text_font: roboto_20
+            text_color: 0xF2F2F2
+            long_mode: DOT
+            clickable: false
+  - button:
+      id: fan_control_speed_7
+      x: 530
+      y: 440
+      width: 120
+      height: 46
+      radius: 23
+      bg_color: 0x1D2833
+      bg_opa: COVER
+      text_color: 0xF2F2F2
+      border_width: 0
+      pad_all: 0
+      shadow_width: 0
+      scrollable: false
+      pressed:
+        bg_opa: 80%
+      disabled:
+        text_opa: 40%
+      widgets:
+        - label:
+            id: fan_control_speed_label_7
+            text: ""
+            align: CENTER
+            width: 96
+            text_align: CENTER
+            text_font: roboto_20
+            text_color: 0xF2F2F2
+            long_mode: DOT
+            clickable: false
+  - button:
+      id: fan_control_preset
+      x: 146
+      y: 500
+      width: 508
+      height: 64
+      radius: 32
+      bg_color: 0x1D2833
+      bg_opa: COVER
+      text_color: 0xF2F2F2
+      border_width: 0
+      pad_all: 0
+      shadow_width: 0
+      scrollable: false
+      pressed:
+        bg_opa: 80%
+      disabled:
+        text_opa: 40%
+      widgets:
+        - label:
+            id: fan_control_preset_label
+            text: ""
+            align: CENTER
+            width: 484
+            text_align: CENTER
+            text_font: roboto_24
+            text_color: 0xF2F2F2
+            long_mode: DOT
+            clickable: false
+  - button:
+      id: fan_control_oscillation
+      x: 146
+      y: 576
+      width: 248
+      height: 64
+      radius: 32
+      bg_color: 0x1D2833
+      bg_opa: COVER
+      text_color: 0xF2F2F2
+      border_width: 0
+      pad_all: 0
+      shadow_width: 0
+      scrollable: false
+      pressed:
+        bg_opa: 80%
+      disabled:
+        text_opa: 40%
+      widgets:
+        - label:
+            id: fan_control_oscillation_label
+            text: ""
+            align: CENTER
+            width: 224
+            text_align: CENTER
+            text_font: roboto_20
+            text_color: 0xF2F2F2
+            long_mode: DOT
+            clickable: false
+  - button:
+      id: fan_control_direction
+      x: 406
+      y: 576
+      width: 248
+      height: 64
+      radius: 32
+      bg_color: 0x1D2833
+      bg_opa: COVER
+      text_color: 0xF2F2F2
+      border_width: 0
+      pad_all: 0
+      shadow_width: 0
+      scrollable: false
+      pressed:
+        bg_opa: 80%
+      disabled:
+        text_opa: 40%
+      widgets:
+        - label:
+            id: fan_control_direction_label
+            text: ""
+            align: CENTER
+            width: 224
+            text_align: CENTER
+            text_font: roboto_20
+            text_color: 0xF2F2F2
+            long_mode: DOT
+            clickable: false
+  - button:
+      id: fan_control_power
+      x: 280
+      y: 656
+      width: 240
+      height: 64
+      radius: 32
+      bg_color: 0xD3E3FD
+      bg_opa: COVER
+      text_color: 0x071018
+      border_width: 0
+      pad_all: 0
+      shadow_width: 0
+      scrollable: false
+      pressed:
+        bg_opa: 80%
+      disabled:
+        text_opa: 40%
+      widgets:
+        - label:
+            id: fan_control_power_label
+            text: ""
+            align: CENTER
+            width: 216
+            text_align: CENTER
+            text_font: roboto_24
+            text_color: 0x071018
+            long_mode: DOT
+            clickable: false
+  - label:
+      id: fan_control_status
+      x: 200
+      y: 730
+      width: 400
+      height: 24
+      text: ""
+      text_font: roboto_16
+      text_color: 0xC4C7C5
+      text_align: CENTER
+      long_mode: DOT
+  - obj:
+      id: fan_control_presets
+      x: 0
+      y: 0
+      width: 800
+      height: 800
+      bg_color: 0x000000
+      bg_opa: COVER
+      border_width: 0
+      pad_all: 0
+      radius: 0
+      hidden: true
+      scrollable: false
+      widgets:
+        - label:
+            id: fan_control_presets_title
+            x: 130
+            y: 124
+            width: 540
+            height: 44
+            text: !lambda 'return std::string(id(ui_i18n).translate("fan_control.choose_preset"));'
+            text_font: roboto_30
+            text_color: 0xF2F2F2
+            text_align: CENTER
+        - button:
+            id: fan_control_option_0
+            x: 130
+            y: 220
+            width: 264
+            height: 84
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            text_color: 0xF2F2F2
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 40%
+            widgets:
+              - label:
+                  id: fan_control_option_label_0
+                  text: ""
+                  align: CENTER
+                  width: 240
+                  text_align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: fan_control_option_1
+            x: 406
+            y: 220
+            width: 264
+            height: 84
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            text_color: 0xF2F2F2
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 40%
+            widgets:
+              - label:
+                  id: fan_control_option_label_1
+                  text: ""
+                  align: CENTER
+                  width: 240
+                  text_align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: fan_control_option_2
+            x: 130
+            y: 320
+            width: 264
+            height: 84
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            text_color: 0xF2F2F2
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 40%
+            widgets:
+              - label:
+                  id: fan_control_option_label_2
+                  text: ""
+                  align: CENTER
+                  width: 240
+                  text_align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: fan_control_option_3
+            x: 406
+            y: 320
+            width: 264
+            height: 84
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            text_color: 0xF2F2F2
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 40%
+            widgets:
+              - label:
+                  id: fan_control_option_label_3
+                  text: ""
+                  align: CENTER
+                  width: 240
+                  text_align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: fan_control_option_4
+            x: 130
+            y: 420
+            width: 264
+            height: 84
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            text_color: 0xF2F2F2
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 40%
+            widgets:
+              - label:
+                  id: fan_control_option_label_4
+                  text: ""
+                  align: CENTER
+                  width: 240
+                  text_align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: fan_control_option_5
+            x: 406
+            y: 420
+            width: 264
+            height: 84
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            text_color: 0xF2F2F2
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 40%
+            widgets:
+              - label:
+                  id: fan_control_option_label_5
+                  text: ""
+                  align: CENTER
+                  width: 240
+                  text_align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: fan_control_option_6
+            x: 130
+            y: 520
+            width: 264
+            height: 84
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            text_color: 0xF2F2F2
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 40%
+            widgets:
+              - label:
+                  id: fan_control_option_label_6
+                  text: ""
+                  align: CENTER
+                  width: 240
+                  text_align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: fan_control_option_7
+            x: 406
+            y: 520
+            width: 264
+            height: 84
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            text_color: 0xF2F2F2
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 40%
+            widgets:
+              - label:
+                  id: fan_control_option_label_7
+                  text: ""
+                  align: CENTER
+                  width: 240
+                  text_align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  long_mode: DOT
+                  clickable: false
+        - button:
+            id: fan_control_preset_back
+            x: 280
+            y: 656
+            width: 240
+            height: 64
+            radius: 32
+            bg_color: 0x1D2833
+            bg_opa: COVER
+            text_color: 0xF2F2F2
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 40%
+            widgets:
+              - label:
+                  id: fan_control_preset_back_label
+                  text: !lambda 'return std::string(id(ui_i18n).translate("fan_control.back"));'
+                  align: CENTER
+                  width: 216
+                  text_align: CENTER
+                  text_font: roboto_24
+                  text_color: 0xF2F2F2
+                  long_mode: DOT
+                  clickable: false
+

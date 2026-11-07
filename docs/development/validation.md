@@ -5,7 +5,42 @@ configuration and successful compile are necessary, but display ownership,
 cache coherency, touch arbitration, audio timing, and memory lifetime require
 hardware testing.
 
+Before declaring missing static elements from a screenshot preview, inspect the
+original capture as well: compare pixels in the suspect region and view an
+unaltered crop when needed. A misread preview is not evidence of a framebuffer
+defect. Preserve the original image/hash and keep diagnostic crops distinguishable.
+
 ## Test levels
+
+### Batch validation policy (2 November 2026)
+
+Group changes that share a runtime path into a reviewable package. Each feature
+still gets focused correctness checks and a real device scenario with original
+screenshots. Run the complete firmware build/flash and comparable performance,
+memory and lifecycle route once for the completed native package. Repeat or
+broaden it when a failure, new native change or unresolved concern warrants it.
+Do not repeat a full performance campaign for each small HA service adapter.
+
+An HA editor CSS change needs editor tests, actual browser geometry/visual
+review, protected-layout verification and a device compatibility check. It does
+not require compiling or reflashing an unchanged firmware. Retain the exact
+native identity and state which layer changed.
+
+The matrix below is a scenario catalogue for releases and affected subsystems,
+not an instruction to repeat every cold boot, audio and application test after
+every unrelated edit. Display ownership, navigation, buffers and audio changes
+still require their affected hardware matrix. Use one known baseline per batch;
+record source cadence separately from panel FPS. Do not trade correctness or
+actual screenshot review for redundant measurements.
+
+For owned Home Assistant `input_text` fixtures, restore the value before
+reducing its maximum length. In Core 2026.11, a collection update can store the
+new configuration before entity state validation fails: a rejected WebSocket
+update is not proof that no configuration changed. Reconcile the stored
+configuration and published state separately. When a privacy test changed the
+mode, first restore public mode with a limit that admits the known fixture,
+verify that exact public value, restore the original value, then restore the
+complete original configuration. Never inspect or record password-mode values.
 
 | Level | Purpose |
 | --- | --- |
@@ -15,6 +50,15 @@ hardware testing.
 | Flash/boot | Validate bootloader, IDF, panel, codecs, and persistent settings |
 | Scenario test | Validate visible behavior and lifecycle |
 | Stress test | Expose races, fragmentation, starvation, and stale ownership |
+
+For audio startup, record UART from before OTA through the first startup and
+each requested restart. Check the firmware identity and successful-boot marker
+on every cycle. Compare the boot signal's I2S output counter after the queue
+has drained with the FLAC frame count. Then play a second local FLAC, wait for
+the counter to settle, and compare its delta with that file's frame count.
+The native API may publish an announcement as playing. Capture the original
+screen after playback so screen capture does not affect the audio measurement.
+Report digital output separately from an acoustic recording or listening test.
 
 ## Product commands
 
@@ -85,6 +129,12 @@ the Atmosfera product configuration.
 - Verify an idle/error Voice screen and a paused Immich slideshow still sleep.
 
 ### Home navigation
+
+- Prepare performance scenarios through normal Home gestures. The diagnostic
+  `debug_navigation_home` shortcut changes the visible page but can omit the
+  normal cache/settle callback; `home_page=1` alone is not cache readiness.
+  Record trim/loan success and scroll segment count with FPS. Preserve a
+  fragmented-buffer result separately from a matched contiguous-buffer run.
 
 - Swipe pages 1 -> 2 -> 3 -> 4 without pausing.
 - Swipe back 4 -> 3 -> 2 -> 1.

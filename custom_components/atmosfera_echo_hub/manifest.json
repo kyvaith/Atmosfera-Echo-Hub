@@ -1,7 +1,9 @@
 {
   "domain": "atmosfera_echo_hub",
   "name": "Atmosfera Echo Hub",
-  "codeowners": ["@kyvaith"],
+  "codeowners": [
+    "@kyvaith"
+  ],
   "config_flow": true,
   "dependencies": [
     "camera",
@@ -12,8 +14,11 @@
     "panel_custom",
     "websocket_api"
   ],
+  "after_dependencies": [
+    "recorder"
+  ],
   "documentation": "https://github.com/kyvaith/Atmosfera-Echo-Hub",
   "integration_type": "helper",
   "iot_class": "local_push",
-  "version": "0.4.0.dev20"
+  "version": "0.4.0.dev131"
 }

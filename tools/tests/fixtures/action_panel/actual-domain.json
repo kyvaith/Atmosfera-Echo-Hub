@@ -1,0 +1,155 @@
+{
+  "button": {
+    "entity_id": "button.test",
+    "state": "unknown",
+    "services": [
+      "press"
+    ],
+    "metadata": {
+      "action_panel": {
+        "version": 1,
+        "panel_type": "action",
+        "caps": {
+          "run_blocked": "none",
+          "skip_condition": null,
+          "action_type": "button",
+          "operations": 1,
+          "stop_actions": null
+        },
+        "fingerprint": "4800e3015933fe294c7585f82621fbfe663002c4ec68ee4a4091b9c1b78a5b5a",
+        "state": {
+          "current": null,
+          "last_used_text": "",
+          "phase": "stateless",
+          "last_used_status": "unknown",
+          "source": "known"
+        },
+        "available": true,
+        "eligible_actions": 1
+      }
+    }
+  },
+  "input_button": {
+    "entity_id": "input_button.test",
+    "state": "unknown",
+    "services": [
+      "press"
+    ],
+    "metadata": {
+      "action_panel": {
+        "version": 1,
+        "panel_type": "action",
+        "caps": {
+          "run_blocked": "none",
+          "skip_condition": null,
+          "action_type": "input_button",
+          "operations": 1,
+          "stop_actions": null
+        },
+        "fingerprint": "30a68d0d4e9c02f15fac13981779d95258e98995e4e7b0435070ae2547e05a27",
+        "state": {
+          "current": null,
+          "last_used_text": "",
+          "phase": "stateless",
+          "last_used_status": "unknown",
+          "source": "known"
+        },
+        "available": true,
+        "eligible_actions": 1
+      }
+    }
+  },
+  "scene": {
+    "entity_id": "scene.test",
+    "state": "unknown",
+    "services": [
+      "turn_on"
+    ],
+    "metadata": {
+      "action_panel": {
+        "version": 1,
+        "panel_type": "action",
+        "caps": {
+          "run_blocked": "none",
+          "skip_condition": null,
+          "action_type": "scene",
+          "operations": 2,
+          "stop_actions": null
+        },
+        "fingerprint": "0285c232aa31d52f1aab618286514ac7050e7aabf3373b597132e5ff01ef1a15",
+        "state": {
+          "current": null,
+          "last_used_text": "",
+          "phase": "stateless",
+          "last_used_status": "unknown",
+          "source": "known"
+        },
+        "available": true,
+        "eligible_actions": 2
+      }
+    }
+  },
+  "script": {
+    "entity_id": "script.test",
+    "state": "off",
+    "services": [
+      "turn_on",
+      "turn_off"
+    ],
+    "metadata": {
+      "action_panel": {
+        "version": 1,
+        "panel_type": "action",
+        "caps": {
+          "run_blocked": "none",
+          "skip_condition": null,
+          "action_type": "script",
+          "operations": 12,
+          "stop_actions": null
+        },
+        "fingerprint": "74958066757683ae8b14ce4f0c97eccfb3c387a4788941fdbaf860635b6d32e9",
+        "state": {
+          "current": null,
+          "last_used_text": "",
+          "phase": "idle",
+          "last_used_status": "unknown",
+          "source": "known"
+        },
+        "available": true,
+        "eligible_actions": 4
+      }
+    }
+  },
+  "automation": {
+    "entity_id": "automation.test",
+    "state": "off",
+    "services": [
+      "turn_on",
+      "turn_off",
+      "trigger"
+    ],
+    "metadata": {
+      "action_panel": {
+        "version": 1,
+        "panel_type": "action",
+        "caps": {
+          "run_blocked": "none",
+          "skip_condition": false,
+          "action_type": "automation",
+          "operations": 112,
+          "stop_actions": false
+        },
+        "fingerprint": "d58357d1e0f44d30378658a9a91202cd4aa5076a7c6822659b1c4c9456db69e8",
+        "state": {
+          "current": null,
+          "last_used_text": "",
+          "phase": "disabled",
+          "last_used_status": "unknown",
+          "source": "known"
+        },
+        "available": true,
+        "eligible_actions": 80
+      }
+    }
+  }
+}

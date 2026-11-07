@@ -1,0 +1,752 @@
+[
+  {
+    "name": "design-00",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 11,
+      "slot": 29,
+      "card_id": "review-datetime-date",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000b",
+      "kind": "grant",
+      "state_seq": 1,
+      "ttl_ms": 30000,
+      "title": "Date helper",
+      "panel_type": "datetime",
+      "available": true,
+      "panel_caps": {
+        "mode": "date",
+        "can_set": true,
+        "zone_text": ""
+      },
+      "panel_state": {
+        "source": "known",
+        "year": 2028,
+        "month": 2,
+        "day": 28,
+        "hour": null,
+        "minute": null,
+        "second": null,
+        "updated_text": "2026-11-05T21:00:00+01:00"
+      },
+      "eligible_actions": 1,
+      "state_generation": 1
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":11,\"slot\":29,\"card_id\":\"review-datetime-date\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000b\",\"kind\":\"grant\",\"state_seq\":1,\"ttl_ms\":30000,\"title\":\"Date helper\",\"panel_type\":\"datetime\",\"available\":true,\"panel_caps\":{\"mode\":\"date\",\"can_set\":true,\"zone_text\":\"\"},\"panel_state\":{\"source\":\"known\",\"year\":2028,\"month\":2,\"day\":28,\"hour\":null,\"minute\":null,\"second\":null,\"updated_text\":\"2026-11-05T21:00:00+01:00\"},\"eligible_actions\":1,\"state_generation\":1}",
+    "size_utf8": 572
+  },
+  {
+    "name": "design-01",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 11,
+      "slot": 29,
+      "card_id": "review-datetime-date",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000b",
+      "kind": "command",
+      "datetime_version": 1,
+      "command_seq": 1,
+      "expected_state_generation": 1,
+      "op": "set_datetime",
+      "target": {
+        "year": 2028,
+        "month": 2,
+        "day": 29,
+        "hour": null,
+        "minute": null,
+        "second": null
+      }
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":11,\"slot\":29,\"card_id\":\"review-datetime-date\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000b\",\"kind\":\"command\",\"datetime_version\":1,\"command_seq\":1,\"expected_state_generation\":1,\"op\":\"set_datetime\",\"target\":{\"year\":2028,\"month\":2,\"day\":29,\"hour\":null,\"minute\":null,\"second\":null}}",
+    "size_utf8": 403
+  },
+  {
+    "name": "design-02",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 11,
+      "slot": 29,
+      "card_id": "review-datetime-date",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000b",
+      "kind": "result",
+      "command_seq": 1,
+      "state_seq": 1,
+      "status": "pending",
+      "reason": "none"
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":11,\"slot\":29,\"card_id\":\"review-datetime-date\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000b\",\"kind\":\"result\",\"command_seq\":1,\"state_seq\":1,\"status\":\"pending\",\"reason\":\"none\"}",
+    "size_utf8": 298
+  },
+  {
+    "name": "design-03",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 11,
+      "slot": 29,
+      "card_id": "review-datetime-date",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000b",
+      "kind": "result",
+      "command_seq": 1,
+      "state_seq": 1,
+      "status": "ha_accepted",
+      "reason": "none"
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":11,\"slot\":29,\"card_id\":\"review-datetime-date\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000b\",\"kind\":\"result\",\"command_seq\":1,\"state_seq\":1,\"status\":\"ha_accepted\",\"reason\":\"none\"}",
+    "size_utf8": 302
+  },
+  {
+    "name": "design-04",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 11,
+      "slot": 29,
+      "card_id": "review-datetime-date",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000b",
+      "kind": "state",
+      "state_seq": 2,
+      "ttl_ms": 30000,
+      "title": "Date helper",
+      "panel_type": "datetime",
+      "available": true,
+      "panel_caps": {
+        "mode": "date",
+        "can_set": true,
+        "zone_text": ""
+      },
+      "panel_state": {
+        "source": "known",
+        "year": 2028,
+        "month": 2,
+        "day": 29,
+        "hour": null,
+        "minute": null,
+        "second": null,
+        "updated_text": "2026-11-05T21:00:01+01:00"
+      },
+      "eligible_actions": 1,
+      "state_generation": 2
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":11,\"slot\":29,\"card_id\":\"review-datetime-date\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000b\",\"kind\":\"state\",\"state_seq\":2,\"ttl_ms\":30000,\"title\":\"Date helper\",\"panel_type\":\"datetime\",\"available\":true,\"panel_caps\":{\"mode\":\"date\",\"can_set\":true,\"zone_text\":\"\"},\"panel_state\":{\"source\":\"known\",\"year\":2028,\"month\":2,\"day\":29,\"hour\":null,\"minute\":null,\"second\":null,\"updated_text\":\"2026-11-05T21:00:01+01:00\"},\"eligible_actions\":1,\"state_generation\":2}",
+    "size_utf8": 572
+  },
+  {
+    "name": "design-05",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 11,
+      "slot": 29,
+      "card_id": "review-datetime-date",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000b",
+      "kind": "result",
+      "command_seq": 1,
+      "state_seq": 2,
+      "status": "state_matches",
+      "reason": "none"
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":11,\"slot\":29,\"card_id\":\"review-datetime-date\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000b\",\"kind\":\"result\",\"command_seq\":1,\"state_seq\":2,\"status\":\"state_matches\",\"reason\":\"none\"}",
+    "size_utf8": 304
+  },
+  {
+    "name": "design-06",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 12,
+      "slot": 29,
+      "card_id": "review-datetime-time",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000c",
+      "kind": "grant",
+      "state_seq": 1,
+      "ttl_ms": 30000,
+      "title": "Time helper",
+      "panel_type": "datetime",
+      "available": true,
+      "panel_caps": {
+        "mode": "time",
+        "can_set": true,
+        "zone_text": ""
+      },
+      "panel_state": {
+        "source": "known",
+        "year": null,
+        "month": null,
+        "day": null,
+        "hour": 12,
+        "minute": 34,
+        "second": 56,
+        "updated_text": "2026-11-05T21:00:00+01:00"
+      },
+      "eligible_actions": 1,
+      "state_generation": 1
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":12,\"slot\":29,\"card_id\":\"review-datetime-time\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000c\",\"kind\":\"grant\",\"state_seq\":1,\"ttl_ms\":30000,\"title\":\"Time helper\",\"panel_type\":\"datetime\",\"available\":true,\"panel_caps\":{\"mode\":\"time\",\"can_set\":true,\"zone_text\":\"\"},\"panel_state\":{\"source\":\"known\",\"year\":null,\"month\":null,\"day\":null,\"hour\":12,\"minute\":34,\"second\":56,\"updated_text\":\"2026-11-05T21:00:00+01:00\"},\"eligible_actions\":1,\"state_generation\":1}",
+    "size_utf8": 571
+  },
+  {
+    "name": "design-07",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 12,
+      "slot": 29,
+      "card_id": "review-datetime-time",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000c",
+      "kind": "command",
+      "datetime_version": 1,
+      "command_seq": 1,
+      "expected_state_generation": 1,
+      "op": "set_datetime",
+      "target": {
+        "year": null,
+        "month": null,
+        "day": null,
+        "hour": 12,
+        "minute": 35,
+        "second": 7
+      }
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":12,\"slot\":29,\"card_id\":\"review-datetime-time\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000c\",\"kind\":\"command\",\"datetime_version\":1,\"command_seq\":1,\"expected_state_generation\":1,\"op\":\"set_datetime\",\"target\":{\"year\":null,\"month\":null,\"day\":null,\"hour\":12,\"minute\":35,\"second\":7}}",
+    "size_utf8": 401
+  },
+  {
+    "name": "design-08",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 12,
+      "slot": 29,
+      "card_id": "review-datetime-time",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000c",
+      "kind": "result",
+      "command_seq": 1,
+      "state_seq": 1,
+      "status": "pending",
+      "reason": "none"
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":12,\"slot\":29,\"card_id\":\"review-datetime-time\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000c\",\"kind\":\"result\",\"command_seq\":1,\"state_seq\":1,\"status\":\"pending\",\"reason\":\"none\"}",
+    "size_utf8": 298
+  },
+  {
+    "name": "design-09",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 12,
+      "slot": 29,
+      "card_id": "review-datetime-time",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000c",
+      "kind": "result",
+      "command_seq": 1,
+      "state_seq": 1,
+      "status": "ha_accepted",
+      "reason": "none"
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":12,\"slot\":29,\"card_id\":\"review-datetime-time\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000c\",\"kind\":\"result\",\"command_seq\":1,\"state_seq\":1,\"status\":\"ha_accepted\",\"reason\":\"none\"}",
+    "size_utf8": 302
+  },
+  {
+    "name": "design-10",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 12,
+      "slot": 29,
+      "card_id": "review-datetime-time",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000c",
+      "kind": "state",
+      "state_seq": 2,
+      "ttl_ms": 30000,
+      "title": "Time helper",
+      "panel_type": "datetime",
+      "available": true,
+      "panel_caps": {
+        "mode": "time",
+        "can_set": true,
+        "zone_text": ""
+      },
+      "panel_state": {
+        "source": "known",
+        "year": null,
+        "month": null,
+        "day": null,
+        "hour": 12,
+        "minute": 35,
+        "second": 7,
+        "updated_text": "2026-11-05T21:00:01+01:00"
+      },
+      "eligible_actions": 1,
+      "state_generation": 2
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":12,\"slot\":29,\"card_id\":\"review-datetime-time\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000c\",\"kind\":\"state\",\"state_seq\":2,\"ttl_ms\":30000,\"title\":\"Time helper\",\"panel_type\":\"datetime\",\"available\":true,\"panel_caps\":{\"mode\":\"time\",\"can_set\":true,\"zone_text\":\"\"},\"panel_state\":{\"source\":\"known\",\"year\":null,\"month\":null,\"day\":null,\"hour\":12,\"minute\":35,\"second\":7,\"updated_text\":\"2026-11-05T21:00:01+01:00\"},\"eligible_actions\":1,\"state_generation\":2}",
+    "size_utf8": 570
+  },
+  {
+    "name": "design-11",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 12,
+      "slot": 29,
+      "card_id": "review-datetime-time",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000c",
+      "kind": "result",
+      "command_seq": 1,
+      "state_seq": 2,
+      "status": "state_matches",
+      "reason": "none"
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":12,\"slot\":29,\"card_id\":\"review-datetime-time\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000c\",\"kind\":\"result\",\"command_seq\":1,\"state_seq\":2,\"status\":\"state_matches\",\"reason\":\"none\"}",
+    "size_utf8": 304
+  },
+  {
+    "name": "design-12",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 13,
+      "slot": 29,
+      "card_id": "review-datetime-datetime",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000d",
+      "kind": "grant",
+      "state_seq": 1,
+      "ttl_ms": 30000,
+      "title": "Date and time helper",
+      "panel_type": "datetime",
+      "available": true,
+      "panel_caps": {
+        "mode": "datetime",
+        "can_set": true,
+        "zone_text": "Europe/Warsaw"
+      },
+      "panel_state": {
+        "source": "known",
+        "year": 2026,
+        "month": 11,
+        "day": 5,
+        "hour": 20,
+        "minute": 15,
+        "second": 37,
+        "updated_text": "2026-11-05T21:00:00+01:00"
+      },
+      "eligible_actions": 1,
+      "state_generation": 1
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":13,\"slot\":29,\"card_id\":\"review-datetime-datetime\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000d\",\"kind\":\"grant\",\"state_seq\":1,\"ttl_ms\":30000,\"title\":\"Date and time helper\",\"panel_type\":\"datetime\",\"available\":true,\"panel_caps\":{\"mode\":\"datetime\",\"can_set\":true,\"zone_text\":\"Europe/Warsaw\"},\"panel_state\":{\"source\":\"known\",\"year\":2026,\"month\":11,\"day\":5,\"hour\":20,\"minute\":15,\"second\":37,\"updated_text\":\"2026-11-05T21:00:00+01:00\"},\"eligible_actions\":1,\"state_generation\":1}",
+    "size_utf8": 596
+  },
+  {
+    "name": "design-13",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 13,
+      "slot": 29,
+      "card_id": "review-datetime-datetime",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000d",
+      "kind": "command",
+      "datetime_version": 1,
+      "command_seq": 1,
+      "expected_state_generation": 1,
+      "op": "set_datetime",
+      "target": {
+        "year": 2026,
+        "month": 11,
+        "day": 6,
+        "hour": 7,
+        "minute": 30,
+        "second": 9
+      }
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":13,\"slot\":29,\"card_id\":\"review-datetime-datetime\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000d\",\"kind\":\"command\",\"datetime_version\":1,\"command_seq\":1,\"expected_state_generation\":1,\"op\":\"set_datetime\",\"target\":{\"year\":2026,\"month\":11,\"day\":6,\"hour\":7,\"minute\":30,\"second\":9}}",
+    "size_utf8": 399
+  },
+  {
+    "name": "design-14",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 13,
+      "slot": 29,
+      "card_id": "review-datetime-datetime",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000d",
+      "kind": "result",
+      "command_seq": 1,
+      "state_seq": 1,
+      "status": "pending",
+      "reason": "none"
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":13,\"slot\":29,\"card_id\":\"review-datetime-datetime\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000d\",\"kind\":\"result\",\"command_seq\":1,\"state_seq\":1,\"status\":\"pending\",\"reason\":\"none\"}",
+    "size_utf8": 302
+  },
+  {
+    "name": "design-15",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 13,
+      "slot": 29,
+      "card_id": "review-datetime-datetime",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000d",
+      "kind": "result",
+      "command_seq": 1,
+      "state_seq": 1,
+      "status": "ha_accepted",
+      "reason": "none"
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":13,\"slot\":29,\"card_id\":\"review-datetime-datetime\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000d\",\"kind\":\"result\",\"command_seq\":1,\"state_seq\":1,\"status\":\"ha_accepted\",\"reason\":\"none\"}",
+    "size_utf8": 306
+  },
+  {
+    "name": "design-16",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 13,
+      "slot": 29,
+      "card_id": "review-datetime-datetime",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000d",
+      "kind": "state",
+      "state_seq": 2,
+      "ttl_ms": 30000,
+      "title": "Date and time helper",
+      "panel_type": "datetime",
+      "available": true,
+      "panel_caps": {
+        "mode": "datetime",
+        "can_set": true,
+        "zone_text": "Europe/Warsaw"
+      },
+      "panel_state": {
+        "source": "known",
+        "year": 2026,
+        "month": 11,
+        "day": 6,
+        "hour": 7,
+        "minute": 30,
+        "second": 9,
+        "updated_text": "2026-11-05T21:00:01+01:00"
+      },
+      "eligible_actions": 1,
+      "state_generation": 2
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":13,\"slot\":29,\"card_id\":\"review-datetime-datetime\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000d\",\"kind\":\"state\",\"state_seq\":2,\"ttl_ms\":30000,\"title\":\"Date and time helper\",\"panel_type\":\"datetime\",\"available\":true,\"panel_caps\":{\"mode\":\"datetime\",\"can_set\":true,\"zone_text\":\"Europe/Warsaw\"},\"panel_state\":{\"source\":\"known\",\"year\":2026,\"month\":11,\"day\":6,\"hour\":7,\"minute\":30,\"second\":9,\"updated_text\":\"2026-11-05T21:00:01+01:00\"},\"eligible_actions\":1,\"state_generation\":2}",
+    "size_utf8": 594
+  },
+  {
+    "name": "design-17",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 13,
+      "slot": 29,
+      "card_id": "review-datetime-datetime",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000d",
+      "kind": "result",
+      "command_seq": 1,
+      "state_seq": 2,
+      "status": "state_matches",
+      "reason": "none"
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":13,\"slot\":29,\"card_id\":\"review-datetime-datetime\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000d\",\"kind\":\"result\",\"command_seq\":1,\"state_seq\":2,\"status\":\"state_matches\",\"reason\":\"none\"}",
+    "size_utf8": 308
+  },
+  {
+    "name": "design-18",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 13,
+      "slot": 29,
+      "card_id": "review-datetime-datetime",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000d",
+      "kind": "state",
+      "state_seq": 2,
+      "ttl_ms": 30000,
+      "title": "Date and time helper",
+      "panel_type": "datetime",
+      "available": true,
+      "panel_caps": {
+        "mode": "datetime",
+        "can_set": true,
+        "zone_text": "Europe/Warsaw"
+      },
+      "panel_state": {
+        "source": "known",
+        "year": 2026,
+        "month": 11,
+        "day": 5,
+        "hour": 20,
+        "minute": 15,
+        "second": 37,
+        "updated_text": "2026-11-05T21:00:02+01:00"
+      },
+      "eligible_actions": 1,
+      "state_generation": 1
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":13,\"slot\":29,\"card_id\":\"review-datetime-datetime\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000d\",\"kind\":\"state\",\"state_seq\":2,\"ttl_ms\":30000,\"title\":\"Date and time helper\",\"panel_type\":\"datetime\",\"available\":true,\"panel_caps\":{\"mode\":\"datetime\",\"can_set\":true,\"zone_text\":\"Europe/Warsaw\"},\"panel_state\":{\"source\":\"known\",\"year\":2026,\"month\":11,\"day\":5,\"hour\":20,\"minute\":15,\"second\":37,\"updated_text\":\"2026-11-05T21:00:02+01:00\"},\"eligible_actions\":1,\"state_generation\":1}",
+    "size_utf8": 596
+  },
+  {
+    "name": "design-19",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 13,
+      "slot": 29,
+      "card_id": "review-datetime-datetime",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000d",
+      "kind": "state",
+      "state_seq": 3,
+      "ttl_ms": 30000,
+      "title": "Date and time helper",
+      "panel_type": "datetime",
+      "available": false,
+      "panel_caps": {
+        "mode": "datetime",
+        "can_set": true,
+        "zone_text": "Europe/Warsaw"
+      },
+      "panel_state": {
+        "source": "unknown",
+        "year": null,
+        "month": null,
+        "day": null,
+        "hour": null,
+        "minute": null,
+        "second": null,
+        "updated_text": "2026-11-05T21:00:00+01:00"
+      },
+      "eligible_actions": 0,
+      "state_generation": 2
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":13,\"slot\":29,\"card_id\":\"review-datetime-datetime\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000d\",\"kind\":\"state\",\"state_seq\":3,\"ttl_ms\":30000,\"title\":\"Date and time helper\",\"panel_type\":\"datetime\",\"available\":false,\"panel_caps\":{\"mode\":\"datetime\",\"can_set\":true,\"zone_text\":\"Europe/Warsaw\"},\"panel_state\":{\"source\":\"unknown\",\"year\":null,\"month\":null,\"day\":null,\"hour\":null,\"minute\":null,\"second\":null,\"updated_text\":\"2026-11-05T21:00:00+01:00\"},\"eligible_actions\":0,\"state_generation\":2}",
+    "size_utf8": 610
+  },
+  {
+    "name": "design-20",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 12,
+      "slot": 29,
+      "card_id": "review-datetime-time",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000c",
+      "kind": "state",
+      "state_seq": 3,
+      "ttl_ms": 30000,
+      "title": "Time helper",
+      "panel_type": "datetime",
+      "available": false,
+      "panel_caps": {
+        "mode": "time",
+        "can_set": true,
+        "zone_text": ""
+      },
+      "panel_state": {
+        "source": "unavailable",
+        "year": null,
+        "month": null,
+        "day": null,
+        "hour": null,
+        "minute": null,
+        "second": null,
+        "updated_text": "2026-11-05T21:00:00+01:00"
+      },
+      "eligible_actions": 0,
+      "state_generation": 2
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":12,\"slot\":29,\"card_id\":\"review-datetime-time\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000c\",\"kind\":\"state\",\"state_seq\":3,\"ttl_ms\":30000,\"title\":\"Time helper\",\"panel_type\":\"datetime\",\"available\":false,\"panel_caps\":{\"mode\":\"time\",\"can_set\":true,\"zone_text\":\"\"},\"panel_state\":{\"source\":\"unavailable\",\"year\":null,\"month\":null,\"day\":null,\"hour\":null,\"minute\":null,\"second\":null,\"updated_text\":\"2026-11-05T21:00:00+01:00\"},\"eligible_actions\":0,\"state_generation\":2}",
+    "size_utf8": 584
+  },
+  {
+    "name": "design-21",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 14,
+      "slot": 29,
+      "card_id": "review-datetime-date",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000e",
+      "kind": "grant",
+      "state_seq": 1,
+      "ttl_ms": 30000,
+      "title": "Date helper",
+      "panel_type": "datetime",
+      "available": true,
+      "panel_caps": {
+        "mode": "date",
+        "can_set": false,
+        "zone_text": ""
+      },
+      "panel_state": {
+        "source": "known",
+        "year": 2028,
+        "month": 2,
+        "day": 28,
+        "hour": null,
+        "minute": null,
+        "second": null,
+        "updated_text": "2026-11-05T21:00:00+01:00"
+      },
+      "eligible_actions": 0,
+      "state_generation": 1
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":14,\"slot\":29,\"card_id\":\"review-datetime-date\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000e\",\"kind\":\"grant\",\"state_seq\":1,\"ttl_ms\":30000,\"title\":\"Date helper\",\"panel_type\":\"datetime\",\"available\":true,\"panel_caps\":{\"mode\":\"date\",\"can_set\":false,\"zone_text\":\"\"},\"panel_state\":{\"source\":\"known\",\"year\":2028,\"month\":2,\"day\":28,\"hour\":null,\"minute\":null,\"second\":null,\"updated_text\":\"2026-11-05T21:00:00+01:00\"},\"eligible_actions\":0,\"state_generation\":1}",
+    "size_utf8": 573
+  },
+  {
+    "name": "design-22",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 12,
+      "slot": 29,
+      "card_id": "review-datetime-time",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000c",
+      "kind": "result",
+      "command_seq": 1,
+      "state_seq": 1,
+      "status": "already_matched",
+      "reason": "none"
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":12,\"slot\":29,\"card_id\":\"review-datetime-time\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000c\",\"kind\":\"result\",\"command_seq\":1,\"state_seq\":1,\"status\":\"already_matched\",\"reason\":\"none\"}",
+    "size_utf8": 306
+  },
+  {
+    "name": "design-23",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 13,
+      "slot": 29,
+      "card_id": "review-datetime-datetime",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000d",
+      "kind": "result",
+      "command_seq": 1,
+      "state_seq": 2,
+      "status": "rejected",
+      "reason": "stale_state"
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":13,\"slot\":29,\"card_id\":\"review-datetime-datetime\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000d\",\"kind\":\"result\",\"command_seq\":1,\"state_seq\":2,\"status\":\"rejected\",\"reason\":\"stale_state\"}",
+    "size_utf8": 310
+  },
+  {
+    "name": "design-24",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 13,
+      "slot": 29,
+      "card_id": "review-datetime-datetime",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000d",
+      "kind": "result",
+      "command_seq": 1,
+      "state_seq": 1,
+      "status": "rejected",
+      "reason": "service_error"
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":13,\"slot\":29,\"card_id\":\"review-datetime-datetime\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000d\",\"kind\":\"result\",\"command_seq\":1,\"state_seq\":1,\"status\":\"rejected\",\"reason\":\"service_error\"}",
+    "size_utf8": 312
+  },
+  {
+    "name": "design-25",
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "channel": "0123456789abcdef0123456789abcdef",
+      "open_seq": 13,
+      "slot": 29,
+      "card_id": "review-datetime-datetime",
+      "revision": 400,
+      "control_kind": "panel",
+      "token": "0000000000000000000000000000000d",
+      "kind": "result",
+      "command_seq": 1,
+      "state_seq": 1,
+      "status": "not_confirmed",
+      "reason": "state_timeout"
+    },
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"channel\":\"0123456789abcdef0123456789abcdef\",\"open_seq\":13,\"slot\":29,\"card_id\":\"review-datetime-datetime\",\"revision\":400,\"control_kind\":\"panel\",\"token\":\"0000000000000000000000000000000d\",\"kind\":\"result\",\"command_seq\":1,\"state_seq\":1,\"status\":\"not_confirmed\",\"reason\":\"state_timeout\"}",
+    "size_utf8": 317
+  }
+]

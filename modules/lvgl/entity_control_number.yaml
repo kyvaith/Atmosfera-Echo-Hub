@@ -5,6 +5,17 @@ lvgl_material:
   tile_surfaces:
     - id: !extend home_material_tiles
       number_controls: true
+      choice_controls: true
+      cover_controls: true
+      fan_controls: true
+      humidifier_controls: true
+      robot_controls: true
+      panel_controls: true
+      light_detail_controls: true
+      on_entity_detail_control_press:
+        - lambda: |-
+            const std::string_view card = card_id == nullptr ? std::string_view{} : std::string_view(card_id);
+            id(selected_light_control).open_light_detail(slot, card, revision);
       on_entity_control_press:
         - lambda: |-
             // Captured typed identity; never infer a kind after an await.
@@ -13,6 +24,18 @@ lvgl_material:
               id(selected_light_control).open(slot, card, revision);
             else if (control_kind == 1)
               id(selected_light_control).open_number(slot, card, revision);
+            else if (control_kind == 2)
+              id(selected_light_control).open_choice(slot, card, revision);
+            else if (control_kind == 3)
+              id(selected_light_control).open_cover(slot, card, revision);
+            else if (control_kind == 4)
+              id(selected_light_control).open_fan(slot, card, revision);
+            else if (control_kind == 5)
+              id(selected_light_control).open_humidifier(slot, card, revision);
+            else if (control_kind == 6)
+              id(selected_light_control).open_robot(slot, card, revision);
+            else if (control_kind == 7)
+              id(selected_light_control).open_panel(slot, card, revision);
   entity_controls:
     - id: selected_light_control
       lvgl_id: ui_lvgl
@@ -27,12 +50,1228 @@ lvgl_material:
       status_label: light_control_status
       enabled: ${light_control_product_admitted}
       number_stepper: true
+      climate_range_profile:
+        enabled: ${climate_range_control_product_admitted}
+        button: climate_detail_range
+        label: climate_detail_range_label
+      light_color_profile:
+        enabled: ${light_color_control_product_admitted}
+        hit_padding: 20
+        root: light_color_root
+        kind: light_color_kind
+        title: light_color_title
+        preview: light_color_preview
+        status: light_color_status
+        hue_label: light_color_hue_label
+        hue_slider: light_color_hue_slider
+        saturation_label: light_color_saturation_label
+        saturation_slider: light_color_saturation_slider
+        cancel: light_color_cancel
+        cancel_label: light_color_cancel_label
+        apply: light_color_apply
+        apply_label: light_color_apply_label
+        main_button: light_detail_color
+        main_label: light_detail_color_label
+      text_controller:
+        enabled: ${text_control_product_admitted}
+        root: text_root
+        title: text_title
+        kind: text_kind
+        icon: text_icon
+        surface: text_surface
+        viewport: text_viewport
+        cursor: text_cursor
+        count: text_count
+        status: text_status
+        cancel_label: text_cancel_label
+        save_label: text_save_label
+        lines:
+        - text_line_0
+        - text_line_1
+        - text_line_2
+        - text_line_3
+        - text_line_4
+        - text_line_5
+        row_lengths: [10, 9, 7]
+        keyboard:
+        - text_keys_0
+        - text_keys_1
+        - text_keys_2
+        controls:
+          up: text_up
+          down: text_down
+          shift: text_shift
+          backspace: text_backspace
+          symbols: text_symbols
+          alternate: text_alternate
+          left: text_left
+          space: text_space
+          right: text_right
+          cancel: text_cancel
+          save: text_save
+        key_labels:
+          symbols: text_symbols_label
+          alternate: text_alternate_label
+          space: text_space_label
+        repertoire: ' !"#$%&''()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~ĄąĆćĘęŁłŃńÓóŚśŹźŻż'
+        maps:
+        - - label: q
+            value: q
+          - label: w
+            value: w
+          - label: e
+            value: e
+          - label: r
+            value: r
+          - label: t
+            value: t
+          - label: y
+            value: y
+          - label: u
+            value: u
+          - label: i
+            value: i
+          - label: o
+            value: o
+          - label: p
+            value: p
+          - label: a
+            value: a
+          - label: s
+            value: s
+          - label: d
+            value: d
+          - label: f
+            value: f
+          - label: g
+            value: g
+          - label: h
+            value: h
+          - label: j
+            value: j
+          - label: k
+            value: k
+          - label: l
+            value: l
+          - label: z
+            value: z
+          - label: x
+            value: x
+          - label: c
+            value: c
+          - label: v
+            value: v
+          - label: b
+            value: b
+          - label: n
+            value: n
+          - label: m
+            value: m
+        - - label: Q
+            value: Q
+          - label: W
+            value: W
+          - label: E
+            value: E
+          - label: R
+            value: R
+          - label: T
+            value: T
+          - label: Y
+            value: Y
+          - label: U
+            value: U
+          - label: I
+            value: I
+          - label: O
+            value: O
+          - label: P
+            value: P
+          - label: A
+            value: A
+          - label: S
+            value: S
+          - label: D
+            value: D
+          - label: F
+            value: F
+          - label: G
+            value: G
+          - label: H
+            value: H
+          - label: J
+            value: J
+          - label: K
+            value: K
+          - label: L
+            value: L
+          - label: Z
+            value: Z
+          - label: X
+            value: X
+          - label: C
+            value: C
+          - label: V
+            value: V
+          - label: B
+            value: B
+          - label: N
+            value: N
+          - label: M
+            value: M
+        - - label: '0'
+            value: '0'
+          - label: '1'
+            value: '1'
+          - label: '2'
+            value: '2'
+          - label: '3'
+            value: '3'
+          - label: '4'
+            value: '4'
+          - label: '5'
+            value: '5'
+          - label: '6'
+            value: '6'
+          - label: '7'
+            value: '7'
+          - label: '8'
+            value: '8'
+          - label: '9'
+            value: '9'
+          - label: .
+            value: .
+          - label: ','
+            value: ','
+          - label: '!'
+            value: '!'
+          - label: '?'
+            value: '?'
+          - label: ''''
+            value: ''''
+          - label: '-'
+            value: '-'
+          - label: '"'
+            value: '"'
+          - label: ':'
+            value: ':'
+          - label: ;
+            value: ;
+          - label: (
+            value: (
+          - label: )
+            value: )
+          - label: /
+            value: /
+          - label: \
+            value: \
+          - label: '@'
+            value: '@'
+          - label: '#'
+            value: '#'
+          - label: '&'
+            value: '&'
+        - - label: $
+            value: $
+          - label: '%'
+            value: '%'
+          - label: '*'
+            value: '*'
+          - label: +
+            value: +
+          - label: <
+            value: <
+          - label: '='
+            value: '='
+          - label: '>'
+            value: '>'
+          - label: '['
+            value: '['
+          - label: ']'
+            value: ']'
+          - label: ^
+            value: ^
+          - label: _
+            value: _
+          - label: '`'
+            value: '`'
+          - label: '{'
+            value: '{'
+          - label: '|'
+            value: '|'
+          - label: '}'
+            value: '}'
+          - label: '~'
+            value: '~'
+          - label: '0'
+            value: '0'
+          - label: '1'
+            value: '1'
+          - label: '2'
+            value: '2'
+          - label: '3'
+            value: '3'
+          - label: '4'
+            value: '4'
+          - label: '5'
+            value: '5'
+          - label: '6'
+            value: '6'
+          - label: '7'
+            value: '7'
+          - label: '8'
+            value: '8'
+          - label: '9'
+            value: '9'
+        - - label: ą
+            value: ą
+          - label: ć
+            value: ć
+          - label: ę
+            value: ę
+          - label: ł
+            value: ł
+          - label: ń
+            value: ń
+          - label: ó
+            value: ó
+          - label: ś
+            value: ś
+          - label: ź
+            value: ź
+          - label: ż
+            value: ż
+          - label: abc
+            value: ''
+          - label: a
+            value: a
+          - label: s
+            value: s
+          - label: d
+            value: d
+          - label: f
+            value: f
+          - label: g
+            value: g
+          - label: h
+            value: h
+          - label: j
+            value: j
+          - label: k
+            value: k
+          - label: l
+            value: l
+          - label: z
+            value: z
+          - label: x
+            value: x
+          - label: c
+            value: c
+          - label: v
+            value: v
+          - label: b
+            value: b
+          - label: n
+            value: n
+          - label: m
+            value: m
+        - - label: Ą
+            value: Ą
+          - label: Ć
+            value: Ć
+          - label: Ę
+            value: Ę
+          - label: Ł
+            value: Ł
+          - label: Ń
+            value: Ń
+          - label: Ó
+            value: Ó
+          - label: Ś
+            value: Ś
+          - label: Ź
+            value: Ź
+          - label: Ż
+            value: Ż
+          - label: abc
+            value: ''
+          - label: A
+            value: A
+          - label: S
+            value: S
+          - label: D
+            value: D
+          - label: F
+            value: F
+          - label: G
+            value: G
+          - label: H
+            value: H
+          - label: J
+            value: J
+          - label: K
+            value: K
+          - label: L
+            value: L
+          - label: Z
+            value: Z
+          - label: X
+            value: X
+          - label: C
+            value: C
+          - label: V
+            value: V
+          - label: B
+            value: B
+          - label: N
+            value: N
+          - label: M
+            value: M
+        layouts:
+          overview:
+            surface_y: 270
+            surface_height: 304
+            viewport_y: 20
+            visible_lines: 6
+            count_y: 584
+            up_y: 342
+            down_y: 406
+            save_x: 312
+          editor:
+            surface_y: 174
+            surface_height: 160
+            viewport_y: 16
+            visible_lines: 3
+            count_y: 334
+            up_y: 184
+            down_y: 246
+            save_x: 412
+        line_height: 40
+      datetime_controller:
+        enabled: ${datetime_control_product_admitted}
+        root: datetime_root
+        title: datetime_title
+        kind: datetime_kind
+        summary: datetime_summary
+        zone: datetime_zone
+        updated: datetime_updated
+        status: datetime_status
+        fields_root: datetime_fields
+        editor_root: datetime_editor
+        editor_field: datetime_editor_field
+        editor_digits: datetime_editor_digits
+        icons:
+          date: datetime_date_icon
+          time: datetime_time_icon
+        fields:
+          year:
+            button: datetime_field_year
+            caption: datetime_year_caption
+            value: datetime_year_value
+          month:
+            button: datetime_field_month
+            caption: datetime_month_caption
+            value: datetime_month_value
+          day:
+            button: datetime_field_day
+            caption: datetime_day_caption
+            value: datetime_day_value
+          hour:
+            button: datetime_field_hour
+            caption: datetime_hour_caption
+            value: datetime_hour_value
+          minute:
+            button: datetime_field_minute
+            caption: datetime_minute_caption
+            value: datetime_minute_value
+          second:
+            button: datetime_field_second
+            caption: datetime_second_caption
+            value: datetime_second_value
+        digits:
+        - datetime_key_0
+        - datetime_key_1
+        - datetime_key_2
+        - datetime_key_3
+        - datetime_key_4
+        - datetime_key_5
+        - datetime_key_6
+        - datetime_key_7
+        - datetime_key_8
+        - datetime_key_9
+        backspace: datetime_backspace
+        accept: datetime_accept
+        cancel_label: datetime_cancel_label
+        save_label: datetime_save_label
+        controls:
+          minus: datetime_minus
+          plus: datetime_plus
+          cancel: datetime_cancel
+          save: datetime_save
+        field_layouts:
+          overview:
+            x: 146
+            y: 390
+            height: 176
+            field_height: 80
+          editor:
+            x: 146
+            y: 174
+            height: 132
+            field_height: 62
+      action_controller:
+        enabled: ${action_control_product_admitted}
+        tile_event: ${tile_event_control_product_admitted}
+        parameters: ${action_control_product_admitted}
+        root: action_panel_root
+        title: action_panel_title
+        kind: action_panel_kind
+        phase: action_panel_phase
+        last_used: action_panel_last_used
+        current: action_panel_current
+        policy: action_panel_policy
+        status: action_panel_status
+        icons:
+          button: action_panel_icon_button
+          scene: action_panel_icon_scene
+          script: action_panel_icon_script
+          automation: action_panel_icon_automation
+        buttons:
+          - button: action_panel_primary
+            label: action_panel_primary_label
+          - button: action_panel_left
+            label: action_panel_left_label
+          - button: action_panel_right
+            label: action_panel_right_label
+      media_controller:
+        enabled: ${media_control_product_admitted}
+        root: media_panel_root
+        title: media_panel_title
+        kind: media_panel_kind
+        phase: media_panel_phase
+        track: media_panel_track
+        artist: media_panel_artist
+        status: media_panel_status
+        volume_summary: media_panel_volume_summary
+        track_compact_font: roboto_20
+        artist_compact_font: roboto_18
+        volume_compact_font: roboto_18
+        icons:
+          generic: media_panel_icon_generic
+          speaker: media_panel_icon_speaker
+          tv: media_panel_icon_tv
+          receiver: media_panel_icon_receiver
+        actions:
+        - button: media_panel_play
+          label: media_panel_play_label
+        - button: media_panel_pause
+          label: media_panel_pause_label
+        - button: media_panel_previous
+          label: media_panel_previous_label
+        - button: media_panel_next
+          label: media_panel_next_label
+        - button: media_panel_stop
+          label: media_panel_stop_label
+        - button: media_panel_turn_on
+          label: media_panel_turn_on_label
+        - button: media_panel_turn_off
+          label: media_panel_turn_off_label
+        - button: media_panel_volume_facet
+          label: media_panel_volume_facet_label
+        - button: media_panel_volume_up
+          label: media_panel_volume_up_label
+        - button: media_panel_volume_down
+          label: media_panel_volume_down_label
+        - button: media_panel_mute
+          label: media_panel_mute_label
+        - button: media_panel_shuffle
+          label: media_panel_shuffle_label
+        facets:
+        - button: media_panel_facet_source
+          label: media_panel_facet_source_label
+        - button: media_panel_facet_sound_mode
+          label: media_panel_facet_sound_mode_label
+        - button: media_panel_facet_repeat
+          label: media_panel_facet_repeat_label
+        volume:
+          root: media_volume_root
+          title: media_volume_title
+          kind: media_volume_kind
+          observed: media_volume_observed
+          status: media_volume_status
+          back: media_panel_volume_back
+          compact_font: roboto_18
+        choice:
+          root: detail_choice_root
+          title: detail_choice_title
+          kind: detail_choice_kind
+          current: detail_choice_current
+          status: detail_choice_status
+          back: detail_choice_back
+          apply: detail_choice_apply
+          apply_label: detail_choice_apply_label
+          compact_font: roboto_18
+          options:
+          - button: detail_choice_option_0
+            label: detail_choice_option_label_0
+          - button: detail_choice_option_1
+            label: detail_choice_option_label_1
+          - button: detail_choice_option_2
+            label: detail_choice_option_label_2
+          - button: detail_choice_option_3
+            label: detail_choice_option_label_3
+          - button: detail_choice_option_4
+            label: detail_choice_option_label_4
+          - button: detail_choice_option_5
+            label: detail_choice_option_label_5
+          - button: detail_choice_option_6
+            label: detail_choice_option_label_6
+          - button: detail_choice_option_7
+            label: detail_choice_option_label_7
+      statistics_profile:
+        enabled: ${info_statistics_product_admitted}
+        surface: extra_statistics_surface
+      agenda_profile:
+        enabled: ${info_agenda_product_admitted}
+        previous: extra_agenda_previous
+        previous_label: extra_agenda_previous_label
+        next: extra_agenda_next
+        next_label: extra_agenda_next_label
+      extra_controller:
+        info: true
+        info_context: ${info_context_product_admitted}
+        lock: true
+        root: extra_control_root
+        title_label: extra_control_title
+        kind_label: extra_control_kind
+        updated_label: extra_control_updated
+        status_label: extra_control_status
+        sensor:
+          root: extra_sensor_root
+          value_label: extra_sensor_value
+          unit_label: extra_sensor_unit
+          compact_value_font: roboto_18
+          icon_unknown: extra_sensor_icon_unknown
+          icon_temperature: extra_sensor_icon_temperature
+          icon_humidity: extra_sensor_icon_humidity
+        state:
+          root: extra_state_root
+          state_label: extra_state_value
+          compact_state_font: roboto_16
+          binary_surface: extra_surface_binary
+          alarm_surface: extra_surface_alarm
+          lock_surface: extra_surface_lock
+          lock_button: extra_lock_button
+          lock_label: extra_lock_label
+          icon_unknown: extra_state_icon_unknown
+          icon_moisture: extra_state_icon_moisture
+          icon_alarm: extra_state_icon_alarm
+          icon_locked: extra_state_icon_lock_closed
+          icon_unlocked: extra_state_icon_lock_open
+          icon_calendar: extra_state_icon_calendar
+        calendar:
+          root: extra_calendar_root
+          badge_label: extra_calendar_badge
+          summary_label: extra_calendar_summary
+          start_label: extra_calendar_start
+          end_label: extra_calendar_end
+          zone_label: extra_calendar_zone
+          location_label: extra_calendar_location
+          description_label: extra_calendar_description
+          truncation_label: extra_calendar_excerpt
+          compact_summary_font: roboto_16
+        person:
+          root: extra_person_root
+          icon: extra_person_icon
+          surface: extra_person_surface
+          state_label: extra_person_state
+          changed_label: extra_person_changed
+          zone_label: extra_person_zone
+          compact_state_font: roboto_20
+        sun:
+          root: extra_sun_root
+          icon: extra_sun_icon
+          phase_label: extra_sun_phase
+          rising_caption: extra_sun_rising_caption
+          rising_value: extra_sun_rising_value
+          setting_caption: extra_sun_setting_caption
+          setting_value: extra_sun_setting_value
+          elevation_caption: extra_sun_elevation_caption
+          elevation_value: extra_sun_elevation_value
+          azimuth_caption: extra_sun_azimuth_caption
+          azimuth_value: extra_sun_azimuth_value
+          zone_label: extra_sun_zone
+      detail_controller:
+        light:
+          root: light_detail_root
+          kelvin_button: light_detail_kelvin
+          kelvin_label: light_detail_kelvin_label
+          effect_button: light_detail_effect
+          effect_label: light_detail_effect_label
+          status_label: light_detail_status
+        climate:
+          root: climate_detail_root
+          arc: climate_detail_arc
+          target_label: climate_detail_target
+          current_label: climate_detail_current
+          activity_label: climate_detail_activity
+          limits_label: climate_detail_limits
+          title_label: climate_detail_title
+          knob: climate_detail_knob
+          minus_button: climate_detail_minus
+          plus_button: climate_detail_plus
+          state_label: climate_detail_state
+          status_label: climate_detail_status
+          mode_button: climate_detail_mode
+          mode_label: climate_detail_mode_label
+          parameters_button: climate_detail_parameters
+          parameters_label: climate_detail_parameters_label
+          parameters_root: climate_detail_parameters_root
+          parameters_back_button: climate_detail_parameters_back
+          parameter_buttons:
+            - {button: climate_detail_parameter_humidity, label: climate_detail_parameter_humidity_label}
+            - {button: climate_detail_parameter_preset, label: climate_detail_parameter_preset_label}
+            - {button: climate_detail_parameter_fan, label: climate_detail_parameter_fan_label}
+            - {button: climate_detail_parameter_swing, label: climate_detail_parameter_swing_label}
+            - {button: climate_detail_parameter_swing_horizontal, label: climate_detail_parameter_swing_horizontal_label}
+        numeric:
+          root: detail_numeric_root
+          title_label: detail_numeric_title
+          kind_label: detail_numeric_kind
+          value_label: detail_numeric_value
+          current_label: detail_numeric_current
+          status_label: detail_numeric_status
+          track: detail_numeric_track
+          fill: detail_numeric_fill
+          knob: detail_numeric_knob
+          minimum_label: detail_numeric_minimum
+          maximum_label: detail_numeric_maximum
+          minus_button: detail_numeric_minus
+          plus_button: detail_numeric_plus
+          back_button: detail_numeric_back
+          kelvin_icon: detail_numeric_icon_kelvin
+          humidity_icon: detail_numeric_icon_humidity
+        choice:
+          root: detail_choice_root
+          title_label: detail_choice_title
+          kind_label: detail_choice_kind
+          current_label: detail_choice_current
+          status_label: detail_choice_status
+          back_button: detail_choice_back
+          apply_button: detail_choice_apply
+          apply_label: detail_choice_apply_label
+          options:
+            - {button: detail_choice_option_0, label: detail_choice_option_label_0}
+            - {button: detail_choice_option_1, label: detail_choice_option_label_1}
+            - {button: detail_choice_option_2, label: detail_choice_option_label_2}
+            - {button: detail_choice_option_3, label: detail_choice_option_label_3}
+            - {button: detail_choice_option_4, label: detail_choice_option_label_4}
+            - {button: detail_choice_option_5, label: detail_choice_option_label_5}
+            - {button: detail_choice_option_6, label: detail_choice_option_label_6}
+            - {button: detail_choice_option_7, label: detail_choice_option_label_7}
+      panel_controller:
+        timer:
+          time_id: ha_time
+          root: timer_control_root
+          title_label: timer_control_title
+          kind_label: timer_control_kind
+          state_label: timer_control_state
+          remaining_label: timer_control_remaining
+          status_label: timer_control_status
+          draft_hour_label: timer_control_draft_hour
+          draft_minute_label: timer_control_draft_minute
+          draft_second_label: timer_control_draft_second
+          draft_buttons:
+            - timer_control_hour_minus
+            - timer_control_hour_plus
+            - timer_control_minute_minus
+            - timer_control_minute_plus
+            - timer_control_second_minus
+            - timer_control_second_plus
+          actions:
+            - {button: timer_control_start, label: timer_control_start_label}
+            - {button: timer_control_resume, label: timer_control_resume_label}
+            - {button: timer_control_pause, label: timer_control_pause_label}
+            - {button: timer_control_cancel, label: timer_control_cancel_label}
+            - {button: timer_control_restart, label: timer_control_restart_label}
+        remote:
+          root: remote_control_root
+          title_label: remote_control_title
+          kind_label: remote_control_kind
+          state_label: remote_control_state
+          status_label: remote_control_status
+          power_button: remote_control_power
+          power_label: remote_control_power_label
+          activity_button: remote_control_activity
+          activity_label: remote_control_activity_label
+          activity_value_label: remote_control_activity_value
+          options_root: remote_control_options
+          options_title_label: remote_control_options_title
+          back_button: remote_control_back
+          apply_button: remote_control_apply
+          apply_label: remote_control_apply_label
+          options:
+            - {button: remote_control_option_0, label: remote_control_option_label_0}
+            - {button: remote_control_option_1, label: remote_control_option_label_1}
+            - {button: remote_control_option_2, label: remote_control_option_label_2}
+            - {button: remote_control_option_3, label: remote_control_option_label_3}
+            - {button: remote_control_option_4, label: remote_control_option_label_4}
+            - {button: remote_control_option_5, label: remote_control_option_label_5}
+            - {button: remote_control_option_6, label: remote_control_option_label_6}
+            - {button: remote_control_option_7, label: remote_control_option_label_7}
+        power:
+          root: power_control_root
+          title_label: power_control_title
+          kind_label: power_control_kind
+          state_label: power_control_state
+          status_label: power_control_status
+          power_button: power_control_power
+          power_label: power_control_power_label
+          icon_unknown: power_control_icon_unknown
+          icon_switch: power_control_icon_switch
+          icon_outlet: power_control_icon_outlet
+      robot_controller:
+        root: robot_control_root
+        title_label: robot_control_title
+        kind_label: robot_control_kind
+        state_label: robot_control_state
+        status_label: robot_control_status
+        suction_button: robot_control_suction
+        suction_label: robot_control_suction_label
+        suction_root: robot_control_suctions
+        suction_back_button: robot_control_suction_back
+        vacuum_icon: robot_control_icon_vacuum
+        mower_icon: robot_control_icon_mower
+        room_button: robot_control_room
+        room_label: robot_control_room_label
+        options_title_label: robot_control_options_title
+        room_apply_button: robot_control_room_apply
+        room_apply_label: robot_control_room_apply_label
+        battery_label: robot_control_battery
+        actions:
+          - {button: robot_control_start, label: robot_control_start_label}
+          - {button: robot_control_pause, label: robot_control_pause_label}
+          - {button: robot_control_stop, label: robot_control_stop_label}
+          - {button: robot_control_dock, label: robot_control_dock_label}
+          - {button: robot_control_locate, label: robot_control_locate_label}
+          - {button: robot_control_spot, label: robot_control_spot_label}
+        suction_options:
+          - {button: robot_control_option_0, label: robot_control_option_label_0}
+          - {button: robot_control_option_1, label: robot_control_option_label_1}
+          - {button: robot_control_option_2, label: robot_control_option_label_2}
+          - {button: robot_control_option_3, label: robot_control_option_label_3}
+          - {button: robot_control_option_4, label: robot_control_option_label_4}
+          - {button: robot_control_option_5, label: robot_control_option_label_5}
+          - {button: robot_control_option_6, label: robot_control_option_label_6}
+          - {button: robot_control_option_7, label: robot_control_option_label_7}
+      humidifier_controller:
+        root: humidifier_control_root
+        title_label: humidifier_control_title
+        kind_label: humidifier_control_kind
+        target_label: humidifier_control_target
+        current_label: humidifier_control_current
+        state_label: humidifier_control_state
+        status_label: humidifier_control_status
+        track: humidifier_control_track
+        fill: humidifier_control_fill
+        knob: humidifier_control_knob
+        minimum_label: humidifier_control_minimum
+        maximum_label: humidifier_control_maximum
+        minus_button: humidifier_control_minus
+        plus_button: humidifier_control_plus
+        power_button: humidifier_control_power
+        power_label: humidifier_control_power_label
+        mode_button: humidifier_control_mode
+        mode_label: humidifier_control_mode_label
+        mode_root: humidifier_control_modes
+        mode_back_button: humidifier_control_mode_back
+        mode_options:
+          - {button: humidifier_control_option_0, label: humidifier_control_option_label_0}
+          - {button: humidifier_control_option_1, label: humidifier_control_option_label_1}
+          - {button: humidifier_control_option_2, label: humidifier_control_option_label_2}
+          - {button: humidifier_control_option_3, label: humidifier_control_option_label_3}
+          - {button: humidifier_control_option_4, label: humidifier_control_option_label_4}
+          - {button: humidifier_control_option_5, label: humidifier_control_option_label_5}
+          - {button: humidifier_control_option_6, label: humidifier_control_option_label_6}
+          - {button: humidifier_control_option_7, label: humidifier_control_option_label_7}
+      fan_controller:
+        root: fan_control_root
+        title_label: fan_control_title
+        value_label: fan_control_value
+        speed_caption: fan_control_speed_caption
+        state_label: fan_control_state
+        status_label: fan_control_status
+        power_button: fan_control_power
+        power_label: fan_control_power_label
+        oscillation_button: fan_control_oscillation
+        oscillation_label: fan_control_oscillation_label
+        direction_button: fan_control_direction
+        direction_label: fan_control_direction_label
+        preset_button: fan_control_preset
+        preset_label: fan_control_preset_label
+        preset_root: fan_control_presets
+        preset_back_button: fan_control_preset_back
+        speed_buttons:
+          - {button: fan_control_speed_0, label: fan_control_speed_label_0}
+          - {button: fan_control_speed_1, label: fan_control_speed_label_1}
+          - {button: fan_control_speed_2, label: fan_control_speed_label_2}
+          - {button: fan_control_speed_3, label: fan_control_speed_label_3}
+          - {button: fan_control_speed_4, label: fan_control_speed_label_4}
+          - {button: fan_control_speed_5, label: fan_control_speed_label_5}
+          - {button: fan_control_speed_6, label: fan_control_speed_label_6}
+          - {button: fan_control_speed_7, label: fan_control_speed_label_7}
+        preset_options:
+          - {button: fan_control_option_0, label: fan_control_option_label_0}
+          - {button: fan_control_option_1, label: fan_control_option_label_1}
+          - {button: fan_control_option_2, label: fan_control_option_label_2}
+          - {button: fan_control_option_3, label: fan_control_option_label_3}
+          - {button: fan_control_option_4, label: fan_control_option_label_4}
+          - {button: fan_control_option_5, label: fan_control_option_label_5}
+          - {button: fan_control_option_6, label: fan_control_option_label_6}
+          - {button: fan_control_option_7, label: fan_control_option_label_7}
+      thermostat_view:
+        root: thermostat_control_root
+        arc: thermostat_control_arc
+        target: thermostat_control_target
+        current: thermostat_control_current
+        activity: thermostat_control_activity
+        limits: thermostat_control_limits
+        title: thermostat_control_title
+        knob: thermostat_control_knob
+        minus: thermostat_control_minus
+        plus: thermostat_control_plus
+      cover_controller:
+        priority_stop: true
+        root: cover_control_root
+        current_label: cover_control_current
+        status_label: cover_control_status
+        panel:
+          title_label: cover_control_title
+          kind_label: cover_control_kind
+          state_label: cover_control_state
+          position_group: cover_control_position_group
+          position_track: cover_control_position_track
+          position_fill: cover_control_position_fill
+          position_knob: cover_control_position_knob
+          tilt_group: cover_control_tilt_group
+          tilt_label: cover_control_tilt_label
+          tilt_track: cover_control_tilt_track
+          tilt_fill: cover_control_tilt_fill
+          tilt_knob: cover_control_tilt_knob
+          tilt_buttons:
+            - {button: cover_control_tilt_open, label: cover_control_tilt_open_label}
+            - {button: cover_control_tilt_stop, label: cover_control_tilt_stop_label}
+            - {button: cover_control_tilt_close, label: cover_control_tilt_close_label}
+          icons:
+            - {device_class: unknown, widget: cover_control_icon_unknown}
+            - {device_class: awning, widget: cover_control_icon_awning}
+            - {device_class: blind, widget: cover_control_icon_blind}
+            - {device_class: curtain, widget: cover_control_icon_curtain}
+            - {device_class: damper, widget: cover_control_icon_damper}
+            - {device_class: door, widget: cover_control_icon_door}
+            - {device_class: garage, widget: cover_control_icon_garage}
+            - {device_class: gate, widget: cover_control_icon_gate}
+            - {device_class: shade, widget: cover_control_icon_shade}
+            - {device_class: shutter, widget: cover_control_icon_shutter}
+            - {device_class: window, widget: cover_control_icon_window}
+        buttons:
+          - button: cover_control_open
+            label: cover_control_open_label
+          - button: cover_control_stop
+            label: cover_control_stop_label
+          - button: cover_control_close
+            label: cover_control_close_label
+      choice_selector:
+        allow_empty_selection: true
+        root: choice_control_root
+        apply_button: choice_control_apply
+        apply_label: choice_control_apply_label
+        current_label: choice_control_current
+        status_label: choice_control_status
+        neutral_reference: light_control_off_button
+        options:
+          - button: choice_control_option_0
+            label: choice_control_label_0
+          - button: choice_control_option_1
+            label: choice_control_label_1
+          - button: choice_control_option_2
+            label: choice_control_label_2
+          - button: choice_control_option_3
+            label: choice_control_label_3
+          - button: choice_control_option_4
+            label: choice_control_label_4
+          - button: choice_control_option_5
+            label: choice_control_label_5
+          - button: choice_control_option_6
+            label: choice_control_label_6
+          - button: choice_control_option_7
+            label: choice_control_label_7
       navigation_id: ui_navigation
       application_id: light_control_application
       number_value_font: wear_time_40
       minus_label: light_control_on_label
       plus_label: light_control_off_label
       text_provider: !lambda |-
+        if (id(selected_light_control).is_text_view()) {
+          static const char *const keys[] = {
+            "light_control.on", "light_control.off", "light_control.disabled", "light_control.waiting",
+            "text_control.ready", "light_control.pending", "light_control.ha_accepted", "light_control.state_matches",
+            "light_control.already_matched", "device_control.not_confirmed", "light_control.rejected", "light_control.expired",
+            "device_control.renderer_unavailable", "light_control.connection_lost", "panel_control.service_completed", "action_control.unknown",
+            "action_control.unavailable", "action_control.presentation_unavailable", "text_control.kind", "text_control.empty",
+            "text_control.edit", "panel_control.cancel", "datetime_control.save", "text_control.alternate",
+            "text_control.space", "datetime_control.read_only", "datetime_control.draft", "datetime_control.changed_elsewhere",
+            "text_control.minimum", "text_control.maximum", "text_control.reserved", "text_control.unsupported",
+            "text_control.hidden", "text_control.mode", "text_control.pattern", "text_control.bounds",
+            "text_control.length", "text_control.encoding", "text_control.characters"
+          };
+          return text_id < sizeof(keys) / sizeof(keys[0]) ? id(ui_i18n).translate(keys[text_id]) : "";
+        }
+        if (id(selected_light_control).is_datetime_view()) {
+          static const char *const keys[] = {
+            "light_control.on", "light_control.off", "light_control.disabled", "light_control.waiting",
+            "datetime_control.ready", "light_control.pending", "light_control.ha_accepted", "light_control.state_matches",
+            "light_control.already_matched", "device_control.not_confirmed", "light_control.rejected", "light_control.expired",
+            "device_control.renderer_unavailable", "light_control.connection_lost", "panel_control.service_completed", "action_control.unknown",
+            "action_control.unavailable", "action_control.presentation_unavailable", "datetime_control.kind_date", "datetime_control.kind_time",
+            "datetime_control.kind_datetime", "datetime_control.year", "datetime_control.month", "datetime_control.day",
+            "datetime_control.hour", "datetime_control.minute", "datetime_control.second", "datetime_control.draft",
+            "datetime_control.invalid_field", "datetime_control.invalid_date", "datetime_control.changed_elsewhere", "datetime_control.read_only",
+            "datetime_control.save", "panel_control.cancel", "info_context.updated", "info_context.month_january",
+            "info_context.month_february", "info_context.month_march", "info_context.month_april", "info_context.month_may",
+            "info_context.month_june", "info_context.month_july", "info_context.month_august", "info_context.month_september",
+            "info_context.month_october", "info_context.month_november", "info_context.month_december"
+          };
+          return text_id < sizeof(keys) / sizeof(keys[0]) ? id(ui_i18n).translate(keys[text_id]) : "";
+        }
+        if (id(selected_light_control).is_action_view()) {
+          #ifdef USE_LVGL_MATERIAL_TILE_EVENT_CONTROLS
+          if (id(selected_light_control).is_tile_event_view()) {
+            if (text_id == 18) return id(ui_i18n).translate("action_control.kind_event");
+            if (text_id == 31) return id(ui_i18n).translate("action_control.send_event");
+            if (text_id == 45) return id(ui_i18n).translate("action_control.event_sent");
+          }
+          #endif
+          static const char *const keys[] = {
+            "light_control.on", "light_control.off", "light_control.disabled", "light_control.waiting",
+            "action_control.ready", "light_control.pending", "light_control.ha_accepted", "light_control.state_matches",
+            "light_control.already_matched", "device_control.not_confirmed", "light_control.rejected", "light_control.expired",
+            "device_control.renderer_unavailable", "light_control.connection_lost", "panel_control.service_completed", "action_control.unknown",
+            "action_control.unavailable", "action_control.presentation_unavailable", "action_control.kind_action", "action_control.kind_scene",
+            "action_control.kind_script", "action_control.kind_automation", "action_control.phase_idle", "action_control.phase_running",
+            "action_control.phase_enabled", "action_control.phase_disabled", "action_control.last_used", "action_control.last_unknown",
+            "action_control.last_invalid", "action_control.last_too_long", "action_control.current", "action_control.press",
+            "action_control.activate", "action_control.run", "action_control.stop", "action_control.enable",
+            "action_control.disable", "action_control.stop_and_disable", "action_control.conditions_checked", "action_control.conditions_skipped",
+            "action_control.disable_keeps_running", "action_control.disable_stops_running", "action_control.needs_parameters", "action_control.metadata_unavailable",
+            "action_control.service_unavailable", "action_control.service_dispatched",
+            "info_context.month_january", "info_context.month_february", "info_context.month_march",
+            "info_context.month_april", "info_context.month_may", "info_context.month_june",
+            "info_context.month_july", "info_context.month_august", "info_context.month_september",
+            "info_context.month_october", "info_context.month_november", "info_context.month_december",
+            "action_parameters.no", "action_parameters.yes", "action_parameters.choose",
+            "action_parameters.default", "action_parameters.selected"
+          };
+          return text_id < sizeof(keys) / sizeof(keys[0]) ? id(ui_i18n).translate(keys[text_id]) : "";
+        }
+        if (id(selected_light_control).is_media_view()) {
+          static const char *const keys[] = {
+            "light_control.on", "light_control.off", "light_control.disabled", "light_control.waiting",
+            "device_control.ready", "light_control.pending", "light_control.ha_accepted", "light_control.state_matches",
+            "light_control.already_matched", "device_control.not_confirmed", "light_control.rejected", "light_control.expired",
+            "device_control.renderer_unavailable", "light_control.connection_lost", "panel_control.service_completed", "media_control.unknown",
+            "media_control.unavailable", "media_control.presentation_unavailable", "media_control.device_generic", "media_control.device_speaker",
+            "media_control.device_tv", "media_control.device_receiver", "media_control.phase_on", "media_control.phase_off",
+            "media_control.phase_idle", "media_control.phase_playing", "media_control.phase_paused", "media_control.phase_buffering",
+            "media_control.phase_standby", "media_control.phase_unknown", "media_control.volume", "media_control.source",
+            "media_control.sound_mode", "media_control.repeat", "media_control.back", "media_control.apply",
+            "media_control.current", "media_control.requested", "media_control.play", "media_control.pause",
+            "media_control.previous", "media_control.next", "media_control.stop", "media_control.turn_on",
+            "media_control.turn_off", "media_control.volume_up", "media_control.volume_down", "media_control.mute",
+            "media_control.unmute", "media_control.shuffle_on", "media_control.shuffle_off", "media_control.no_title",
+            "media_control.no_artist", "media_control.excerpt", "media_control.unknown_choice"
+          };
+          return text_id < sizeof(keys) / sizeof(keys[0]) ? id(ui_i18n).translate(keys[text_id]) : "";
+        }
+        if (id(selected_light_control).is_extra_view()) {
+          static const char *const keys[] = {
+            "light_control.on", "light_control.off", "light_control.disabled", "light_control.waiting",
+            "device_control.ready", "light_control.pending", "light_control.ha_accepted", "light_control.state_matches",
+            "light_control.already_matched", "device_control.not_confirmed", "light_control.rejected", "light_control.expired",
+            "device_control.renderer_unavailable", "light_control.connection_lost", "extra_control.sensor", "extra_control.temperature",
+            "detail_control.humidity", "extra_control.binary", "extra_control.moisture", "extra_control.alarm",
+            "extra_control.calendar", "extra_control.lock", "extra_control.updated", "panel_control.unknown",
+            "extra_control.source_unavailable", "extra_control.expired", "extra_control.value_empty", "extra_control.value_invalid",
+            "extra_control.value_too_long", "extra_control.state_empty", "extra_control.state_invalid", "extra_control.state_too_long",
+            "extra_control.presentation_error", "extra_control.event", "extra_control.event_active", "extra_control.all_day",
+            "extra_control.event_none", "extra_control.event_invalid", "extra_control.event_unknown", "extra_control.event_start",
+            "extra_control.event_end", "extra_control.excerpt", "extra_control.lock_action", "extra_control.lock_locked",
+            "extra_control.lock_unlocked", "extra_control.lock_locking", "extra_control.lock_unlocking", "extra_control.lock_open",
+            "cover_control.state_opening", "extra_control.lock_jammed", "extra_control.lock_unknown", "extra_control.moisture_wet",
+            "extra_control.moisture_dry", "home.disarmed", "extra_control.alarm_armed_home", "extra_control.alarm_armed_away",
+            "extra_control.alarm_armed_night", "extra_control.alarm_armed_vacation", "extra_control.alarm_armed_custom_bypass", "extra_control.alarm_pending",
+            "extra_control.alarm_arming", "extra_control.alarm_disarming", "extra_control.alarm_triggered", "extra_control.alarm_unknown",
+            "info_context.person", "info_context.sun", "info_context.person_home", "info_context.person_away",
+            "info_context.changed", "info_context.date_unknown", "info_context.date_invalid", "info_context.date_stale",
+            "info_context.above_horizon", "info_context.below_horizon", "info_context.next_rising", "info_context.next_setting",
+            "info_context.elevation", "info_context.azimuth", "info_context.timezone", "info_context.updated",
+            "info_context.readonly", "info_context.month_january", "info_context.month_february", "info_context.month_march",
+            "info_context.month_april", "info_context.month_may", "info_context.month_june", "info_context.month_july",
+            "info_context.month_august", "info_context.month_september", "info_context.month_october", "info_context.month_november",
+            "info_context.month_december",
+            "agenda.kind", "agenda.previous", "agenda.next", "agenda.loading",
+            "agenda.empty", "agenda.error", "agenda.limited", "agenda.page_failed",
+            "statistics.kind", "statistics.legend", "statistics.loading", "statistics.empty",
+            "statistics.unsupported", "statistics.error", "statistics.current_unknown",
+            "statistics.current_unavailable", "statistics.label_unrepresentable"
+          };
+          return text_id < sizeof(keys) / sizeof(keys[0]) ? id(ui_i18n).translate(keys[text_id]) : "";
+        }
+        if (id(selected_light_control).is_light_color_view()) {
+          static const char *const keys[] = {
+            "light_control.on", "light_control.off", "light_control.disabled", "light_control.waiting",
+            "device_control.ready", "light_control.pending", "light_control.ha_accepted", "light_control.state_matches",
+            "light_control.already_matched", "device_control.not_confirmed", "light_control.rejected", "light_control.expired",
+            "device_control.renderer_unavailable", "light_control.connection_lost",
+            "light_color.kind", "light_color.hue", "light_color.saturation", "light_color.preview",
+            "light_color.unsaved", "light_color.current_color", "light_color.current_temperature",
+            "light_color.switch_to_color", "light_color.turn_on_first", "light_color.changed_elsewhere",
+            "light_color.read_only", "panel_control.apply", "panel_control.cancel", "panel_control.unknown",
+            "light_color.unsupported_mode", "light_color.invalid_color", "light_color.invalid_brightness",
+            "light_color.source_unavailable", "number_control.decimal_separator"
+          };
+          return text_id < sizeof(keys) / sizeof(keys[0]) ? id(ui_i18n).translate(keys[text_id]) : "";
+        }
+        if (id(selected_light_control).owner().is_detail()) {
+          static const char *const keys[] = {
+            "light_control.on", "light_control.off", "light_control.disabled", "light_control.waiting",
+            "device_control.ready", "light_control.pending", "light_control.ha_accepted", "light_control.state_matches",
+            "light_control.already_matched", "device_control.not_confirmed", "light_control.rejected", "light_control.expired",
+            "device_control.renderer_unavailable", "light_control.connection_lost", "detail_control.light", "detail_control.climate",
+            "panel_control.unknown", "thermostat.now", "detail_control.target", "detail_control.range",
+            "detail_control.kelvin", "detail_control.effect", "detail_control.parameters", "detail_control.mode",
+            "detail_control.humidity", "detail_control.preset", "detail_control.fan", "detail_control.swing",
+            "detail_control.swing_horizontal", "panel_control.back", "panel_control.apply", "panel_control.unsupported",
+            "panel_control.unavailable", "detail_control.loading", "detail_control.choose", "choice_control.no_active_option",
+            "number_control.decimal_separator", "panel_control.unknown", "thermostat.off", "thermostat.heating",
+            "thermostat.cooling", "detail_control.heat_cool", "detail_control.auto", "thermostat.drying",
+            "thermostat.fan", "panel_control.unknown", "thermostat.off", "thermostat.idle",
+            "thermostat.heating", "thermostat.cooling", "thermostat.drying", "thermostat.fan",
+            "thermostat.preheating", "thermostat.defrosting", "thermostat.preview",
+            "light_control.state_on", "light_control.state_off", "detail_control.activity", "detail_control.target_read_only",
+            "light_color.open", "light_color.white",
+            "climate_range.lower", "climate_range.upper", "climate_range.lower_limit",
+            "climate_range.upper_limit", "climate_range.inactive_mode", "climate_range.invalid_range"
+          };
+          return text_id < sizeof(keys) / sizeof(keys[0]) ? id(ui_i18n).translate(keys[text_id]) : "";
+        }
+        if (id(selected_light_control).owner().is_panel()) {
+          static const char *const keys[] = {
+            "panel_control.turn_on", "panel_control.turn_off", "light_control.disabled",
+            "light_control.waiting", "device_control.ready", "light_control.pending",
+            "light_control.ha_accepted", "light_control.state_matches", "light_control.already_matched",
+            "device_control.not_confirmed", "light_control.rejected", "light_control.expired",
+            "device_control.renderer_unavailable", "light_control.connection_lost", "panel_control.on",
+            "panel_control.off", "panel_control.unknown", "panel_control.timer",
+            "panel_control.remote", "panel_control.switch", "panel_control.outlet",
+            "panel_control.power", "panel_control.idle", "panel_control.active",
+            "panel_control.paused", "panel_control.start", "panel_control.resume",
+            "panel_control.pause", "panel_control.cancel", "panel_control.restart",
+            "panel_control.duration", "panel_control.sample", "panel_control.waiting_for_ha",
+            "panel_control.activity", "panel_control.choose_activity", "panel_control.apply",
+            "panel_control.service_completed", "panel_control.unavailable", "panel_control.unsupported",
+            "panel_control.hours", "panel_control.minutes", "panel_control.seconds"
+          };
+          return text_id < sizeof(keys) / sizeof(keys[0]) ? id(ui_i18n).translate(keys[text_id]) : "";
+        }
+        if (id(selected_light_control).owner().is_robot()) {
+          static const char *const keys[] = {
+            "device_control.ready", "device_control.ready", "light_control.disabled",
+            "light_control.waiting", "device_control.ready", "light_control.pending",
+            "light_control.ha_accepted", "light_control.state_matches", "light_control.already_matched",
+            "device_control.not_confirmed", "light_control.rejected", "light_control.expired",
+            "device_control.renderer_unavailable", "light_control.connection_lost", "robot_control.unknown",
+            "robot_control.unknown", "robot_control.vacuum", "robot_control.mower",
+            "robot_control.unknown", "robot_control.cleaning", "robot_control.docked",
+            "robot_control.idle", "robot_control.paused", "robot_control.returning",
+            "robot_control.error", "robot_control.mowing", "robot_control.start_clean",
+            "robot_control.start_mow", "robot_control.pause", "robot_control.stop",
+            "robot_control.dock", "robot_control.locate", "robot_control.spot",
+            "robot_control.suction", "robot_control.unsupported", "robot_control.unavailable",
+            "robot_control.service_completed", "robot_control.room", "robot_control.choose_room",
+            "robot_control.battery", "robot_control.clean_room"
+          };
+          return text_id < sizeof(keys) / sizeof(keys[0]) ? id(ui_i18n).translate(keys[text_id]) : "";
+        }
+        if (id(selected_light_control).owner().is_humidifier()) {
+          static const char *const keys[] = {
+            "humidifier_control.turn_on", "humidifier_control.turn_off", "light_control.disabled",
+            "light_control.waiting", "device_control.ready", "light_control.pending",
+            "light_control.ha_accepted", "light_control.state_matches",
+            "light_control.already_matched", "device_control.not_confirmed",
+            "light_control.rejected", "light_control.expired",
+            "device_control.renderer_unavailable", "light_control.connection_lost",
+            "humidifier_control.on", "humidifier_control.off", "humidifier_control.unknown",
+            "humidifier_control.humidifier", "humidifier_control.dehumidifier", "humidifier_control.humidity",
+            "humidifier_control.target", "humidifier_control.current", "humidifier_control.mode",
+            "humidifier_control.adjust", "humidifier_control.back", "humidifier_control.unsupported"
+          };
+          return text_id < sizeof(keys) / sizeof(keys[0]) ? id(ui_i18n).translate(keys[text_id]) : "";
+        }
+        if (id(selected_light_control).owner().is_fan()) {
+          static const char *const keys[] = {
+            "fan_control.turn_on", "fan_control.turn_off", "light_control.disabled",
+            "light_control.waiting", "device_control.ready", "light_control.pending",
+            "light_control.ha_accepted", "light_control.state_matches",
+            "light_control.already_matched", "device_control.not_confirmed",
+            "light_control.rejected", "light_control.expired",
+            "device_control.renderer_unavailable", "light_control.connection_lost",
+            "fan_control.on", "fan_control.off", "fan_control.unknown",
+            "fan_control.manual", "fan_control.forward", "fan_control.reverse",
+            "fan_control.oscillation_on", "fan_control.oscillation_off",
+            "fan_control.preset", "fan_control.speed", "fan_control.back",
+            "fan_control.unsupported", "fan_control.oscillation", "fan_control.direction"
+          };
+          return text_id < sizeof(keys) / sizeof(keys[0]) ? id(ui_i18n).translate(keys[text_id]) : "";
+        }
+        if (id(selected_light_control).owner().is_cover()) {
+          static const char *const keys[] = {
+            "cover_control.open", "cover_control.close", "cover_control.disabled",
+            "cover_control.waiting", "cover_control.ready", "cover_control.pending",
+            "cover_control.ha_accepted", "cover_control.state_matches",
+            "cover_control.already_matched", "cover_control.not_confirmed",
+            "cover_control.rejected", "cover_control.expired",
+            "cover_control.renderer_unavailable", "cover_control.connection_lost",
+            "cover_control.unknown", "cover_control.unknown", "cover_control.unknown",
+            "cover_control.state_open", "cover_control.state_opening",
+            "cover_control.state_closed", "cover_control.state_closing",
+            "cover_control.open", "cover_control.stop", "cover_control.close",
+            "device_control.renderer_unavailable", "cover_control.capabilities_changed",
+            "cover_control.position", "cover_control.tilt", "cover_control.open_tilt",
+            "cover_control.stop_tilt", "cover_control.close_tilt", "cover_control.class_unknown",
+            "cover_control.class_awning", "cover_control.class_blind", "cover_control.class_curtain",
+            "cover_control.class_damper", "cover_control.class_door", "cover_control.class_garage",
+            "cover_control.class_gate", "cover_control.class_shade", "cover_control.class_shutter",
+            "cover_control.class_window"
+          };
+          return text_id < sizeof(keys) / sizeof(keys[0]) ? id(ui_i18n).translate(keys[text_id]) : "";
+        }
+        if (id(selected_light_control).owner().is_choice()) {
+          static const char *const choice_keys[] = {
+            "choice_control.apply", "choice_control.apply", "choice_control.disabled",
+            "choice_control.waiting", "choice_control.ready", "choice_control.pending",
+            "choice_control.ha_accepted", "choice_control.state_matches",
+            "choice_control.already_matched", "choice_control.not_confirmed",
+            "choice_control.rejected", "choice_control.expired",
+            "choice_control.renderer_unavailable", "choice_control.connection_lost",
+            "choice_control.unknown", "choice_control.unknown", "choice_control.current",
+            "choice_control.apply", "choice_control.unsupported_text", "choice_control.unknown",
+            "choice_control.current_unavailable", "choice_control.options_changed",
+            "choice_control.no_active_option"
+          };
+          return text_id < sizeof(choice_keys) / sizeof(choice_keys[0])
+                     ? id(ui_i18n).translate(choice_keys[text_id]) : "";
+        }
         if (id(selected_light_control).owner().is_number()) {
           static const char *const number_keys[] = {
             "number_control.minus", "number_control.plus", "number_control.disabled",
@@ -41,7 +1280,13 @@ lvgl_material:
             "number_control.already_matched", "number_control.not_confirmed",
             "number_control.rejected", "number_control.expired",
             "number_control.renderer_unavailable", "number_control.connection_lost",
-            "number_control.unit_fallback", "number_control.decimal_separator"
+            "number_control.unit_fallback", "number_control.decimal_separator",
+            "number_control.current_unavailable",
+            "thermostat.now", "thermostat.adjustment_unavailable",
+            "thermostat.unknown", "thermostat.off", "thermostat.idle", "thermostat.heating",
+            "thermostat.cooling", "thermostat.drying", "thermostat.fan",
+            "thermostat.preheating", "thermostat.defrosting",
+            "thermostat.preview", "thermostat.dial_ready"
           };
           return text_id < sizeof(number_keys) / sizeof(number_keys[0])
                      ? id(ui_i18n).translate(number_keys[text_id]) : "";
@@ -124,6 +1369,189 @@ api:
       then:
         - api.respond:
             data: !lambda 'id(selected_light_control).populate_entity_status(root);'
+    - action: entity_thermostat_get_features
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda 'id(selected_light_control).populate_thermostat_features(root);'
+    - action: entity_thermostat_get_dial_features
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda 'id(selected_light_control).populate_thermostat_features(root, 2);'
+    - action: entity_choice_get_features
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda 'id(selected_light_control).populate_choice_features(root);'
+    - action: entity_choice_bind_features
+      supports_response: only
+      variables:
+        channel: string
+        empty_choice_version: int
+      then:
+        - api.respond:
+            data: !lambda |-
+              const auto view = channel.empty() ? std::string_view{} :
+                  std::string_view(channel.c_str(), channel.size());
+              id(selected_light_control).bind_choice_features(view, empty_choice_version, root);
+    - action: entity_control_get_features
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda 'id(selected_light_control).populate_cover_features(root);'
+    - action: entity_cover_get_features
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda 'id(selected_light_control).populate_cover_panel_features(root);'
+    - action: entity_cover_bind_features
+      supports_response: only
+      variables:
+        channel: string
+        cover_panel_version: int
+      then:
+        - api.respond:
+            data: !lambda |-
+              const auto view = channel.empty() ? std::string_view{} :
+                  std::string_view(channel.c_str(), channel.size());
+              id(selected_light_control).bind_cover_panel_features(view, cover_panel_version, root);
+    - action: entity_detail_get_features
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda 'id(selected_light_control).populate_detail_features(root);'
+    - action: entity_detail_bind_features
+      supports_response: only
+      variables:
+        payload: string
+      then:
+        - api.respond:
+            data: !lambda |-
+              const auto view = payload.empty() ? std::string_view{} :
+                  std::string_view(payload.c_str(), payload.size());
+              id(selected_light_control).bind_detail_features(view, root);
+    - action: entity_detail_range_query
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda 'id(selected_light_control).populate_detail_range_features(root);'
+    - action: entity_detail_range_bind
+      supports_response: only
+      variables:
+        payload: string
+      then:
+        - api.respond:
+            data: !lambda |-
+              const auto view = payload.empty() ? std::string_view{} :
+                  std::string_view(payload.c_str(), payload.size());
+              id(selected_light_control).bind_detail_range_features(view, root);
+    - action: entity_detail_color_query
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda 'id(selected_light_control).populate_detail_color_features(root);'
+    - action: entity_detail_color_bind
+      supports_response: only
+      variables:
+        payload: string
+      then:
+        - api.respond:
+            data: !lambda |-
+              const auto view = payload.empty() ? std::string_view{} :
+                  std::string_view(payload.c_str(), payload.size());
+              id(selected_light_control).bind_detail_color_features(view, root);
+    - action: entity_panel_get_features
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda 'id(selected_light_control).populate_panel_features(root);'
+    - action: entity_panel_bind_features
+      supports_response: only
+      variables:
+        payload: string
+      then:
+        - api.respond:
+            data: !lambda |-
+              const auto view = payload.empty() ? std::string_view{} :
+                  std::string_view(payload.c_str(), payload.size());
+              id(selected_light_control).bind_panel_features(view, root);
+    - action: entity_info_statistics_query
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda 'id(selected_light_control).populate_info_statistics_features(root);'
+    - action: entity_info_statistics_bind
+      supports_response: only
+      variables:
+        payload: string
+      then:
+        - api.respond:
+            data: !lambda |-
+              const auto view = payload.empty() ? std::string_view{} :
+                  std::string_view(payload.c_str(), payload.size());
+              id(selected_light_control).bind_info_statistics_features(view, root);
+    - action: entity_action_parameters_query
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda 'id(selected_light_control).populate_action_parameters_features(root);'
+    - action: entity_action_parameters_bind
+      supports_response: only
+      variables:
+        payload: string
+      then:
+        - api.respond:
+            data: !lambda |-
+              const auto view = payload.empty() ? std::string_view{} :
+                  std::string_view(payload.c_str(), payload.size());
+              id(selected_light_control).bind_action_parameters_features(view, root);
+    - action: entity_info_agenda_query
+      supports_response: only
+      then:
+        - api.respond:
+            data: !lambda 'id(selected_light_control).populate_info_agenda_features(root);'
+    - action: entity_info_agenda_bind
+      supports_response: only
+      variables:
+        payload: string
+      then:
+        - api.respond:
+            data: !lambda |-
+              const auto view = payload.empty() ? std::string_view{} :
+                  std::string_view(payload.c_str(), payload.size());
+              id(selected_light_control).bind_info_agenda_features(view, root);
+    - action: entity_panel_extra_query
+      supports_response: only
+      variables:
+        payload: string
+      then:
+        - api.respond:
+            data: !lambda |-
+              const auto view = payload.empty() ? std::string_view{} :
+                  std::string_view(payload.c_str(), payload.size());
+              id(selected_light_control).query_extra_features(view, root);
+    - action: entity_panel_extra_bind
+      supports_response: only
+      variables:
+        payload: string
+      then:
+        - api.respond:
+            data: !lambda |-
+              const auto view = payload.empty() ? std::string_view{} :
+                  std::string_view(payload.c_str(), payload.size());
+              id(selected_light_control).bind_extra_features(view, root);
+    - action: entity_control_bind_features
+      supports_response: only
+      variables:
+        channel: string
+        cover_stop_version: int
+      then:
+        - api.respond:
+            data: !lambda |-
+              const auto view = channel.empty() ? std::string_view{} :
+                  std::string_view(channel.c_str(), channel.size());
+              id(selected_light_control).bind_cover_features(view, cover_stop_version, root);
     - action: entity_control_bind
       supports_response: only
       variables:
@@ -175,6 +1603,22 @@ api:
                      static_cast<unsigned>(id(light_control_renderer).is_quiescent()),
                      static_cast<unsigned>(id(ui_lvgl).get_direct_region_base_generation()));
             id(light_control_renderer).log_performance(label, true);
+            id(selected_light_control).log_detail_view(label);
+            #ifdef USE_LVGL_MATERIAL_ACTION_CONTROLS
+            id(selected_light_control).log_action_view(label);
+            #endif
+            #ifdef USE_LVGL_MATERIAL_TEXT_CONTROLS
+            id(selected_light_control).log_text_view(label);
+            #endif
+            #ifdef USE_LVGL_MATERIAL_DATETIME_CONTROLS
+            id(selected_light_control).log_datetime_view(label);
+            #endif
+            #ifdef USE_LVGL_MATERIAL_MEDIA_CONTROLS
+            id(selected_light_control).log_media_view(label);
+            #endif
+            #ifdef USE_LVGL_MATERIAL_EXTRA_CONTROLS
+            id(selected_light_control).log_extra_view(label);
+            #endif
             ESP_LOGI("scalar.performance", "%s component_object_b=%u snapshot_object_b=%u",
                      label, static_cast<unsigned>(sizeof(*id(light_control_renderer))),
                      static_cast<unsigned>(sizeof(esphome::lvgl_material::ScalarPerformanceSnapshot)));
@@ -200,7 +1644,7 @@ lvgl:
           - script.execute: ui_clear_interaction_press
           - script.wait: ui_clear_interaction_press
           - lambda: |-
-              if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
+              if (id(ui_page) >= 1 && id(ui_page) <= 5) id(ui_home_page) = id(ui_page);
               id(ui_touch_click_block_until_ms) = millis() + 800;
               lvgl_esphome_snapshot_set_status_icons_visible(true);
           - globals.set:
@@ -302,7 +1746,8 @@ script:
                      id(boot_sequence_done) && id(ui_active_app) == 0 &&
                      !id(ui_touch_active) && !id(ui_snapshot_io_busy) &&
                      !id(ui_navigation).is_transition_active() &&
-                     lv_obj_has_flag(id(material_notification_root), LV_OBJ_FLAG_HIDDEN);
+                     lv_obj_has_flag(id(material_notification_root), LV_OBJ_FLAG_HIDDEN) &&
+                     lv_obj_has_flag(id(notification_center_root), LV_OBJ_FLAG_HIDDEN);
           then:
             - script.stop: ui_refresh_tile_snapshots
             - script.stop: ui_refresh_home_snapshot_if_pending
@@ -572,7 +2017,8 @@ script:
       - if:
           condition:
             lambda: |-
-              return !id(ui_light_preparation_owned) &&
+              return !id(notification_center).owns_scene() &&
+                     !id(ui_light_preparation_owned) &&
                      !id(ui_navigation).is_application_open(id(light_control_application)) &&
                      !id(ui_open_selected_light).is_running();
           then:

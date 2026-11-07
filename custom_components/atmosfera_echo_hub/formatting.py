@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from collections.abc import Mapping
 from decimal import (
@@ -18,6 +18,7 @@ from decimal import (
 from typing import Any
 
 from .text import plain_text
+from .caption_width import fit_wide_caption
 
 MAX_PRECISION = 6
 MAX_NUMBER = Decimal("1e15")
@@ -29,6 +30,8 @@ _DECIMAL_CONTEXT = Context(
     capitals=1, clamp=0, flags=[], traps=[InvalidOperation, DivisionByZero, Overflow],
 )
 _NUMBER = re.compile(r"^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?$")
+_CALENDAR_DATE = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")
+_CLOCK_TIME = re.compile(r"[0-9]{2}:[0-9]{2}:[0-9]{2}")
 _NON_FINITE = frozenset(("nan", "+nan", "-nan", "snan", "inf", "+inf", "-inf",
                          "infinity", "+infinity", "-infinity"))
 _TEXT_CLASSES = frozenset(("enum", "date", "timestamp", "uptime"))
@@ -51,6 +54,107 @@ def display_language(language: Any) -> str:
 def state_label(state: str, language: Any = None) -> str:
     """Localize exceptional states; they must never imply a safe binary state."""
     return _STATE_LABELS[display_language(language)][state]
+
+
+def calendar_date_text(state: Any, language: Any = None) -> str:
+    """Format a calendar date without interpreting it as a timezone or number."""
+    if not isinstance(state, str):
+        return state_label("unknown", language)
+    if state in ("unknown", "unavailable"):
+        return state_label(state, language)
+    if len(state) != 10 or _CALENDAR_DATE.fullmatch(state) is None:
+        return state_label("unknown", language)
+    try:
+        value = date.fromisoformat(state)
+    except ValueError:
+        return state_label("unknown", language)
+    if display_language(language) == "pl":
+        return f"{value.day:02}.{value.month:02}.{value.year:04}"
+    return state
+
+
+def datetime_helper_text(state: Any, attributes: Any, language: Any = None) -> str:
+    """Keep a helper's local calendar/clock fields, including its seconds."""
+    unknown = state_label("unknown", language)
+    if not isinstance(state, str):
+        return unknown
+    if state in ("unknown", "unavailable"):
+        return state_label(state, language)
+    if not isinstance(attributes, Mapping):
+        return unknown
+    has_date, has_time = attributes.get("has_date"), attributes.get("has_time")
+    if type(has_date) is not bool or type(has_time) is not bool or not (has_date or has_time):
+        return unknown
+    date_part = ""
+    clock = state
+    if has_date:
+        if len(state) != (19 if has_time else 10) or (has_time and state[10] != " "):
+            return unknown
+        date_part = calendar_date_text(state[:10], language)
+        if date_part == unknown:
+            return unknown
+        clock = state[11:]
+    if has_time:
+        if len(clock) != 8 or _CLOCK_TIME.fullmatch(clock) is None:
+            return unknown
+        if int(clock[:2]) > 23 or int(clock[3:5]) > 59 or int(clock[6:]) > 59:
+            return unknown
+    return f"{date_part} {clock}" if has_date and has_time else date_part if has_date else clock
+
+
+def calendar_event_text(state: Any, attributes: Any, language: Any = None) -> str:
+    """Format Core's already-local next-event attributes, never an agenda."""
+    if state in ("unknown", "unavailable"):
+        return state_label(state, language)
+    unknown = state_label("unknown", language)
+    if not isinstance(state, str) or state not in {"on", "off"} or not isinstance(attributes, Mapping):
+        return unknown
+    fields = {"message", "all_day", "start_time", "end_time"}
+    polish = display_language(language) == "pl"
+    if state == "off" and not fields.intersection(attributes):
+        return "Brak wydarzeń" if polish else "No events"
+    if not fields <= attributes.keys() or type(attributes["all_day"]) is not bool or not isinstance(attributes["message"], str):
+        return unknown
+    for field in ("start_time", "end_time"):
+        value = attributes[field]
+        if (not isinstance(value, str) or len(value) != 19 or value[10] != " "
+                or _CALENDAR_DATE.fullmatch(value[:10]) is None or _CLOCK_TIME.fullmatch(value[11:]) is None):
+            return unknown
+        try:
+            datetime.fromisoformat(value)
+        except ValueError:
+            return unknown
+    # Core has already converted these wall fields to HA's timezone. Reinterpreting
+    # them as UTC would shift events; naive end ordering cannot resolve DST folds.
+    start = attributes["start_time"]
+    day = calendar_date_text(start[:10], language)
+    when = day + (" · Cały dzień" if polish else " · All day") if attributes["all_day"] else day + " " + start[11:16]
+    title = plain_text(attributes["message"][:256], 160)
+    title = "".join(char for char in title if char.isprintable())
+    title = title or ("Bez nazwy" if polish else "Untitled")
+    text = when + " · " + title
+    return fit_wide_caption(text)
+
+
+def person_state_text(state: Any, language: Any = None, translated: Any = None) -> str:
+    """Display Core's person result, without coordinates or tracker inference."""
+    if not isinstance(state, str):
+        return state_label("unknown", language)
+    if state in ("unknown", "unavailable"):
+        return state_label(state, language)
+    if state in ("home", "not_home"):
+        if not isinstance(translated, str) or not translated.strip() or translated == state:
+            polish = display_language(language) == "pl"
+            translated = ("W domu" if state == "home" else "Poza domem") if polish else ("Home" if state == "home" else "Away")
+        raw = translated
+    else:
+        # A custom zone is already a name, not an enum to title-case or relabel.
+        raw = state
+    text = plain_text(raw[:256], 160)
+    text = "".join(char for char in text if char.isprintable())
+    if not text:
+        return state_label("unknown", language)
+    return fit_wide_caption(text)
 
 
 def binary_fallback(state: str, device_class: Any, language: Any = None) -> str | None:

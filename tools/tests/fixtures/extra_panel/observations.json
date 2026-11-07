@@ -1,0 +1,524 @@
+{
+  "alarm_control_panel.atmosfera_demo_alarm/disarmed": {
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"kind\":\"grant\",\"channel\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"open_seq\":1,\"slot\":2,\"card_id\":\"card-2\",\"revision\":4,\"control_kind\":\"panel\",\"token\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"state_seq\":1,\"ttl_ms\":30000,\"title\":\"Full observation\",\"panel_type\":\"info\",\"panel_caps\":{\"info_type\":\"alarm\",\"device_class\":null},\"panel_state\":{\"source\":\"known\",\"updated_text\":\"2026-11-04T19:29:12+01:00\",\"text_status\":\"value\",\"state_text\":\"disarmed\",\"phase\":\"disarmed\"},\"available\":true,\"eligible_actions\":0,\"state_generation\":1}",
+    "size_utf8": 545,
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "kind": "grant",
+      "channel": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "open_seq": 1,
+      "slot": 2,
+      "card_id": "card-2",
+      "revision": 4,
+      "control_kind": "panel",
+      "token": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "state_seq": 1,
+      "ttl_ms": 30000,
+      "title": "Full observation",
+      "panel_type": "info",
+      "panel_caps": {
+        "info_type": "alarm",
+        "device_class": null
+      },
+      "panel_state": {
+        "source": "known",
+        "updated_text": "2026-11-04T19:29:12+01:00",
+        "text_status": "value",
+        "state_text": "disarmed",
+        "phase": "disarmed"
+      },
+      "available": true,
+      "eligible_actions": 0,
+      "state_generation": 1
+    }
+  },
+  "alarm_control_panel.atmosfera_demo_alarm/unknown": {
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"kind\":\"grant\",\"channel\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"open_seq\":1,\"slot\":2,\"card_id\":\"card-2\",\"revision\":4,\"control_kind\":\"panel\",\"token\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"state_seq\":1,\"ttl_ms\":30000,\"title\":\"Full observation\",\"panel_type\":\"info\",\"panel_caps\":{\"info_type\":\"alarm\",\"device_class\":null},\"panel_state\":{\"source\":\"unknown\",\"updated_text\":\"2026-11-04T19:29:12+01:00\",\"text_status\":\"unknown\",\"state_text\":\"\",\"phase\":\"unknown\"},\"available\":false,\"eligible_actions\":0,\"state_generation\":1}",
+    "size_utf8": 541,
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "kind": "grant",
+      "channel": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "open_seq": 1,
+      "slot": 2,
+      "card_id": "card-2",
+      "revision": 4,
+      "control_kind": "panel",
+      "token": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "state_seq": 1,
+      "ttl_ms": 30000,
+      "title": "Full observation",
+      "panel_type": "info",
+      "panel_caps": {
+        "info_type": "alarm",
+        "device_class": null
+      },
+      "panel_state": {
+        "source": "unknown",
+        "updated_text": "2026-11-04T19:29:12+01:00",
+        "text_status": "unknown",
+        "state_text": "",
+        "phase": "unknown"
+      },
+      "available": false,
+      "eligible_actions": 0,
+      "state_generation": 1
+    }
+  },
+  "alarm_control_panel.atmosfera_demo_alarm/unavailable": {
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"kind\":\"grant\",\"channel\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"open_seq\":1,\"slot\":2,\"card_id\":\"card-2\",\"revision\":4,\"control_kind\":\"panel\",\"token\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"state_seq\":1,\"ttl_ms\":30000,\"title\":\"Full observation\",\"panel_type\":\"info\",\"panel_caps\":{\"info_type\":\"alarm\",\"device_class\":null},\"panel_state\":{\"source\":\"unavailable\",\"updated_text\":\"2026-11-04T19:29:12+01:00\",\"text_status\":\"unknown\",\"state_text\":\"\",\"phase\":\"unknown\"},\"available\":false,\"eligible_actions\":0,\"state_generation\":1}",
+    "size_utf8": 545,
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "kind": "grant",
+      "channel": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "open_seq": 1,
+      "slot": 2,
+      "card_id": "card-2",
+      "revision": 4,
+      "control_kind": "panel",
+      "token": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "state_seq": 1,
+      "ttl_ms": 30000,
+      "title": "Full observation",
+      "panel_type": "info",
+      "panel_caps": {
+        "info_type": "alarm",
+        "device_class": null
+      },
+      "panel_state": {
+        "source": "unavailable",
+        "updated_text": "2026-11-04T19:29:12+01:00",
+        "text_status": "unknown",
+        "state_text": "",
+        "phase": "unknown"
+      },
+      "available": false,
+      "eligible_actions": 0,
+      "state_generation": 1
+    }
+  },
+  "binary_sensor.atmosfera_demo_contact/off": {
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"kind\":\"grant\",\"channel\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"open_seq\":1,\"slot\":2,\"card_id\":\"card-2\",\"revision\":4,\"control_kind\":\"panel\",\"token\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"state_seq\":1,\"ttl_ms\":30000,\"title\":\"Full observation\",\"panel_type\":\"info\",\"panel_caps\":{\"info_type\":\"binary_sensor\",\"device_class\":\"moisture\"},\"panel_state\":{\"source\":\"known\",\"updated_text\":\"2026-11-04T19:29:12+01:00\",\"text_status\":\"value\",\"state_text\":\"Sucho\",\"active\":false},\"available\":true,\"eligible_actions\":0,\"state_generation\":1}",
+    "size_utf8": 552,
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "kind": "grant",
+      "channel": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "open_seq": 1,
+      "slot": 2,
+      "card_id": "card-2",
+      "revision": 4,
+      "control_kind": "panel",
+      "token": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "state_seq": 1,
+      "ttl_ms": 30000,
+      "title": "Full observation",
+      "panel_type": "info",
+      "panel_caps": {
+        "info_type": "binary_sensor",
+        "device_class": "moisture"
+      },
+      "panel_state": {
+        "source": "known",
+        "updated_text": "2026-11-04T19:29:12+01:00",
+        "text_status": "value",
+        "state_text": "Sucho",
+        "active": false
+      },
+      "available": true,
+      "eligible_actions": 0,
+      "state_generation": 1
+    }
+  },
+  "binary_sensor.atmosfera_demo_contact/unknown": {
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"kind\":\"grant\",\"channel\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"open_seq\":1,\"slot\":2,\"card_id\":\"card-2\",\"revision\":4,\"control_kind\":\"panel\",\"token\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"state_seq\":1,\"ttl_ms\":30000,\"title\":\"Full observation\",\"panel_type\":\"info\",\"panel_caps\":{\"info_type\":\"binary_sensor\",\"device_class\":\"moisture\"},\"panel_state\":{\"source\":\"unknown\",\"updated_text\":\"2026-11-04T19:29:12+01:00\",\"text_status\":\"unknown\",\"state_text\":\"\",\"active\":null},\"available\":false,\"eligible_actions\":0,\"state_generation\":1}",
+    "size_utf8": 551,
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "kind": "grant",
+      "channel": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "open_seq": 1,
+      "slot": 2,
+      "card_id": "card-2",
+      "revision": 4,
+      "control_kind": "panel",
+      "token": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "state_seq": 1,
+      "ttl_ms": 30000,
+      "title": "Full observation",
+      "panel_type": "info",
+      "panel_caps": {
+        "info_type": "binary_sensor",
+        "device_class": "moisture"
+      },
+      "panel_state": {
+        "source": "unknown",
+        "updated_text": "2026-11-04T19:29:12+01:00",
+        "text_status": "unknown",
+        "state_text": "",
+        "active": null
+      },
+      "available": false,
+      "eligible_actions": 0,
+      "state_generation": 1
+    }
+  },
+  "binary_sensor.atmosfera_demo_contact/unavailable": {
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"kind\":\"grant\",\"channel\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"open_seq\":1,\"slot\":2,\"card_id\":\"card-2\",\"revision\":4,\"control_kind\":\"panel\",\"token\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"state_seq\":1,\"ttl_ms\":30000,\"title\":\"Full observation\",\"panel_type\":\"info\",\"panel_caps\":{\"info_type\":\"binary_sensor\",\"device_class\":\"moisture\"},\"panel_state\":{\"source\":\"unavailable\",\"updated_text\":\"2026-11-04T19:29:12+01:00\",\"text_status\":\"unknown\",\"state_text\":\"\",\"active\":null},\"available\":false,\"eligible_actions\":0,\"state_generation\":1}",
+    "size_utf8": 555,
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "kind": "grant",
+      "channel": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "open_seq": 1,
+      "slot": 2,
+      "card_id": "card-2",
+      "revision": 4,
+      "control_kind": "panel",
+      "token": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "state_seq": 1,
+      "ttl_ms": 30000,
+      "title": "Full observation",
+      "panel_type": "info",
+      "panel_caps": {
+        "info_type": "binary_sensor",
+        "device_class": "moisture"
+      },
+      "panel_state": {
+        "source": "unavailable",
+        "updated_text": "2026-11-04T19:29:12+01:00",
+        "text_status": "unknown",
+        "state_text": "",
+        "active": null
+      },
+      "available": false,
+      "eligible_actions": 0,
+      "state_generation": 1
+    }
+  },
+  "calendar.atmosfera_demo_agenda/off": {
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"kind\":\"grant\",\"channel\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"open_seq\":1,\"slot\":2,\"card_id\":\"card-2\",\"revision\":4,\"control_kind\":\"panel\",\"token\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"state_seq\":1,\"ttl_ms\":30000,\"title\":\"Full observation\",\"panel_type\":\"info\",\"panel_caps\":{\"info_type\":\"calendar\",\"device_class\":null},\"panel_state\":{\"source\":\"known\",\"updated_text\":\"2026-11-04T19:29:12+01:00\",\"event\":\"present\",\"active\":false,\"summary\":\"Future Event\",\"start_text\":\"2026-11-04 19:59:12\",\"end_text\":\"2026-11-04 20:59:12\",\"zone_text\":\"Europe/Warsaw\",\"all_day\":false,\"location\":\"Future Location\",\"description\":\"Future Description\",\"truncated_fields\":0},\"available\":true,\"eligible_actions\":0,\"state_generation\":1}",
+    "size_utf8": 738,
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "kind": "grant",
+      "channel": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "open_seq": 1,
+      "slot": 2,
+      "card_id": "card-2",
+      "revision": 4,
+      "control_kind": "panel",
+      "token": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "state_seq": 1,
+      "ttl_ms": 30000,
+      "title": "Full observation",
+      "panel_type": "info",
+      "panel_caps": {
+        "info_type": "calendar",
+        "device_class": null
+      },
+      "panel_state": {
+        "source": "known",
+        "updated_text": "2026-11-04T19:29:12+01:00",
+        "event": "present",
+        "active": false,
+        "summary": "Future Event",
+        "start_text": "2026-11-04 19:59:12",
+        "end_text": "2026-11-04 20:59:12",
+        "zone_text": "Europe/Warsaw",
+        "all_day": false,
+        "location": "Future Location",
+        "description": "Future Description",
+        "truncated_fields": 0
+      },
+      "available": true,
+      "eligible_actions": 0,
+      "state_generation": 1
+    }
+  },
+  "calendar.atmosfera_demo_agenda/unknown": {
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"kind\":\"grant\",\"channel\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"open_seq\":1,\"slot\":2,\"card_id\":\"card-2\",\"revision\":4,\"control_kind\":\"panel\",\"token\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"state_seq\":1,\"ttl_ms\":30000,\"title\":\"Full observation\",\"panel_type\":\"info\",\"panel_caps\":{\"info_type\":\"calendar\",\"device_class\":null},\"panel_state\":{\"source\":\"unknown\",\"updated_text\":\"2026-11-04T19:29:12+01:00\",\"event\":\"unknown\",\"active\":null,\"summary\":\"\",\"start_text\":\"\",\"end_text\":\"\",\"zone_text\":\"\",\"all_day\":null,\"location\":\"\",\"description\":\"\",\"truncated_fields\":0},\"available\":false,\"eligible_actions\":0,\"state_generation\":1}",
+    "size_utf8": 643,
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "kind": "grant",
+      "channel": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "open_seq": 1,
+      "slot": 2,
+      "card_id": "card-2",
+      "revision": 4,
+      "control_kind": "panel",
+      "token": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "state_seq": 1,
+      "ttl_ms": 30000,
+      "title": "Full observation",
+      "panel_type": "info",
+      "panel_caps": {
+        "info_type": "calendar",
+        "device_class": null
+      },
+      "panel_state": {
+        "source": "unknown",
+        "updated_text": "2026-11-04T19:29:12+01:00",
+        "event": "unknown",
+        "active": null,
+        "summary": "",
+        "start_text": "",
+        "end_text": "",
+        "zone_text": "",
+        "all_day": null,
+        "location": "",
+        "description": "",
+        "truncated_fields": 0
+      },
+      "available": false,
+      "eligible_actions": 0,
+      "state_generation": 1
+    }
+  },
+  "calendar.atmosfera_demo_agenda/unavailable": {
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"kind\":\"grant\",\"channel\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"open_seq\":1,\"slot\":2,\"card_id\":\"card-2\",\"revision\":4,\"control_kind\":\"panel\",\"token\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"state_seq\":1,\"ttl_ms\":30000,\"title\":\"Full observation\",\"panel_type\":\"info\",\"panel_caps\":{\"info_type\":\"calendar\",\"device_class\":null},\"panel_state\":{\"source\":\"unavailable\",\"updated_text\":\"2026-11-04T19:29:12+01:00\",\"event\":\"unknown\",\"active\":null,\"summary\":\"\",\"start_text\":\"\",\"end_text\":\"\",\"zone_text\":\"\",\"all_day\":null,\"location\":\"\",\"description\":\"\",\"truncated_fields\":0},\"available\":false,\"eligible_actions\":0,\"state_generation\":1}",
+    "size_utf8": 647,
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "kind": "grant",
+      "channel": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "open_seq": 1,
+      "slot": 2,
+      "card_id": "card-2",
+      "revision": 4,
+      "control_kind": "panel",
+      "token": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "state_seq": 1,
+      "ttl_ms": 30000,
+      "title": "Full observation",
+      "panel_type": "info",
+      "panel_caps": {
+        "info_type": "calendar",
+        "device_class": null
+      },
+      "panel_state": {
+        "source": "unavailable",
+        "updated_text": "2026-11-04T19:29:12+01:00",
+        "event": "unknown",
+        "active": null,
+        "summary": "",
+        "start_text": "",
+        "end_text": "",
+        "zone_text": "",
+        "all_day": null,
+        "location": "",
+        "description": "",
+        "truncated_fields": 0
+      },
+      "available": false,
+      "eligible_actions": 0,
+      "state_generation": 1
+    }
+  },
+  "lock.atmosfera_demo_lock/locked": {
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"kind\":\"grant\",\"channel\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"open_seq\":1,\"slot\":2,\"card_id\":\"card-2\",\"revision\":4,\"control_kind\":\"panel\",\"token\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"state_seq\":1,\"ttl_ms\":30000,\"title\":\"Full observation\",\"panel_type\":\"lock\",\"panel_caps\":{\"lock\":true},\"panel_state\":{\"source\":\"known\",\"updated_text\":\"2026-11-04T19:29:13+01:00\",\"phase\":\"locked\"},\"available\":true,\"eligible_actions\":0,\"state_generation\":1}",
+    "size_utf8": 469,
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "kind": "grant",
+      "channel": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "open_seq": 1,
+      "slot": 2,
+      "card_id": "card-2",
+      "revision": 4,
+      "control_kind": "panel",
+      "token": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "state_seq": 1,
+      "ttl_ms": 30000,
+      "title": "Full observation",
+      "panel_type": "lock",
+      "panel_caps": {
+        "lock": true
+      },
+      "panel_state": {
+        "source": "known",
+        "updated_text": "2026-11-04T19:29:13+01:00",
+        "phase": "locked"
+      },
+      "available": true,
+      "eligible_actions": 0,
+      "state_generation": 1
+    }
+  },
+  "lock.atmosfera_demo_lock/unknown": {
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"kind\":\"grant\",\"channel\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"open_seq\":1,\"slot\":2,\"card_id\":\"card-2\",\"revision\":4,\"control_kind\":\"panel\",\"token\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"state_seq\":1,\"ttl_ms\":30000,\"title\":\"Full observation\",\"panel_type\":\"lock\",\"panel_caps\":{\"lock\":true},\"panel_state\":{\"source\":\"unknown\",\"updated_text\":\"2026-11-04T19:29:13+01:00\",\"phase\":\"unknown\"},\"available\":false,\"eligible_actions\":0,\"state_generation\":1}",
+    "size_utf8": 473,
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "kind": "grant",
+      "channel": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "open_seq": 1,
+      "slot": 2,
+      "card_id": "card-2",
+      "revision": 4,
+      "control_kind": "panel",
+      "token": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "state_seq": 1,
+      "ttl_ms": 30000,
+      "title": "Full observation",
+      "panel_type": "lock",
+      "panel_caps": {
+        "lock": true
+      },
+      "panel_state": {
+        "source": "unknown",
+        "updated_text": "2026-11-04T19:29:13+01:00",
+        "phase": "unknown"
+      },
+      "available": false,
+      "eligible_actions": 0,
+      "state_generation": 1
+    }
+  },
+  "lock.atmosfera_demo_lock/unavailable": {
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"kind\":\"grant\",\"channel\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"open_seq\":1,\"slot\":2,\"card_id\":\"card-2\",\"revision\":4,\"control_kind\":\"panel\",\"token\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"state_seq\":1,\"ttl_ms\":30000,\"title\":\"Full observation\",\"panel_type\":\"lock\",\"panel_caps\":{\"lock\":true},\"panel_state\":{\"source\":\"unavailable\",\"updated_text\":\"2026-11-04T19:29:13+01:00\",\"phase\":\"unknown\"},\"available\":false,\"eligible_actions\":0,\"state_generation\":1}",
+    "size_utf8": 477,
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "kind": "grant",
+      "channel": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "open_seq": 1,
+      "slot": 2,
+      "card_id": "card-2",
+      "revision": 4,
+      "control_kind": "panel",
+      "token": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "state_seq": 1,
+      "ttl_ms": 30000,
+      "title": "Full observation",
+      "panel_type": "lock",
+      "panel_caps": {
+        "lock": true
+      },
+      "panel_state": {
+        "source": "unavailable",
+        "updated_text": "2026-11-04T19:29:13+01:00",
+        "phase": "unknown"
+      },
+      "available": false,
+      "eligible_actions": 0,
+      "state_generation": 1
+    }
+  },
+  "sensor.atmosfera_demo_sensor/15.6": {
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"kind\":\"grant\",\"channel\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"open_seq\":1,\"slot\":2,\"card_id\":\"card-2\",\"revision\":4,\"control_kind\":\"panel\",\"token\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"state_seq\":1,\"ttl_ms\":30000,\"title\":\"Full observation\",\"panel_type\":\"info\",\"panel_caps\":{\"info_type\":\"sensor\",\"device_class\":\"temperature\"},\"panel_state\":{\"source\":\"known\",\"updated_text\":\"2026-11-04T19:29:13+01:00\",\"value_status\":\"value\",\"value_text\":\"15.6\",\"unit_text\":\"°C\"},\"available\":true,\"eligible_actions\":0,\"state_generation\":1}",
+    "size_utf8": 551,
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "kind": "grant",
+      "channel": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "open_seq": 1,
+      "slot": 2,
+      "card_id": "card-2",
+      "revision": 4,
+      "control_kind": "panel",
+      "token": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "state_seq": 1,
+      "ttl_ms": 30000,
+      "title": "Full observation",
+      "panel_type": "info",
+      "panel_caps": {
+        "info_type": "sensor",
+        "device_class": "temperature"
+      },
+      "panel_state": {
+        "source": "known",
+        "updated_text": "2026-11-04T19:29:13+01:00",
+        "value_status": "value",
+        "value_text": "15.6",
+        "unit_text": "°C"
+      },
+      "available": true,
+      "eligible_actions": 0,
+      "state_generation": 1
+    }
+  },
+  "sensor.atmosfera_demo_sensor/unknown": {
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"kind\":\"grant\",\"channel\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"open_seq\":1,\"slot\":2,\"card_id\":\"card-2\",\"revision\":4,\"control_kind\":\"panel\",\"token\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"state_seq\":1,\"ttl_ms\":30000,\"title\":\"Full observation\",\"panel_type\":\"info\",\"panel_caps\":{\"info_type\":\"sensor\",\"device_class\":\"temperature\"},\"panel_state\":{\"source\":\"unknown\",\"updated_text\":\"2026-11-04T19:29:13+01:00\",\"value_status\":\"unknown\",\"value_text\":\"\",\"unit_text\":\"°C\"},\"available\":false,\"eligible_actions\":0,\"state_generation\":1}",
+    "size_utf8": 552,
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "kind": "grant",
+      "channel": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "open_seq": 1,
+      "slot": 2,
+      "card_id": "card-2",
+      "revision": 4,
+      "control_kind": "panel",
+      "token": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "state_seq": 1,
+      "ttl_ms": 30000,
+      "title": "Full observation",
+      "panel_type": "info",
+      "panel_caps": {
+        "info_type": "sensor",
+        "device_class": "temperature"
+      },
+      "panel_state": {
+        "source": "unknown",
+        "updated_text": "2026-11-04T19:29:13+01:00",
+        "value_status": "unknown",
+        "value_text": "",
+        "unit_text": "°C"
+      },
+      "available": false,
+      "eligible_actions": 0,
+      "state_generation": 1
+    }
+  },
+  "sensor.atmosfera_demo_sensor/unavailable": {
+    "json": "{\"v\":1,\"type\":\"entity_control_v1\",\"kind\":\"grant\",\"channel\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"open_seq\":1,\"slot\":2,\"card_id\":\"card-2\",\"revision\":4,\"control_kind\":\"panel\",\"token\":\"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\",\"state_seq\":1,\"ttl_ms\":30000,\"title\":\"Full observation\",\"panel_type\":\"info\",\"panel_caps\":{\"info_type\":\"sensor\",\"device_class\":\"temperature\"},\"panel_state\":{\"source\":\"unavailable\",\"updated_text\":\"2026-11-04T19:29:13+01:00\",\"value_status\":\"unknown\",\"value_text\":\"\",\"unit_text\":\"°C\"},\"available\":false,\"eligible_actions\":0,\"state_generation\":1}",
+    "size_utf8": 556,
+    "value": {
+      "v": 1,
+      "type": "entity_control_v1",
+      "kind": "grant",
+      "channel": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "open_seq": 1,
+      "slot": 2,
+      "card_id": "card-2",
+      "revision": 4,
+      "control_kind": "panel",
+      "token": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "state_seq": 1,
+      "ttl_ms": 30000,
+      "title": "Full observation",
+      "panel_type": "info",
+      "panel_caps": {
+        "info_type": "sensor",
+        "device_class": "temperature"
+      },
+      "panel_state": {
+        "source": "unavailable",
+        "updated_text": "2026-11-04T19:29:13+01:00",
+        "value_status": "unknown",
+        "value_text": "",
+        "unit_text": "°C"
+      },
+      "available": false,
+      "eligible_actions": 0,
+      "state_generation": 1
+    }
+  }
+}

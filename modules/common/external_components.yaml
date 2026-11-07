@@ -9,6 +9,7 @@ external_components:
     components:
       - audio_processor
       - artwork_image
+      - camera_preview
       - display
       - esp_afe
       - esp_audio_stack

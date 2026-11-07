@@ -77,7 +77,7 @@ def decode(payload: str | bytes) -> dict[str, Any]:
                 raise ProtocolError(key)
         if "revision" in value and not _integer(value["revision"], 0, MAX_REVISION):
             raise ProtocolError("revision")
-        if "slot" in value and not _integer(value["slot"], 2, 15):
+        if "slot" in value and not _integer(value["slot"], 2, 31):
             raise ProtocolError("slot")
         if kind == "capability" and (type(value["enabled"]) is not bool or type(value["max_payload_bytes"]) is not int or value["max_payload_bytes"] != MAX_BYTES):
             raise ProtocolError("capability")
@@ -145,7 +145,25 @@ class LightContext:
     revision: int
     sent_revision: int | None
     cards: tuple[dict[str, Any], ...]
-    editable_slots: frozenset[int] = frozenset(range(2, 16))
+    editable_slots: frozenset[int] = frozenset(range(2, 32))
+
+
+def light_capabilities(hass, state):
+    """Existing Light capability policy, shared with the optional detail profile."""
+    try:
+        descriptors = {item["service"]: item["fields"] for item in entity_actions(hass, state)}
+    except (TypeError, ValueError, AttributeError):
+        raise ProtocolError("unsupported") from None
+    caps = {"turn_on": "light.turn_on" in descriptors, "turn_off": "light.turn_off" in descriptors}
+    modes = state.attributes.get("supported_color_modes")
+    brightness_mode = (isinstance(modes, (list, tuple, set, frozenset))
+                       and all(isinstance(mode, str) for mode in modes)
+                       and bool(set(modes) & {"brightness", "color_temp", "hs", "xy", "rgb", "rgbw", "rgbww", "white"}))
+    caps["brightness"] = (caps["turn_on"] and caps["turn_off"] and brightness_mode
+                          and "brightness_pct" in descriptors.get("light.turn_on", {}))
+    if not caps["turn_on"] and not caps["turn_off"]:
+        raise ProtocolError("unsupported")
+    return caps
 
 
 class LightControlOwner(ControlSessionOwner):
@@ -162,20 +180,7 @@ class LightControlOwner(ControlSessionOwner):
         state = self.hass.states.get(card["entity_id"])
         if state is None or state.state not in ("on", "off"):
             raise ProtocolError("entity_unavailable")
-        try:
-            descriptors = {item["service"]: item["fields"] for item in entity_actions(self.hass, state)}
-        except (TypeError, ValueError, AttributeError):
-            raise ProtocolError("unsupported") from None
-        caps = {"turn_on": "light.turn_on" in descriptors, "turn_off": "light.turn_off" in descriptors}
-        modes = state.attributes.get("supported_color_modes")
-        brightness_mode = (isinstance(modes, (list, tuple, set, frozenset))
-                           and all(isinstance(mode, str) for mode in modes)
-                           and bool(set(modes) & {"brightness", "color_temp", "hs", "xy", "rgb", "rgbw", "rgbww", "white"}))
-        caps["brightness"] = (caps["turn_on"] and caps["turn_off"] and brightness_mode
-                              and "brightness_pct" in descriptors.get("light.turn_on", {}))
-        if not caps["turn_on"] and not caps["turn_off"]:
-            raise ProtocolError("unsupported")
-        return state, caps
+        return state, light_capabilities(self.hass, state)
 
     @staticmethod
     def _brightness(state: Any, caps: dict[str, bool]) -> int | None:

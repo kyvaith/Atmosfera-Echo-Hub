@@ -117,7 +117,7 @@ class SettingsAutoHomeTests(unittest.TestCase):
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
             result = subprocess.run([str(executable)], capture_output=True, text=True, timeout=10, check=False)
             self.assertEqual(0, result.returncode, result.stdout + result.stderr)
-            self.assertIn("policy cases: 53", result.stdout)
+            self.assertIn("policy cases: 54", result.stdout)
 
 
 if __name__ == "__main__":

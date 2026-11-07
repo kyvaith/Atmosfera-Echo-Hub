@@ -1,0 +1,322 @@
+[
+  {
+    "name": "public",
+    "metadata": {
+      "version": 1,
+      "panel_type": "text",
+      "caps": {
+        "min": 0,
+        "max": 100,
+        "can_set": true
+      },
+      "fingerprint": "518267b02740c5dd852d27cb5cd9d2063cf2425f86249e043e1f60c6350e9432",
+      "state": {
+        "source": "known",
+        "value": "Hello Ąą Żż",
+        "reason": "none"
+      },
+      "available": true,
+      "eligible_actions": 1
+    }
+  },
+  {
+    "name": "empty",
+    "metadata": {
+      "version": 1,
+      "panel_type": "text",
+      "caps": {
+        "min": 0,
+        "max": 100,
+        "can_set": true
+      },
+      "fingerprint": "518267b02740c5dd852d27cb5cd9d2063cf2425f86249e043e1f60c6350e9432",
+      "state": {
+        "source": "known",
+        "value": "",
+        "reason": "none"
+      },
+      "available": true,
+      "eligible_actions": 1
+    }
+  },
+  {
+    "name": "spaces",
+    "metadata": {
+      "version": 1,
+      "panel_type": "text",
+      "caps": {
+        "min": 0,
+        "max": 100,
+        "can_set": true
+      },
+      "fingerprint": "518267b02740c5dd852d27cb5cd9d2063cf2425f86249e043e1f60c6350e9432",
+      "state": {
+        "source": "known",
+        "value": "  a  b  ",
+        "reason": "none"
+      },
+      "available": true,
+      "eligible_actions": 1
+    }
+  },
+  {
+    "name": "readonly",
+    "metadata": {
+      "version": 1,
+      "panel_type": "text",
+      "caps": {
+        "min": 0,
+        "max": 100,
+        "can_set": false
+      },
+      "fingerprint": "dbae8da686dd1545e3536e47e1aea4027a56bb9d71ae54b770df24f44e5d893d",
+      "state": {
+        "source": "known",
+        "value": "Public",
+        "reason": "none"
+      },
+      "available": true,
+      "eligible_actions": 0
+    }
+  },
+  {
+    "name": "unknown",
+    "metadata": {
+      "version": 1,
+      "panel_type": "text",
+      "caps": {
+        "min": 0,
+        "max": 100,
+        "can_set": true
+      },
+      "fingerprint": "518267b02740c5dd852d27cb5cd9d2063cf2425f86249e043e1f60c6350e9432",
+      "state": {
+        "source": "unknown",
+        "value": null,
+        "reason": "none"
+      },
+      "available": false,
+      "eligible_actions": 0
+    }
+  },
+  {
+    "name": "unavailable",
+    "metadata": {
+      "version": 1,
+      "panel_type": "text",
+      "caps": {
+        "min": 0,
+        "max": 100,
+        "can_set": true
+      },
+      "fingerprint": "518267b02740c5dd852d27cb5cd9d2063cf2425f86249e043e1f60c6350e9432",
+      "state": {
+        "source": "unavailable",
+        "value": null,
+        "reason": "none"
+      },
+      "available": false,
+      "eligible_actions": 0
+    }
+  },
+  {
+    "name": "password",
+    "metadata": {
+      "version": 1,
+      "panel_type": "text",
+      "caps": {
+        "min": 0,
+        "max": 100,
+        "can_set": false
+      },
+      "fingerprint": "9681f9fe9930814962a8d5f36ddb1c84b23b515cbd6f964cdbb9ac368a050217",
+      "state": {
+        "source": "unsupported",
+        "value": null,
+        "reason": "password"
+      },
+      "available": false,
+      "eligible_actions": 0
+    }
+  },
+  {
+    "name": "mode",
+    "metadata": {
+      "version": 1,
+      "panel_type": "text",
+      "caps": {
+        "min": 0,
+        "max": 100,
+        "can_set": false
+      },
+      "fingerprint": "ead9d0ed671e47cce938aaa9306eb591a448b7ad5614854ef65a5697ea2e77f2",
+      "state": {
+        "source": "unsupported",
+        "value": null,
+        "reason": "mode"
+      },
+      "available": false,
+      "eligible_actions": 0
+    }
+  },
+  {
+    "name": "pattern",
+    "metadata": {
+      "version": 1,
+      "panel_type": "text",
+      "caps": {
+        "min": 0,
+        "max": 100,
+        "can_set": false
+      },
+      "fingerprint": "8dae0da4ddf3132259893335d0c68f0d5f3c08ac8a1c9b0c9a7e8742f45f593e",
+      "state": {
+        "source": "unsupported",
+        "value": null,
+        "reason": "pattern"
+      },
+      "available": false,
+      "eligible_actions": 0
+    }
+  },
+  {
+    "name": "pattern-regex",
+    "metadata": {
+      "version": 1,
+      "panel_type": "text",
+      "caps": {
+        "min": 0,
+        "max": 100,
+        "can_set": false
+      },
+      "fingerprint": "83901c3c98bb4f3ff92721659ea02288b9154121d58bcb4afbe6b506b851d640",
+      "state": {
+        "source": "unsupported",
+        "value": null,
+        "reason": "pattern"
+      },
+      "available": false,
+      "eligible_actions": 0
+    }
+  },
+  {
+    "name": "bounds",
+    "metadata": {
+      "version": 1,
+      "panel_type": "text",
+      "caps": {
+        "min": null,
+        "max": null,
+        "can_set": false
+      },
+      "fingerprint": "1784d69dc996d2c9d6566ecc7f112ec8aa0faf1a010c03cd3f3e1bd43f162154",
+      "state": {
+        "source": "unsupported",
+        "value": null,
+        "reason": "bounds"
+      },
+      "available": false,
+      "eligible_actions": 0
+    }
+  },
+  {
+    "name": "length",
+    "metadata": {
+      "version": 1,
+      "panel_type": "text",
+      "caps": {
+        "min": 0,
+        "max": 2,
+        "can_set": true
+      },
+      "fingerprint": "102770fdd5d999fd1e0597856c6e102bba6a413986886f4abf5e8b0ad2c1cfe4",
+      "state": {
+        "source": "unsupported",
+        "value": null,
+        "reason": "length"
+      },
+      "available": false,
+      "eligible_actions": 0
+    }
+  },
+  {
+    "name": "characters",
+    "metadata": {
+      "version": 1,
+      "panel_type": "text",
+      "caps": {
+        "min": 0,
+        "max": 100,
+        "can_set": true
+      },
+      "fingerprint": "518267b02740c5dd852d27cb5cd9d2063cf2425f86249e043e1f60c6350e9432",
+      "state": {
+        "source": "unsupported",
+        "value": null,
+        "reason": "characters"
+      },
+      "available": false,
+      "eligible_actions": 0
+    }
+  },
+  {
+    "name": "encoding",
+    "metadata": {
+      "version": 1,
+      "panel_type": "text",
+      "caps": {
+        "min": 0,
+        "max": 100,
+        "can_set": true
+      },
+      "fingerprint": "518267b02740c5dd852d27cb5cd9d2063cf2425f86249e043e1f60c6350e9432",
+      "state": {
+        "source": "unsupported",
+        "value": null,
+        "reason": "encoding"
+      },
+      "available": false,
+      "eligible_actions": 0
+    }
+  },
+  {
+    "name": "max-pl",
+    "metadata": {
+      "version": 1,
+      "panel_type": "text",
+      "caps": {
+        "min": 0,
+        "max": 255,
+        "can_set": true
+      },
+      "fingerprint": "4062d9f1318597b5672c23fb2b31a036c267c4378461067d2075309ac4c22290",
+      "state": {
+        "source": "known",
+        "value": "ŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻŻ",
+        "reason": "none"
+      },
+      "available": true,
+      "eligible_actions": 1
+    }
+  },
+  {
+    "name": "max-escaped",
+    "metadata": {
+      "version": 1,
+      "panel_type": "text",
+      "caps": {
+        "min": 0,
+        "max": 255,
+        "can_set": true
+      },
+      "fingerprint": "4062d9f1318597b5672c23fb2b31a036c267c4378461067d2075309ac4c22290",
+      "state": {
+        "source": "known",
+        "value": "\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"",
+        "reason": "none"
+      },
+      "available": true,
+      "eligible_actions": 1
+    }
+  }
+]

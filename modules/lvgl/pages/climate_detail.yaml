@@ -1,0 +1,570 @@
+# Explicit detail profile in shared App6. Native owner controls visibility and input.
+# One pooled numeric/choice view; static SVG, no new worker or full-screen buffer.
+id: climate_detail_root
+x: 0
+y: 0
+width: 800
+height: 800
+bg_opa: COVER
+border_width: 0
+pad_all: 0
+radius: 0
+clickable: false
+scrollable: false
+bg_color: '0x000000'
+hidden: true
+widgets:
+- obj:
+    id: climate_detail_dial
+    x: 70
+    y: 66
+    width: 660
+    height: 656
+    bg_opa: 0%
+    border_width: 0
+    pad_all: 0
+    scrollable: false
+    clickable: false
+    hidden: false
+    widgets:
+    - label:
+        id: climate_detail_title
+        align: TOP_MID
+        width: 500
+        height: 32
+        text: ''
+        text_align: CENTER
+        text_font: roboto_24
+        text_color: 12896197
+        long_mode: DOT
+    - arc:
+        id: climate_detail_arc
+        align: TOP_MID
+        y: 44
+        width: 600
+        height: 600
+        min_value: 0
+        max_value: 1000
+        value: 0
+        start_angle: 135
+        end_angle: 45
+        adjustable: false
+        arc_color: 462872
+        arc_width: 28
+        arc_rounded: true
+        bg_opa: 0%
+        indicator:
+          arc_color: 13886461
+          arc_width: 28
+          arc_rounded: true
+        knob:
+          bg_opa: 0%
+          border_width: 0
+          width: 0
+          height: 0
+    - label:
+        id: climate_detail_activity
+        align: TOP_MID
+        y: 203
+        width: 270
+        height: 34
+        text: ''
+        text_align: CENTER
+        text_font: roboto_24
+        text_color: 13886461
+        long_mode: CLIP
+    - label:
+        id: climate_detail_target
+        align: TOP_MID
+        y: 259
+        width: 440
+        height: 82
+        text: ''
+        text_align: CENTER
+        text_font: wear_title_53
+        text_color: 16119802
+        long_mode: CLIP
+    - label:
+        id: climate_detail_current
+        align: TOP_MID
+        y: 348
+        width: 420
+        height: 38
+        text: ''
+        text_align: CENTER
+        text_font: roboto_24
+        text_color: 12896197
+        long_mode: CLIP
+    - label:
+        id: climate_detail_limits
+        align: TOP_MID
+        y: 424
+        width: 440
+        height: 34
+        text: ''
+        text_align: CENTER
+        text_font: roboto_18
+        text_color: 12896197
+        long_mode: CLIP
+    - button:
+        id: climate_detail_minus
+        x: 236
+        y: 488
+        width: 76
+        height: 76
+        radius: 38
+        bg_color: 462872
+        border_color: 13886461
+        border_width: 2
+        shadow_width: 0
+        pad_all: 0
+        scrollable: false
+        disabled:
+          text_opa: 80%
+        widgets:
+        - label:
+            align: CENTER
+            text: '-'
+            text_color: 13886461
+            text_font: roboto_30
+    - button:
+        id: climate_detail_plus
+        x: 348
+        y: 488
+        width: 76
+        height: 76
+        radius: 38
+        bg_color: 462872
+        border_color: 13886461
+        border_width: 2
+        shadow_width: 0
+        pad_all: 0
+        scrollable: false
+        disabled:
+          text_opa: 80%
+        widgets:
+        - label:
+            align: CENTER
+            text: +
+            text_color: 13886461
+            text_font: roboto_30
+    - obj:
+        id: climate_detail_knob
+        width: 46
+        height: 46
+        radius: 23
+        bg_color: 13886461
+        border_width: 4
+        border_color: 16119802
+        pad_all: 0
+        scrollable: false
+        clickable: false
+        hidden: true
+        disabled:
+          opa: 65%
+- label:
+    id: climate_detail_state
+    x: 200
+    y: 207
+    width: 400
+    height: 30
+    text: ''
+    text_font: roboto_20
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: DOT
+    clickable: false
+- obj:
+    id: climate_detail_actions
+    x: 146
+    y: 646
+    width: 508
+    height: 56
+    bg_opa: TRANSP
+    border_width: 0
+    pad_all: 0
+    radius: 0
+    clickable: false
+    scrollable: false
+    layout:
+      type: FLEX
+      flex_flow: ROW
+      flex_align_main: CENTER
+      flex_align_cross: CENTER
+      flex_align_track: CENTER
+      pad_column: 20
+      pad_row: 12
+    widgets:
+    - button:
+        id: climate_detail_mode
+        width: 244
+        flex_grow: 1
+        height: 56
+        radius: 28
+        bg_color: '0x1D2833'
+        bg_opa: COVER
+        border_width: 0
+        pad_all: 0
+        shadow_width: 0
+        scrollable: false
+        hidden: true
+        pressed:
+          bg_opa: 80%
+        disabled:
+          text_opa: 80%
+        widgets:
+        - label:
+            id: climate_detail_mode_label
+            width: 85%
+            text: ''
+            text_font: roboto_20
+            text_color: '0xF2F2F2'
+            text_align: CENTER
+            long_mode: DOT
+            clickable: false
+            align: CENTER
+    - button:
+        id: climate_detail_parameters
+        width: 244
+        flex_grow: 1
+        height: 56
+        radius: 28
+        bg_color: '0x1D2833'
+        bg_opa: COVER
+        border_width: 0
+        pad_all: 0
+        shadow_width: 0
+        scrollable: false
+        hidden: true
+        pressed:
+          bg_opa: 80%
+        disabled:
+          text_opa: 80%
+        widgets:
+        - label:
+            id: climate_detail_parameters_label
+            width: 85%
+            text: !lambda 'return std::string(id(ui_i18n).translate("detail_control.parameters"));'
+            text_font: roboto_20
+            text_color: '0xF2F2F2'
+            text_align: CENTER
+            long_mode: DOT
+            clickable: false
+            align: CENTER
+    - button:
+        id: climate_detail_range
+        width: 244
+        flex_grow: 1
+        height: 56
+        radius: 28
+        styles: m3_text_control_inset
+        bg_color: '0x1D2833'
+        bg_opa: COVER
+        shadow_width: 0
+        scrollable: false
+        hidden: true
+        widgets:
+        - label:
+            id: climate_detail_range_label
+            width: 85%
+            text: !lambda 'return std::string(id(ui_i18n).translate("detail_control.range"));'
+            text_font: roboto_20
+            text_color: '0xF2F2F2'
+            text_align: CENTER
+            long_mode: DOT
+            clickable: false
+            align: CENTER
+- label:
+    id: climate_detail_status
+    x: 200
+    y: 706
+    width: 400
+    height: 40
+    text: ''
+    text_font: roboto_16
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- obj:
+    id: climate_detail_parameters_root
+    x: 0
+    y: 0
+    width: 800
+    height: 800
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    radius: 0
+    clickable: true
+    scrollable: false
+    bg_color: '0x000000'
+    hidden: true
+    widgets:
+    - label:
+        id: climate_detail_parameters_title
+        x: 130
+        y: 104
+        width: 540
+        height: 42
+        text: !lambda 'return std::string(id(ui_i18n).translate("detail_control.parameters"));'
+        text_font: roboto_30
+        text_color: '0xF2F2F2'
+        text_align: CENTER
+        long_mode: DOT
+        clickable: false
+    - svg_icon:
+        id: climate_detail_parameters_icon
+        file: assets/icons/detail-thermostat.svg
+        x: 352
+        y: 164
+        width: 96
+        height: 96
+        text_color: '0xD3E3FD'
+        hidden: false
+        clickable: false
+    - obj:
+        id: climate_detail_parameter_grid
+        x: 146
+        y: 280
+        width: 508
+        height: 312
+        bg_opa: TRANSP
+        border_width: 0
+        pad_all: 0
+        radius: 0
+        clickable: false
+        scrollable: false
+        layout:
+          type: FLEX
+          flex_flow: ROW_WRAP
+          flex_align_main: CENTER
+          flex_align_cross: CENTER
+          flex_align_track: CENTER
+          pad_column: 20
+          pad_row: 12
+        widgets:
+        - button:
+            id: climate_detail_parameter_humidity
+            width: 244
+            height: 96
+            radius: 32
+            bg_color: '0x1D2833'
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: true
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 80%
+            widgets:
+            - svg_icon:
+                id: climate_detail_parameter_humidity_icon
+                file: assets/icons/humidity.svg
+                x: 106
+                y: 12
+                width: 32
+                height: 32
+                text_color: '0xD3E3FD'
+                hidden: false
+                clickable: false
+            - label:
+                id: climate_detail_parameter_humidity_label
+                width: 220
+                text: !lambda 'return std::string(id(ui_i18n).translate("detail_control.humidity"));'
+                text_font: roboto_20
+                text_color: '0xF2F2F2'
+                text_align: CENTER
+                long_mode: WRAP
+                clickable: false
+                x: 12
+                y: 50
+                height: 38
+        - button:
+            id: climate_detail_parameter_preset
+            width: 244
+            height: 96
+            radius: 32
+            bg_color: '0x1D2833'
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: true
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 80%
+            widgets:
+            - svg_icon:
+                id: climate_detail_parameter_preset_icon
+                file: assets/icons/detail-preset.svg
+                x: 106
+                y: 12
+                width: 32
+                height: 32
+                text_color: '0xD3E3FD'
+                hidden: false
+                clickable: false
+            - label:
+                id: climate_detail_parameter_preset_label
+                width: 220
+                text: !lambda 'return std::string(id(ui_i18n).translate("detail_control.preset"));'
+                text_font: roboto_20
+                text_color: '0xF2F2F2'
+                text_align: CENTER
+                long_mode: WRAP
+                clickable: false
+                x: 12
+                y: 50
+                height: 38
+        - button:
+            id: climate_detail_parameter_fan
+            width: 244
+            height: 96
+            radius: 32
+            bg_color: '0x1D2833'
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: true
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 80%
+            widgets:
+            - svg_icon:
+                id: climate_detail_parameter_fan_icon
+                file: assets/icons/fan.svg
+                x: 106
+                y: 12
+                width: 32
+                height: 32
+                text_color: '0xD3E3FD'
+                hidden: false
+                clickable: false
+            - label:
+                id: climate_detail_parameter_fan_label
+                width: 220
+                text: !lambda 'return std::string(id(ui_i18n).translate("detail_control.fan"));'
+                text_font: roboto_20
+                text_color: '0xF2F2F2'
+                text_align: CENTER
+                long_mode: WRAP
+                clickable: false
+                x: 12
+                y: 50
+                height: 38
+        - button:
+            id: climate_detail_parameter_swing
+            width: 244
+            height: 96
+            radius: 32
+            bg_color: '0x1D2833'
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: true
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 80%
+            widgets:
+            - svg_icon:
+                id: climate_detail_parameter_swing_icon
+                file: assets/icons/detail-swing-vertical.svg
+                x: 106
+                y: 12
+                width: 32
+                height: 32
+                text_color: '0xD3E3FD'
+                hidden: false
+                clickable: false
+            - label:
+                id: climate_detail_parameter_swing_label
+                width: 220
+                text: !lambda 'return std::string(id(ui_i18n).translate("detail_control.swing"));'
+                text_font: roboto_20
+                text_color: '0xF2F2F2'
+                text_align: CENTER
+                long_mode: WRAP
+                clickable: false
+                x: 12
+                y: 50
+                height: 38
+        - button:
+            id: climate_detail_parameter_swing_horizontal
+            width: 244
+            height: 96
+            radius: 32
+            bg_color: '0x1D2833'
+            bg_opa: COVER
+            border_width: 0
+            pad_all: 0
+            shadow_width: 0
+            scrollable: false
+            hidden: true
+            pressed:
+              bg_opa: 80%
+            disabled:
+              text_opa: 80%
+            widgets:
+            - svg_icon:
+                id: climate_detail_parameter_swing_horizontal_icon
+                file: assets/icons/detail-swing-horizontal.svg
+                x: 106
+                y: 12
+                width: 32
+                height: 32
+                text_color: '0xD3E3FD'
+                hidden: false
+                clickable: false
+            - label:
+                id: climate_detail_parameter_swing_horizontal_label
+                width: 220
+                text: !lambda 'return std::string(id(ui_i18n).translate("detail_control.swing_horizontal"));'
+                text_font: roboto_20
+                text_color: '0xF2F2F2'
+                text_align: CENTER
+                long_mode: WRAP
+                clickable: false
+                x: 12
+                y: 50
+                height: 38
+    - button:
+        id: climate_detail_parameters_back
+        width: 212
+        height: 64
+        radius: 32
+        bg_color: '0x1D2833'
+        bg_opa: COVER
+        border_width: 0
+        pad_all: 0
+        shadow_width: 0
+        scrollable: false
+        hidden: false
+        pressed:
+          bg_opa: 80%
+        disabled:
+          text_opa: 80%
+        x: 294
+        y: 654
+        widgets:
+        - label:
+            id: climate_detail_parameters_back_label
+            width: 188
+            text: !lambda 'return std::string(id(ui_i18n).translate("detail_control.back"));'
+            text_font: roboto_24
+            text_color: '0xF2F2F2'
+            text_align: CENTER
+            long_mode: DOT
+            clickable: false
+            align: CENTER

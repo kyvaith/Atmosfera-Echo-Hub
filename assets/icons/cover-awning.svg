@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="#FFFFFF">
+  <title>Cover: awning</title>
+  <path d="M 22 22 L 106 22 L 106 30 L 22 30 Z"/>
+  <path d="M 24 34 L 42 34 L 36 68 L 12 68 Z"/>
+  <path d="M 48 34 L 64 34 L 64 68 L 42 68 Z"/>
+  <path d="M 70 34 L 86 34 L 94 68 L 70 68 Z"/>
+  <path d="M 92 34 L 104 34 L 116 68 L 100 68 Z"/>
+  <path d="M 12 72 L 36 72 C 36 88 12 88 12 72 Z"/>
+  <path d="M 42 72 L 64 72 C 64 88 42 88 42 72 Z"/>
+  <path d="M 70 72 L 94 72 C 94 88 70 88 70 72 Z"/>
+  <path d="M 100 72 L 116 72 C 116 88 100 88 100 72 Z"/>
+  <path d="M 22 88 L 30 88 L 30 114 L 22 114 Z"/>
+  <path d="M 98 88 L 106 88 L 106 114 L 98 114 Z"/>
+</svg>

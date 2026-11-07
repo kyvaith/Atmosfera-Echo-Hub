@@ -156,6 +156,45 @@ The product exposes two ESPHome user actions:
 The maximum catalog size is bounded at compile time by
 `max_runtime_sources`; the product uses 16.
 
+## Doorbell preview
+
+Home Assistant prefers `camera_set_sources_v2(payload)` on supported
+firmware. A key derives from the Home Assistant entity ID and stays stable
+when its label, catalog position or signed URL changes. The ordinary
+selection remains separate from the temporary stream override. Removing
+the preview key leaves the preview without a source until navigation closes
+it. The worker resolves the current key and copies its URL on connection or
+catalog change, then reads frames without copying the catalog.
+
+Call **Atmosfera Echo Hub: Show doorbell camera** in a Home Assistant
+automation for the doorbell event. Select the display and a camera already
+included in its Camera settings. The default preview lasts 35 seconds and
+the permitted range is 15–90 seconds. An optional event ID lets the display
+recognize repeated delivery of the same ring.
+
+```yaml
+action: atmosfera_echo_hub.doorbell_preview
+data:
+  device_id: <Atmosfera device ID>
+  camera_entity_id: camera.front
+  duration_seconds: 35
+```
+
+The action admits idle Home, including an idle Home whose display is asleep.
+An app, an overlay that blocks navigation or a gesture in progress returns
+`busy`. A successful reply reports `opened` when navigation accepts the
+request. Video can take longer to arrive. The device remembers its four most
+recent accepted event IDs and returns `duplicate` for repeats. Requests are
+handled immediately and do not form a queue.
+
+The preview uses the registered Camera lifecycle, including its loader,
+MJPEG worker, hardware JPEG presenter and bottom-edge close gesture. On
+timeout, catalog removal or loss of the API state subscriber, the preview
+requests the normal close once navigation is idle. Navigation returns to the
+exact Home page saved at opening. The close gesture releases the same
+temporary source. The regular camera selection and its Home Assistant select
+remain available for the next ordinary Camera session.
+
 ## Buffer ownership
 
 The preferred native-geometry stream uses one component-owned large

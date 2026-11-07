@@ -8,7 +8,8 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
@@ -23,6 +24,7 @@ from .const import (
     CONF_DEVICE_ID,
     DOMAIN,
     PLATFORMS,
+    SERVICE_DOORBELL_PREVIEW,
     SERVICE_REPORT_CAMERA_SOURCE,
     SERVICE_REPORT_TILE_PRESS,
     SERVICE_REPORT_TILE_CONTEXT_PRESS,
@@ -32,10 +34,11 @@ from .const import (
 from .camera_proxy import AtmosferaCameraStreamView
 from .controller import CameraBridge
 from .panel import async_setup_panel
-from .layout import LayoutError, MAX_REVISION, SLOT_COUNT, parse_report_integer
+from .layout import CAROUSEL_SLOT_COUNT, LayoutError, MAX_REVISION, parse_report_integer
 from .light_control import ProtocolError, decode as decode_light_control
 from .light_control_transport import async_route_report, async_route_entity_report
-from .entity_control_codec import decode as decode_entity_control
+from .entity_control_codec import decode_report as decode_entity_control
+from .notification_transport import async_route_notification
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -91,6 +94,38 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         ),
     )
 
+    async def async_doorbell_preview(call: ServiceCall) -> dict[str, str]:
+        matches = [
+            entry.runtime_data
+            for entry in hass.config_entries.async_loaded_entries(DOMAIN)
+            if entry.runtime_data.device_id == call.data[CONF_DEVICE_ID]
+        ]
+        if len(matches) != 1:
+            raise HomeAssistantError("Select a configured Atmosfera display")
+        return await matches[0].async_doorbell_preview(
+            call.data["camera_entity_id"],
+            call.data["duration_seconds"],
+            call.data.get("event_id"),
+            call.context,
+        )
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_DOORBELL_PREVIEW,
+        async_doorbell_preview,
+        schema=vol.Schema(
+            {
+                vol.Required(CONF_DEVICE_ID): cv.string,
+                vol.Required("camera_entity_id"): cv.entity_id,
+                vol.Optional("duration_seconds", default=35): vol.All(
+                    vol.Coerce(int), vol.Range(min=15, max=90)
+                ),
+                vol.Optional("event_id"): vol.All(cv.string, vol.Length(min=1, max=64)),
+            }
+        ),
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+
     async def async_report_tile_press(call: ServiceCall) -> None:
         node_name: str = call.data[ATTR_NODE_NAME]
         slot: int = call.data[ATTR_SLOT]
@@ -108,7 +143,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         schema=vol.Schema(
             {
                 vol.Required(ATTR_NODE_NAME): cv.string,
-                vol.Required(ATTR_SLOT): vol.All(vol.Coerce(int), vol.Range(min=0, max=SLOT_COUNT - 1)),
+                vol.Required(ATTR_SLOT): vol.All(vol.Coerce(int), vol.Range(min=0, max=CAROUSEL_SLOT_COUNT - 1)),
             }
         ),
     )
@@ -126,7 +161,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         DOMAIN, SERVICE_REPORT_TILE_CONTEXT_PRESS, async_report_tile_context_press,
         schema=vol.Schema({
             vol.Required(ATTR_NODE_NAME): cv.string,
-            vol.Required(ATTR_SLOT): _report_number(0, SLOT_COUNT - 1, ATTR_SLOT),
+            vol.Required(ATTR_SLOT): _report_number(0, CAROUSEL_SLOT_COUNT - 1, ATTR_SLOT),
             vol.Required(ATTR_CARD_ID): vol.All(cv.string, vol.Match(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")),
             vol.Required(ATTR_REVISION): _report_number(0, MAX_REVISION, ATTR_REVISION),
         }),
@@ -159,9 +194,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         if not isinstance(value, str):
             raise vol.Invalid("Expected bounded JSON text")
         try:
-            message = decode_entity_control(value)
-            if message["kind"] not in {"open", "command", "close", "cancel_open"}:
-                raise ProtocolError("direction")
+            decode_entity_control(value)
         except ProtocolError as error:
             raise vol.Invalid(str(error)) from error
         return value
@@ -177,6 +210,16 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         schema=vol.Schema({
             vol.Required(ATTR_NODE_NAME): vol.All(cv.string, vol.Length(min=1, max=128)),
             vol.Required(ATTR_PAYLOAD): entity_payload,
+        }, extra=vol.PREVENT_EXTRA),
+    )
+    async def async_report_notification(call: ServiceCall) -> None:
+        await async_route_notification(hass, call.data[ATTR_NODE_NAME], call.data[ATTR_PAYLOAD], call.context)
+
+    hass.services.async_register(
+        DOMAIN, "report_notification", async_report_notification,
+        schema=vol.Schema({
+            vol.Required(ATTR_NODE_NAME): vol.All(cv.string, vol.Length(min=1, max=128)),
+            vol.Required(ATTR_PAYLOAD): vol.All(cv.string, vol.Length(max=512)),
         }, extra=vol.PREVENT_EXTRA),
     )
     if DOMAIN in config:

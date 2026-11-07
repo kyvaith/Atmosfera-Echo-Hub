@@ -156,6 +156,75 @@ the first post-OTA functional Home check failed, so device acceptance remains
 open. Product admission defaults off. Source adoption or flash identity does
 not imply that the staged HA package has been activated.
 
+### Light Color facet
+
+To extend the existing App6 Light Detail, configure the optional
+`light_color_profile` (disabled by default, requires Light Detail) with all 15
+distinct widget references. Follow `modules/lvgl/pages/light_color.yaml` and
+the MAIN row in `modules/lvgl/pages/light_detail.yaml`: 13 facet objects plus
+the launcher and label, with product-owned geometry and capability-dependent
+row widths. Keep the standard bottom-close gesture area clear. This facet needs
+no new application, snapshot registration or display buffer.
+
+Use a neutral root for native pointer capture; H/S slider children are visual,
+non-clickable and non-animated. Do not attach YAML service actions to their
+movement or release. The native owner retains the local draft and admits
+Cancel/Apply under the existing Detail identity and generation fences. Share
+the common inset/disabled appearance instead of allocating per-widget copies.
+Keep the source/draft swatch independent of the global accent: after applying
+the theme, call `refresh_light_color_palette()` before refreshing previews.
+Do not reuse the active accent-picker widgets or its setting-writing callbacks.
+
+The response-only `entity_detail_color_query`/`entity_detail_color_bind` pair
+negotiates Color1 after Detail1 on the current channel. Keep the old Light
+behavior when it is absent or rejected. Wire policy, CT switching, HA brightness
+ownership and validation boundaries live in [Light Detail Color1](../architecture/ha-light-color.md).
+
+### Climate Range facet
+
+Configure `climate_range_profile` only beside the existing Climate Detail profile;
+its upstream `enabled` option defaults to false. Supply the launcher `button`
+and its child `label`, as in `modules/lvgl/pages/climate_detail.yaml`. Do not add
+a second arc, application root, snapshot registration or buffer. The existing
+Mode/Parameters/Range row becomes Lower/Upper/Back in the Range facet; product
+flex layout yields3×156px with20px gaps,2×244px or one508px button in its508px row.
+Keep the status below the dial and the standard close area at y750 clear.
+
+Declare response-only `entity_detail_range_query` and `entity_detail_range_bind`
+with the existing native populate/bind methods. The optional handshake is
+independent of Color and does not change the old Detail API. Only the native
+owner controls facet visibility, bound selection, pointer admission, preview
+and one paired-target release; no YAML service handlers or duplicate draft
+state are needed. Append Detail translations61..66 for bound labels and range
+reasons; the product has67 Detail keys and1142 localized rows after this change.
+Reuse existing decimal formatting and shared inset styles. MAIN pair text
+must not mark a scalar target known or invent one knob position. The105
+presenter uses the existing hero when the exact pair fits and the existing
+localized Range caption otherwise; full values remain in the limits label.
+Keep the configured font and all input authority unchanged. The paired range
+is distinct from hysteresis. Read [Climate Range1](../architecture/ha-climate-range.md)
+for the source/service contract and fail-closed unit policy.
+
+### Read-only Agenda in Info
+
+Configure optional `agenda_profile` with `enabled`, `previous`, `previous_label`,
+`next`, and `next_label`; it requires Info1, not Detail or InfoContext. Keep the
+upstream default disabled. Product callbacks expose `entity_info_agenda_query`
+and `entity_info_agenda_bind` through the existing component methods. No extra
+application, Home snapshot slot or display buffer is registered.
+
+Reuse Calendar's existing labels/SVG and status. The product places two 244×48
+buttons at (146,650) and (410,650), with non-clickable labels; hide UPDATED only
+while Agenda is shown. Status ends at 742, leaving the bottom gesture from 750.
+Both buttons remain disabled during a pending page or incomplete text rendering.
+Do not recreate PAGE/receipt state machines or calendar fetching in YAML.
+
+Append localized Extra keys 93..100 without changing the original 93; product
+capacity is 579 keys per locale. Validate glyph fit, boundary/slide-out behavior,
+semantic source cancellation and legacy Calendar restoration. Host proof is not
+device acceptance. The [Agenda contract](../architecture/ha-agenda-panels.md)
+owns authorization, dates, cache limits and explicit HA editor migration.
+
 ## Add a snapshot-backed scroll region
 
 Use a scroll region when a large list has measured poor LVGL motion.
@@ -331,6 +400,130 @@ phase overlap.
 - Declare the glyph in the font's allowed characters so ESPHome includes it.
 - Keep typography and icon sizes in the page/style layer, not in generic
   renderer code.
+
+### Static SVG illustrations
+
+Use the companion `svg_icon` widget for a small, single-colour vector
+illustration. It reads an SVG file at build time and retains its path geometry;
+it does not convert the asset to a firmware bitmap or use `svg_loader`'s
+independent render task. The product's first asset is `assets/icons/fan.svg`.
+
+```yaml
+- svg_icon:
+    id: device_illustration
+    file: assets/icons/fan.svg
+    width: 96
+    height: 96
+    text_color: 0xD3E3FD
+    clickable: false
+```
+
+The supported source is deliberately limited: one solid fill, a finite positive
+`viewBox`, and closed paths containing absolute `M`, `L`, `Q`, `C` and `Z`
+commands. Unsupported elements, transforms, strokes, filters, external images,
+XML entities and differing path fills are rejected. A file is at most 64 KiB
+with 256 path commands; each output dimension is at most 256 pixels. Width and
+height are explicit. The aspect ratio is preserved and the illustration is
+centred. `text_color` and `text_opa` supply the runtime tint and opacity; the
+object starts transparent with zero border and padding.
+
+One immutable LVGL path is built during setup and freed if the widget is
+deleted. Drawing runs through the existing LVGL draw queue. It creates a
+zero-origin ARGB child layer bounded to the icon, then submits that layer at
+the widget's actual coordinates. For a 96x96 icon the pixel surface is 36,864
+bytes plus renderer metadata, retained only until those draw tasks finish.
+No icon timer, worker, canvas or full-screen pixel buffer is introduced.
+Hidden icons retain only their small path state.
+
+The bounded child layer is required: the current software vector renderer
+would otherwise allocate an ARGB scratch surface covering the complete RGB888
+parent layer. Do not draw a vector descriptor directly into the full-screen
+layer or replace this with the older asynchronous SVG canvas loader. Native
+compilation and on-device visual/lifecycle validation are still required when
+admitting a new SVG widget or asset.
+
+## Generated initialization stack
+
+Retire the generated configuration initializer's stack frame before calling
+`App.setup()`. Keep that initializer non-inlined into the small setup wrapper;
+otherwise its temporary objects and register spills remain live beneath every
+component's startup calls. Preserve the generated configuration and component
+startup order, and check both fresh and existing generated source files.
+
+The native87 Cover expansion exposed this boundary: its generated setup frame
+grew from 9,088 to 9,280 bytes within a 12,288-byte loop-task stack. The device
+reported a stack overflow during startup. SVG geometry and translations were
+static; the i18n constructor still used only 16 stack bytes. Inspect compiled
+frame sizes and repeat device boot tests after adding screens instead of
+raising the task-stack limit to hide the retained initialization frame.
+
+## Local translation capacity
+
+Every configured locale entry participates in the companion `i18n` component's
+generated `I18N_TRANSLATION_CAPACITY` definition. Its fixed pointer table is
+sized at build time for the complete configuration, including repeated locale
+packs in their original first-match order. Empty packs reserve one storage
+slot; the schema rejects more than 65,535 entries, matching the counter type.
+Strings remain flash-resident literals and no runtime allocation is added.
+Manual registration beyond the configured capacity logs an explicit error.
+
+On ESP32, the optional `use_flash_table: true` setting emits an immutable,
+static-lifetime translation pointer table in flash. Atmosfera enables this mode
+to preserve internal RAM for its existing audio tasks. Entry order, first-match
+lookup, default-locale fallback and `translate_existing` semantics are unchanged.
+No mutable shadow table or runtime allocation is created. Manual registration
+with `add_translation` is explicitly rejected in this mode; extend the YAML
+packs instead. The upstream default remains the mutable table and keeps its
+existing registration and overflow behavior.
+
+The 822-entry table contains 9,864 bytes of pointers on ESP32-P4. Moving this
+metadata out of the component replaces the array with one four-byte pointer;
+the expected internal saving is 9,860 bytes. Verify the final linked object,
+startup order and actual audio-task startup after changing this policy. This
+storage accounting alone does not establish sufficient contiguous heap or
+hardware stability.
+
+For the candidate with 574 entries on the 32-bit ESP32-P4, the three-pointer
+table occupies 6,888 bytes instead of the previous fixed 6,144 bytes: a bounded
+744-byte increase. The earlier 512-entry table silently dropped the last 30 of
+542 entries, making the new Polish strings fall back to English. Validate the
+last keys of every locale, fallback lookup and the generated count when adding
+packs; a valid YAML file alone did not detect that older runtime limit.
+
+## Optional external Media panel
+
+The `media_controller` product composition is an optional dedicated view for an
+explicit Home Assistant `panel/media` card. It uses the existing entity-control
+application and negotiated Extra profile. It does not replace the local Player,
+reinterpret a legacy Choice action, or infer service support from stray state
+attributes. Upstream admission defaults to disabled; the product supplies the
+`media_control_product_admitted` policy substitution.
+
+`pages/media_panel.yaml` and `pages/media_volume.yaml` own static SVG, labels and
+geometry. Native code owns capability filtering, input, authority, pending
+commands and facet transitions. Main transport controls use a flex row: hidden
+unsupported controls leave the layout, while supported but ineligible controls
+remain visibly disabled. Play/Pause and On/Off each occupy one visible position.
+Do not hardcode their absolute tap coordinates without resolving the visible
+children first.
+
+Volume borrows the existing bounded Scalar region and worker. Source, sound
+mode and repeat borrow the existing eight-option Detail Choice tree. There is
+one selected owner and active facet; no per-facet full-screen buffer or new
+application snapshot is allocated. A facet handoff must complete before input
+or screenshot capture, and closing must retire borrowed widgets before another
+family can use them. The native backend enforces this lifecycle.
+
+The text provider checks retained Media view state before Extra and Detail and
+maps IDs 0 through 54. Keep the exact authoritative volume text separate from
+the rounded drag preview. Existing normal/compact fonts are reused; a value
+that cannot be displayed completely must not become an apparently precise
+truncated observation. The product theme already walks their parent control
+tree; SVG control icons inherit the same contrasting foreground as captions.
+
+Configuration validation and font metrics are preparation evidence. Full native
+compile, facet open/back/close, capability filtering, authoritative updates,
+screenshots, memory and audio continuity remain device acceptance gates.
 
 ## YAML policy
 

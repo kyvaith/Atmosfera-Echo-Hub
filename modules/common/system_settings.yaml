@@ -155,7 +155,7 @@ interval:
           id(ui_apply_settings_snapshot_refresh).is_running()) return;
       lv_obj_t *overlays[] = {id(boot_overlay), id(voice_assistant_overlay),
           id(global_volume_overlay), id(volume_overlay), id(ui_touch_blocker),
-          id(material_notification_root), id(accent_picker_overlay), id(accent_refresh_overlay)};
+          id(material_notification_root), id(notification_center_root), id(accent_picker_overlay), id(accent_refresh_overlay)};
       for (auto *overlay : overlays) {
         if (lv_obj_is_visible(overlay)) return;
       }

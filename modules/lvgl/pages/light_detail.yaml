@@ -1,0 +1,138 @@
+# Explicit detail profile in shared App6. Native owner controls visibility and input.
+# One pooled numeric/choice view; static SVG, no new worker or full-screen buffer.
+id: light_detail_root
+x: 0
+y: 0
+width: 800
+height: 800
+bg_opa: TRANSP
+border_width: 0
+pad_all: 0
+radius: 0
+clickable: false
+scrollable: false
+bg_color: '0x000000'
+hidden: true
+widgets:
+- svg_icon:
+    id: light_detail_icon
+    file: assets/icons/detail-lightbulb.svg
+    x: 380
+    y: 66
+    width: 40
+    height: 40
+    text_color: '0xD3E3FD'
+    hidden: false
+    clickable: false
+- obj:
+    id: light_detail_actions
+    x: 146
+    y: 650
+    width: 508
+    height: 56
+    bg_opa: TRANSP
+    border_width: 0
+    pad_all: 0
+    radius: 0
+    clickable: false
+    scrollable: false
+    layout:
+      type: FLEX
+      flex_flow: ROW
+      flex_align_main: CENTER
+      flex_align_cross: CENTER
+      flex_align_track: CENTER
+      pad_column: 20
+      pad_row: 12
+    widgets:
+    - button:
+        id: light_detail_kelvin
+        width: 244
+        flex_grow: 1
+        height: 56
+        radius: 28
+        bg_color: '0x1D2833'
+        bg_opa: COVER
+        border_width: 0
+        pad_all: 0
+        shadow_width: 0
+        scrollable: false
+        hidden: true
+        pressed:
+          bg_opa: 80%
+        disabled:
+          text_opa: 80%
+        widgets:
+        - label:
+            id: light_detail_kelvin_label
+            width: 85%
+            text: !lambda 'return std::string(id(ui_i18n).translate("detail_control.kelvin"));'
+            text_font: roboto_20
+            text_color: '0xF2F2F2'
+            text_align: CENTER
+            long_mode: DOT
+            clickable: false
+            align: CENTER
+    - button:
+        id: light_detail_effect
+        width: 244
+        flex_grow: 1
+        height: 56
+        radius: 28
+        bg_color: '0x1D2833'
+        bg_opa: COVER
+        border_width: 0
+        pad_all: 0
+        shadow_width: 0
+        scrollable: false
+        hidden: true
+        pressed:
+          bg_opa: 80%
+        disabled:
+          text_opa: 80%
+        widgets:
+        - label:
+            id: light_detail_effect_label
+            width: 85%
+            text: !lambda 'return std::string(id(ui_i18n).translate("detail_control.effect"));'
+            text_font: roboto_20
+            text_color: '0xF2F2F2'
+            text_align: CENTER
+            long_mode: DOT
+            clickable: false
+            align: CENTER
+    - button:
+        id: light_detail_color
+        width: 244
+        flex_grow: 1
+        height: 56
+        radius: 28
+        styles: m3_text_control_inset
+        bg_color: '0x1D2833'
+        bg_opa: COVER
+        shadow_width: 0
+        scrollable: false
+        hidden: true
+        widgets:
+        - label:
+            id: light_detail_color_label
+            width: 85%
+            text: !lambda 'return std::string(id(ui_i18n).translate("light_color.open"));'
+            text_font: roboto_20
+            text_color: '0xF2F2F2'
+            text_align: CENTER
+            long_mode: DOT
+            clickable: false
+            align: CENTER
+- label:
+    id: light_detail_status
+    x: 220
+    y: 714
+    width: 360
+    height: 40
+    text: ''
+    text_font: roboto_16
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false

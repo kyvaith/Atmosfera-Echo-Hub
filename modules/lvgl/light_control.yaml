@@ -143,7 +143,7 @@ lvgl:
           - script.execute: ui_clear_interaction_press
           - script.wait: ui_clear_interaction_press
           - lambda: |-
-              if (id(ui_page) >= 1 && id(ui_page) <= 4) id(ui_home_page) = id(ui_page);
+              if (id(ui_page) >= 1 && id(ui_page) <= 5) id(ui_home_page) = id(ui_page);
               id(ui_touch_click_block_until_ms) = millis() + 800;
               lvgl_esphome_snapshot_set_status_icons_visible(true);
           - globals.set:
@@ -235,7 +235,8 @@ script:
                      id(boot_sequence_done) && id(ui_active_app) == 0 &&
                      !id(ui_touch_active) && !id(ui_snapshot_io_busy) &&
                      !id(ui_navigation).is_transition_active() &&
-                     lv_obj_has_flag(id(material_notification_root), LV_OBJ_FLAG_HIDDEN);
+                     lv_obj_has_flag(id(material_notification_root), LV_OBJ_FLAG_HIDDEN) &&
+                     lv_obj_has_flag(id(notification_center_root), LV_OBJ_FLAG_HIDDEN);
           then:
             - script.stop: ui_refresh_tile_snapshots
             - script.stop: ui_refresh_home_snapshot_if_pending
@@ -496,7 +497,8 @@ script:
       - if:
           condition:
             lambda: |-
-              return !id(ui_light_preparation_owned) &&
+              return !id(notification_center).owns_scene() &&
+                     !id(ui_light_preparation_owned) &&
                      !id(ui_navigation).is_application_open(id(light_control_application)) &&
                      !id(ui_open_selected_light).is_running();
           then:

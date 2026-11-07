@@ -147,6 +147,32 @@ The expensive processing path is active only between `Opening` and final
 cleanup. Idle wake-word detection continues to consume microphone frames, but
 does not require the full AFE feature set.
 
+### Wake-word task memory reservation
+
+The native92b candidate opts into `micro_wake_word.preallocate_task_resources`
+(default `false` in the reusable component). Generated initialization reserves
+the configured inference stack and internal task control block before LVGL
+construction. Reservation does not start inference or microphone processing.
+On this ESP32-P4 configuration it retains8192 bytes of internal stack and a
+356-byte TCB, plus allocator overhead. Task priority, affinity, model, stack
+memory type and DSP remain unchanged.
+
+The inference task owns these buffers while running. The main loop retires
+the parked task through `StaticTask::destroy()` before reusing them; opted-in
+stop/start cycles keep the reservation. RTOS task-creation failure also keeps
+it only when explicitly requested. Default callers still release resources
+on creation failure and the default wake-word stop path still deallocates them.
+This prevents later UI allocation from making the existing internal stack
+impossible to allocate as one contiguous block.
+
+`is_running()` includes startup and shutdown states and retains its existing
+meaning. Product readiness and `debug_audio_output.wake_word_detecting` use
+`is_detecting()`, which requires the inference task's ready event after buffer
+allocation. This is lifecycle evidence, not an inference heartbeat or proof
+that a spoken wake word was recognized. Allocation, frontend and inference
+errors remain failures in device acceptance. See the latest section of
+`docs/development/resume-2026-11-04-panels.md` for deployment/test status.
+
 ## Realtime conversation flow
 
 The primary conversational transport is the external `va_pipecat` component:
@@ -407,6 +433,69 @@ The timing-sensitive media sync task remains in internal memory with its
 unchanged 6,192-byte stack. The physical TDM, mixer, AFE, resampler and realtime
 voice buffers retain their existing owners and capacities.
 
+### Sendspin checked startup
+
+The native109 candidate replaces the five Sendspin 0.9.3 worker thread
+holders with a nonmoving, fallible `PlatformThread`. Each role owns its
+holder and callback context until join finishes. The inline trampoline
+borrows that stable address; it does not allocate a `std::thread` state.
+Stack sizes, priorities, PSRAM capability requests and existing worker
+functions stay unchanged. Invalid join or destruction while joinable remains
+fatal, so a failed ownership invariant cannot silently free a live context.
+
+Configuration must succeed and read back exactly before `pthread_create`.
+A rejected start leaves no joinable holder and never waits for that worker's
+IDLE signal. The role withdraws its failed consumer binding or transient
+buffer; the client stops earlier roles before releasing their receive ring.
+Protocol failure first closes server admission and stops the connection
+manager, then discards the published snapshot outside its mutex and performs
+the existing command/role/ring cleanup. Source's persistent capture ring and
+encoder keep their previous lifecycle; the failed outbound ring is released.
+
+`sendspin.startup_retries` is an independent native ESP-IDF option, range 0–4,
+default 0. The product selects 4. The first start is immediate. Only an actual
+resource failure schedules up to four additional attempts after 1, 2, 4, 4 seconds;
+invalid configuration, identity or pairing failures remain terminal. The
+failure classification belongs to the current client attempt and resets
+before every start. No heap-size precheck, new task, buffer or scheduler entry
+is introduced. Disabling or shutting down cancels a pending series; repeated
+enable does not refill its budget. With retries enabled, an explicit
+disable/enable can start a fresh bounded series. Default0 preserves the
+existing terminal-failure policy.
+
+The checked native patch is installed independently of `optimize_memory`.
+Its CMake hook accepts only the reviewed source hashes, checks all inputs
+before writing and is idempotent. The original thread path remains behind
+the disabled guard for unsupported build paths; nonnative retry requests are
+rejected by schema validation.
+
+Worker refusal records distinguish configuration/read-back (`phase=1`) from
+an attempted `pthread_create` (`phase=2`). The hub records an actual successful
+start as `Sendspin startup running; retries=N`. Retry-enabled products emit
+this one health result at WARN level to remain visible with their boot log
+filter, without setting component warning status. A generic pthread error
+alone is not a handled failure: boot qualification must correlate the exact
+owned refusal, bounded retry and later running result. Abort and panic remain
+fatal.
+
+**Validation boundary:** candidate109 has focused host fault-injection and
+cleanup checks, 21 extracted Hub scenarios, 6 schema cases, 3 actual codegen
+combinations and 7 ESP32-P4 translation-unit compilations. Host dependencies
+are test doubles; these are not network, concurrency, playback or hardware
+acceptance. The all-role P4 probe measures each worker holder 4→20 B and Hub
+280→288 B, with Client 504 B unchanged; the actual product disables Source
+and Visualizer and has a 496 B Client. Full linked and device results must be
+recorded separately in the checkpoint.
+
+ESP-IDF 5.5.6 can ignore a failed `pthread_setspecific` while installing a new
+configuration. Read-back prevents creation with a missing or stale
+configuration, but cannot reclaim an SDK allocation whose pointer was lost
+inside that API. The repair does not claim every allocator failure is
+leak-free. Native108's first boot aborted through unchecked SsProto thread
+creation and automatically rolled back to107; its exact failed evidence is
+retained. This startup repair does not resolve the separate Agenda107 TLSF
+fault described below or establish whole-device stability.
+
 Announcements and assistant audio use the assistant source and duck media by
 20 dB. Media is unducked only after:
 
@@ -430,8 +519,17 @@ The 2026-09-19 user-provided WAV files are encoded losslessly as mono 48 kHz,
 | Assistant invocation | `confirm.flac` | 2.467 s | 49349 |
 | Assistant error | `error.flac` | 2.396 s | 50220 |
 
-The boot sound completes before the existing backlight fade-out. The wait is
-bounded at six seconds; a broken audio source must not trap the boot sequence.
+The boot sequence waits for the announcement to finish decoding before the
+backlight fade-out. The mixer and I2S may still be draining the last PCM
+frames. The announcement wait is bounded at six seconds so a broken audio
+source cannot trap the boot sequence.
+
+The parked audio task prepares its working buffers before opening a PCM
+session. A failed preparation attempt returns the request to idle with a
+one-second delay so early heap pressure cannot disable audio for the rest of
+the boot. The main loop queues the next attempt, and the task retains the
+existing I2S reservations while waiting. The boot sequence allows up to two
+seconds for preparation before continuing to the wordmark.
 
 The amplifier defaults off. It may be enabled only after:
 
@@ -441,6 +539,73 @@ The amplifier defaults off. It may be enabled only after:
 
 This ordering avoids the boot pop caused by exposing codec and DMA startup
 transients to the physical speaker.
+
+### Mixer session handoff
+
+The native107 repair gives each `SourceSpeaker` exclusive ownership of one
+ring, one reader and the captured stream format. Its existing `source_mutex_`
+guards publication, retirement and a bounded lease count. A move-only
+`SourceLease` holds the owner pointer rather than a shared-pointer control
+block. A successful acquisition keeps both objects stable until that lease
+is released. The producer holds its lease across a blocking write; the mixer
+holds its lease across mixing and the associated output transfer. PCM work
+and blocking writes remain outside the mutex; short reader bookkeeping keeps
+the existing lock discipline.
+
+STOP withdraws publication before waiting for all leases. Lease release only
+decrements the count; it never deletes audio objects. The component's main
+loop alone retires the session: under the mutex it verifies zero leases,
+marks retirement and moves both unique owners locally. Outside the mutex it
+destroys the reader before the ring, then clears retirement under the mutex.
+No replacement can publish during destruction, and queued START still waits
+for the existing STOPPING/output-drain conditions. Object-allocation failure
+does not publish a partial session.
+
+`RingBufferAudioSource::create_borrowed` takes a non-owning ring pointer. Its
+caller must keep the ring alive until the reader is destroyed and any held
+ring item is returned. The mixer satisfies that rule through session leases
+and reader-before-ring retirement. The existing shared-owner factory remains
+available to other clients with its previous lifetime contract. This repair
+does not replace shared ownership throughout the audio stack or change the
+toolchain's threading policy.
+
+There is still one producer and one consumer per ring. No new task, PCM
+buffer, ring capacity or I2S owner is introduced. Formats, conversion,
+ducking, pause, queue policy, and stop/finish/timeout behavior remain within
+the existing audio path.
+
+**Validation boundary:** native106 built and linked, but its first chime boot
+panicked while destroying the assistant source's shared control block; the
+device recovered automatically to105. The exact traceback and linked code
+support an unchecked pthread-mutex initialization failure under memory
+pressure, but that return value was not captured. Keep the original failed
+boot and diagnosis separate from the repair's evidence. Native107's thirteen
+host scenarios and three ESP32-P4 translation-unit compilations passed.
+The target probe reports `SourceSpeaker`164→160 B and
+`RingBufferAudioSource`52→56 B (including other reader clients), with mixer
+and ring object sizes unchanged. These source/host/ABI checks remain separate
+from linked and device evidence. Full107 build/linked passed after a same-source
+disk-space continuation; the original ENOSPC failure is retained. One OTA's
+first boot and five controlled software restarts passed scoped digital-audio
+and wake checks, with seven local playbacks and five reviewed Home originals.
+Known recovered4096-byte stack allocation retry remains; no strict-clean,
+physical power-cycle or acoustic claim is made.
+
+The later Agenda107 campaign nevertheless panicked after App6 closed and Home
+resumed, before its final Settings/health batch. The decoded fault is in TLSF
+allocation on the lwIP/DSI diagnostic logging path, not evidence of another
+shared-control-block retirement. Its cause is unresolved; the pending audio
+query does not establish audio ownership as the cause. Read-only recovery
+observed107/127/layout399, digital audio and wake without new faults for35s,
+but does not erase the failed campaign. Native107 is not accepted as a whole.
+See the [current checkpoint](../development/resume-2026-11-05-datetime.md).
+
+The product records the number of PCM frames successfully submitted by the
+I2S output task, excluding silence inserted for underruns. The boot chime logs
+the counter at both ends, and `debug_audio_output` reports the same counter,
+amplifier switch and mute/volume state. These measurements verify the digital
+output path. The amplifier switch reports its commanded state; neither
+measurement is an acoustic recording.
 
 ## Task placement
 

@@ -557,8 +557,8 @@ script:
           // the next open, after the previous application releases its buffers.
           id(album_art_background).release_unused_decode_capacity();
           lv_obj_t *home_pages[] = {id(controls_root_1), id(controls_root_2),
-                                    id(controls_root_3), id(controls_root_4)};
-          if (lvgl_esphome_snapshot_trim_tile_window(home_pages[std::clamp(id(ui_home_page), 1, 4) - 1])) {
+                                    id(controls_root_3), id(controls_root_4), id(controls_root_5)};
+          if (lvgl_esphome_snapshot_trim_tile_window(home_pages[std::clamp(id(ui_home_page), 1, 5) - 1])) {
             id(ui_tile_snapshots_ready) = false;
             id(ui_tile_snapshot_cached_first) = 0;
             id(ui_tile_snapshot_cached_last) = 0;

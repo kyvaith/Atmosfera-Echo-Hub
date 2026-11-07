@@ -1,9 +1,68 @@
 # Home Assistant dashboard configuration
 
+HA81 adds an explicit Remote activity mode through the existing reviewed v3
+Choice setup. Core supplies ACTIVITY4/activity_list/current_activity. Off can
+enter as negotiated known empty; on with unknown activity stays unavailable.
+The backend alone resolves the exact remote.turn_on(activity) target; ordinary
+service cards still reject activity data. The editor offers one accessible
+activity option with Confirm/Undo/Save and uses the existing metadata cadence.
+Home keeps the power summary. [Evidence and limits](../development/remote-activity-design-2026-11-01.md).
+
+HA79 adds explicit Remote turn_on/turn_off setup. New Remote cards are passive
+until configured. Core power is independent of optional learning/activity flags;
+only exact on/off states and an actual registered service admit execution.
+An already completed transition is disabled. Existing press-context generations,
+snapshots and state subscriptions own presentation; no native buffer/task/timer
+or protocol field is added. The editor uses the existing larger M3 operation
+options with Undo and explicit Save. [Scope and evidence](../development/remote-power-design-2026-11-01.md).
+
+HA77 aligns the duration preview with the existing native compact formatter
+and HA registry precision. It also displays an unavailable saved Vacuum room
+explicitly without silently selecting another target. These changes add no
+polling or native behavior. [Evidence](../development/duration-preview-design-2026-11-01.md).
+
+HA75 adds explicit standard Vacuum action setup through the existing service
+cards. Six localized wrapping options select a draft action with Undo and an
+explicit Save, preserving inspector scroll when selecting. Metadata advertises
+supported commands separately from current execution eligibility; actual
+state/features/services are checked again at device tap. New robot cards are
+passive. Native45's existing press availability generations and snapshots own
+device presentation, with no new field, task or framebuffer. Standard Polish
+vacuum returning text is shortened to fit the compiled136px caption; specific
+entity translations retain priority. [Scoped evidence](../development/validation-2026-11-01.md).
+
+HA76 adds one mapped HA room per Vacuum card. The existing service-card data
+stores an exact area ID; Core's own area_mapping resolves it to vendor segments.
+The editor never defaults to the first room, edits only the draft and has an
+explicit room refresh. Up to32registered mapped areas have names rather than
+raw segment IDs. Its selected Vacuum metadata refresh reuses the existing5s
+status cadence and pending/epoch fences. Two backend registry listeners are
+owned only while visible area cards exist; mapping/area removal can therefore
+disable an ordinary native press without a state_changed event. They share
+the tile debounce and are removed on rebind/unload. Device ownership, snapshots
+and buffer counts are unchanged. [Design and limits](../development/vacuum-area-design-2026-11-01.md).
+
 The Atmosfera Core integration owns configuration, live entity discovery,
 capability checks and Home Assistant service dispatch. Its authenticated admin
 panel is a client of the HA WebSocket API. ESPHome owns the fixed widget pool,
 input and presentation; product YAML supplies its geometry and page membership.
+
+### Stateless automation buttons (HA33)
+
+An explicit v3 Action card with `action: {kind: event}` and an empty entity
+binding creates one discoverable Event entity linked to the existing device.
+The bridge owns authorization, current slot/card/revision checks and the private
+entity callback. The fixed public `atmosfera_echo_hub_event` is informational;
+it cannot drive the Event entity itself. No service target or custom event name
+is stored in a card. See the [bounded contract](../development/tile-events-design-2026-10-30.md).
+
+Only visible declared event cards have active entity bindings, at most14.
+Moves and renames preserve the stable card/registry identity; hiding/removal
+retires the callback. Core retains normal registry history. Previous presses
+are not restored at rebind/reload. A state automation should exclude
+`unknown`/`unavailable` so attribute changes and lifecycle transitions do not
+simulate a press. Existing snapshot tiles own all device pixels and touch
+arbitration; this feature adds no native widget, task or framebuffer.
 
 ## Management decision
 
@@ -13,6 +72,15 @@ translations and service-call permission context. Versioned config-entry options
 remain the durable authority, and the existing ESPHome API connection delivers
 the bounded projection. This avoids a second device configuration server and
 keeps the editor independent of firmware compilation.
+
+The editor's accent mirror is scoped to the current ESPHome connection. HA52
+also reads Core's existing typed TextState cache after attaching its one observer,
+because Core may already have consumed the initial preference event. Match the
+discovered TextInfo/device/key, reject stale/missing/invalid data, and retain any
+newer synchronous callback. This seeds only the preview; saved options, the legacy
+wire/locale handler, device preferences and subscription count retain behavior.
+Actual device/API/browser parity after a Core restart is recorded in
+`ha52-accent-scoped-acceptance.json` in the 31 October evidence directory.
 
 A separate build/flash add-on may become useful for future multi-profile build
 queues, but is not needed to arrange the current fixed widget pool. A browser
@@ -36,6 +104,38 @@ remain separate from installation.
 
 ## Configuration and ownership
 
+HA40 formats only actual `sensor`/`device_class: date` calendar values as
+DD.MM.YYYY in Polish or YYYY-MM-DD in English. It validates exact ASCII input
+and Gregorian bounds, preserves exact user state labels and explicit outages,
+and never applies numeric precision or timezone conversion to a calendar date.
+Other domains and timestamp semantics are unchanged. The device receives the
+existing bounded caption; no native field, widget, task or subscription is
+added. The preview shares the strict calendar cases. The
+[31 October record](../development/validation-2026-10-31.md) separates device
+and visual acceptance from live browser interaction.
+
+HA42 also admits passive `input_datetime` helpers: date-only, time-only and
+combined local literals, with strict boolean capabilities and valid Gregorian
+date/clock bounds. Seconds are preserved; the timestamp attribute is not used
+for timezone conversion. Exact user labels retain priority. Only information
+cards with no action are admitted, including raw/legacy resolver paths.
+The optional trusted `datetime_text_slots` capability identifies slots
+3/5/8/9/10/11/12. These have Roboto16 captions at least 172 px wide; the outer
+tile width alone is insufficient. The first hardware campaign exposed clipping
+in a 136 px caption. The editor now gates assignment, move/swap, clipboard,
+draft/import and save on the same capability; absence fails closed. No firmware
+field, task, timer, subscription or pixel buffer was added.
+
+HA26 extends the optional active-state palette to read-only binary information.
+Only exact on uses the configured role. Its optional auto icon resolves existing
+compiled window/presence glyphs from the live device class; manual icons remain
+fixed. This metadata survives the layout normalizer, but adds no native wire
+field, object, font, task or framebuffer. HA entity translations retain priority;
+only stock Polish presence Home/Away falls back to the product's Polish labels.
+Sensor cards remain non-executable, including explicit raw/legacy actions.
+The browser patches existing icon/role nodes on state changes and keeps one
+draft/history owner. Runtime and visual evidence is in the continuation record.
+
 `custom_components/atmosfera_echo_hub/layout.py` is the bounded, runtime-independent
 model and trusted product-profile definition. `cards.py` projects HA states and
 narrows the action catalogue using live entity capabilities and registered
@@ -49,11 +149,19 @@ states remain the eligibility source, including YAML entities without registry
 entries. Facets and truncation are explicit; filtering does not add device-side
 subscriptions or move configuration authority into the browser.
 
-The current `echo-hub-m3-v1` profile has sixteen bindings. Slots 0 and 1 remain
-hidden compatibility definitions; slots 2..15 use existing Security and Controls
-widgets. It does not admit new pages, resizing or a dynamic LVGL tree. The
-versioned document is bounded to 32 KiB. The source model defines exact schema,
-limits and WebSocket command fields; this document does not duplicate them.
+The `echo-hub-m3-v1` profile retains the original sixteen bindings for older
+firmware. A display with the response-capable carousel action exposes five
+registered pages and thirty-two bindings. Slots 0 and 1 remain hidden
+compatibility definitions. Slots 2..15 keep their original widgets and slots
+16..31 belong to Tools. Each page has fixed geometry.
+
+The editor saves the ordered list of visible page IDs as `home_order` in the
+same revision as the card definitions. Home stays first and Apps stays
+visible. Moving or hiding a page preserves its card IDs and settings. HA
+retries a busy route update once the display can accept it. The device maps
+that route to the existing widget roots and three-slot snapshot cache. The
+versioned document is bounded to 32 KiB. The source model defines the exact
+schema and WebSocket commands.
 
 The editor can copy or move one card into an empty compatible place. Its
 clipboard is one in-memory deep copy scoped to user, entry and complete profile.
@@ -223,7 +331,56 @@ HA service-call context is preserved when an HA caller reports a tile press.
 Native ESPHome-origin calls retain HA's existing device/system context. The
 preview never calls entity services; capability discovery is read-only.
 
+## Editor catalogue freshness
+
+Numeric information cards can opt into `display_precision` (integer 0..6).
+HA overrides only this projection's numeric formatting; registry options,
+source units, other cards and Number controls remain unchanged. Text/date and
+duration semantics retain the previous formatter. The compatibility normalizer
+preserves the option, and the wire still contains only bounded subtitle text.
+The editor's explicit precision preview accepts decimal text without a float
+conversion, uses half-even rounding and reuses at most fourteen locale/precision
+formatters. An absent override retains HA's frontend formatter. This adds no
+native widget, field, task, timer or pixel buffer.
+
+`state_color` is an optional HA document flag for entity cards in the light,
+switch, input_boolean and fan domains. It defaults off. HA projects the selected
+palette only for the exact observed `on` state and the existing surface role
+otherwise; it never changes the user's selected palette or predicts a command
+result. The compatibility normalizer must preserve the flag before projection.
+No new wire field or firmware capability is needed. Existing tile bindings,
+accent override and changed-slot snapshot lifecycle own the resulting pixels.
+The editor applies the same policy to live state, patches CSS on existing nodes
+and preserves the flag through draft/clipboard/export lifecycles. No timer,
+subscription, raw allocation or action authority is introduced.
+
+The frontend owns live state labels through the current `hass.states` map.
+It patches text and availability classes on existing library labels rather than
+replacing rows, preserving focus, drag state, draft history and selection.
+Catalogue metadata and allowed capabilities remain server-owned; frontend state
+must not invent actions or bypass server policy.
+
+A weak reference map associates each fetched metadata object with the HA state
+object visible when its request started. The existing five-second status cadence
+refreshes stale metadata, including attribute-only changes, and coalesces pending
+requests. Entry/selection epochs reject obsolete responses. Refresh is deferred
+during drag, carry, confirmation, save, or focus inside the entity list; labels
+continue to update without replacing focused controls. A selected entity outside
+the current catalogue filter uses a bounded separate query. These references
+reset when the user or device changes. No new timer, subscription, firmware
+poller, native task, pixel allocation or snapshot owner is introduced.
+
 ## Firmware buffers and invalidation
+
+Explicit v3 Choice cards share the existing detail owner. Catalogue metadata
+exposes the complete bounded option list and a nullable current index. Projection
+requires both negotiated native Choice and a currently valid full HA option
+domain/service; an invalid list removes control routing and disables negotiated
+ordinary press, so it cannot fall through to a default action. Unknown current
+state can open the disabled detail without inventing option0. The editor reviews
+conversion, preserves exact option values and performs no service from preview.
+The [Choice contract](../development/choice-selection-design-2026-10-30.md)
+records first-slice limits, generations, locale policy and hardware acceptance.
 
 `modules/lvgl/material.yaml` registers the precompiled widgets with
 `lvgl_material.MaterialTileSurface`. Configuration changes are applied on the
@@ -264,3 +421,102 @@ See the [implementation and validation record](../development/ha-dashboard-2026-
 Host tests with HA adapters, a mock browser, actual HA deployment, complete
 native compilation, device flash, screenshots and performance are separate
 acceptance levels. Successful model tests do not establish end-to-end operation.
+
+## Passive reported Calendar event
+
+HA68 projects only CalendarEntity.event public state fields to the existing
+wide slot12 text. Core owns event scheduling and local timezone conversion.
+The integration owns bounded plain-text captions (PL/EN,40characters); no event
+descriptions, locations or URLs enter the projection. Server metadata includes
+the exact bounded observation; the editor uses a caption only while matching
+that observation, otherwise Unknown until the existing5s catalog refresh.
+Placement is validated server-side and in editor assignment/move/import paths.
+Calendar actions remain none even for legacy/raw service requests. Existing
+state subscriptions and presentation own updates; no new timer/native buffer.
+Off-window snapshot work remains deferred until normal navigation; projection
+readiness is distinct from visible capture readiness.
+[Scoped validation](../development/calendar-next-design-2026-10-31.md).
+
+## Passive Person state and wide-row caption geometry
+
+HA70 adds passive Person state/zone in slot12. Core alone resolves trackers;
+the product never forwards account IDs, coordinates, tracker/source attributes
+or pictures. Cached HA translations take precedence for home/not_home; bounded
+PL/EN fallback remains. Custom zones keep their names after plain-text cleanup.
+The existing metadata cadence supplies exact-state captions, and a mismatch
+shows Unknown. Missing runtime state in the editor shows Offline. Optional
+state color uses exact home only; no action resolver accepts this domain.
+
+The wide tile is440px but its Roboto16 subtitle is290px. Product module
+caption_width.py holds319 advances/ink extents extracted from the hash-pinned
+native45 font, enforcing288px plus40characters with visible ellipsis for Person
+and Calendar. No font engine, new poller, native allocation or display task.
+Regenerate and validate this table whenever typography or geometry changes;
+the bound does not add unsupported glyphs to firmware. Existing navigation owns
+off-window capture deferral. [Scoped acceptance](../development/person-presence-design-2026-10-31.md).
+
+HA83 explicit media mute uses ordinary context press and existing admission
+generation, no new native protocol/session/buffer/task. Public service requires
+is_volume_muted bool, Core provider receives mute bool. Only opposite observed
+target on powered capable bit8 source acts. Caption prefixes translated HA
+boolean with mute context; default Play/Pause/title remains unchanged. See
+../development/media-mute-design-2026-11-01.md for source pins and scoped proof.
+
+HA85 media source is an HA-owned source_list/source facet using existing
+Choice/session/fence and native45 buffers. SELECT_SOURCE2048, active state,
+registered service and exact bounded option are rechecked; missing current
+source is never first/empty.1..8names/32UTF8bytes, no silent truncation.
+No new native protocol, app, allocation, task or subscription. See
+../development/media-source-design-2026-11-01.md for Core pins and scoped proof.
+
+HA87 repeat facet uses Core off/one/all and REPEAT_SET262144 through existing
+Choice/session/fence. Normalize Core StrEnum only after exact membership;
+unknown is never off/first. Native compact subtitles have136px Roboto16 budget;
+HA87 uses measured compact captions shared with editor, preserving exact raw
+service values and full Choice labels. No native protocol/buffer/task change.
+See ../development/media-repeat-design-2026-11-01.md for scoped evidence.
+
+HA88 extends measured136px compact captions to media source Home summaries
+and editor preview. Choice labels and raw service targets remain exact; caption
+truncation must never become command truncation. Metadata is bound to current
+source/index. Native45 ownership/buffers/protocol/session are unchanged.
+
+HA89 explicit shuffle_set bool uses existing ordinary context press, not a
+new control session. SHUFFLE_SET32768, powered state, observed strictbool,
+registered service and opposite target are rechecked. HA translations and136px
+compact captions describe feedback, never predicted playback. No native
+protocol,buffer,task,subscription change. See media-shuffle design for evidence.
+
+HA90 relative volume_up/down maps to the existing ordinary context press. The
+active source must report finite non-bool volume0..1, Core VOLUME_SET4 or
+VOLUME_STEP1024 and a registered service. Endpoints inhibit only the exhausted
+direction; configuration remains possible. HA sends entity_id alone, leaving
+the provider/Core step and clamping in charge. PL/EN compact percentages are
+observed presentation, not absolute targets. No NumericDomain/grid or native
+control-kind change. Native46 adds raw deferred-press identity protection;
+see the volume and deferred-tap design documents for acceptance boundaries.
+
+HA91 adds media_player Choice/propertysound_mode on the existing app6 owner.
+Require actual SELECT_SOUND_MODE65536, a registered select_sound_mode and1..8
+distinct live rawnames up to32UTF8bytes. Observed current index, session and
+authorization fences remain owners; missing mode never selects the first item.
+Recheck exact list membership at dispatch and pass sound_mode alone with entity_id.
+Localized compact captions are presentation only. No new native message,buffer,
+task,timer or subscription. See media-sound-mode design for scoped qualification.
+
+HA92 adds explicit media_player.media_stop under actual STOP4096.
+Configure for known playback/power states; admit runtime only while playing,
+paused or buffering. The observed-state caption uses HA translations first,
+bounded PL/EN fallback and136px metrics. Dispatch contains entity_id alone;
+provider feedback owns state. Existing native46 raw deferred-tap generation
+rejects held caption ABA. No native message, buffer, task, timer or subscription.
+See the media-stop design for scoped qualification and physical test boundaries.
+
+HA93 adds an ordinary fixed media_player.volume_set action, requiring actual
+VOLUME_SET4 and finite observed volume_level0..1 on active playback/power states.
+The editor converts its displayed percent to volume_level, without quantizing
+the source. The Home caption remains observed; an exactly matching target
+disables press. Core/provider feedback owns the result. This reuses native46
+ordinary context press; no Number domain/wire, native allocations or I2S changes.
+Full continuous volume controls require a separate raw-observation contract.
+See the media-volume-target design for the scoped runtime/browser qualification.

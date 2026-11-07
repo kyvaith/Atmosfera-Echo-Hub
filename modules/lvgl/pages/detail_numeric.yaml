@@ -1,0 +1,275 @@
+# Explicit detail profile in shared App6. Native owner controls visibility and input.
+# One pooled numeric/choice view; static SVG, no new worker or full-screen buffer.
+id: detail_numeric_root
+x: 0
+y: 0
+width: 800
+height: 800
+bg_opa: COVER
+border_width: 0
+pad_all: 0
+radius: 0
+clickable: true
+scrollable: false
+bg_color: '0x000000'
+hidden: true
+widgets:
+- label:
+    id: detail_numeric_kind
+    x: 200
+    y: 68
+    width: 400
+    height: 28
+    text: ''
+    text_font: roboto_20
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: DOT
+    clickable: false
+- label:
+    id: detail_numeric_title
+    x: 130
+    y: 104
+    width: 540
+    height: 42
+    text: ''
+    text_font: roboto_30
+    text_color: '0xF2F2F2'
+    text_align: CENTER
+    long_mode: DOT
+    clickable: false
+- svg_icon:
+    id: detail_numeric_icon_kelvin
+    file: assets/icons/detail-thermometer.svg
+    x: 352
+    y: 158
+    width: 96
+    height: 96
+    text_color: '0xD3E3FD'
+    hidden: true
+    clickable: false
+- svg_icon:
+    id: detail_numeric_icon_humidity
+    file: assets/icons/humidity.svg
+    x: 352
+    y: 158
+    width: 96
+    height: 96
+    text_color: '0xD3E3FD'
+    hidden: true
+    clickable: false
+- label:
+    id: detail_numeric_target_caption
+    x: 200
+    y: 266
+    width: 400
+    height: 26
+    text: !lambda 'return std::string(id(ui_i18n).translate("detail_control.target"));'
+    text_font: roboto_20
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: DOT
+    clickable: false
+- label:
+    id: detail_numeric_value
+    x: 146
+    y: 296
+    width: 508
+    height: 68
+    text: --
+    text_font: wear_title_53
+    text_color: '0xF2F2F2'
+    text_align: CENTER
+    long_mode: DOT
+    clickable: false
+- label:
+    id: detail_numeric_current
+    x: 180
+    y: 366
+    width: 440
+    height: 28
+    text: ''
+    text_font: roboto_20
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: DOT
+    clickable: false
+- obj:
+    id: detail_numeric_track
+    x: 146
+    y: 394
+    width: 508
+    height: 72
+    bg_opa: TRANSP
+    border_width: 0
+    pad_all: 0
+    radius: 0
+    clickable: true
+    scrollable: false
+    widgets:
+    - obj:
+        id: detail_numeric_inactive_track
+        x: 20
+        y: 30
+        width: 468
+        height: 12
+        bg_opa: COVER
+        border_width: 0
+        pad_all: 0
+        radius: 6
+        clickable: false
+        scrollable: false
+        bg_color: '0x1D2833'
+        widgets: []
+    - obj:
+        id: detail_numeric_fill
+        x: 20
+        y: 30
+        width: 0
+        height: 12
+        bg_opa: COVER
+        border_width: 0
+        pad_all: 0
+        radius: 6
+        clickable: false
+        scrollable: false
+        bg_color: '0xD3E3FD'
+        widgets: []
+    - obj:
+        id: detail_numeric_knob
+        x: 0
+        y: 16
+        width: 40
+        height: 40
+        bg_opa: COVER
+        border_width: 4
+        pad_all: 0
+        radius: 20
+        clickable: false
+        scrollable: false
+        bg_color: '0xD3E3FD'
+        border_color: '0x000000'
+        widgets: []
+- label:
+    id: detail_numeric_minimum
+    x: 126
+    y: 474
+    width: 160
+    height: 24
+    text: ''
+    text_font: roboto_16
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: DOT
+    clickable: false
+- label:
+    id: detail_numeric_maximum
+    x: 514
+    y: 474
+    width: 160
+    height: 24
+    text: ''
+    text_font: roboto_16
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: DOT
+    clickable: false
+- button:
+    id: detail_numeric_minus
+    width: 76
+    height: 64
+    radius: 32
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: false
+    pressed:
+      bg_opa: 80%
+    disabled:
+      text_opa: 80%
+    x: 254
+    y: 506
+    widgets:
+    - label:
+        id: detail_numeric_minus_label
+        width: 52
+        text: '-'
+        text_font: roboto_30
+        text_color: '0xF2F2F2'
+        text_align: CENTER
+        long_mode: DOT
+        clickable: false
+        align: CENTER
+- button:
+    id: detail_numeric_plus
+    width: 76
+    height: 64
+    radius: 32
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: false
+    pressed:
+      bg_opa: 80%
+    disabled:
+      text_opa: 80%
+    x: 470
+    y: 506
+    widgets:
+    - label:
+        id: detail_numeric_plus_label
+        width: 52
+        text: +
+        text_font: roboto_30
+        text_color: '0xF2F2F2'
+        text_align: CENTER
+        long_mode: DOT
+        clickable: false
+        align: CENTER
+- label:
+    id: detail_numeric_status
+    x: 180
+    y: 586
+    width: 440
+    height: 48
+    text: ''
+    text_font: roboto_16
+    text_color: '0xC4C7C5'
+    text_align: CENTER
+    long_mode: WRAP
+    clickable: false
+- button:
+    id: detail_numeric_back
+    width: 212
+    height: 64
+    radius: 32
+    bg_color: '0x1D2833'
+    bg_opa: COVER
+    border_width: 0
+    pad_all: 0
+    shadow_width: 0
+    scrollable: false
+    hidden: false
+    pressed:
+      bg_opa: 80%
+    disabled:
+      text_opa: 80%
+    x: 294
+    y: 654
+    widgets:
+    - label:
+        id: detail_numeric_back_label
+        width: 188
+        text: !lambda 'return std::string(id(ui_i18n).translate("detail_control.back"));'
+        text_font: roboto_24
+        text_color: '0xF2F2F2'
+        text_align: CENTER
+        long_mode: DOT
+        clickable: false
+        align: CENTER

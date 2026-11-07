@@ -59,6 +59,22 @@ lvgl_material:
         - { slot: 13, widget: tile_sensor_button, icon_label: tile_sensor_icon, title_label: tile_sensor_title, subtitle_label: tile_sensor_value }
         - { slot: 14, widget: tile_clock_button, icon_label: tile_clock_icon, title_label: tile_clock_title, subtitle_label: tile_clock_value }
         - { slot: 15, widget: tile_webhook_button, icon_label: tile_webhook_icon, title_label: tile_trigger_title, subtitle_label: home_run_title }
+        - { slot: 16, widget: tile_extra_16, icon_label: tile_extra_icon_16, title_label: tile_extra_title_16, subtitle_label: tile_extra_value_16 }
+        - { slot: 17, widget: tile_extra_17, icon_label: tile_extra_icon_17, title_label: tile_extra_title_17, subtitle_label: tile_extra_value_17 }
+        - { slot: 18, widget: tile_extra_18, icon_label: tile_extra_icon_18, title_label: tile_extra_title_18, subtitle_label: tile_extra_value_18 }
+        - { slot: 19, widget: tile_extra_19, icon_label: tile_extra_icon_19, title_label: tile_extra_title_19, subtitle_label: tile_extra_value_19 }
+        - { slot: 20, widget: tile_extra_20, icon_label: tile_extra_icon_20, title_label: tile_extra_title_20, subtitle_label: tile_extra_value_20 }
+        - { slot: 21, widget: tile_extra_21, icon_label: tile_extra_icon_21, title_label: tile_extra_title_21, subtitle_label: tile_extra_value_21 }
+        - { slot: 22, widget: tile_extra_22, icon_label: tile_extra_icon_22, title_label: tile_extra_title_22, subtitle_label: tile_extra_value_22 }
+        - { slot: 23, widget: tile_extra_23, icon_label: tile_extra_icon_23, title_label: tile_extra_title_23, subtitle_label: tile_extra_value_23 }
+        - { slot: 24, widget: tile_extra_24, icon_label: tile_extra_icon_24, title_label: tile_extra_title_24, subtitle_label: tile_extra_value_24 }
+        - { slot: 25, widget: tile_extra_25, icon_label: tile_extra_icon_25, title_label: tile_extra_title_25, subtitle_label: tile_extra_value_25 }
+        - { slot: 26, widget: tile_extra_26, icon_label: tile_extra_icon_26, title_label: tile_extra_title_26, subtitle_label: tile_extra_value_26 }
+        - { slot: 27, widget: tile_extra_27, icon_label: tile_extra_icon_27, title_label: tile_extra_title_27, subtitle_label: tile_extra_value_27 }
+        - { slot: 28, widget: tile_extra_28, icon_label: tile_extra_icon_28, title_label: tile_extra_title_28, subtitle_label: tile_extra_value_28 }
+        - { slot: 29, widget: tile_extra_29, icon_label: tile_extra_icon_29, title_label: tile_extra_title_29, subtitle_label: tile_extra_value_29 }
+        - { slot: 30, widget: tile_extra_30, icon_label: tile_extra_icon_30, title_label: tile_extra_title_30, subtitle_label: tile_extra_value_30 }
+        - { slot: 31, widget: tile_extra_31, icon_label: tile_extra_icon_31, title_label: tile_extra_title_31, subtitle_label: tile_extra_value_31 }
       on_press:
         - homeassistant.action:
             action: atmosfera_echo_hub.report_tile_press
@@ -91,6 +107,78 @@ lvgl_material:
       subtitle_label: material_notification_message
       scrim_opacity: 68%
       duration: 6s
+      from_top: true
+
+  notification_centers:
+    - id: notification_center
+      navigation_id: ui_navigation
+      banner_id: material_notification_overlay
+      root: notification_center_root
+      heading: notification_center_heading
+      status: notification_center_status
+      detail: notification_center_detail
+      detail_view: notification_center_detail_view
+      detail_action: notification_center_detail_action
+      list_view: notification_center_list
+      empty_view: notification_center_empty
+      empty_heading: notification_center_empty_heading
+      history_scroll: true
+      isolate_native_layers: true
+      cached_backdrop_dim: true
+      direct_presentation: true
+      backdrop_dim_shift: 2
+      row_snapshot_cache: true
+      row_cache_band_count: 2
+      row_cache_min_free_bytes: 1048576
+      row_pitch: 188
+      close_edge_pixels: 50
+      close_commit_pixels: 36
+      transition_duration: 240ms
+      now_provider: !lambda |-
+        const auto now = id(ha_time).now();
+        return now.is_valid() ? static_cast<uint32_t>(now.timestamp) : 0U;
+      text_provider: !lambda |-
+        static const char *const keys[] = {
+          "notification_center.title", "notification_center.empty",
+          "notification_center.loading", "notification_center.timeout",
+          "notification_center.source", "notification_center.now",
+          "notification_center.minute", "notification_center.hour", "notification_center.day",
+          "notification_center.camera", "notification_center.camera_home"
+        };
+        return text_id < 11 ? id(ui_i18n).translate(keys[text_id]) : "";
+      edge_pixels: 40
+      commit_pixels: 60
+      dismiss_commit_pixels: 36
+      admitted: !lambda |-
+        return id(boot_sequence_done) && !id(ui_snapshot_io_busy) &&
+               !id(ui_light_preparation_owned) &&
+               !id(selected_light_control).owner().has_selection() &&
+               !id(selected_light_control).owner().is_open_pending() &&
+               !id(ui_open_selected_light).is_running() &&
+               !id(global_volume_renderer).is_active();
+      scene_controllers:
+        - home_weather_presenter
+        - immich_slideshow
+        - camera_stream_presenter
+        - light_control_renderer
+      rows:
+        - {root: notification_row_0, title: notification_title_0, message: notification_message_0, source_label: notification_source_0, age_label: notification_age_0}
+        - {root: notification_row_1, title: notification_title_1, message: notification_message_1, source_label: notification_source_1, age_label: notification_age_1}
+        - {root: notification_row_2, title: notification_title_2, message: notification_message_2, source_label: notification_source_2, age_label: notification_age_2}
+        - {root: notification_row_3, title: notification_title_3, message: notification_message_3, source_label: notification_source_3, age_label: notification_age_3}
+        - {root: notification_row_4, title: notification_title_4, message: notification_message_4, source_label: notification_source_4, age_label: notification_age_4}
+        - {root: notification_row_5, title: notification_title_5, message: notification_message_5, source_label: notification_source_5, age_label: notification_age_5}
+        - {root: notification_row_6, title: notification_title_6, message: notification_message_6, source_label: notification_source_6, age_label: notification_age_6}
+        - {root: notification_row_7, title: notification_title_7, message: notification_message_7, source_label: notification_source_7, age_label: notification_age_7}
+      on_request:
+        - homeassistant.action:
+            action: atmosfera_echo_hub.report_notification
+            variables:
+              node_name: !lambda 'return App.get_name();'
+              notification_payload: !lambda 'return payload;'
+            data_template:
+              node_name: "{{ node_name }}"
+              payload: "{{ notification_payload }}"
 
   voice_assistants:
     - id: voice_assistant_presenter

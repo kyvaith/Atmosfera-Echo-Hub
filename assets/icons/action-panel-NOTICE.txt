@@ -1,0 +1,8 @@
+Google Material Icons (outlined), distributed under Apache License2.0.
+Full license: action-panel-LICENSE.txt.
+Adapted for the existing bounded SVG parser: flattened empty groups, removed nonpainted viewport paths, normalized commands/closed filled contours. No visible shape change.
+
+button: https://raw.githubusercontent.com/google/material-design-icons/master/src/action/touch_app/materialiconsoutlined/24px.svg
+scene: https://raw.githubusercontent.com/google/material-design-icons/master/src/image/auto_awesome/materialiconsoutlined/24px.svg
+script: https://raw.githubusercontent.com/google/material-design-icons/master/src/action/description/materialiconsoutlined/24px.svg
+automation: https://raw.githubusercontent.com/google/material-design-icons/master/src/device/settings_suggest/materialiconsoutlined/24px.svg

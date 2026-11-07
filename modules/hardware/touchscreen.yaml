@@ -170,21 +170,19 @@ touchscreen:
                 !id(ui_snapshot_io_busy) &&
                 !id(ui_light_preparation_owned) &&
                 !id(ui_navigation).is_application_open(id(light_control_application)) &&
+                !id(notification_center).owns_scene() &&
                 touch.x >= 280 && touch.x <= 520 && touch.y <= 84) {
               id(global_volume_time_press_tracking) = true;
               id(global_volume_time_press_start_ms) = millis();
               id(global_volume_time_press_start_x) = touch.x;
               id(global_volume_time_press_start_y) = touch.y;
               id(ui_touch_click_block_until_ms) = millis() + 1500;
-              // Capture navigation before the long press matures. Otherwise
-              // LVGL can queue this same contact for the Home tile below the
-              // clock and activate it when the volume overlay releases.
+              // Keep the initial contact with navigation until it is a hold.
+              // The touchscreen invokes its raw listener before on_touch;
+              // taking capture here cancels an already claimed top-edge pull.
+              // begin_drag takes exclusive input/display ownership at commit.
               id(global_volume_release_touch_capture).stop();
-              id(ui_navigation).set_external_touch_capture(true);
-              lv_indev_reset(nullptr, nullptr);
               id(global_volume_long_press_guard).execute();
-              id(global_volume_renderer).set_activation_widget_was_visible(!id(global_volume_activation_suppressed));
-              id(global_volume_renderer).prepare();
               return;
             }
 
@@ -194,6 +192,7 @@ touchscreen:
             const int voice_phase = id(voice_assistant_phase);
             const bool player_controls_uncovered =
                 id(ui_active_app) == 1 && !id(ui_snapshot_io_busy) &&
+                !id(notification_center).owns_scene() &&
                 id(display_backlight).current_values.is_on() &&
                 (int32_t)(millis() - id(ui_touch_click_block_until_ms)) >= 0 &&
                 (voice_phase == ${voice_assist_idle_phase_id} ||
@@ -234,6 +233,7 @@ touchscreen:
             // moves. Track photo navigation at the touchscreen boundary so it
             // remains available independently of LVGL gesture dispatch.
             id(immich_swipe_tracking) = id(ui_active_app) == 4 && !id(ui_snapshot_io_busy) &&
+                                        !id(notification_center).owns_scene() &&
                                         touch.y < 750;
             id(immich_swipe_dragging) = false;
             id(immich_swipe_start_x) = touch.x;
@@ -254,6 +254,10 @@ touchscreen:
               id(display_touch_wake_samples)++;
             if (id(display_touch_wake_pending)) {
               return;
+            }
+            if (id(notification_center).owns_scene()) {
+              id(immich_swipe_tracking) = false;
+              id(immich_swipe_dragging) = false;
             }
             if (id(boot_sequence_done) &&
                 id(display_backlight).remote_values.is_on() &&
@@ -292,11 +296,9 @@ touchscreen:
             if (id(global_volume_time_press_tracking)) {
               const int dx = touch.x - id(global_volume_time_press_start_x);
               const int dy = touch.y - id(global_volume_time_press_start_y);
-              if (abs(dx) > 90 || abs(dy) > 90) {
+              if (abs(dx) > 8 || abs(dy) > 8 || id(notification_center).owns_scene()) {
                 id(global_volume_time_press_tracking) = false;
                 id(global_volume_long_press_guard).stop();
-                id(global_volume_renderer).cancel_prepare();
-                id(global_volume_release_touch_capture).execute();
                 return;
               }
               if (millis() - id(global_volume_time_press_start_ms) >= 250) {
@@ -318,7 +320,7 @@ touchscreen:
               }
               return;
             }
-            if (id(immich_swipe_tracking)) {
+            if (id(immich_swipe_tracking) && !id(notification_center).owns_scene()) {
               id(immich_swipe_last_x) = touch.x;
               id(immich_swipe_last_y) = touch.y;
               const int dx = id(immich_swipe_last_x) - id(immich_swipe_start_x);
@@ -382,9 +384,7 @@ touchscreen:
             if (id(global_volume_time_press_tracking)) {
               id(global_volume_time_press_tracking) = false;
               id(global_volume_long_press_guard).stop();
-              id(global_volume_renderer).cancel_prepare();
               id(ui_touch_click_block_until_ms) = millis() + 500;
-              id(global_volume_release_touch_capture).execute();
               return;
             }
             if (id(media_transport_touch_tracking)) {
@@ -411,6 +411,7 @@ touchscreen:
               const bool was_tap = !was_dragging && abs(dx) <= 10 && abs(dy) <= 10;
               id(immich_swipe_tracking) = false;
               id(immich_swipe_dragging) = false;
+              if (id(notification_center).owns_scene()) return;
               if (was_dragging) {
                 id(ui_touch_click_block_until_ms) = millis() + 700;
                 id(ui_release_touch_blocker).execute();
