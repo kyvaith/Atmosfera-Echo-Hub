@@ -17,6 +17,10 @@ globals:
   type: uint32_t
   restore_value: no
   initial_value: '0'
+- id: boot_animation_admitted
+  type: bool
+  restore_value: no
+  initial_value: 'false'
 - id: boot_audio_ready
   type: bool
   restore_value: no

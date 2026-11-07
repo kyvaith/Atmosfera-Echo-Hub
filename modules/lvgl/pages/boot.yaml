@@ -12,7 +12,7 @@ script:
           const lv_color_t accent = lv_color_hex(id(ui_accent_color));
           lv_obj_set_style_image_recolor(id(boot_esphome_house), accent, LV_PART_MAIN);
           lv_obj_set_style_image_recolor_opa(id(boot_esphome_house), LV_OPA_COVER, LV_PART_MAIN);
-          if (id(boot_esphome_animation) != nullptr) {
+          if (id(boot_animation_admitted) && id(boot_esphome_animation) != nullptr) {
             auto *ctx = static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(id(boot_esphome_animation)));
             // The first prepared frame and every cached frame must use the
             // same persisted accent as the house underneath the trace.
@@ -34,7 +34,7 @@ script:
           const int64_t started_us = esp_timer_get_time();
           lv_obj_clear_flag(id(boot_overlay), LV_OBJ_FLAG_HIDDEN);
           lv_obj_move_foreground(id(boot_overlay));
-          if (id(boot_esphome_animation) != nullptr) {
+          if (id(boot_animation_admitted) && id(boot_esphome_animation) != nullptr) {
             auto *ctx = static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(id(boot_esphome_animation)));
             esphome::lvgl::lottie_show(ctx, true);
           }
@@ -48,7 +48,7 @@ script:
       - wait_until:
           condition:
             lambda: |-
-              if (id(boot_esphome_animation) == nullptr) return true;
+              if (!id(boot_animation_admitted) || id(boot_esphome_animation) == nullptr) return true;
               auto *ctx = static_cast<esphome::lvgl::LottieContext *>(
                   lv_obj_get_user_data(id(boot_esphome_animation)));
               return esphome::lvgl::lottie_is_complete(ctx);
@@ -62,7 +62,7 @@ script:
           // Cached playback presents directly to DSI, so the canvas may still
           // contain an earlier frame. Pin the completed trace into the canvas
           // before any normal LVGL redraw, then reclaim the 11 MB frame cache.
-          if (id(boot_esphome_animation) != nullptr) {
+          if (id(boot_animation_admitted) && id(boot_esphome_animation) != nullptr) {
             auto *ctx = static_cast<esphome::lvgl::LottieContext *>(
                 lv_obj_get_user_data(id(boot_esphome_animation)));
             // This trace is cumulative. Preserve the fullest cached frame in

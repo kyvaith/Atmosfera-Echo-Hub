@@ -132,12 +132,31 @@ esphome:
       - lambda: |-
           id(album_art_background).set_sendspin_paused(true);
           id(boot_audio_ready) = false;
+          id(boot_animation_admitted) = false;
           id(board_speaker).add_audio_output_callback([](uint32_t frames, int64_t) {
             id(speaker_output_frames).fetch_add(frames, std::memory_order_relaxed);
           });
       - lvgl.page.show:
           id: controls_page
       - delay: 250ms
+      # Let the essential audio workers reserve their resources before vector
+      # preparation can compete with them. A timeout uses the static splash;
+      # later animation actions must not implicitly retry preparation.
+      - wait_until:
+          condition:
+            lambda: |-
+              return id(audio_stack).is_audio_prepared() && id(audio_mixer).is_task_ready() &&
+                     (id(sendspin_hub).is_client_running() || id(sendspin_hub).is_disabled());
+          timeout: 8s
+      - lambda: |-
+          const bool audio_ready = id(audio_stack).is_audio_prepared();
+          const bool mixer_ready = id(audio_mixer).is_task_ready();
+          const bool sendspin_ready = id(sendspin_hub).is_client_running() || id(sendspin_hub).is_disabled();
+          id(boot_animation_admitted) = audio_ready && mixer_ready && sendspin_ready;
+          ESP_LOGW("boot.diag", "boot admission animation=%d audio=%d mixer=%d sendspin=%d internal=%u largest=%u",
+                   id(boot_animation_admitted), audio_ready, mixer_ready, sendspin_ready,
+                   (unsigned) heap_caps_get_free_size(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT),
+                   (unsigned) heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL | MALLOC_CAP_8BIT));
       # Reserve the full Lottie frame cache while PSRAM is still contiguous.
       # Tile snapshots are deliberately built afterwards; doing this in the
       # opposite order fragmented the largest block and forced live vector
@@ -146,7 +165,7 @@ esphome:
       - wait_until:
           condition:
             lambda: |-
-              if (id(boot_esphome_animation) == nullptr) return true;
+              if (!id(boot_animation_admitted) || id(boot_esphome_animation) == nullptr) return true;
               auto *ctx = static_cast<esphome::lvgl::LottieContext *>(lv_obj_get_user_data(id(boot_esphome_animation)));
               return esphome::lvgl::lottie_is_ready(ctx);
           timeout: 4s
@@ -206,20 +225,27 @@ esphome:
       - delay: 2600ms
       - wait_until:
           condition:
-            lambda: 'return id(audio_stack).is_audio_prepared();'
+            lambda: 'return id(audio_stack).is_audio_prepared() && id(audio_mixer).is_task_ready();'
           timeout: 2s
-      # Audio initialization is complete by this point. Enable the amplifier
-      # before the final splash phase so the chime can accompany the wordmark
-      # without exposing codec/PA startup noise.
-      - lambda: |-
-          lvgl_esphome_snapshot_dsi_quiet_ms(450);
-          lvgl_esphome_dsi_mark_stress("boot-pa-enable", 500);
-      - switch.turn_on: pa_enable
-      - delay: 240ms
-      - media_player.unmute: local_music_player
-      - media_player.volume_set:
-          id: local_music_player
-          volume: 50%
+      # Readiness is rechecked after the bounded wait. A timeout must not
+      # unmute an unprepared codec path or queue a boot announcement.
+      - if:
+          condition:
+            lambda: 'return id(audio_stack).is_audio_prepared() && id(audio_mixer).is_task_ready();'
+          then:
+            - lambda: |-
+                lvgl_esphome_snapshot_dsi_quiet_ms(450);
+                lvgl_esphome_dsi_mark_stress("boot-pa-enable", 500);
+            - switch.turn_on: pa_enable
+            - delay: 240ms
+            - media_player.unmute: local_music_player
+            - media_player.volume_set:
+                id: local_music_player
+                volume: 50%
+          else:
+            - switch.turn_off: pa_enable
+            - lambda: |-
+                ESP_LOGE("boot.diag", "boot audio not ready; amplifier remains muted");
       - lambda: |-
           lvgl_esphome_snapshot_dsi_quiet_ms(240);
           lvgl_esphome_dsi_mark_stress("boot-boot-sound", 6000);
@@ -333,9 +359,8 @@ esphome:
       - script.execute: voice_assistant_start_idle_wake_word
       - lambda: |-
           ESP_LOGW("boot.diag", "boot transition: done");
-      - globals.set:
-          id: boot_audio_ready
-          value: 'true'
+      - lambda: |-
+          id(boot_audio_ready) = id(audio_stack).is_audio_prepared() && id(pa_enable).state;
 
 ota:
 - platform: esphome

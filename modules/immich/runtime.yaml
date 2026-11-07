@@ -134,6 +134,9 @@ artwork_image:
     # extra 1.2 MB allocation and leaves enough contiguous PSRAM for Lottie.
     type: RGB565
     hardware_jpeg: true
+    # Keep even the initial compressed-input buffer in PSRAM so startup
+    # internal RAM remains available for Wi-Fi and duplex audio.
+    prefer_external_download_buffer: true
     # Keep the decoder worker stack in PSRAM (the component default). Local
     # HTTP/lwIP still needs an internal-RAM reserve when Gallery is opened.
     reuse_active_buffer_capacity: true

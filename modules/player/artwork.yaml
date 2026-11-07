@@ -25,6 +25,9 @@ artwork_image:
     # modules/common/core.yaml. Software JPEG writes the full 800x800 output
     # from the CPU and can still starve the DSI reader on the PSRAM bus.
     hardware_jpeg: true
+    # Keep even the initial compressed-input buffer in PSRAM so startup
+    # internal RAM remains available for Wi-Fi and duplex audio.
+    prefer_external_download_buffer: true
     # Keep the currently displayed generation immutable while the next JPEG
     # is decoded. The presenter freezes it only after decode completes, so the
     # wave, marquee and input remain responsive during the long operation.
